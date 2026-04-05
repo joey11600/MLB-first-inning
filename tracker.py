@@ -292,16 +292,17 @@ def grade_date(date_str: str, season: int) -> None:
             graded_n += 1
             continue
 
-        if state != "Final":
-            print(f"{tag}  not final (state={state!r}) — skipping")
-            skipped_n += 1
-            continue
-
         away_r = result["away_runs"]
         home_r = result["home_runs"]
 
         if away_r is None or home_r is None:
-            print(f"{tag}  inning-1 data missing — skipping")
+            # First inning not yet complete — decide why
+            if state in ("Preview", "Scheduled"):
+                print(f"{tag}  game not started yet — skipping")
+            elif state == "Live":
+                print(f"{tag}  Live but 1st inning not yet complete — skipping")
+            else:
+                print(f"{tag}  1st inning data unavailable (state={state!r}) — skipping")
             skipped_n += 1
             continue
 
@@ -324,9 +325,10 @@ def grade_date(date_str: str, season: int) -> None:
         rows[idx]["graded_at"]     = now
 
         outcome_tag = {"WIN": "✓", "LOSS": "✗", "PASS": "-"}.get(graded_result, "?")
+        source_tag  = "" if state == "Final" else f" [from {state}]"
         print(
             f"{tag}  1st inn: {away_r}-{home_r} ({actual})  "
-            f"pick={pick}  →  {outcome_tag} {graded_result}"
+            f"pick={pick}  →  {outcome_tag} {graded_result}{source_tag}"
         )
         graded_n += 1
 
