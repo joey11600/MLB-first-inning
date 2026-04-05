@@ -93,16 +93,18 @@ HOME_RUN_FACTOR  = 1.025
 AWAY_RUN_FACTOR  = 0.975
 
 # ---------------------------------------------------------------------------
-# Pick thresholds
+# Pick thresholds — driven by combined first-inning lambda (projected runs)
 #
-# The YRFI baseline for an average game is ~62%, so we need meaningful
-# deviation from that baseline before calling a side.  Games in the
-# middle zone (57%–68% YRFI) are PASS / NO EDGE.
+#   λ ≤ 0.50            → STRONG NRFI
+#   0.51 ≤ λ ≤ 0.69     → LEAN NRFI
+#   0.70 ≤ λ ≤ 0.80     → PASS  (dead zone)
+#   0.81 ≤ λ ≤ 0.99     → LEAN YRFI
+#   λ ≥ 1.00            → STRONG YRFI
 # ---------------------------------------------------------------------------
-NRFI_STRONG_THRESH = 0.52   # YRFI < 48%  – two elite aces, pitcher park
-NRFI_LEAN_THRESH   = 0.43   # YRFI < 57%  – meaningfully below average
-YRFI_LEAN_THRESH   = 0.68   # 6 pts above 62% average baseline
-YRFI_STRONG_THRESH = 0.76   # 14 pts above average – Coors-type games
+NRFI_STRONG_LAM = 0.50   # λ ≤ this → STRONG NRFI
+NRFI_LEAN_LAM   = 0.69   # λ ≤ this → LEAN NRFI
+PASS_LAM_MAX    = 0.80   # λ ≤ this → PASS (dead zone)
+YRFI_LEAN_LAM   = 0.99   # λ ≤ this → LEAN YRFI  (λ > this → STRONG YRFI)
 
 # ---------------------------------------------------------------------------
 # Stable MLB team ID → abbreviation map (IDs do not change)
@@ -631,26 +633,26 @@ def expected_half_inning_runs(
 # Pick classification
 # ---------------------------------------------------------------------------
 
-def classify_pick(yrfi: float, data_pts: int) -> tuple[str, str]:
+def classify_pick(lam: float, data_pts: int) -> tuple[str, str]:
     """
-    Returns (side, confidence).
-    side:       'YRFI' | 'NRFI' | 'PASS'
-    confidence: 'STRONG' | 'LEAN' | 'NO EDGE' | 'NO DATA'
+    Classify a game based on combined first-inning lambda (projected runs).
+
+    Returns (side, confidence):
+      side:       'NRFI' | 'YRFI' | 'PASS'
+      confidence: 'STRONG' | 'LEAN' | 'NO EDGE' | 'NO DATA'
     """
     if data_pts == 0:
         return "PASS", "NO DATA"
 
-    nrfi = 1.0 - yrfi
-
-    if nrfi >= NRFI_STRONG_THRESH:
+    if lam <= NRFI_STRONG_LAM:
         return "NRFI", "STRONG"
-    if nrfi >= NRFI_LEAN_THRESH:
+    if lam <= NRFI_LEAN_LAM:
         return "NRFI", "LEAN"
-    if yrfi >= YRFI_STRONG_THRESH:
-        return "YRFI", "STRONG"
-    if yrfi >= YRFI_LEAN_THRESH:
+    if lam <= PASS_LAM_MAX:
+        return "PASS", "NO EDGE"
+    if lam <= YRFI_LEAN_LAM:
         return "YRFI", "LEAN"
-    return "PASS", "NO EDGE"
+    return "YRFI", "STRONG"
 
 # ---------------------------------------------------------------------------
 # Display helpers
@@ -843,7 +845,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         nrfi_p  = prob_nrfi(total_lam)
         yrfi_p  = prob_yrfi(total_lam)
         over15p = prob_over_1_5(total_lam)
-        pick_side, pick_conf = classify_pick(yrfi_p, data_pts)
+        pick_side, pick_conf = classify_pick(total_lam, data_pts)
 
         results.append({
             "game_pk":       game["game_pk"],
@@ -938,8 +940,8 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
     print("=" * 70)
     lams = [g["lambda_total"] for g in results]
     avg_lam   = sum(lams) / len(lams)
-    nrfi_cnt  = sum(1 for g in results if classify_pick(prob_yrfi(g["lambda_total"]), g["data_points"])[0] == "NRFI")
-    yrfi_cnt  = sum(1 for g in results if classify_pick(prob_yrfi(g["lambda_total"]), g["data_points"])[0] == "YRFI")
+    nrfi_cnt  = sum(1 for g in results if classify_pick(g["lambda_total"], g["data_points"])[0] == "NRFI")
+    yrfi_cnt  = sum(1 for g in results if classify_pick(g["lambda_total"], g["data_points"])[0] == "YRFI")
     pass_cnt  = len(results) - nrfi_cnt - yrfi_cnt
     hi_qual   = sum(1 for g in results if g["data_points"] >= 3)
 
