@@ -28,6 +28,7 @@ import argparse
 import math
 import sys
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 try:
     import statsapi
@@ -43,6 +44,18 @@ except ImportError:
     class _NoColor:
         def __getattr__(self, _): return ""
     Fore = Style = _NoColor()
+
+# ---------------------------------------------------------------------------
+# Timezone helper
+# ---------------------------------------------------------------------------
+
+_ET = ZoneInfo("America/New_York")
+
+
+def _today_et() -> date:
+    """Return today's date in US Eastern Time (handles UTC server deployments)."""
+    return datetime.now(tz=_ET).date()
+
 
 # ---------------------------------------------------------------------------
 # League-wide constants  (2023-2024 MLB averages)
@@ -976,8 +989,8 @@ Examples:
     )
     parser.add_argument(
         "--date",
-        default=date.today().strftime("%m/%d/%Y"),
-        help="Game date MM/DD/YYYY (default: today)",
+        default=_today_et().strftime("%m/%d/%Y"),
+        help="Game date MM/DD/YYYY (default: today in US Eastern Time)",
     )
     parser.add_argument("--strong",               action="store_true", help="Only show LEAN or STRONG picks")
     parser.add_argument("--debug",                action="store_true", help="Print raw IDs and blended stat values")
@@ -999,7 +1012,7 @@ Examples:
     parser.add_argument("--date-to",              metavar="MM/DD/YYYY",             help="Summary: end date (inclusive)")
     args = parser.parse_args()
 
-    season = args.season or (int(args.date.split("/")[-1]) if "/" in args.date else date.today().year)
+    season = args.season or (int(args.date.split("/")[-1]) if "/" in args.date else _today_et().year)
 
     if args.grade:
         from tracker import grade_date
