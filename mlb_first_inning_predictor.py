@@ -591,14 +591,14 @@ def print_game_result(game: dict, only_strong: bool = False) -> None:
     away_abbr = game["away"]["abbr"]
     home_abbr = game["home"]["abbr"]
     lam       = game["lambda_total"]
-    data_pts  = game["data_points"]
 
-    nrfi      = prob_nrfi(lam)
-    yrfi      = prob_yrfi(lam)
-    over15    = prob_over_1_5(lam)
-    under15   = prob_under_1_5(lam)
-
-    side, conf = classify_pick(yrfi, data_pts)
+    # Use pre-computed values stored in the result dict
+    nrfi    = game["nrfi_prob"]
+    yrfi    = game["yrfi_prob"]
+    over15  = game["over_1_5_prob"]
+    under15 = game["under_1_5_prob"]
+    side    = game["pick_side"]
+    conf    = game["pick_conf"]
 
     # --strong flag: skip PASS and pure NO-EDGE games
     if only_strong and conf not in ("STRONG", "LEAN"):
@@ -723,6 +723,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             )
             print()
 
+        nrfi_p  = prob_nrfi(total_lam)
+        yrfi_p  = prob_yrfi(total_lam)
+        over15p = prob_over_1_5(total_lam)
+        pick_side, pick_conf = classify_pick(yrfi_p, data_pts)
+
         results.append({
             "game_pk":       game["game_pk"],
             "game_number":   game["game_number"],
@@ -730,6 +735,13 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "time":          format_game_time(game["game_date"]),
             "park_factor":   pf,
             "data_points":   data_pts,
+            # pre-computed probabilities and pick (used by tracker and display)
+            "nrfi_prob":     nrfi_p,
+            "yrfi_prob":     yrfi_p,
+            "over_1_5_prob": over15p,
+            "under_1_5_prob":1.0 - over15p,
+            "pick_side":     pick_side,
+            "pick_conf":     pick_conf,
             "away": {
                 "abbr":         away_ab,
                 "pitcher_name": away_sp["name"],
@@ -767,6 +779,14 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         print("No games meet the filter for today.")
         return
 
+    # Auto-log all picks to CSV (including PASS games)
+    try:
+        from tracker import log_picks
+        written = log_picks(target_date, season, results)
+        print(f"  Logged {written} picks → data/picks_{season}.csv")
+    except Exception as exc:
+        print(f"  Warning: could not write picks log ({exc})")
+
     # Footer summary
     print("=" * 70)
     lams = [g["lambda_total"] for g in results]
@@ -789,24 +809,53 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="MLB First Inning Over/Under Run Predictor")
+    parser = argparse.ArgumentParser(
+        description="MLB First Inning NRFI/YRFI Predictor with pick tracking",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python mlb_first_inning_predictor.py                        # predict today
+  python mlb_first_inning_predictor.py --date 04/10/2025      # specific date
+  python mlb_first_inning_predictor.py --strong               # LEAN+ picks only
+  python mlb_first_inning_predictor.py --grade                # grade today's picks
+  python mlb_first_inning_predictor.py --grade --date 04/05/2026
+  python mlb_first_inning_predictor.py --summary
+  python mlb_first_inning_predictor.py --summary --season 2025
+  python mlb_first_inning_predictor.py --summary --last 50
+  python mlb_first_inning_predictor.py --summary --date-from 04/01/2026 --date-to 04/30/2026
+        """,
+    )
     parser.add_argument(
         "--date",
         default=date.today().strftime("%m/%d/%Y"),
-        help="Game date in MM/DD/YYYY format (default: today)",
+        help="Game date MM/DD/YYYY (default: today)",
     )
-    parser.add_argument(
-        "--strong",
-        action="store_true",
-        help="Only show LEAN or STRONG picks (hide PASS games)",
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Print raw game/pitcher/team IDs and blended stat values per game",
-    )
+    parser.add_argument("--strong",    action="store_true", help="Only show LEAN or STRONG picks")
+    parser.add_argument("--debug",     action="store_true", help="Print raw IDs and blended stat values")
+    parser.add_argument("--grade",     action="store_true", help="Grade logged picks against actual results")
+    parser.add_argument("--summary",   action="store_true", help="Show performance summary from CSV")
+    parser.add_argument("--season",    type=int,            help="Season year (default: derived from --date or current year)")
+    parser.add_argument("--last",      type=int,            metavar="N", help="Summary: most recent N graded bets")
+    parser.add_argument("--date-from", metavar="MM/DD/YYYY", help="Summary: start date (inclusive)")
+    parser.add_argument("--date-to",   metavar="MM/DD/YYYY", help="Summary: end date (inclusive)")
     args = parser.parse_args()
-    run(args.date, only_strong=args.strong, debug=args.debug)
+
+    if args.grade:
+        from tracker import grade_date
+        season = args.season or (int(args.date.split("/")[-1]) if "/" in args.date else date.today().year)
+        grade_date(args.date, season)
+
+    elif args.summary:
+        from tracker import show_summary
+        show_summary(
+            season    = args.season,
+            last_n    = args.last,
+            date_from = args.date_from,
+            date_to   = args.date_to,
+        )
+
+    else:
+        run(args.date, only_strong=args.strong, debug=args.debug)
 
 
 if __name__ == "__main__":
