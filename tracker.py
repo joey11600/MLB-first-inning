@@ -62,18 +62,19 @@ FIELDS = [
     "fi_home_runs",
     "fi_total_runs",
     "graded_at",
-    # --- odds & edge (filled by --import-odds) ---
-    "market_nrfi_odds",     # American odds string, e.g. "-115" or "+105"
+    # --- odds & edge (reserved — odds system temporarily disabled) ---
+    # These columns are kept in FIELDS so existing CSV rows load cleanly.
+    # They are never written or updated while the odds system is disabled.
+    "market_nrfi_odds",
     "market_yrfi_odds",
-    "sportsbook",           # optional label
-    "odds_captured_at",     # ISO timestamp of when odds were captured
-    "implied_nrfi_prob",    # computed from market_nrfi_odds
+    "sportsbook",
+    "odds_captured_at",
+    "implied_nrfi_prob",
     "implied_yrfi_prob",
-    "edge_nrfi",            # nrfi_prob - implied_nrfi_prob
-    "edge_yrfi",            # yrfi_prob - implied_yrfi_prob
-    "edge_on_pick",         # edge for the picked side (blank for PASS)
-    # --- bet sizing & P&L ---
-    "bet_placed",           # Y | N  (N if PASS, no odds, or edge below threshold)
+    "edge_nrfi",
+    "edge_yrfi",
+    "edge_on_pick",
+    "bet_placed",
     "units_risked",
     "profit_loss_units",
 ]
@@ -400,18 +401,11 @@ def grade_date(date_str: str, season: int) -> None:
         rows[idx]["fi_total_runs"] = total_r
         rows[idx]["graded_at"]     = now
 
-        # Compute P&L if odds were already imported for this row
-        if rows[idx].get("bet_placed") == "Y":
-            rows[idx]["profit_loss_units"] = _calc_pnl(rows[idx])
-
         outcome_tag = {"WIN": "✓", "LOSS": "✗", "PASS": "-"}.get(graded_result, "?")
         source_tag  = "" if state == "Final" else f" [from {state}]"
-        pnl_tag = ""
-        if rows[idx].get("profit_loss_units") not in ("", None):
-            pnl_tag = f"  P&L: {float(rows[idx]['profit_loss_units']):+.2f}u"
         print(
             f"{tag}  1st inn: {away_r}-{home_r} ({actual})  "
-            f"pick={pick}  →  {outcome_tag} {graded_result}{source_tag}{pnl_tag}"
+            f"pick={pick}  →  {outcome_tag} {graded_result}{source_tag}"
         )
         graded_n += 1
 
@@ -950,17 +944,9 @@ def _safe_float(v, default: float = 0.0) -> float:
         return default
 
 
+# odds system temporarily disabled — _roi_line is a stub; use _record directly
 def _roi_line(bets: list, wins: list) -> str:
-    """'W-L (win%)  u_risked → +/-u  ROI%'  or just record if no odds."""
-    record = _record(bets, wins)
-    has_odds = [r for r in bets if r.get("units_risked")]
-    if not has_odds:
-        return record
-    total_risked = sum(_safe_float(r["units_risked"]) for r in has_odds)
-    total_pnl    = sum(_safe_float(r.get("profit_loss_units")) for r in has_odds)
-    roi          = (total_pnl / total_risked * 100) if total_risked > 0 else 0.0
-    pnl_str = f"{total_pnl:+.2f}u"
-    return f"{record}  |  {total_risked:.1f}u risked  {pnl_str}  ROI {roi:+.1f}%"
+    return _record(bets, wins)
 
 
 def show_summary(
@@ -1043,49 +1029,9 @@ def show_summary(
     ]
     hi_qual_wins = [r for r in hi_qual_bets if r["graded_result"] == "WIN"]
 
-    # ── Betting / ROI metrics (only rows with odds) ───────────────────────
-    bet_rows = [r for r in all_bets if r.get("bet_placed") == "Y"]
-    bet_wins = [r for r in bet_rows if r["graded_result"] == "WIN"]
-    has_odds  = bool(bet_rows or any(r.get("market_nrfi_odds") for r in all_bets))
-
-    total_risked = sum(_safe_float(r.get("units_risked")) for r in bet_rows)
-    total_pnl    = sum(_safe_float(r.get("profit_loss_units")) for r in bet_rows)
-    roi = (total_pnl / total_risked * 100) if total_risked > 0 else 0.0
-
-    # ── Edge buckets (bets with odds only) ───────────────────────────────────
-    def _edge_bucket(r):
-        v = _safe_float(r.get("edge_on_pick"), None)
-        if v is None: return None
-        if v < 0.02: return "<2%"
-        if v < 0.05: return "2-5%"
-        if v < 0.08: return "5-8%"
-        return "8%+"
-
-    edge_buckets = ["<2%", "2-5%", "5-8%", "8%+"]
-
-    # ── Model probability buckets ─────────────────────────────────────────
-    def _prob_bucket(r):
-        side = _side(r)
-        try:
-            p = float(r.get("nrfi_prob") if side == "NRFI" else r.get("yrfi_prob") or 0)
-        except ValueError:
-            return None
-        if side == "NRFI":
-            if p < 0.46: return "NRFI 43-46%"
-            if p < 0.49: return "NRFI 46-49%"
-            return "NRFI 49%+"
-        else:
-            if p < 0.72: return "YRFI 68-72%"
-            return "YRFI 72%+"
-
     # Reconciliation check
     unaccounted = len(all_bets) - len(nrfi_bets) - len(yrfi_bets)
     win_rate = len(wins) / len(all_bets) * 100 if all_bets else 0.0
-
-    # Odds coverage
-    bets_with_odds    = [r for r in all_bets if r.get("market_nrfi_odds")]
-    bets_without_odds = [r for r in all_bets if not r.get("market_nrfi_odds")]
-    odds_coverage_pct = (len(bets_with_odds) / len(all_bets) * 100) if all_bets else 0.0
 
     dates = sorted({r["date"] for r in rows})
     date_range = f"{dates[0]} → {dates[-1]}" if dates else "no data"
@@ -1105,16 +1051,6 @@ def show_summary(
     print(f"  Postponed/susp.     : {len(postponed)}")
     print(f"  Ungraded            : {len(ungraded)}")
 
-    # Odds coverage line
-    if all_bets:
-        if not bets_with_odds:
-            print(f"  Odds coverage       : none — run --import-odds to enable ROI tracking")
-        elif bets_without_odds:
-            print(f"  Odds coverage       : {len(bets_with_odds)}/{len(all_bets)} bets "
-                  f"({odds_coverage_pct:.0f}%)  —  {len(bets_without_odds)} missing odds")
-        else:
-            print(f"  Odds coverage       : {len(bets_with_odds)}/{len(all_bets)} bets (100%)")
-
     # Integrity checks
     total_accounted = len(all_bets) + len(passes) + len(postponed) + len(ungraded)
     if total_accounted != len(rows):
@@ -1122,58 +1058,27 @@ def show_summary(
     if unaccounted > 0:
         print(f"  [warn] {unaccounted} graded bet(s) have unexpected pick_side — run --audit-csv")
 
-    # ── Betting P&L (shown only if odds exist) ────────────────────────────
-    if has_odds:
-        pnl_scope = f"on {len(bets_with_odds)}/{len(all_bets)} bets with odds" if bets_without_odds else "all bets"
-        print(f"\n{sep2}")
-        print(f"  BETTING P&L  ({pnl_scope})")
-        print(f"  Bets placed         : {len(bet_rows)}")
-        print(f"  Units risked        : {total_risked:.2f}u")
-        print(f"  Net P&L             : {total_pnl:+.2f}u")
-        print(f"  ROI                 : {roi:+.1f}%")
-
     print(f"\n{sep2}")
-    print(f"  By side (W/L record  |  units/ROI if odds available):")
-    print(f"    NRFI  : {_roi_line(nrfi_bets, nrfi_wins)}")
-    print(f"    YRFI  : {_roi_line(yrfi_bets, yrfi_wins)}")
+    print(f"  By side:")
+    print(f"    NRFI  : {_record(nrfi_bets, nrfi_wins)}")
+    print(f"    YRFI  : {_record(yrfi_bets, yrfi_wins)}")
 
     print(f"\n{sep2}")
     print(f"  By strength:")
-    print(f"    LEAN   : {_roi_line(lean_bets,   lean_wins)}")
-    print(f"    STRONG : {_roi_line(strong_bets, strong_wins)}")
+    print(f"    LEAN   : {_record(lean_bets,   lean_wins)}")
+    print(f"    STRONG : {_record(strong_bets, strong_wins)}")
 
     print(f"\n{sep2}")
     print(f"  By side + strength:")
-    print(f"    LEAN  NRFI  : {_roi_line(ln_bets, ln_wins)}")
-    print(f"    STRONG NRFI : {_roi_line(sn_bets, sn_wins)}")
-    print(f"    LEAN  YRFI  : {_roi_line(ly_bets, ly_wins)}")
-    print(f"    STRONG YRFI : {_roi_line(sy_bets, sy_wins)}")
+    print(f"    LEAN  NRFI  : {_record(ln_bets, ln_wins)}")
+    print(f"    STRONG NRFI : {_record(sn_bets, sn_wins)}")
+    print(f"    LEAN  YRFI  : {_record(ly_bets, ly_wins)}")
+    print(f"    STRONG YRFI : {_record(sy_bets, sy_wins)}")
 
     if hi_qual_bets:
         print(f"\n{sep2}")
         print(f"  All inputs non-avg (4/4):")
-        print(f"    {_roi_line(hi_qual_bets, hi_qual_wins)}")
-
-    # ── Edge buckets (only when odds available) ───────────────────────────
-    if has_odds and bet_rows:
-        print(f"\n{sep2}")
-        print(f"  By edge bucket (bets with odds only):")
-        for bkt in edge_buckets:
-            b_bets = [r for r in bet_rows if _edge_bucket(r) == bkt]
-            b_wins = [r for r in b_bets  if r["graded_result"] == "WIN"]
-            if b_bets:
-                print(f"    {bkt:<8}: {_roi_line(b_bets, b_wins)}")
-
-        # Model prob buckets
-        print(f"\n{sep2}")
-        print(f"  By model probability bucket:")
-        prob_buckets = ["NRFI 43-46%", "NRFI 46-49%", "NRFI 49%+",
-                        "YRFI 68-72%", "YRFI 72%+"]
-        for bkt in prob_buckets:
-            b_bets = [r for r in all_bets if _prob_bucket(r) == bkt]
-            b_wins = [r for r in b_bets   if r["graded_result"] == "WIN"]
-            if b_bets:
-                print(f"    {bkt:<14}: {_roi_line(b_bets, b_wins)}")
+        print(f"    {_record(hi_qual_bets, hi_qual_wins)}")
 
     print(sep)
     print()
