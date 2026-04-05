@@ -108,15 +108,19 @@ AWAY_RUN_FACTOR  = 0.975
 # ---------------------------------------------------------------------------
 # Pick thresholds — driven by combined first-inning lambda (projected runs)
 #
-#   λ ≤ 0.50            → STRONG NRFI
-#   0.51 ≤ λ ≤ 0.69     → LEAN NRFI
-#   0.70 ≤ λ ≤ 0.80     → PASS  (dead zone)
-#   0.81 ≤ λ ≤ 0.99     → LEAN YRFI
+# Calibrated to produce a realistic board distribution across a full slate.
+# Model outputs cluster in the 0.80–0.95 range so thresholds are shifted up
+# relative to the raw scale.  Revisit when model is recalibrated.
+#
+#   λ ≤ 0.72            → STRONG NRFI
+#   0.73 ≤ λ ≤ 0.80     → LEAN NRFI
+#   0.81 ≤ λ ≤ 0.88     → PASS  (dead zone)
+#   0.89 ≤ λ ≤ 0.99     → LEAN YRFI
 #   λ ≥ 1.00            → STRONG YRFI
 # ---------------------------------------------------------------------------
-NRFI_STRONG_LAM = 0.50   # λ ≤ this → STRONG NRFI
-NRFI_LEAN_LAM   = 0.69   # λ ≤ this → LEAN NRFI
-PASS_LAM_MAX    = 0.80   # λ ≤ this → PASS (dead zone)
+NRFI_STRONG_LAM = 0.72   # λ ≤ this → STRONG NRFI
+NRFI_LEAN_LAM   = 0.80   # λ ≤ this → LEAN NRFI
+PASS_LAM_MAX    = 0.88   # λ ≤ this → PASS (dead zone)
 YRFI_LEAN_LAM   = 0.99   # λ ≤ this → LEAN YRFI  (λ > this → STRONG YRFI)
 
 # ---------------------------------------------------------------------------
@@ -1054,6 +1058,21 @@ def print_board(results: list[dict], target_date: str) -> None:
         })
 
     print(sep)
+
+    # Lambda distribution summary (helps verify board calibration)
+    zones = [
+        ("STRONG NRFI", lambda l: l <= NRFI_STRONG_LAM),
+        ("LEAN NRFI",   lambda l: NRFI_STRONG_LAM < l <= NRFI_LEAN_LAM),
+        ("PASS",        lambda l: NRFI_LEAN_LAM    < l <= PASS_LAM_MAX),
+        ("LEAN YRFI",   lambda l: PASS_LAM_MAX     < l <= YRFI_LEAN_LAM),
+        ("STRONG YRFI", lambda l: l > YRFI_LEAN_LAM),
+    ]
+    counts = {name: sum(1 for g in board if fn(g["lambda_total"])) for name, fn in zones}
+    lam_vals = [g["lambda_total"] for g in board]
+    dist_parts = "  ".join(f"{name}: {counts[name]}" for name, _ in zones)
+    print(f"  Distribution  →  {dist_parts}")
+    print(f"  λ range       →  {min(lam_vals):.3f} – {max(lam_vals):.3f}  "
+          f"(avg {sum(lam_vals)/len(lam_vals):.3f})")
 
     # Save CSV board
     boards_dir = Path(__file__).parent / "data" / "boards"
