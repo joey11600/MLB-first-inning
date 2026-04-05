@@ -965,6 +965,108 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
     print(f"  Quality key         : [live]≥80IP/20G  [ltd]≥20IP/5G  [sm]≥1IP/1G  [avg]=league default")
     print()
 
+    print_board(results, target_date)
+
+
+# ---------------------------------------------------------------------------
+# Ranking board
+# ---------------------------------------------------------------------------
+
+# Zone display: (pick_side, pick_conf) → (color_marker_text, pick_description)
+_BOARD_ZONE: dict[tuple[str, str], tuple[str, str, str]] = {
+    # marker_text, colorama_attr, pick_desc
+    ("NRFI", "STRONG"): ("[GREEN]", "GREEN",  "★★ STRONG NRFI"),
+    ("NRFI", "LEAN"):   ("[GREEN]", "GREEN",  "★  LEAN NRFI  "),
+    ("PASS", "NO EDGE"):("[GRAY] ", "WHITE",  "--  PASS       "),
+    ("PASS", "NO DATA"):("[GRAY] ", "WHITE",  "--  NO DATA    "),
+    ("YRFI", "LEAN"):   ("[RED]  ", "RED",    "★  LEAN YRFI  "),
+    ("YRFI", "STRONG"): ("[RED]  ", "RED",    "★★ STRONG YRFI"),
+}
+
+_BOARD_CSV_FIELDS = [
+    "rank", "away", "home", "lambda",
+    "pick_side", "pick_strength", "pick_label",
+    "nrfi_pct", "yrfi_pct",
+]
+
+
+def print_board(results: list[dict], target_date: str) -> None:
+    """
+    Print a ranking board sorted by combined lambda (highest first) and
+    save a CSV snapshot to data/boards/board_YYYY_MM_DD.csv.
+    """
+    import csv as _csv
+    from pathlib import Path
+
+    if not results:
+        return
+
+    board = sorted(results, key=lambda g: g["lambda_total"], reverse=True)
+
+    # Normalize to ISO date for display and filename
+    if "/" in target_date:
+        m, d, y = target_date.split("/")
+        iso_date = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+    else:
+        iso_date = target_date[:10]
+
+    sep  = "=" * 68
+    sep2 = "-" * 68
+
+    print(f"\n{sep}")
+    print(f"  RANKING BOARD  —  {iso_date}  (combined λ, highest → lowest)")
+    print(sep)
+    print(f"  {'#':<3}  {'Matchup':<11}  {'  λ':>5}  {'Zone':<8}  {'Pick':<16}  {'NRFI%':>6}  {'YRFI%':>6}")
+    print(sep2)
+
+    csv_rows = []
+    for rank, g in enumerate(board, 1):
+        lam      = g["lambda_total"]
+        side     = g["pick_side"]
+        conf     = g["pick_conf"]
+        nrfi_pct = g["nrfi_prob"] * 100
+        yrfi_pct = g["yrfi_prob"] * 100
+        away     = g["away"]["abbr"]
+        home     = g["home"]["abbr"]
+        matchup  = f"{away} @ {home}"
+
+        marker, color_attr, desc = _BOARD_ZONE.get(
+            (side, conf), ("[GRAY] ", "WHITE", f"   {conf} {side:<6}")
+        )
+
+        line = (
+            f"  {rank:<3}  {matchup:<11}  {lam:>5.3f}  {marker}  {desc}  "
+            f"{nrfi_pct:>5.1f}%  {yrfi_pct:>5.1f}%"
+        )
+        print(_c(color_attr, line) if HAS_COLOR else line)
+
+        pick_label = f"{conf} {side}" if side != "PASS" else "PASS"
+        csv_rows.append({
+            "rank":          rank,
+            "away":          away,
+            "home":          home,
+            "lambda":        f"{lam:.4f}",
+            "pick_side":     side,
+            "pick_strength": conf,
+            "pick_label":    pick_label,
+            "nrfi_pct":      f"{nrfi_pct:.1f}",
+            "yrfi_pct":      f"{yrfi_pct:.1f}",
+        })
+
+    print(sep)
+
+    # Save CSV board
+    boards_dir = Path(__file__).parent / "data" / "boards"
+    boards_dir.mkdir(parents=True, exist_ok=True)
+    board_path = boards_dir / f"board_{iso_date.replace('-', '_')}.csv"
+    with open(board_path, "w", newline="", encoding="utf-8") as f:
+        writer = _csv.DictWriter(f, fieldnames=_BOARD_CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(csv_rows)
+
+    print(f"  Board saved → {board_path}")
+    print()
+
 
 # ---------------------------------------------------------------------------
 # CLI
