@@ -53,8 +53,12 @@ LEAGUE_AVG_WHIP          = 1.25
 LEAGUE_AVG_OPS           = 0.728
 LEAGUE_AVG_RPG           = 4.45
 FIP_CONSTANT             = 3.10
-MIN_IP_THRESHOLD         = 10.0    # ignore pitcher stats below this IP floor
-MIN_GAMES_THRESHOLD      = 5       # ignore team batting below this games floor
+
+# Bayesian shrinkage: how many "prior" IP/games we add before trusting real data.
+# At IP=PITCHER_PRIOR_IP  →  50% real / 50% league avg.
+# At IP=3×PITCHER_PRIOR_IP →  75% real / 25% league avg.
+PITCHER_PRIOR_IP  = 40.0
+TEAM_PRIOR_GAMES  = 15.0
 
 # Pitcher multiplier weights (sum = 1.0)
 ERA_WEIGHT   = 0.35
@@ -256,94 +260,185 @@ def fetch_schedule(date_str: str) -> list[dict]:
 # Pitcher stat fetching
 # ---------------------------------------------------------------------------
 
-def fetch_pitcher_stats(player_id: int | None, known_name: str = "TBD") -> tuple[dict, bool]:
+def _pitcher_quality_tag(ip: float) -> str:
+    """Quality label based on innings pitched in the reference season."""
+    if ip >= 80: return "live"
+    if ip >= 20: return "ltd"
+    if ip >= 1:  return "sm"
+    return "avg"
+
+
+def _parse_pitcher_splits(splits: list) -> dict:
     """
-    Fetch season pitching stats for a player.
-
-    Returns (stats_dict, is_real).
-    `is_real` is False when the player_id is missing, the player hasn't
-    thrown enough innings to be reliable, or any API error occurs.
-    The known_name is always preserved so we never display "Unknown".
+    Aggregate per-team yearByYear splits into a {season_str: stats_dict} map.
+    Handles traded players (multiple rows per season) via IP-weighted averaging.
+    Rows without a valid team.id are skipped to avoid double-counting totals rows.
     """
-    defaults = {
-        "name":            known_name,
-        "era":             LEAGUE_AVG_ERA,
-        "whip":            LEAGUE_AVG_WHIP,
-        "fip":             LEAGUE_AVG_ERA,
-        "k_bb_ratio":      2.8,
-        "innings_pitched": 0.0,
-    }
-
-    if not player_id:
-        return defaults, False
-
-    try:
-        data   = statsapi.get("person", {
-            "personId": player_id,
-            "hydrate":  "stats(group=[pitching],type=[season])",
-        })
-        person = data["people"][0]
-        name   = person.get("fullName", known_name)
-
-        stats_blocks = person.get("stats", [])
-        if not stats_blocks:
-            defaults["name"] = name
-            return defaults, False
-
-        splits = stats_blocks[0].get("splits", [])
-        if not splits:
-            defaults["name"] = name
-            return defaults, False
-
-        s  = splits[0].get("stat", {})
+    agg: dict[str, dict] = {}
+    for split in splits:
+        yr = split.get("season")
+        if not yr:
+            continue
+        # Skip "2 Teams" / totals rows that lack a real team id
+        if not split.get("team", {}).get("id"):
+            continue
+        s  = split.get("stat", {})
         ip = safe_float(s.get("inningsPitched"), 0.0)
-
-        if ip < MIN_IP_THRESHOLD:
-            # Name is real but stats aren't reliable yet
-            defaults["name"] = name
-            return defaults, False
-
+        if ip <= 0:
+            continue
         era  = safe_float(s.get("era"),  LEAGUE_AVG_ERA)
         whip = safe_float(s.get("whip"), LEAGUE_AVG_WHIP)
-        k    = safe_float(s.get("strikeOuts"),   0.0)
-        bb   = safe_float(s.get("baseOnBalls"),  0.0)
-        hr   = safe_float(s.get("homeRuns"),     0.0)
+        k    = safe_float(s.get("strikeOuts"),  0.0)
+        bb   = safe_float(s.get("baseOnBalls"), 0.0)
+        hr   = safe_float(s.get("homeRuns"),    0.0)
+        if yr not in agg:
+            agg[yr] = {"ip": 0.0, "era_x": 0.0, "whip_x": 0.0, "k": 0.0, "bb": 0.0, "hr": 0.0}
+        d = agg[yr]
+        d["ip"]    += ip
+        d["era_x"] += era * ip
+        d["whip_x"]+= whip * ip
+        d["k"]     += k;  d["bb"] += bb;  d["hr"] += hr
 
-        # FIP = (13*HR + 3*BB – 2*K) / IP + constant
-        fip = (13*hr + 3*bb - 2*k) / ip + FIP_CONSTANT if ip > 0 else LEAGUE_AVG_ERA
-        fip = max(0.50, min(fip, 9.00))
+    result = {}
+    for yr, d in agg.items():
+        ip = d["ip"]
+        if ip > 0:
+            era_r  = d["era_x"] / ip
+            whip_r = d["whip_x"] / ip
+            fip_r  = max(0.5, min((13*d["hr"] + 3*d["bb"] - 2*d["k"]) / ip + FIP_CONSTANT, 9.0))
+            k_bb_r = d["k"] / d["bb"] if d["bb"] > 0 else 2.8
+            result[yr] = {"ip": ip, "era": era_r, "whip": whip_r, "fip": fip_r, "k_bb": k_bb_r}
+    return result
 
+
+def _blend_pitcher(stat: dict, ip: float, extra_prior: dict | None = None) -> dict:
+    """
+    Bayesian-blend one season's pitcher stats toward league average.
+    Optional extra_prior adds a prior-year contribution before the league-avg fill.
+    """
+    # How much weight the real current-year data gets
+    w_real = ip / (ip + PITCHER_PRIOR_IP)
+
+    if extra_prior and extra_prior.get("ip", 0) >= 20:
+        # Fill the remaining weight partly with prior year, partly with league avg
+        remaining  = 1.0 - w_real
+        w_prior    = remaining * min(extra_prior["ip"] / 120.0, 1.0)
+        w_league   = remaining - w_prior
+        era   = w_real*stat["era"]  + w_prior*extra_prior["era"]  + w_league*LEAGUE_AVG_ERA
+        whip  = w_real*stat["whip"] + w_prior*extra_prior["whip"] + w_league*LEAGUE_AVG_WHIP
+        fip   = w_real*stat["fip"]  + w_prior*extra_prior["fip"]  + w_league*LEAGUE_AVG_ERA
+        k_bb  = w_real*stat["k_bb"] + w_prior*extra_prior["k_bb"] + w_league*2.8
+    else:
+        w_league = 1.0 - w_real
+        era   = w_real*stat["era"]  + w_league*LEAGUE_AVG_ERA
+        whip  = w_real*stat["whip"] + w_league*LEAGUE_AVG_WHIP
+        fip   = w_real*stat["fip"]  + w_league*LEAGUE_AVG_ERA
+        k_bb  = w_real*stat["k_bb"] + w_league*2.8
+
+    return {
+        "era":  max(1.0, min(era,  9.0)),
+        "whip": max(0.7, min(whip, 2.0)),
+        "fip":  max(1.0, min(fip,  9.0)),
+        "k_bb_ratio": max(0.5, min(k_bb, 8.0)),
+    }
+
+
+def fetch_pitcher_stats(player_id: int | None, known_name: str, season: int) -> tuple[dict, str]:
+    """
+    Fetch pitcher stats via yearByYear hydration (one API call, all seasons).
+
+    Strategy:
+      1. Parse current-year splits → Bayesian-blend with prior year + league avg.
+      2. If current year has < 1 IP (hasn't started yet), fall back to prior year.
+      3. If nothing usable, return full league-average defaults.
+
+    Returns (stats_dict, quality_tag).
+    quality_tag: "live" (IP≥80) | "ltd" (IP≥20) | "sm" (IP≥1) | "avg" (no data).
+    The known_name is ALWAYS preserved so pitcher names are never "Unknown".
+    """
+    def _default(name: str) -> tuple[dict, str]:
         return {
-            "name":            name,
-            "era":             era,
-            "whip":            whip,
-            "fip":             fip,
-            "k_bb_ratio":      k / bb if bb > 0 else 2.8,
-            "innings_pitched": ip,
-        }, True
+            "name": name, "era": LEAGUE_AVG_ERA, "whip": LEAGUE_AVG_WHIP,
+            "fip": LEAGUE_AVG_ERA, "k_bb_ratio": 2.8,
+        }, "avg"
 
+    if not player_id:
+        return _default(known_name)
+
+    try:
+        data = statsapi.get("person", {
+            "personId": player_id,
+            "hydrate":  "stats(group=[pitching],type=[yearByYear])",
+        })
     except Exception:
-        defaults["name"] = known_name
-        return defaults, False
+        return _default(known_name)
+
+    people = data.get("people", [])
+    if not people:
+        return _default(known_name)
+
+    person = people[0]
+    name   = person.get("fullName", known_name)
+
+    stats_blocks = person.get("stats", [])
+    if not stats_blocks:
+        return _default(name)
+
+    by_season = _parse_pitcher_splits(stats_blocks[0].get("splits", []))
+    if not by_season:
+        return _default(name)
+
+    curr = by_season.get(str(season))
+    prev = by_season.get(str(season - 1))
+
+    if curr and curr["ip"] >= 1:
+        blended = _blend_pitcher(curr, curr["ip"], extra_prior=prev)
+        quality = _pitcher_quality_tag(curr["ip"])
+    elif prev and prev["ip"] >= 20:
+        # Pitcher hasn't thrown in the new season yet – use prior year
+        # with heavier league-avg regression (75% max trust for prior year)
+        w_prev   = min(prev["ip"] / 120.0, 0.75)
+        w_league = 1.0 - w_prev
+        blended = {
+            "era":  max(1.0, min(w_prev*prev["era"]  + w_league*LEAGUE_AVG_ERA,  9.0)),
+            "whip": max(0.7, min(w_prev*prev["whip"] + w_league*LEAGUE_AVG_WHIP, 2.0)),
+            "fip":  max(1.0, min(w_prev*prev["fip"]  + w_league*LEAGUE_AVG_ERA,  9.0)),
+            "k_bb_ratio": max(0.5, min(w_prev*prev["k_bb"] + w_league*2.8,       8.0)),
+        }
+        quality = "ltd"   # prior-year data = limited quality
+    else:
+        return _default(name)
+
+    blended["name"] = name
+    return blended, quality
 
 # ---------------------------------------------------------------------------
 # Team batting stat fetching
 # ---------------------------------------------------------------------------
 
-def fetch_team_batting(team_id: int, season: int) -> tuple[dict, bool]:
-    """
-    Fetch season team hitting stats via the correct team_stats endpoint.
-    /api/v1/teams/{teamId}/stats?season=YEAR&group=hitting&stats=season
+def _team_quality_tag(games: float) -> str:
+    if games >= 20: return "live"
+    if games >= 5:  return "ltd"
+    if games >= 1:  return "sm"
+    return "avg"
 
-    Returns (stats_dict, is_real).
+
+def fetch_team_batting(team_id: int, season: int) -> tuple[dict, str]:
     """
-    defaults = {
-        "ops": LEAGUE_AVG_OPS,
-        "rpg": LEAGUE_AVG_RPG,
-    }
+    Fetch season team hitting stats via /teams/{teamId}/stats.
+
+    Returns (stats_dict, quality_tag).
+    quality_tag: "live" (games≥20) | "ltd" (games≥5) | "sm" (games≥1) | "avg".
+
+    Small samples are Bayesian-blended toward league average rather than
+    rejected outright, so early-April data (2-3 games) still contributes
+    partial signal instead of defaulting everything to league average.
+    """
+    def _default() -> tuple[dict, str]:
+        return {"ops": LEAGUE_AVG_OPS, "rpg": LEAGUE_AVG_RPG}, "avg"
 
     if not team_id:
-        return defaults, False
+        return _default()
 
     try:
         data = statsapi.get("team_stats", {
@@ -353,34 +448,33 @@ def fetch_team_batting(team_id: int, season: int) -> tuple[dict, bool]:
             "stats":  "season",
         })
 
-        stats_blocks = data.get("stats", [])
-        if not stats_blocks:
-            return defaults, False
-
-        splits = stats_blocks[0].get("splits", [])
+        splits = (data.get("stats", [{}])[0]).get("splits", [])
         if not splits:
-            return defaults, False
+            return _default()
 
         s     = splits[0].get("stat", {})
-        ops   = safe_float(s.get("ops"),         LEAGUE_AVG_OPS)
-        runs  = safe_float(s.get("runs"),         0.0)
-        games = safe_float(s.get("gamesPlayed"),  0.0)
+        ops   = safe_float(s.get("ops"),        LEAGUE_AVG_OPS)
+        runs  = safe_float(s.get("runs"),        0.0)
+        games = safe_float(s.get("gamesPlayed"), 0.0)
 
-        if games < MIN_GAMES_THRESHOLD:
-            return defaults, False
+        if games < 1:
+            return _default()
 
         rpg = runs / games
 
-        # Sanity-check: OPS strings like ".728" parse correctly; reject extremes
-        if not (0.400 < ops < 1.200):
-            ops = LEAGUE_AVG_OPS
-        if not (1.0 < rpg < 10.0):
-            rpg = LEAGUE_AVG_RPG
+        # Sanity-check raw values before blending
+        if not (0.400 < ops < 1.200): ops = LEAGUE_AVG_OPS
+        if not (0.5   < rpg < 12.0):  rpg = LEAGUE_AVG_RPG
 
-        return {"ops": ops, "rpg": rpg}, True
+        # Bayesian blend: small samples regress toward league average
+        w     = games / (games + TEAM_PRIOR_GAMES)
+        ops_b = w * ops + (1.0 - w) * LEAGUE_AVG_OPS
+        rpg_b = w * rpg + (1.0 - w) * LEAGUE_AVG_RPG
+
+        return {"ops": ops_b, "rpg": rpg_b}, _team_quality_tag(games)
 
     except Exception:
-        return defaults, False
+        return _default()
 
 # ---------------------------------------------------------------------------
 # Core prediction model
@@ -473,10 +567,11 @@ def color_for_prob(p: float, text: str) -> str:
     if p >= 0.60: return _c("YELLOW", text)
     return _c("RED", text)
 
-def data_tag(is_real: bool) -> str:
-    if is_real:
-        return _c("GREEN", "live") if HAS_COLOR else "live"
-    return _c("YELLOW", "avg") if HAS_COLOR else "avg"
+def data_tag(quality: str) -> str:
+    """Color-coded quality label: live / ltd / sm / avg."""
+    colors = {"live": "GREEN", "ltd": "YELLOW", "sm": "CYAN", "avg": "RED"}
+    col = colors.get(quality, "RED")
+    return _c(col, quality) if HAS_COLOR else quality
 
 def format_game_time(iso_str: str) -> str:
     try:
@@ -521,14 +616,15 @@ def print_game_result(game: dict, only_strong: bool = False) -> None:
     ap = game["away"]
     hp = game["home"]
     print(
-        f"  {ap['pitcher_name']:<28} [{data_tag(ap['pitcher_real'])}]  "
-        f"vs  {hp['pitcher_name']:<28} [{data_tag(hp['pitcher_real'])}]"
+        f"  {ap['pitcher_name']:<28} [{data_tag(ap['pitcher_q'])}]  "
+        f"vs  {hp['pitcher_name']:<28} [{data_tag(hp['pitcher_q'])}]"
     )
     print(
-        f"  Offense: {away_abbr} [{data_tag(ap['batting_real'])}]  "
-        f"vs  {home_abbr} [{data_tag(hp['batting_real'])}]"
+        f"  Offense: {away_abbr} [{data_tag(ap['batting_q'])}]  "
+        f"vs  {home_abbr} [{data_tag(hp['batting_q'])}]"
     )
-    print(f"  Park factor: {game['park_factor']:.3f}  |  Data points: {data_pts}/4")
+    live_count = sum(1 for q in [ap['pitcher_q'], hp['pitcher_q'], ap['batting_q'], hp['batting_q']] if q != "avg")
+    print(f"  Park factor: {game['park_factor']:.3f}  |  Live/blended inputs: {live_count}/4")
     print()
 
     # Projected runs
@@ -546,17 +642,26 @@ def print_game_result(game: dict, only_strong: bool = False) -> None:
     print(f"    Under 1.5 runs     {color_for_prob(under15,prob_bar(under15))}")
     print()
 
-    # Pick
-    conf_colors = {
-        "STRONG":  "GREEN",
-        "LEAN":    "YELLOW",
-        "NO EDGE": "RED",
-        "NO DATA": "RED",
-    }
-    pick_line = f"  >> {side}  |  {conf}"
-    if side != "PASS":
-        headline_prob = yrfi if side == "YRFI" else nrfi
-        pick_line += f"  @  {headline_prob*100:.1f}%"
+    # Pick line — format varies by side so the probability is never ambiguous
+    # NRFI shows edge above the ~38% baseline; YRFI shows probability directly.
+    BASELINE_NRFI = 0.38
+    BASELINE_YRFI = 0.62
+    conf_colors = {"STRONG": "GREEN", "LEAN": "YELLOW", "NO EDGE": "RED", "NO DATA": "RED"}
+
+    if side == "NRFI":
+        edge = round((nrfi - BASELINE_NRFI) * 100, 1)
+        pick_line = (
+            f"  >> {conf} NRFI  |  NRFI {nrfi*100:.1f}%  "
+            f"(+{edge}pp above {BASELINE_NRFI*100:.0f}% avg)"
+        )
+    elif side == "YRFI":
+        edge = round((yrfi - BASELINE_YRFI) * 100, 1)
+        pick_line = f"  >> {conf} YRFI  |  YRFI {yrfi*100:.1f}%  (+{edge}pp above avg)"
+    elif conf == "NO DATA":
+        pick_line = f"  >> PASS  |  Insufficient data  (YRFI {yrfi*100:.1f}%)"
+    else:
+        pick_line = f"  >> PASS  |  No meaningful edge  (YRFI {yrfi*100:.1f}%)"
+
     print(_c(conf_colors.get(conf, ""), pick_line) if HAS_COLOR else pick_line)
     print()
 
@@ -565,10 +670,10 @@ def print_game_result(game: dict, only_strong: bool = False) -> None:
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def run(target_date: str, only_strong: bool = False) -> None:
+def run(target_date: str, only_strong: bool = False, debug: bool = False) -> None:
     season = int(target_date.split("/")[-1]) if "/" in target_date else date.today().year
 
-    print(f"\nMLB First Inning Run Predictor  |  {target_date}")
+    print(f"\nMLB First Inning Run Predictor  |  {target_date}  (season {season})")
     print("Fetching schedule and stats...\n")
 
     schedule = fetch_schedule(target_date)
@@ -584,21 +689,39 @@ def run(target_date: str, only_strong: bool = False) -> None:
         away_ab = game["away_abbr"]
         pf      = park_factor(home_ab)
 
-        away_sp, away_sp_real = fetch_pitcher_stats(
-            game["away_pitcher_id"], game["away_pitcher_name"]
-        )
-        home_sp, home_sp_real = fetch_pitcher_stats(
-            game["home_pitcher_id"], game["home_pitcher_name"]
-        )
-        away_bat, away_bat_real = fetch_team_batting(game["away_team_id"], season)
-        home_bat, home_bat_real = fetch_team_batting(game["home_team_id"], season)
+        away_sp,  away_sp_q  = fetch_pitcher_stats(game["away_pitcher_id"], game["away_pitcher_name"], season)
+        home_sp,  home_sp_q  = fetch_pitcher_stats(game["home_pitcher_id"], game["home_pitcher_name"], season)
+        away_bat, away_bat_q = fetch_team_batting(game["away_team_id"], season)
+        home_bat, home_bat_q = fetch_team_batting(game["home_team_id"], season)
 
         # Each half: batting team hits against the *opposing* pitcher
-        away_lam = expected_half_inning_runs(home_sp,  away_bat, pf, home=False)
-        home_lam = expected_half_inning_runs(away_sp,  home_bat, pf, home=True)
+        away_lam  = expected_half_inning_runs(home_sp,  away_bat, pf, home=False)
+        home_lam  = expected_half_inning_runs(away_sp,  home_bat, pf, home=True)
         total_lam = away_lam + home_lam
 
-        data_pts = sum([away_sp_real, home_sp_real, away_bat_real, home_bat_real])
+        # data_points counts how many inputs are not pure league-average fallback
+        data_pts = sum(q != "avg" for q in [away_sp_q, home_sp_q, away_bat_q, home_bat_q])
+
+        if debug:
+            print(
+                f"[DEBUG] {game['game_pk']}  "
+                f"{game['away_abbr']}({game['away_team_id']}) @ "
+                f"{game['home_abbr']}({game['home_team_id']})"
+                f"  DH={game['double_header']} G#{game['game_number']}"
+            )
+            print(
+                f"  away SP: {game['away_pitcher_name']} (id={game['away_pitcher_id']}) "
+                f"→ ERA {away_sp['era']:.2f} WHIP {away_sp['whip']:.2f} FIP {away_sp['fip']:.2f} [{away_sp_q}]"
+            )
+            print(
+                f"  home SP: {game['home_pitcher_name']} (id={game['home_pitcher_id']}) "
+                f"→ ERA {home_sp['era']:.2f} WHIP {home_sp['whip']:.2f} FIP {home_sp['fip']:.2f} [{home_sp_q}]"
+            )
+            print(
+                f"  away bat: OPS {away_bat['ops']:.3f} RPG {away_bat['rpg']:.2f} [{away_bat_q}]  "
+                f"home bat: OPS {home_bat['ops']:.3f} RPG {home_bat['rpg']:.2f} [{home_bat_q}]"
+            )
+            print()
 
         results.append({
             "game_pk":       game["game_pk"],
@@ -608,18 +731,18 @@ def run(target_date: str, only_strong: bool = False) -> None:
             "park_factor":   pf,
             "data_points":   data_pts,
             "away": {
-                "abbr":          away_ab,
-                "pitcher_name":  away_sp["name"],
-                "pitcher_real":  away_sp_real,
-                "batting_real":  away_bat_real,
-                "lambda":        away_lam,
+                "abbr":         away_ab,
+                "pitcher_name": away_sp["name"],
+                "pitcher_q":    away_sp_q,
+                "batting_q":    away_bat_q,
+                "lambda":       away_lam,
             },
             "home": {
-                "abbr":          home_ab,
-                "pitcher_name":  home_sp["name"],
-                "pitcher_real":  home_sp_real,
-                "batting_real":  home_bat_real,
-                "lambda":        home_lam,
+                "abbr":         home_ab,
+                "pitcher_name": home_sp["name"],
+                "pitcher_q":    home_sp_q,
+                "batting_q":    home_bat_q,
+                "lambda":       home_lam,
             },
             "lambda_total": total_lam,
         })
@@ -651,12 +774,13 @@ def run(target_date: str, only_strong: bool = False) -> None:
     nrfi_cnt  = sum(1 for g in results if classify_pick(prob_yrfi(g["lambda_total"]), g["data_points"])[0] == "NRFI")
     yrfi_cnt  = sum(1 for g in results if classify_pick(prob_yrfi(g["lambda_total"]), g["data_points"])[0] == "YRFI")
     pass_cnt  = len(results) - nrfi_cnt - yrfi_cnt
-    high_qual = sum(1 for g in results if g["data_points"] >= 3)
+    hi_qual   = sum(1 for g in results if g["data_points"] >= 3)
 
-    print(f"  Games today      : {len(results)}")
-    print(f"  Avg combined λ   : {avg_lam:.3f}")
-    print(f"  NRFI picks       : {nrfi_cnt}  |  YRFI picks: {yrfi_cnt}  |  PASS: {pass_cnt}")
-    print(f"  Real data (≥3/4) : {high_qual} games")
+    print(f"  Games today         : {len(results)}")
+    print(f"  Avg combined λ      : {avg_lam:.3f}")
+    print(f"  NRFI picks          : {nrfi_cnt}  |  YRFI picks: {yrfi_cnt}  |  PASS: {pass_cnt}")
+    print(f"  Blended inputs ≥3/4 : {hi_qual} games")
+    print(f"  Quality key         : [live]≥80IP/20G  [ltd]≥20IP/5G  [sm]≥1IP/1G  [avg]=league default")
     print()
 
 
@@ -676,8 +800,13 @@ def main() -> None:
         action="store_true",
         help="Only show LEAN or STRONG picks (hide PASS games)",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print raw game/pitcher/team IDs and blended stat values per game",
+    )
     args = parser.parse_args()
-    run(args.date, only_strong=args.strong)
+    run(args.date, only_strong=args.strong, debug=args.debug)
 
 
 if __name__ == "__main__":
