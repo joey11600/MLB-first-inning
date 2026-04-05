@@ -865,6 +865,21 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 "pitcher_q":    away_sp_q,
                 "batting_q":    away_bat_q,
                 "lambda":       away_lam,
+                # pitcher model inputs (for CSV logging)
+                "era":  away_sp["era"],
+                "whip": away_sp["whip"],
+                "fip":  away_sp["fip"],
+                "bb9":  away_sp.get("bb9", LEAGUE_AVG_BB9),
+                "hr9":  away_sp.get("hr9", LEAGUE_AVG_HR9),
+                "k9":   away_sp.get("k9",  LEAGUE_AVG_K9),
+                # batting model inputs
+                "obp":  away_bat.get("obp", LEAGUE_AVG_OBP),
+                "slg":  away_bat.get("slg", LEAGUE_AVG_SLG),
+                "rpg":  away_bat["rpg"],
+                # first-inning pitcher split (None if unavailable)
+                "fi_era":  away_fi_sp["era"]  if away_fi_sp else None,
+                "fi_whip": away_fi_sp["whip"] if away_fi_sp else None,
+                "fi_ip":   away_fi_sp["ip"]   if away_fi_sp else None,
             },
             "home": {
                 "abbr":         home_ab,
@@ -872,6 +887,21 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 "pitcher_q":    home_sp_q,
                 "batting_q":    home_bat_q,
                 "lambda":       home_lam,
+                # pitcher model inputs
+                "era":  home_sp["era"],
+                "whip": home_sp["whip"],
+                "fip":  home_sp["fip"],
+                "bb9":  home_sp.get("bb9", LEAGUE_AVG_BB9),
+                "hr9":  home_sp.get("hr9", LEAGUE_AVG_HR9),
+                "k9":   home_sp.get("k9",  LEAGUE_AVG_K9),
+                # batting model inputs
+                "obp":  home_bat.get("obp", LEAGUE_AVG_OBP),
+                "slg":  home_bat.get("slg", LEAGUE_AVG_SLG),
+                "rpg":  home_bat["rpg"],
+                # first-inning pitcher split
+                "fi_era":  home_fi_sp["era"]  if home_fi_sp else None,
+                "fi_whip": home_fi_sp["whip"] if home_fi_sp else None,
+                "fi_ip":   home_fi_sp["ip"]   if home_fi_sp else None,
             },
             "lambda_total": total_lam,
         })
