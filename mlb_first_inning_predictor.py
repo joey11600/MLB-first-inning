@@ -60,14 +60,28 @@ FIP_CONSTANT             = 3.10
 PITCHER_PRIOR_IP  = 40.0
 TEAM_PRIOR_GAMES  = 15.0
 
-# Pitcher multiplier weights (sum = 1.0)
-ERA_WEIGHT   = 0.35
-WHIP_WEIGHT  = 0.30
-FIP_WEIGHT   = 0.35
+# League averages for expanded pitcher stats (2023-2024 MLB starters)
+LEAGUE_AVG_K9   = 8.9
+LEAGUE_AVG_BB9  = 3.0
+LEAGUE_AVG_HR9  = 1.2
 
-# Offense multiplier weights (sum = 1.0)
-OPS_WEIGHT = 0.55
-RPG_WEIGHT = 0.45
+# League averages for expanded offense stats
+LEAGUE_AVG_OBP  = 0.318
+LEAGUE_AVG_SLG  = 0.414
+
+# Pitcher multiplier weights — tuned for first-inning relevance
+# BB/9 weighted highly: leadoff walks directly cause first-inning runs
+# HR/9 weighted highly: solo HR = immediate YRFI
+WHIP_WEIGHT  = 0.30
+FIP_WEIGHT   = 0.25
+BB9_WEIGHT   = 0.25
+HR9_WEIGHT   = 0.20
+
+# Offense multiplier weights — OBP highest: getting on base is the
+# primary first-inning scoring driver (3-batter sequences, not extra bases)
+OBP_WEIGHT  = 0.45
+RPG_WEIGHT  = 0.35
+SLG_WEIGHT  = 0.20
 
 # Capped multiplier ranges to prevent extreme outliers
 PITCHER_MULT_MIN = 0.45
@@ -307,7 +321,16 @@ def _parse_pitcher_splits(splits: list) -> dict:
             whip_r = d["whip_x"] / ip
             fip_r  = max(0.5, min((13*d["hr"] + 3*d["bb"] - 2*d["k"]) / ip + FIP_CONSTANT, 9.0))
             k_bb_r = d["k"] / d["bb"] if d["bb"] > 0 else 2.8
-            result[yr] = {"ip": ip, "era": era_r, "whip": whip_r, "fip": fip_r, "k_bb": k_bb_r}
+            k9_r  = d["k"]  * 9.0 / ip
+            bb9_r = d["bb"] * 9.0 / ip
+            hr9_r = d["hr"] * 9.0 / ip
+            result[yr] = {
+                "ip": ip, "era": era_r, "whip": whip_r, "fip": fip_r,
+                "k_bb": k_bb_r,
+                "k9":  max(0.0, min(k9_r,  20.0)),
+                "bb9": max(0.0, min(bb9_r, 12.0)),
+                "hr9": max(0.0, min(hr9_r,  5.0)),
+            }
     return result
 
 
@@ -328,18 +351,27 @@ def _blend_pitcher(stat: dict, ip: float, extra_prior: dict | None = None) -> di
         whip  = w_real*stat["whip"] + w_prior*extra_prior["whip"] + w_league*LEAGUE_AVG_WHIP
         fip   = w_real*stat["fip"]  + w_prior*extra_prior["fip"]  + w_league*LEAGUE_AVG_ERA
         k_bb  = w_real*stat["k_bb"] + w_prior*extra_prior["k_bb"] + w_league*2.8
+        k9    = w_real*stat["k9"]   + w_prior*extra_prior.get("k9",  LEAGUE_AVG_K9)  + w_league*LEAGUE_AVG_K9
+        bb9   = w_real*stat["bb9"]  + w_prior*extra_prior.get("bb9", LEAGUE_AVG_BB9) + w_league*LEAGUE_AVG_BB9
+        hr9   = w_real*stat["hr9"]  + w_prior*extra_prior.get("hr9", LEAGUE_AVG_HR9) + w_league*LEAGUE_AVG_HR9
     else:
         w_league = 1.0 - w_real
         era   = w_real*stat["era"]  + w_league*LEAGUE_AVG_ERA
         whip  = w_real*stat["whip"] + w_league*LEAGUE_AVG_WHIP
         fip   = w_real*stat["fip"]  + w_league*LEAGUE_AVG_ERA
         k_bb  = w_real*stat["k_bb"] + w_league*2.8
+        k9    = w_real*stat["k9"]   + w_league*LEAGUE_AVG_K9
+        bb9   = w_real*stat["bb9"]  + w_league*LEAGUE_AVG_BB9
+        hr9   = w_real*stat["hr9"]  + w_league*LEAGUE_AVG_HR9
 
     return {
         "era":  max(1.0, min(era,  9.0)),
         "whip": max(0.7, min(whip, 2.0)),
         "fip":  max(1.0, min(fip,  9.0)),
         "k_bb_ratio": max(0.5, min(k_bb, 8.0)),
+        "k9":   max(1.0, min(k9,  20.0)),
+        "bb9":  max(0.0, min(bb9,  9.0)),
+        "hr9":  max(0.0, min(hr9,  4.0)),
     }
 
 
@@ -360,6 +392,7 @@ def fetch_pitcher_stats(player_id: int | None, known_name: str, season: int) -> 
         return {
             "name": name, "era": LEAGUE_AVG_ERA, "whip": LEAGUE_AVG_WHIP,
             "fip": LEAGUE_AVG_ERA, "k_bb_ratio": 2.8,
+            "k9": LEAGUE_AVG_K9, "bb9": LEAGUE_AVG_BB9, "hr9": LEAGUE_AVG_HR9,
         }, "avg"
 
     if not player_id:
@@ -404,6 +437,9 @@ def fetch_pitcher_stats(player_id: int | None, known_name: str, season: int) -> 
             "whip": max(0.7, min(w_prev*prev["whip"] + w_league*LEAGUE_AVG_WHIP, 2.0)),
             "fip":  max(1.0, min(w_prev*prev["fip"]  + w_league*LEAGUE_AVG_ERA,  9.0)),
             "k_bb_ratio": max(0.5, min(w_prev*prev["k_bb"] + w_league*2.8,       8.0)),
+            "k9":  max(1.0, min(w_prev*prev.get("k9",  LEAGUE_AVG_K9)  + w_league*LEAGUE_AVG_K9,  20.0)),
+            "bb9": max(0.0, min(w_prev*prev.get("bb9", LEAGUE_AVG_BB9) + w_league*LEAGUE_AVG_BB9,  9.0)),
+            "hr9": max(0.0, min(w_prev*prev.get("hr9", LEAGUE_AVG_HR9) + w_league*LEAGUE_AVG_HR9,  4.0)),
         }
         quality = "ltd"   # prior-year data = limited quality
     else:
@@ -411,6 +447,43 @@ def fetch_pitcher_stats(player_id: int | None, known_name: str, season: int) -> 
 
     blended["name"] = name
     return blended, quality
+
+# ---------------------------------------------------------------------------
+# First-inning specific pitcher stat fetching
+# ---------------------------------------------------------------------------
+
+def _try_fetch_pitcher_fi_stats(player_id: int | None, season: int) -> dict | None:
+    """
+    Attempt to fetch first-inning-specific pitching stats via statSplits.
+    Returns None if the pitcher has no ID, the endpoint fails, or sample < 3 IP.
+    When successful returns {"ip": ..., "era": ..., "whip": ...}.
+    """
+    if not player_id:
+        return None
+    try:
+        data = statsapi.get("person", {
+            "personId": player_id,
+            "hydrate": f"stats(group=[pitching],type=[statSplits],sitCodes=[i1],season={season})",
+        })
+        splits = (
+            data.get("people", [{}])[0]
+                .get("stats", [{}])[0]
+                .get("splits", [])
+        )
+        for sp in splits:
+            s  = sp.get("stat", {})
+            ip = safe_float(s.get("inningsPitched"), 0.0)
+            if ip < 3.0:   # < ~10 first-inning appearances — too small
+                return None
+            era  = safe_float(s.get("era"),  LEAGUE_AVG_ERA)
+            whip = safe_float(s.get("whip"), LEAGUE_AVG_WHIP)
+            if not (0.0 < era  < 20.0): era  = LEAGUE_AVG_ERA
+            if not (0.5 < whip <  4.0): whip = LEAGUE_AVG_WHIP
+            return {"ip": ip, "era": era, "whip": whip}
+    except Exception:
+        return None
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Team batting stat fetching
@@ -435,7 +508,7 @@ def fetch_team_batting(team_id: int, season: int) -> tuple[dict, str]:
     partial signal instead of defaulting everything to league average.
     """
     def _default() -> tuple[dict, str]:
-        return {"ops": LEAGUE_AVG_OPS, "rpg": LEAGUE_AVG_RPG}, "avg"
+        return {"obp": LEAGUE_AVG_OBP, "slg": LEAGUE_AVG_SLG, "rpg": LEAGUE_AVG_RPG, "ops": LEAGUE_AVG_OPS}, "avg"
 
     if not team_id:
         return _default()
@@ -462,16 +535,23 @@ def fetch_team_batting(team_id: int, season: int) -> tuple[dict, str]:
 
         rpg = runs / games
 
+        obp   = safe_float(s.get("obp"),              LEAGUE_AVG_OBP)
+        slg   = safe_float(s.get("slugging") or s.get("slg"), LEAGUE_AVG_SLG)
+
         # Sanity-check raw values before blending
         if not (0.400 < ops < 1.200): ops = LEAGUE_AVG_OPS
         if not (0.5   < rpg < 12.0):  rpg = LEAGUE_AVG_RPG
+        if not (0.250 < obp < 0.500): obp = LEAGUE_AVG_OBP
+        if not (0.250 < slg < 0.700): slg = LEAGUE_AVG_SLG
 
         # Bayesian blend: small samples regress toward league average
         w     = games / (games + TEAM_PRIOR_GAMES)
         ops_b = w * ops + (1.0 - w) * LEAGUE_AVG_OPS
         rpg_b = w * rpg + (1.0 - w) * LEAGUE_AVG_RPG
+        obp_b = w * obp + (1.0 - w) * LEAGUE_AVG_OBP
+        slg_b = w * slg + (1.0 - w) * LEAGUE_AVG_SLG
 
-        return {"ops": ops_b, "rpg": rpg_b}, _team_quality_tag(games)
+        return {"obp": obp_b, "slg": slg_b, "rpg": rpg_b, "ops": ops_b}, _team_quality_tag(games)
 
     except Exception:
         return _default()
@@ -483,40 +563,65 @@ def fetch_team_batting(team_id: int, season: int) -> tuple[dict, str]:
 def pitcher_multiplier(stats: dict) -> float:
     """
     Translate pitcher stats into a run-scoring multiplier vs league average.
-    Values < 1 suppress run scoring; values > 1 increase it.
+    Weighted for first-inning relevance: BB/9 and HR/9 receive extra weight
+    because walks and homers are the primary first-inning YRFI triggers.
     """
-    era_mult  = stats["era"]  / LEAGUE_AVG_ERA
     whip_mult = stats["whip"] / LEAGUE_AVG_WHIP
     fip_mult  = stats["fip"]  / LEAGUE_AVG_ERA
+    bb9_mult  = stats.get("bb9", LEAGUE_AVG_BB9) / LEAGUE_AVG_BB9
+    hr9_mult  = stats.get("hr9", LEAGUE_AVG_HR9) / LEAGUE_AVG_HR9
 
-    # K/BB adjustment: elite K/BB (e.g. 4.5) → ~0.96×; poor (1.5) → ~1.03×
-    k_bb     = stats.get("k_bb_ratio", 2.8)
-    k_bb_adj = 1.0 - (k_bb - 2.8) * 0.025
-    k_bb_adj = max(0.92, min(k_bb_adj, 1.06))
+    # K/9 acts as a dampener: elite strikeout rate → fewer baserunners/runs
+    k9      = stats.get("k9", LEAGUE_AVG_K9)
+    k9_adj  = 1.0 - (k9 - LEAGUE_AVG_K9) * 0.012   # ±1.2% per unit above/below avg
+    k9_adj  = max(0.90, min(k9_adj, 1.08))
 
-    raw = (ERA_WEIGHT * era_mult + WHIP_WEIGHT * whip_mult + FIP_WEIGHT * fip_mult) * k_bb_adj
+    raw = (
+        WHIP_WEIGHT * whip_mult +
+        FIP_WEIGHT  * fip_mult  +
+        BB9_WEIGHT  * bb9_mult  +
+        HR9_WEIGHT  * hr9_mult
+    ) * k9_adj
+
     return max(PITCHER_MULT_MIN, min(raw, PITCHER_MULT_MAX))
 
 
 def offense_multiplier(batting: dict) -> float:
     """
     Translate team batting stats into a run-scoring multiplier vs league average.
-    Values > 1 mean the lineup scores more than average.
+    OBP weighted highest: getting on base is the primary first-inning scoring driver
+    since only 3 batters come to the plate before the inning might end scoreless.
     """
-    ops_mult = batting["ops"] / LEAGUE_AVG_OPS
-    rpg_mult = batting["rpg"] / LEAGUE_AVG_RPG
-    raw = OPS_WEIGHT * ops_mult + RPG_WEIGHT * rpg_mult
+    obp_mult = batting.get("obp", LEAGUE_AVG_OBP) / LEAGUE_AVG_OBP
+    slg_mult = batting.get("slg", LEAGUE_AVG_SLG) / LEAGUE_AVG_SLG
+    rpg_mult = batting.get("rpg", LEAGUE_AVG_RPG) / LEAGUE_AVG_RPG
+
+    raw = OBP_WEIGHT * obp_mult + SLG_WEIGHT * slg_mult + RPG_WEIGHT * rpg_mult
     return max(OFFENSE_MULT_MIN, min(raw, OFFENSE_MULT_MAX))
 
 
 def expected_half_inning_runs(
-    pitcher: dict,
-    batting:  dict,
-    pf:       float,
-    home:     bool,
+    pitcher:    dict,
+    batting:    dict,
+    pf:         float,
+    home:       bool,
+    fi_pitcher: dict | None = None,
 ) -> float:
-    """Expected runs for ONE team in the first inning."""
-    p_mult    = pitcher_multiplier(pitcher)
+    """
+    Expected runs for ONE team in the first inning.
+    If first-inning-specific pitcher stats are available (fi_pitcher), they are
+    blended in — weighted by how much first-inning sample the pitcher has.
+    """
+    # Blend season stats with first-inning specific stats if available
+    if fi_pitcher and fi_pitcher.get("ip", 0) >= 3.0:
+        fi_w = min(fi_pitcher["ip"] / 25.0, 0.40)   # cap FI weight at 40%
+        blended = dict(pitcher)
+        blended["era"]  = (1.0 - fi_w) * pitcher["era"]  + fi_w * fi_pitcher["era"]
+        blended["whip"] = (1.0 - fi_w) * pitcher["whip"] + fi_w * fi_pitcher["whip"]
+        p_mult = pitcher_multiplier(blended)
+    else:
+        p_mult = pitcher_multiplier(pitcher)
+
     o_mult    = offense_multiplier(batting)
     home_fact = HOME_RUN_FACTOR if home else AWAY_RUN_FACTOR
     lam = LEAGUE_FIRST_INNING_RUNS * o_mult * p_mult * pf * home_fact
@@ -694,9 +799,13 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         away_bat, away_bat_q = fetch_team_batting(game["away_team_id"], season)
         home_bat, home_bat_q = fetch_team_batting(game["home_team_id"], season)
 
+        away_fi_sp = _try_fetch_pitcher_fi_stats(game["away_pitcher_id"], season)
+        home_fi_sp = _try_fetch_pitcher_fi_stats(game["home_pitcher_id"], season)
+
         # Each half: batting team hits against the *opposing* pitcher
-        away_lam  = expected_half_inning_runs(home_sp,  away_bat, pf, home=False)
-        home_lam  = expected_half_inning_runs(away_sp,  home_bat, pf, home=True)
+        # away team bats vs home SP; home team bats vs away SP
+        away_lam  = expected_half_inning_runs(home_sp, away_bat, pf, home=False, fi_pitcher=home_fi_sp)
+        home_lam  = expected_half_inning_runs(away_sp, home_bat, pf, home=True,  fi_pitcher=away_fi_sp)
         total_lam = away_lam + home_lam
 
         # data_points counts how many inputs are not pure league-average fallback
@@ -709,17 +818,25 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 f"{game['home_abbr']}({game['home_team_id']})"
                 f"  DH={game['double_header']} G#{game['game_number']}"
             )
+            fi_away = f" FI-ERA={away_fi_sp['era']:.2f}({away_fi_sp['ip']:.0f}ip)" if away_fi_sp else ""
+            fi_home = f" FI-ERA={home_fi_sp['era']:.2f}({home_fi_sp['ip']:.0f}ip)" if home_fi_sp else ""
             print(
                 f"  away SP: {game['away_pitcher_name']} (id={game['away_pitcher_id']}) "
-                f"→ ERA {away_sp['era']:.2f} WHIP {away_sp['whip']:.2f} FIP {away_sp['fip']:.2f} [{away_sp_q}]"
+                f"→ ERA {away_sp['era']:.2f} WHIP {away_sp['whip']:.2f} FIP {away_sp['fip']:.2f} "
+                f"BB/9 {away_sp.get('bb9',3.0):.1f} HR/9 {away_sp.get('hr9',1.2):.1f} K/9 {away_sp.get('k9',8.9):.1f} "
+                f"[{away_sp_q}]{fi_away}"
             )
             print(
                 f"  home SP: {game['home_pitcher_name']} (id={game['home_pitcher_id']}) "
-                f"→ ERA {home_sp['era']:.2f} WHIP {home_sp['whip']:.2f} FIP {home_sp['fip']:.2f} [{home_sp_q}]"
+                f"→ ERA {home_sp['era']:.2f} WHIP {home_sp['whip']:.2f} FIP {home_sp['fip']:.2f} "
+                f"BB/9 {home_sp.get('bb9',3.0):.1f} HR/9 {home_sp.get('hr9',1.2):.1f} K/9 {home_sp.get('k9',8.9):.1f} "
+                f"[{home_sp_q}]{fi_home}"
             )
             print(
-                f"  away bat: OPS {away_bat['ops']:.3f} RPG {away_bat['rpg']:.2f} [{away_bat_q}]  "
-                f"home bat: OPS {home_bat['ops']:.3f} RPG {home_bat['rpg']:.2f} [{home_bat_q}]"
+                f"  away bat: OBP {away_bat.get('obp', 0.318):.3f} SLG {away_bat.get('slg', 0.414):.3f} "
+                f"RPG {away_bat['rpg']:.2f} [{away_bat_q}]  "
+                f"home bat: OBP {home_bat.get('obp', 0.318):.3f} SLG {home_bat.get('slg', 0.414):.3f} "
+                f"RPG {home_bat['rpg']:.2f} [{home_bat_q}]"
             )
             print()
 
