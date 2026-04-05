@@ -985,18 +985,23 @@ Odds CSV format (--import-odds):
         default=date.today().strftime("%m/%d/%Y"),
         help="Game date MM/DD/YYYY (default: today)",
     )
-    parser.add_argument("--strong",       action="store_true", help="Only show LEAN or STRONG picks")
-    parser.add_argument("--debug",        action="store_true", help="Print raw IDs and blended stat values")
-    parser.add_argument("--grade",        action="store_true", help="Grade logged picks against actual results")
-    parser.add_argument("--summary",      action="store_true", help="Show performance summary from CSV")
-    parser.add_argument("--import-odds",  metavar="FILE",      help="Import market odds from CSV file")
-    parser.add_argument("--season",       type=int,            help="Season year (default: derived from --date or current year)")
-    parser.add_argument("--last",         type=int,            metavar="N",            help="Summary: most recent N graded bets")
-    parser.add_argument("--date-from",    metavar="MM/DD/YYYY",                        help="Summary: start date (inclusive)")
-    parser.add_argument("--date-to",      metavar="MM/DD/YYYY",                        help="Summary: end date (inclusive)")
-    parser.add_argument("--min-edge",     type=float, default=0.00, metavar="FRAC",    help="Min model edge to place bet (default: 0.00)")
-    parser.add_argument("--units-lean",   type=float, default=0.5,  metavar="U",       help="Units to risk on LEAN picks (default: 0.5)")
-    parser.add_argument("--units-strong", type=float, default=1.0,  metavar="U",       help="Units to risk on STRONG picks (default: 1.0)")
+    parser.add_argument("--strong",               action="store_true", help="Only show LEAN or STRONG picks")
+    parser.add_argument("--debug",                action="store_true", help="Print raw IDs and blended stat values")
+    parser.add_argument("--grade",                action="store_true", help="Grade logged picks against actual results")
+    parser.add_argument("--summary",              action="store_true", help="Show performance summary from CSV")
+    parser.add_argument("--import-odds",          metavar="FILE",      help="Import market odds from CSV file")
+    parser.add_argument("--export-odds-template", action="store_true", help="Export blank odds template CSV for --date")
+    parser.add_argument("--audit-csv",            action="store_true", help="Audit picks CSV for data integrity issues")
+    parser.add_argument("--repair-csv",           action="store_true", help="Auto-repair recoverable corrupted rows in picks CSV")
+    parser.add_argument("--dry-run",              action="store_true", help="With --repair-csv: show what would change without writing")
+    parser.add_argument("--output",               metavar="FILE",      help="Output file for --export-odds-template")
+    parser.add_argument("--season",               type=int,            help="Season year (default: derived from --date or current year)")
+    parser.add_argument("--last",                 type=int, metavar="N",            help="Summary: most recent N graded bets")
+    parser.add_argument("--date-from",            metavar="MM/DD/YYYY",             help="Summary: start date (inclusive)")
+    parser.add_argument("--date-to",              metavar="MM/DD/YYYY",             help="Summary: end date (inclusive)")
+    parser.add_argument("--min-edge",             type=float, default=0.00, metavar="FRAC", help="Min model edge to place bet (default: 0.00)")
+    parser.add_argument("--units-lean",           type=float, default=0.5,  metavar="U",    help="Units to risk on LEAN picks (default: 0.5)")
+    parser.add_argument("--units-strong",         type=float, default=1.0,  metavar="U",    help="Units to risk on STRONG picks (default: 1.0)")
     args = parser.parse_args()
 
     season = args.season or (int(args.date.split("/")[-1]) if "/" in args.date else date.today().year)
@@ -1023,6 +1028,22 @@ Odds CSV format (--import-odds):
             units_lean   = args.units_lean,
             units_strong = args.units_strong,
         )
+
+    elif args.export_odds_template:
+        from tracker import export_odds_template
+        export_odds_template(
+            date_str    = args.date,
+            season      = season,
+            output_path = args.output,
+        )
+
+    elif args.audit_csv:
+        from tracker import audit_csv
+        audit_csv(season=season)
+
+    elif args.repair_csv:
+        from tracker import repair_csv
+        repair_csv(season=season, dry_run=args.dry_run)
 
     else:
         run(args.date, only_strong=args.strong, debug=args.debug)

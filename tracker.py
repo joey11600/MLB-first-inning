@@ -628,7 +628,8 @@ def import_odds(
         by_team[(d, r["away_team"].upper(), r["home_team"].upper())] = i
 
     now = _now_utc()
-    matched_n = unmatched_n = 0
+    matched_n = unmatched_n = pk_matched_n = team_matched_n = 0
+    dates_covered: set[str] = set()
 
     with open(odds_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -644,16 +645,28 @@ def import_odds(
             book     = cols.get("sportsbook", "")
 
             # Attempt match
-            idx = None
+            idx         = None
+            match_method = ""
             if game_pk:
                 idx = by_pk.get((iso_date, game_pk))
+                if idx is not None:
+                    match_method = "pk"
             if idx is None:
                 idx = by_team.get((iso_date, away, home))
+                if idx is not None:
+                    match_method = "teams"
 
             if idx is None:
-                print(f"  [no match] {iso_date}  {away} @ {home}  pk={game_pk}")
+                print(f"  [no match] {iso_date}  {away} @ {home}  pk={game_pk or '?'}")
                 unmatched_n += 1
                 continue
+
+            if match_method == "pk":
+                pk_matched_n += 1
+            else:
+                team_matched_n += 1
+
+            dates_covered.add(iso_date)
 
             rows[idx] = _apply_odds_to_row(
                 rows[idx], nrfi_o, yrfi_o, book, min_edge,
@@ -663,7 +676,7 @@ def import_odds(
             r = rows[idx]
             bet_tag   = f"bet={'Y' if r['bet_placed']=='Y' else 'N'}"
             edge_tag  = f"edge={r['edge_on_pick'] or 'N/A'}"
-            units_tag = f"{r['units_risked'] or '0'}u" if r['bet_placed']=='Y' else ""
+            units_tag = f"{r['units_risked']}u" if r.get("bet_placed") == "Y" else ""
             print(
                 f"  {r['away_team']:>3} @ {r['home_team']:<3}  "
                 f"NRFI:{nrfi_o:>5}  YRFI:{yrfi_o:>5}  "
@@ -672,11 +685,247 @@ def import_odds(
             matched_n += 1
 
     _write_rows(picks_path, rows)
-    print(f"\n  Matched {matched_n} | Unmatched {unmatched_n}")
-    print(f"  CSV: {picks_path}\n")
+
+    # Re-read to count remaining odds gaps for dates covered
+    if dates_covered:
+        updated_rows = _read_rows(picks_path)
+        missing_odds = [
+            r for r in updated_rows
+            if r["date"] in dates_covered and not r.get("market_nrfi_odds")
+        ]
+    else:
+        missing_odds = []
+
+    print(f"\n  Matched {matched_n} ({pk_matched_n} by game_pk, {team_matched_n} by teams)"
+          f"  |  Unmatched {unmatched_n}")
+    if missing_odds:
+        print(f"  Still missing odds: {len(missing_odds)} pick(s) for {sorted(dates_covered)}")
+    print(f"  CSV: {picks_path}")
+    print(f"  → Run --summary to view ROI metrics\n")
 
 # ---------------------------------------------------------------------------
-# 4. Performance summary
+# 4. Odds template export
+# ---------------------------------------------------------------------------
+
+_TEMPLATE_COLS = [
+    "date", "game_pk", "away_team", "home_team",
+    "market_nrfi_odds", "market_yrfi_odds", "sportsbook",
+]
+
+
+def export_odds_template(
+    date_str:    str,
+    season:      int,
+    output_path: str | Path | None = None,
+) -> str:
+    """
+    Write a blank odds-import CSV template for all logged picks on date_str.
+    Pre-fills date, game_pk, away_team, home_team; leaves odds columns blank.
+    Returns the output file path (empty string on error).
+    """
+    iso_date = _to_iso(date_str)
+    rows     = _read_rows(_csv_path(season))
+    targets  = [r for r in rows if r["date"] == iso_date]
+
+    if not targets:
+        print(f"No logged picks found for {iso_date} (season {season}).")
+        print("Run the predictor first, then export the template.")
+        return ""
+
+    if output_path is None:
+        output_path = Path(f"odds_{iso_date.replace('-', '_')}.csv")
+    output_path = Path(output_path)
+
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=_TEMPLATE_COLS, extrasaction="ignore")
+        writer.writeheader()
+        for r in targets:
+            writer.writerow({
+                "date":             r["date"],
+                "game_pk":          r["game_pk"],
+                "away_team":        r["away_team"],
+                "home_team":        r["home_team"],
+                "market_nrfi_odds": "",
+                "market_yrfi_odds": "",
+                "sportsbook":       "",
+            })
+
+    print(f"\n  Exported {len(targets)} game(s) for {iso_date} → {output_path}")
+    print(f"  Fill in market_nrfi_odds / market_yrfi_odds, then run:")
+    print(f"  python mlb_first_inning_predictor.py --import-odds {output_path}\n")
+    return str(output_path)
+
+
+# ---------------------------------------------------------------------------
+# 5. CSV audit & repair
+# ---------------------------------------------------------------------------
+
+# Map label prefixes → (pick_side, pick_strength) for safe auto-recovery
+_LABEL_TO_SIDE: dict[str, tuple[str, str]] = {
+    "STRONG NRFI": ("NRFI", "STRONG"),
+    "LEAN NRFI":   ("NRFI", "LEAN"),
+    "STRONG YRFI": ("YRFI", "STRONG"),
+    "LEAN YRFI":   ("YRFI", "LEAN"),
+}
+
+
+def audit_csv(season: int | None = None) -> int:
+    """
+    Audit picks CSV for data-integrity issues.
+    Checks: corrupted pick_side/strength, missing keys, reconciliation.
+    Returns number of issues found.
+    """
+    if season is None:
+        season = date_type.today().year
+
+    path = _csv_path(season)
+    rows = _read_rows(path)
+
+    if not rows:
+        print(f"No picks found for season {season}.")
+        return 0
+
+    issues: list[tuple[str, str]] = []
+
+    for i, r in enumerate(rows):
+        tag      = f"row {i + 2}"   # +2 = 1-based + header
+        grade    = r.get("graded_result", "").strip()
+        side     = r.get("pick_side", "").strip()
+        strength = r.get("pick_strength", "").strip()
+        label    = r.get("pick_label", "").strip()
+
+        if not r.get("date", "").strip():
+            issues.append((tag, "missing date"))
+        if not r.get("game_pk", "").strip():
+            issues.append((tag, f"missing game_pk  ({r.get('away_team')} @ {r.get('home_team')})"))
+
+        if grade in ("WIN", "LOSS"):
+            if side not in ("NRFI", "YRFI"):
+                repair_hint = ""
+                for prefix, (ps, pst) in _LABEL_TO_SIDE.items():
+                    if label.upper().startswith(prefix):
+                        repair_hint = f"  (--repair-csv can fix from label: {label!r})"
+                        break
+                issues.append((
+                    tag,
+                    f"graded {grade} but pick_side={side!r} — expected NRFI/YRFI{repair_hint}"
+                ))
+            elif strength not in ("LEAN", "STRONG"):
+                issues.append((
+                    tag,
+                    f"graded {grade} but pick_strength={strength!r} — expected LEAN/STRONG"
+                ))
+
+        if grade == "PASS" and side in ("NRFI", "YRFI"):
+            issues.append((tag, f"graded_result=PASS but pick_side={side!r} (should be WIN/LOSS)"))
+
+    # Totals reconciliation
+    all_bets  = [r for r in rows if r.get("graded_result") in ("WIN", "LOSS")]
+    passes    = [r for r in rows if r.get("graded_result") == "PASS"]
+    delayed   = [r for r in rows if r.get("graded_result") in ("POSTPONED", "SUSPENDED")]
+    ungraded  = [r for r in rows if not r.get("graded_result")]
+    accounted = len(all_bets) + len(passes) + len(delayed) + len(ungraded)
+
+    print(f"\nAudit  —  {path}")
+    print(f"  Total rows    : {len(rows)}")
+    print(f"  Accounted for : {accounted}  "
+          f"(bets={len(all_bets)} pass={len(passes)} delayed={len(delayed)} ungraded={len(ungraded)})")
+    if accounted != len(rows):
+        print(f"  [warn] Totals mismatch: {len(rows) - accounted} rows unaccounted for")
+    print(f"  Issues found  : {len(issues)}")
+
+    if issues:
+        print()
+        for tag, msg in issues:
+            print(f"  [{tag}]  {msg}")
+    else:
+        print("  All rows look clean.")
+
+    if any("--repair-csv" in msg for _, msg in issues):
+        print(f"\n  Run --repair-csv to auto-fix recoverable issues.")
+
+    print()
+    return len(issues)
+
+
+def repair_csv(season: int | None = None, dry_run: bool = False) -> None:
+    """
+    Safely repair corrupted rows in picks CSV.
+
+    Recovers pick_side and pick_strength from pick_label where unambiguous:
+      "LEAN NRFI"   → NRFI / LEAN
+      "STRONG NRFI" → NRFI / STRONG
+      "LEAN YRFI"   → YRFI / LEAN
+      "STRONG YRFI" → YRFI / STRONG
+
+    Only targets WIN/LOSS rows with wrong pick_side or pick_strength.
+    Rows that cannot be confidently repaired are left unchanged and reported.
+    """
+    if season is None:
+        season = date_type.today().year
+
+    path = _csv_path(season)
+    rows = _read_rows(path)
+
+    if not rows:
+        print(f"No picks found for season {season}.")
+        return
+
+    repaired_n = skipped_n = ok_n = 0
+
+    for i, r in enumerate(rows):
+        tag      = f"row {i + 2}"
+        grade    = r.get("graded_result", "").strip()
+        side     = r.get("pick_side", "").strip()
+        strength = r.get("pick_strength", "").strip()
+        label    = r.get("pick_label", "").strip()
+
+        # Only target rows with a grading problem
+        needs_repair = (
+            grade in ("WIN", "LOSS")
+            and (side not in ("NRFI", "YRFI") or strength not in ("LEAN", "STRONG"))
+        )
+
+        if not needs_repair:
+            ok_n += 1
+            continue
+
+        # Attempt recovery from pick_label
+        new_side = new_strength = None
+        for prefix, (ps, pst) in _LABEL_TO_SIDE.items():
+            if label.upper().startswith(prefix):
+                new_side, new_strength = ps, pst
+                break
+
+        if new_side is None:
+            print(f"  [{tag}]  Cannot repair — label {label!r} is ambiguous; leaving unchanged")
+            skipped_n += 1
+            continue
+
+        verb = "(dry-run) would set" if dry_run else "Repaired"
+        print(
+            f"  [{tag}]  {verb}:  pick_side {side!r}→{new_side!r}  "
+            f"pick_strength {strength!r}→{new_strength!r}  "
+            f"(label={label!r}  grade={grade})"
+        )
+
+        if not dry_run:
+            r["pick_side"]     = new_side
+            r["pick_strength"] = new_strength
+        repaired_n += 1
+
+    if not dry_run and repaired_n > 0:
+        _write_rows(path, rows)
+
+    mode = "(dry-run) " if dry_run else ""
+    print(f"\n  {mode}Repaired {repaired_n} | Skipped (unrecoverable) {skipped_n} | Already OK {ok_n}")
+    if repaired_n > 0 and not dry_run:
+        print(f"  CSV updated: {path}")
+    print()
+
+
+# ---------------------------------------------------------------------------
+# 6. Performance summary
 # ---------------------------------------------------------------------------
 
 def _record(bets: list, wins: list) -> str:
@@ -833,6 +1082,11 @@ def show_summary(
     unaccounted = len(all_bets) - len(nrfi_bets) - len(yrfi_bets)
     win_rate = len(wins) / len(all_bets) * 100 if all_bets else 0.0
 
+    # Odds coverage
+    bets_with_odds    = [r for r in all_bets if r.get("market_nrfi_odds")]
+    bets_without_odds = [r for r in all_bets if not r.get("market_nrfi_odds")]
+    odds_coverage_pct = (len(bets_with_odds) / len(all_bets) * 100) if all_bets else 0.0
+
     dates = sorted({r["date"] for r in rows})
     date_range = f"{dates[0]} → {dates[-1]}" if dates else "no data"
 
@@ -851,17 +1105,28 @@ def show_summary(
     print(f"  Postponed/susp.     : {len(postponed)}")
     print(f"  Ungraded            : {len(ungraded)}")
 
-    # Integrity check
+    # Odds coverage line
+    if all_bets:
+        if not bets_with_odds:
+            print(f"  Odds coverage       : none — run --import-odds to enable ROI tracking")
+        elif bets_without_odds:
+            print(f"  Odds coverage       : {len(bets_with_odds)}/{len(all_bets)} bets "
+                  f"({odds_coverage_pct:.0f}%)  —  {len(bets_without_odds)} missing odds")
+        else:
+            print(f"  Odds coverage       : {len(bets_with_odds)}/{len(all_bets)} bets (100%)")
+
+    # Integrity checks
     total_accounted = len(all_bets) + len(passes) + len(postponed) + len(ungraded)
     if total_accounted != len(rows):
         print(f"  [warn] Row count mismatch: {len(rows)} logged, {total_accounted} accounted for")
     if unaccounted > 0:
-        print(f"  [warn] {unaccounted} graded bet(s) have unexpected pick_side value")
+        print(f"  [warn] {unaccounted} graded bet(s) have unexpected pick_side — run --audit-csv")
 
     # ── Betting P&L (shown only if odds exist) ────────────────────────────
     if has_odds:
+        pnl_scope = f"on {len(bets_with_odds)}/{len(all_bets)} bets with odds" if bets_without_odds else "all bets"
         print(f"\n{sep2}")
-        print(f"  BETTING P&L  (bets placed with odds)")
+        print(f"  BETTING P&L  ({pnl_scope})")
         print(f"  Bets placed         : {len(bet_rows)}")
         print(f"  Units risked        : {total_risked:.2f}u")
         print(f"  Net P&L             : {total_pnl:+.2f}u")
