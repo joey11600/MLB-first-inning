@@ -62,15 +62,20 @@ FIELDS = [
     "fi_home_runs",
     "fi_total_runs",
     "graded_at",
-    # --- odds / ROI placeholders (for future use) ---
-    "market_nrfi_odds",
+    # --- odds & edge (filled by --import-odds) ---
+    "market_nrfi_odds",     # American odds string, e.g. "-115" or "+105"
     "market_yrfi_odds",
-    "implied_nrfi_prob",
+    "sportsbook",           # optional label
+    "odds_captured_at",     # ISO timestamp of when odds were captured
+    "implied_nrfi_prob",    # computed from market_nrfi_odds
     "implied_yrfi_prob",
-    "model_edge_nrfi",
-    "model_edge_yrfi",
-    "units",
-    "profit_loss",
+    "edge_nrfi",            # nrfi_prob - implied_nrfi_prob
+    "edge_yrfi",            # yrfi_prob - implied_yrfi_prob
+    "edge_on_pick",         # edge for the picked side (blank for PASS)
+    # --- bet sizing & P&L ---
+    "bet_placed",           # Y | N  (N if PASS, no odds, or edge below threshold)
+    "units_risked",
+    "profit_loss_units",
 ]
 
 # ---------------------------------------------------------------------------
@@ -228,11 +233,12 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "actual_result": "", "graded_result": "",
             "fi_away_runs":  "", "fi_home_runs":  "", "fi_total_runs": "",
             "graded_at":     "",
-            # odds placeholders
+            # odds & edge (filled by --import-odds; preserved on re-run)
             "market_nrfi_odds": "", "market_yrfi_odds": "",
+            "sportsbook": "", "odds_captured_at": "",
             "implied_nrfi_prob": "", "implied_yrfi_prob": "",
-            "model_edge_nrfi":   "", "model_edge_yrfi":   "",
-            "units": "", "profit_loss": "",
+            "edge_nrfi": "", "edge_yrfi": "", "edge_on_pick": "",
+            "bet_placed": "", "units_risked": "", "profit_loss_units": "",
         }
 
         key = (iso_date, str(g["game_pk"]))
@@ -244,9 +250,10 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "actual_result", "graded_result",
                 "fi_away_runs", "fi_home_runs", "fi_total_runs", "graded_at",
                 "market_nrfi_odds", "market_yrfi_odds",
+                "sportsbook", "odds_captured_at",
                 "implied_nrfi_prob", "implied_yrfi_prob",
-                "model_edge_nrfi", "model_edge_yrfi",
-                "units", "profit_loss",
+                "edge_nrfi", "edge_yrfi", "edge_on_pick",
+                "bet_placed", "units_risked", "profit_loss_units",
             ]
 
             # If already graded, also preserve the original pick decision so
@@ -393,11 +400,18 @@ def grade_date(date_str: str, season: int) -> None:
         rows[idx]["fi_total_runs"] = total_r
         rows[idx]["graded_at"]     = now
 
+        # Compute P&L if odds were already imported for this row
+        if rows[idx].get("bet_placed") == "Y":
+            rows[idx]["profit_loss_units"] = _calc_pnl(rows[idx])
+
         outcome_tag = {"WIN": "✓", "LOSS": "✗", "PASS": "-"}.get(graded_result, "?")
         source_tag  = "" if state == "Final" else f" [from {state}]"
+        pnl_tag = ""
+        if rows[idx].get("profit_loss_units") not in ("", None):
+            pnl_tag = f"  P&L: {float(rows[idx]['profit_loss_units']):+.2f}u"
         print(
             f"{tag}  1st inn: {away_r}-{home_r} ({actual})  "
-            f"pick={pick}  →  {outcome_tag} {graded_result}{source_tag}"
+            f"pick={pick}  →  {outcome_tag} {graded_result}{source_tag}{pnl_tag}"
         )
         graded_n += 1
 
@@ -406,7 +420,263 @@ def grade_date(date_str: str, season: int) -> None:
     print(f"  CSV: {path}\n")
 
 # ---------------------------------------------------------------------------
-# 3. Performance summary
+# 3. Odds import & edge calculation
+# ---------------------------------------------------------------------------
+
+def american_to_prob(odds_str: str) -> float | None:
+    """
+    Convert an American odds string to implied probability (0–1).
+    Handles "-110", "+105", "110" (treated as negative), etc.
+    Returns None if the string cannot be parsed.
+    """
+    if not odds_str:
+        return None
+    s = str(odds_str).strip().replace(" ", "")
+    try:
+        odds = float(s)
+    except ValueError:
+        return None
+    if odds == 0:
+        return None
+    if odds > 0:
+        return 100.0 / (odds + 100.0)
+    else:  # negative
+        return abs(odds) / (abs(odds) + 100.0)
+
+
+def payout_per_unit(odds_str: str) -> float | None:
+    """
+    How much profit you earn per 1 unit risked (not including stake return).
+    E.g. -110 → 0.909,  +105 → 1.05,  +100 (even) → 1.0
+    Returns None if unparseable.
+    """
+    if not odds_str:
+        return None
+    s = str(odds_str).strip().replace(" ", "")
+    try:
+        odds = float(s)
+    except ValueError:
+        return None
+    if odds == 0:
+        return None
+    if odds > 0:
+        return odds / 100.0
+    else:
+        return 100.0 / abs(odds)
+
+
+def _calc_pnl(row: dict) -> str:
+    """
+    Compute profit/loss in units for one already-graded row.
+    Returns a formatted string or "" if data is incomplete.
+    """
+    graded = row.get("graded_result", "")
+    if graded not in ("WIN", "LOSS"):
+        return ""
+
+    units_str = row.get("units_risked", "")
+    if not units_str:
+        return ""
+    try:
+        units = float(units_str)
+    except ValueError:
+        return ""
+
+    if graded == "LOSS":
+        return _fmt(-units, 3)
+
+    # WIN — need the odds for the picked side to compute payout
+    pick = row.get("pick_side", "")
+    if pick == "NRFI":
+        odds_str = row.get("market_nrfi_odds", "")
+    elif pick == "YRFI":
+        odds_str = row.get("market_yrfi_odds", "")
+    else:
+        return ""
+
+    ppu = payout_per_unit(odds_str)
+    if ppu is None:
+        return ""
+    return _fmt(units * ppu, 3)
+
+
+def _apply_odds_to_row(
+    row:         dict,
+    nrfi_odds:   str,
+    yrfi_odds:   str,
+    sportsbook:  str,
+    min_edge:    float,
+    units_lean:  float,
+    units_strong: float,
+    captured_at: str,
+) -> dict:
+    """
+    Apply market odds to a single row dict.
+    Computes implied probs, edges, bet sizing, and P&L if already graded.
+    Returns the mutated row.
+    """
+    row["market_nrfi_odds"] = nrfi_odds
+    row["market_yrfi_odds"] = yrfi_odds
+    row["sportsbook"]       = sportsbook
+    row["odds_captured_at"] = captured_at
+
+    imp_nrfi = american_to_prob(nrfi_odds)
+    imp_yrfi = american_to_prob(yrfi_odds)
+
+    row["implied_nrfi_prob"] = _fmt(imp_nrfi, 4) if imp_nrfi is not None else ""
+    row["implied_yrfi_prob"] = _fmt(imp_yrfi, 4) if imp_yrfi is not None else ""
+
+    # Model probs (already logged at prediction time)
+    try:
+        model_nrfi = float(row.get("nrfi_prob", "") or 0)
+        model_yrfi = float(row.get("yrfi_prob", "") or 0)
+    except ValueError:
+        row["edge_nrfi"] = row["edge_yrfi"] = row["edge_on_pick"] = ""
+        row["bet_placed"] = "N"
+        row["units_risked"] = ""
+        return row
+
+    edge_nrfi = (model_nrfi - imp_nrfi) if imp_nrfi is not None else None
+    edge_yrfi = (model_yrfi - imp_yrfi) if imp_yrfi is not None else None
+
+    row["edge_nrfi"] = _fmt(edge_nrfi, 4) if edge_nrfi is not None else ""
+    row["edge_yrfi"] = _fmt(edge_yrfi, 4) if edge_yrfi is not None else ""
+
+    pick      = row.get("pick_side", "")
+    strength  = row.get("pick_strength", "")
+
+    if pick == "NRFI":
+        edge_pick = edge_nrfi
+    elif pick == "YRFI":
+        edge_pick = edge_yrfi
+    else:
+        edge_pick = None
+
+    row["edge_on_pick"] = _fmt(edge_pick, 4) if edge_pick is not None else ""
+
+    # Bet sizing: only bet if pick is NRFI/YRFI and edge meets threshold
+    if pick in ("NRFI", "YRFI") and edge_pick is not None and edge_pick >= min_edge:
+        if strength == "STRONG":
+            units = units_strong
+        elif strength == "LEAN":
+            units = units_lean
+        else:
+            units = 0.0
+
+        if units > 0:
+            row["bet_placed"]   = "Y"
+            row["units_risked"] = _fmt(units, 2)
+        else:
+            row["bet_placed"]   = "N"
+            row["units_risked"] = ""
+    else:
+        row["bet_placed"]   = "N"
+        row["units_risked"] = ""
+
+    # Compute P&L if graded
+    row["profit_loss_units"] = _calc_pnl(row)
+    return row
+
+
+def import_odds(
+    odds_path:     str | Path,
+    season:        int | None = None,
+    min_edge:      float      = 0.00,
+    units_lean:    float      = 0.5,
+    units_strong:  float      = 1.0,
+) -> None:
+    """
+    Import market odds from a CSV file and update picks_{season}.csv.
+
+    Odds file format (header required):
+      date, game_pk, away_team, home_team, market_nrfi_odds, market_yrfi_odds
+      Optional columns: sportsbook
+
+    Matching priority:
+      1. date + game_pk        (exact)
+      2. date + away_team + home_team  (fuzzy fallback)
+
+    After matching, computes:
+      implied probs, model edges, bet_placed, units_risked, profit_loss_units
+
+    Example:
+      2026-04-05,745459,NYY,BOS,-115,+105,FanDuel
+      2026-04-05,,LAD,SF,-110,-110,DraftKings
+    """
+    odds_path = Path(odds_path)
+    if not odds_path.exists():
+        print(f"Odds file not found: {odds_path}")
+        return
+
+    # Infer season from odds file if not provided
+    if season is None:
+        season = date_type.today().year
+
+    picks_path = _csv_path(season)
+    rows       = _read_rows(picks_path)
+
+    if not rows:
+        print(f"No picks logged for season {season}. Run the predictor first.")
+        return
+
+    # Build lookup indexes
+    by_pk:   dict[tuple, int] = {}   # (iso_date, str(game_pk)) → idx
+    by_team: dict[tuple, int] = {}   # (iso_date, away, home) → idx
+    for i, r in enumerate(rows):
+        d = r["date"]
+        by_pk[(d, str(r["game_pk"]))] = i
+        by_team[(d, r["away_team"].upper(), r["home_team"].upper())] = i
+
+    now = _now_utc()
+    matched_n = unmatched_n = 0
+
+    with open(odds_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        # Normalize column names
+        for odds_row in reader:
+            cols = {k.strip().lower(): v.strip() for k, v in odds_row.items()}
+            iso_date = _to_iso(cols.get("date", ""))
+            game_pk  = str(cols.get("game_pk", "")).strip()
+            away     = cols.get("away_team", "").upper()
+            home     = cols.get("home_team", "").upper()
+            nrfi_o   = cols.get("market_nrfi_odds", "")
+            yrfi_o   = cols.get("market_yrfi_odds", "")
+            book     = cols.get("sportsbook", "")
+
+            # Attempt match
+            idx = None
+            if game_pk:
+                idx = by_pk.get((iso_date, game_pk))
+            if idx is None:
+                idx = by_team.get((iso_date, away, home))
+
+            if idx is None:
+                print(f"  [no match] {iso_date}  {away} @ {home}  pk={game_pk}")
+                unmatched_n += 1
+                continue
+
+            rows[idx] = _apply_odds_to_row(
+                rows[idx], nrfi_o, yrfi_o, book, min_edge,
+                units_lean, units_strong, now
+            )
+
+            r = rows[idx]
+            bet_tag   = f"bet={'Y' if r['bet_placed']=='Y' else 'N'}"
+            edge_tag  = f"edge={r['edge_on_pick'] or 'N/A'}"
+            units_tag = f"{r['units_risked'] or '0'}u" if r['bet_placed']=='Y' else ""
+            print(
+                f"  {r['away_team']:>3} @ {r['home_team']:<3}  "
+                f"NRFI:{nrfi_o:>5}  YRFI:{yrfi_o:>5}  "
+                f"{bet_tag}  {edge_tag}  {units_tag}"
+            )
+            matched_n += 1
+
+    _write_rows(picks_path, rows)
+    print(f"\n  Matched {matched_n} | Unmatched {unmatched_n}")
+    print(f"  CSV: {picks_path}\n")
+
+# ---------------------------------------------------------------------------
+# 4. Performance summary
 # ---------------------------------------------------------------------------
 
 def _record(bets: list, wins: list) -> str:
@@ -422,6 +692,26 @@ def _side(r: dict) -> str:
 
 def _strength(r: dict) -> str:
     return r.get("pick_strength", "").strip()
+
+
+def _safe_float(v, default: float = 0.0) -> float:
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _roi_line(bets: list, wins: list) -> str:
+    """'W-L (win%)  u_risked → +/-u  ROI%'  or just record if no odds."""
+    record = _record(bets, wins)
+    has_odds = [r for r in bets if r.get("units_risked")]
+    if not has_odds:
+        return record
+    total_risked = sum(_safe_float(r["units_risked"]) for r in has_odds)
+    total_pnl    = sum(_safe_float(r.get("profit_loss_units")) for r in has_odds)
+    roi          = (total_pnl / total_risked * 100) if total_risked > 0 else 0.0
+    pnl_str = f"{total_pnl:+.2f}u"
+    return f"{record}  |  {total_risked:.1f}u risked  {pnl_str}  ROI {roi:+.1f}%"
 
 
 def show_summary(
@@ -496,7 +786,6 @@ def show_summary(
     sy_wins = [r for r in sy_bets if r["graded_result"] == "WIN"]
 
     # ── Quality breakdown ────────────────────────────────────────────────────
-    # "high quality" = all 4 data inputs are not pure league-average default
     hi_qual_bets = [
         r for r in all_bets
         if all(r.get(q, "avg") not in ("", "avg")
@@ -505,58 +794,121 @@ def show_summary(
     ]
     hi_qual_wins = [r for r in hi_qual_bets if r["graded_result"] == "WIN"]
 
-    # Reconciliation check — catch any row whose pick_side is unexpected
-    unaccounted = len(all_bets) - len(nrfi_bets) - len(yrfi_bets)
+    # ── Betting / ROI metrics (only rows with odds) ───────────────────────
+    bet_rows = [r for r in all_bets if r.get("bet_placed") == "Y"]
+    bet_wins = [r for r in bet_rows if r["graded_result"] == "WIN"]
+    has_odds  = bool(bet_rows or any(r.get("market_nrfi_odds") for r in all_bets))
 
+    total_risked = sum(_safe_float(r.get("units_risked")) for r in bet_rows)
+    total_pnl    = sum(_safe_float(r.get("profit_loss_units")) for r in bet_rows)
+    roi = (total_pnl / total_risked * 100) if total_risked > 0 else 0.0
+
+    # ── Edge buckets (bets with odds only) ───────────────────────────────────
+    def _edge_bucket(r):
+        v = _safe_float(r.get("edge_on_pick"), None)
+        if v is None: return None
+        if v < 0.02: return "<2%"
+        if v < 0.05: return "2-5%"
+        if v < 0.08: return "5-8%"
+        return "8%+"
+
+    edge_buckets = ["<2%", "2-5%", "5-8%", "8%+"]
+
+    # ── Model probability buckets ─────────────────────────────────────────
+    def _prob_bucket(r):
+        side = _side(r)
+        try:
+            p = float(r.get("nrfi_prob") if side == "NRFI" else r.get("yrfi_prob") or 0)
+        except ValueError:
+            return None
+        if side == "NRFI":
+            if p < 0.46: return "NRFI 43-46%"
+            if p < 0.49: return "NRFI 46-49%"
+            return "NRFI 49%+"
+        else:
+            if p < 0.72: return "YRFI 68-72%"
+            return "YRFI 72%+"
+
+    # Reconciliation check
+    unaccounted = len(all_bets) - len(nrfi_bets) - len(yrfi_bets)
     win_rate = len(wins) / len(all_bets) * 100 if all_bets else 0.0
 
-    # Date range string for header
     dates = sorted({r["date"] for r in rows})
     date_range = f"{dates[0]} → {dates[-1]}" if dates else "no data"
 
-    sep  = "=" * 56
-    sep2 = "-" * 56
+    sep  = "=" * 60
+    sep2 = "-" * 60
     print(f"\n{sep}")
     print(f"  PERFORMANCE SUMMARY  —  Season {season}")
     if date_from or date_to or last_n:
         print(f"  Filter : {date_range}")
     print(sep)
-    print(f"  Logged games      : {len(rows)}")
-    print(f"  Total bets placed : {len(all_bets)}")
-    print(f"  Wins / Losses     : {len(wins)} / {len(losses)}")
-    print(f"  Win rate          : {win_rate:.1f}%")
-    print(f"  PASS (skipped)    : {len(passes)}")
-    print(f"  Postponed/susp.   : {len(postponed)}")
-    print(f"  Ungraded          : {len(ungraded)}")
+    print(f"  Logged games        : {len(rows)}")
+    print(f"  Graded bets (W+L)   : {len(all_bets)}")
+    print(f"  Wins / Losses       : {len(wins)} / {len(losses)}")
+    print(f"  Win rate            : {win_rate:.1f}%")
+    print(f"  PASS (no pick)      : {len(passes)}")
+    print(f"  Postponed/susp.     : {len(postponed)}")
+    print(f"  Ungraded            : {len(ungraded)}")
 
-    # ── Summary integrity check ───────────────────────────────────────────────
+    # Integrity check
     total_accounted = len(all_bets) + len(passes) + len(postponed) + len(ungraded)
     if total_accounted != len(rows):
         print(f"  [warn] Row count mismatch: {len(rows)} logged, {total_accounted} accounted for")
     if unaccounted > 0:
         print(f"  [warn] {unaccounted} graded bet(s) have unexpected pick_side value")
 
+    # ── Betting P&L (shown only if odds exist) ────────────────────────────
+    if has_odds:
+        print(f"\n{sep2}")
+        print(f"  BETTING P&L  (bets placed with odds)")
+        print(f"  Bets placed         : {len(bet_rows)}")
+        print(f"  Units risked        : {total_risked:.2f}u")
+        print(f"  Net P&L             : {total_pnl:+.2f}u")
+        print(f"  ROI                 : {roi:+.1f}%")
+
     print(f"\n{sep2}")
-    print(f"  By side:")
-    print(f"    NRFI     : {_record(nrfi_bets, nrfi_wins)}")
-    print(f"    YRFI     : {_record(yrfi_bets, yrfi_wins)}")
+    print(f"  By side (W/L record  |  units/ROI if odds available):")
+    print(f"    NRFI  : {_roi_line(nrfi_bets, nrfi_wins)}")
+    print(f"    YRFI  : {_roi_line(yrfi_bets, yrfi_wins)}")
 
     print(f"\n{sep2}")
     print(f"  By strength:")
-    print(f"    LEAN     : {_record(lean_bets,   lean_wins)}")
-    print(f"    STRONG   : {_record(strong_bets, strong_wins)}")
+    print(f"    LEAN   : {_roi_line(lean_bets,   lean_wins)}")
+    print(f"    STRONG : {_roi_line(strong_bets, strong_wins)}")
 
     print(f"\n{sep2}")
     print(f"  By side + strength:")
-    print(f"    LEAN  NRFI  : {_record(ln_bets, ln_wins)}")
-    print(f"    STRONG NRFI : {_record(sn_bets, sn_wins)}")
-    print(f"    LEAN  YRFI  : {_record(ly_bets, ly_wins)}")
-    print(f"    STRONG YRFI : {_record(sy_bets, sy_wins)}")
+    print(f"    LEAN  NRFI  : {_roi_line(ln_bets, ln_wins)}")
+    print(f"    STRONG NRFI : {_roi_line(sn_bets, sn_wins)}")
+    print(f"    LEAN  YRFI  : {_roi_line(ly_bets, ly_wins)}")
+    print(f"    STRONG YRFI : {_roi_line(sy_bets, sy_wins)}")
 
     if hi_qual_bets:
         print(f"\n{sep2}")
-        print(f"  All inputs blended (4/4 non-avg):")
-        print(f"    {_record(hi_qual_bets, hi_qual_wins)}")
+        print(f"  All inputs non-avg (4/4):")
+        print(f"    {_roi_line(hi_qual_bets, hi_qual_wins)}")
+
+    # ── Edge buckets (only when odds available) ───────────────────────────
+    if has_odds and bet_rows:
+        print(f"\n{sep2}")
+        print(f"  By edge bucket (bets with odds only):")
+        for bkt in edge_buckets:
+            b_bets = [r for r in bet_rows if _edge_bucket(r) == bkt]
+            b_wins = [r for r in b_bets  if r["graded_result"] == "WIN"]
+            if b_bets:
+                print(f"    {bkt:<8}: {_roi_line(b_bets, b_wins)}")
+
+        # Model prob buckets
+        print(f"\n{sep2}")
+        print(f"  By model probability bucket:")
+        prob_buckets = ["NRFI 43-46%", "NRFI 46-49%", "NRFI 49%+",
+                        "YRFI 68-72%", "YRFI 72%+"]
+        for bkt in prob_buckets:
+            b_bets = [r for r in all_bets if _prob_bucket(r) == bkt]
+            b_wins = [r for r in b_bets   if r["graded_result"] == "WIN"]
+            if b_bets:
+                print(f"    {bkt:<14}: {_roi_line(b_bets, b_wins)}")
 
     print(sep)
     print()

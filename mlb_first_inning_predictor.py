@@ -961,15 +961,23 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python mlb_first_inning_predictor.py                        # predict today
-  python mlb_first_inning_predictor.py --date 04/10/2025      # specific date
-  python mlb_first_inning_predictor.py --strong               # LEAN+ picks only
-  python mlb_first_inning_predictor.py --grade                # grade today's picks
+  python mlb_first_inning_predictor.py                          # predict today
+  python mlb_first_inning_predictor.py --date 04/10/2025        # specific date
+  python mlb_first_inning_predictor.py --strong                 # LEAN+ picks only
+  python mlb_first_inning_predictor.py --grade                  # grade today's picks
   python mlb_first_inning_predictor.py --grade --date 04/05/2026
+  python mlb_first_inning_predictor.py --import-odds odds.csv   # import market odds
+  python mlb_first_inning_predictor.py --import-odds odds.csv --min-edge 0.02
   python mlb_first_inning_predictor.py --summary
   python mlb_first_inning_predictor.py --summary --season 2025
   python mlb_first_inning_predictor.py --summary --last 50
   python mlb_first_inning_predictor.py --summary --date-from 04/01/2026 --date-to 04/30/2026
+
+Odds CSV format (--import-odds):
+  Required columns: date, market_nrfi_odds, market_yrfi_odds
+  At least one of: game_pk  OR  (away_team + home_team)
+  Optional: sportsbook
+  Example row:  2026-04-05,745459,NYY,BOS,-115,+105,FanDuel
         """,
     )
     parser.add_argument(
@@ -977,28 +985,43 @@ Examples:
         default=date.today().strftime("%m/%d/%Y"),
         help="Game date MM/DD/YYYY (default: today)",
     )
-    parser.add_argument("--strong",    action="store_true", help="Only show LEAN or STRONG picks")
-    parser.add_argument("--debug",     action="store_true", help="Print raw IDs and blended stat values")
-    parser.add_argument("--grade",     action="store_true", help="Grade logged picks against actual results")
-    parser.add_argument("--summary",   action="store_true", help="Show performance summary from CSV")
-    parser.add_argument("--season",    type=int,            help="Season year (default: derived from --date or current year)")
-    parser.add_argument("--last",      type=int,            metavar="N", help="Summary: most recent N graded bets")
-    parser.add_argument("--date-from", metavar="MM/DD/YYYY", help="Summary: start date (inclusive)")
-    parser.add_argument("--date-to",   metavar="MM/DD/YYYY", help="Summary: end date (inclusive)")
+    parser.add_argument("--strong",       action="store_true", help="Only show LEAN or STRONG picks")
+    parser.add_argument("--debug",        action="store_true", help="Print raw IDs and blended stat values")
+    parser.add_argument("--grade",        action="store_true", help="Grade logged picks against actual results")
+    parser.add_argument("--summary",      action="store_true", help="Show performance summary from CSV")
+    parser.add_argument("--import-odds",  metavar="FILE",      help="Import market odds from CSV file")
+    parser.add_argument("--season",       type=int,            help="Season year (default: derived from --date or current year)")
+    parser.add_argument("--last",         type=int,            metavar="N",            help="Summary: most recent N graded bets")
+    parser.add_argument("--date-from",    metavar="MM/DD/YYYY",                        help="Summary: start date (inclusive)")
+    parser.add_argument("--date-to",      metavar="MM/DD/YYYY",                        help="Summary: end date (inclusive)")
+    parser.add_argument("--min-edge",     type=float, default=0.00, metavar="FRAC",    help="Min model edge to place bet (default: 0.00)")
+    parser.add_argument("--units-lean",   type=float, default=0.5,  metavar="U",       help="Units to risk on LEAN picks (default: 0.5)")
+    parser.add_argument("--units-strong", type=float, default=1.0,  metavar="U",       help="Units to risk on STRONG picks (default: 1.0)")
     args = parser.parse_args()
+
+    season = args.season or (int(args.date.split("/")[-1]) if "/" in args.date else date.today().year)
 
     if args.grade:
         from tracker import grade_date
-        season = args.season or (int(args.date.split("/")[-1]) if "/" in args.date else date.today().year)
         grade_date(args.date, season)
 
     elif args.summary:
         from tracker import show_summary
         show_summary(
-            season    = args.season,
+            season    = season,
             last_n    = args.last,
             date_from = args.date_from,
             date_to   = args.date_to,
+        )
+
+    elif args.import_odds:
+        from tracker import import_odds
+        import_odds(
+            odds_path    = args.import_odds,
+            season       = season,
+            min_edge     = args.min_edge,
+            units_lean   = args.units_lean,
+            units_strong = args.units_strong,
         )
 
     else:
