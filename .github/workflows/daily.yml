@@ -79,5 +79,20 @@ jobs:
             exit 0
           fi
           git commit -m "auto: $ACTION $TODAY"
-          # Push to whatever branch the workflow ran from
-          git push
+          # Push with rebase+retry.  The manual Predict/Grade buttons can
+          # race with each other, with the cron schedules, and with manual
+          # commits to the same branch -- a naive `git push` fails with
+          # "fetch first" in that case.  Rebasing on origin and retrying
+          # handles the common case (CSV data appended by both sides).
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for attempt in 1 2 3; do
+            if git push; then exit 0; fi
+            echo "push attempt $attempt rejected; rebasing onto origin/$BRANCH..."
+            if ! git pull --rebase origin "$BRANCH"; then
+              echo "rebase produced a conflict; cannot auto-resolve"
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+          done
+          echo "push still failing after 3 attempts"
+          exit 1
