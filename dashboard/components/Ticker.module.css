@@ -65,19 +65,9 @@
   display: flex;
   gap: 24px;
   white-space: nowrap;
-  animation: tickerScroll 60s linear infinite;
   padding-left: 24px;
   will-change: transform;
-}
-.scroll:hover { animation-play-state: paused; }
-
-@keyframes tickerScroll {
-  from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(-50%, 0, 0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scroll { animation: none; }
+  /* transform is driven by requestAnimationFrame in Ticker.tsx */
 }
 
 .seg {

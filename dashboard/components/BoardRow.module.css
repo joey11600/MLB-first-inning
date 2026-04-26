@@ -1,30 +1,77 @@
+/* ============================================================
+   Card-row style — each game is a self-contained capsule with:
+   • big rank in left column
+   • a status-tinted gradient bleeding from the right
+   • segmented "CPU bar" position indicator (10 pills)
+   • pill-style pick badge
+   ============================================================ */
+
 .row {
   position: relative;
-  border-bottom: 1px solid var(--border);
-  transition: background 180ms ease;
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--card);
+  overflow: hidden;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 200ms ease,
+              box-shadow 200ms ease;
 }
-.row:last-child { border-bottom: 0; }
-.row:hover { background: var(--muted); }
-.row.open { background: var(--muted); }
+.row:first-child { margin-top: 0; }
+.row:last-child  { margin-bottom: 0; }
+
+.row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--foreground) 10%, var(--border));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.22);
+}
+.row.open {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), 0 0 0 1px color-mix(in oklab, var(--primary) 20%, transparent);
+}
+
+/* Status gradient bleeding in from the right edge. The tone classes set
+   the gradient color via --status-tone. */
+.row::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 36%;
+  background: linear-gradient(
+    270deg,
+    color-mix(in oklab, var(--status-tone, transparent) 14%, transparent) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  transition: background 240ms ease;
+}
+.nrfiStrong { --status-tone: var(--primary); }
+.nrfiLean   { --status-tone: color-mix(in oklab, var(--primary) 70%, transparent); }
+.passTone   { --status-tone: var(--secondary); }
+.yrfiLean   { --status-tone: color-mix(in oklab, var(--destructive) 70%, transparent); }
+.yrfiStrong { --status-tone: var(--destructive); }
 
 .clickable {
   display: grid;
   width: 100%;
   grid-template-columns:
-    44px
-    minmax(220px, 1.3fr)
-    78px
-    minmax(180px, 1.2fr)
-    minmax(160px, 1fr)
-    78px
-    78px
-    36px;
+    62px                 /* big rank */
+    minmax(220px, 1.3fr) /* matchup */
+    78px                 /* P(YRFI) */
+    minmax(150px, 0.95fr) /* pick pill */
+    minmax(180px, 1.1fr)  /* segmented bar */
+    72px                 /* NRFI % */
+    72px                 /* YRFI % */
+    32px;                /* caret */
   align-items: center;
-  gap: 14px;
-  padding: 20px 22px;
+  gap: 16px;
+  padding: 18px 22px;
   text-align: left;
   color: var(--foreground);
   position: relative;
+  z-index: 1;
 }
 .clickable:focus-visible {
   outline: 2px solid var(--ring);
@@ -33,32 +80,23 @@
 
 .right { text-align: right; justify-self: end; }
 
-/* Spine — colored bar on the left of strong picks, subtle on others */
-.spine {
-  position: absolute;
-  left: 0; top: 8px; bottom: 8px;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
-  background: transparent;
-  transition: background 200ms ease;
-}
-.nrfiStrong .spine { background: var(--primary); }
-.nrfiLean   .spine { background: color-mix(in oklab, var(--primary) 50%, transparent); }
-.passTone   .spine { background: var(--secondary); }
-.leanYrfi   .spine, .yrfiLean .spine { background: color-mix(in oklab, var(--destructive) 50%, transparent); }
-.yrfiStrong .spine { background: var(--destructive); }
+/* Spine gone — the right-side gradient does the tone work now */
+.spine { display: none; }
 
-/* Rank — small ordinal (Geist label-12) */
+/* Big rank — the most prominent left-side element (echoes server-table "01") */
 .rank {
   font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1rem;
-  color: var(--muted-foreground);
+  font-size: 28px;
+  line-height: 2rem;
+  color: color-mix(in oklab, var(--muted-foreground) 70%, var(--foreground));
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.04em;
+  text-align: left;
 }
+.nrfiStrong .rank { color: var(--primary); }
+.yrfiStrong .rank { color: var(--destructive); }
 
-/* Matchup — primary identity, prominent (Geist Mono terminal-style) */
+/* Matchup — primary identity */
 .matchup {
   display: inline-flex;
   align-items: baseline;
@@ -89,7 +127,7 @@
   letter-spacing: 0.04em;
 }
 
-/* Doubleheader chip (Geist label-12) */
+/* Doubleheader chip */
 .dhTag {
   display: inline-flex;
   align-items: center;
@@ -108,7 +146,7 @@
   vertical-align: middle;
 }
 
-/* Result badge: W / L / PASS / PP (Geist button-12) */
+/* Result badge: W / L / PASS / PP */
 .resultBadge {
   display: inline-flex;
   align-items: center;
@@ -143,8 +181,8 @@
 }
 .resultPass {
   color: var(--secondary-foreground);
-  background: var(--secondary);
-  border: 1px solid color-mix(in oklab, var(--secondary-foreground) 18%, transparent);
+  background: color-mix(in oklab, var(--secondary) 18%, transparent);
+  border: 1px solid color-mix(in oklab, var(--secondary) 40%, var(--border));
 }
 .resultPP {
   color: var(--muted-foreground);
@@ -152,7 +190,7 @@
   border: 1px dashed var(--border);
 }
 
-/* P(YRFI) value — secondary number (Geist label-18) */
+/* P(YRFI) numeric */
 .lambdaVal {
   font-size: 18px;
   font-weight: 500;
@@ -162,59 +200,113 @@
   letter-spacing: -0.005em;
 }
 
-/* Pick zone — THE most prominent thing per row */
+/* Pick pill — the rounded badge on the right of each row */
 .pickCell {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
   min-width: 0;
 }
-.marker {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  width: 30px;
-  display: inline-block;
-  color: var(--muted-foreground);
+.pickPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  white-space: nowrap;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+.pickDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+  flex: 0 0 auto;
 }
 .pickLabel {
   font-family: var(--font-sans);
-  font-size: 16px;
-  line-height: 1.25rem;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   font-weight: 600;
+  color: var(--foreground);
   white-space: nowrap;
 }
 
-.nrfiStrong .marker { color: var(--primary); }
-.nrfiStrong .pickLabel { color: var(--primary); font-weight: 600; }
+.nrfiStrong .pickPill {
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 38%, var(--border));
+}
+.nrfiStrong .pickDot   { background: var(--primary); box-shadow: 0 0 8px color-mix(in oklab, var(--primary) 60%, transparent); }
+.nrfiStrong .pickLabel { color: var(--primary); }
 
-.nrfiLean .marker { color: color-mix(in oklab, var(--primary) 70%, var(--muted-foreground)); }
-.nrfiLean .pickLabel { color: color-mix(in oklab, var(--primary) 80%, var(--muted-foreground)); }
+.nrfiLean .pickPill {
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
+}
+.nrfiLean .pickDot   { background: color-mix(in oklab, var(--primary) 80%, var(--muted-foreground)); }
+.nrfiLean .pickLabel { color: color-mix(in oklab, var(--primary) 90%, var(--muted-foreground)); }
 
-.passTone .marker { color: var(--muted-foreground); }
-.passTone .pickLabel { color: var(--muted-foreground); font-style: italic; font-weight: 400; }
+.passTone .pickPill {
+  background: color-mix(in oklab, var(--secondary) 15%, transparent);
+  border-color: color-mix(in oklab, var(--secondary) 35%, var(--border));
+}
+.passTone .pickDot   { background: var(--secondary); }
+.passTone .pickLabel { color: var(--secondary); font-style: normal; }
 
-.yrfiLean .marker { color: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground)); }
-.yrfiLean .pickLabel { color: color-mix(in oklab, var(--destructive) 85%, var(--muted-foreground)); }
+.yrfiLean .pickPill {
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 28%, var(--border));
+}
+.yrfiLean .pickDot   { background: color-mix(in oklab, var(--destructive) 80%, var(--muted-foreground)); }
+.yrfiLean .pickLabel { color: color-mix(in oklab, var(--destructive) 90%, var(--muted-foreground)); }
 
-.yrfiStrong .marker { color: var(--destructive); }
-.yrfiStrong .pickLabel { color: var(--destructive); font-weight: 600; }
+.yrfiStrong .pickPill {
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 40%, var(--border));
+}
+.yrfiStrong .pickDot   { background: var(--destructive); box-shadow: 0 0 8px color-mix(in oklab, var(--destructive) 60%, transparent); }
+.yrfiStrong .pickLabel { color: var(--destructive); }
 
-/* Position meter cell */
+/* Segmented bar — replaces the single zone meter with 10 discrete pills */
 .meterCell {
   display: block;
   min-width: 0;
-  padding-right: 8px;
+  padding-right: 4px;
+}
+.segBar {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.segBarSeg {
+  flex: 1 1 0;
+  height: 18px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+  transition: background 240ms ease, border-color 240ms ease;
+}
+/* Highlighted segments use the row's tone */
+.segBarSegFill { background: var(--muted-foreground); border-color: transparent; }
+.nrfiStrong .segBarSegFill { background: var(--primary);     border-color: color-mix(in oklab, var(--primary) 60%, transparent); }
+.nrfiLean   .segBarSegFill { background: color-mix(in oklab, var(--primary) 75%, var(--muted-foreground)); border-color: transparent; }
+.passTone   .segBarSegFill { background: var(--secondary);   border-color: color-mix(in oklab, var(--secondary) 60%, transparent); }
+.yrfiLean   .segBarSegFill { background: color-mix(in oklab, var(--destructive) 75%, var(--muted-foreground)); border-color: transparent; }
+.yrfiStrong .segBarSegFill { background: var(--destructive); border-color: color-mix(in oklab, var(--destructive) 60%, transparent); }
+/* Marker: the segment that holds the current P(YRFI) position */
+.segBarSegMarker {
+  outline: 1.5px solid var(--foreground);
+  outline-offset: 1px;
 }
 
-/* Right-side percentages (Geist label-14) */
+/* Right-side percentages */
 .pct {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.25rem;
   color: var(--foreground);
   justify-content: flex-end;
@@ -226,7 +318,7 @@
 .inlineBar {
   position: relative;
   display: inline-block;
-  width: 44px;
+  width: 36px;
   height: 4px;
   background: var(--muted);
   border-radius: 2px;
@@ -245,7 +337,7 @@
 .caret {
   font-family: var(--font-mono);
   color: var(--muted-foreground);
-  font-size: 18px;
+  font-size: 16px;
   text-align: center;
   transition: color 180ms ease, transform 220ms ease;
   width: 24px;
@@ -258,7 +350,9 @@
 .detailsWrap {
   padding: 0 0 18px 0;
   border-top: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--background), transparent);
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--background) 60%, var(--card)),
+    var(--card));
   animation: detailFade 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -267,22 +361,21 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .clickable {
-    grid-template-columns: 36px 1fr 70px 28px;
+    grid-template-columns: 50px 1fr 70px 28px;
     grid-template-areas:
       "rank matchup lambda caret"
-      "spine pick pick pick"
-      "spine meter meter meter";
+      ".    pick    pick   pick"
+      ".    meter   meter  meter";
     padding: 16px 18px 18px;
-    row-gap: 10px;
+    row-gap: 12px;
   }
-  .rank { grid-area: rank; }
-  .matchup { grid-area: matchup; font-size: 17px; }
+  .rank { grid-area: rank; font-size: 24px; }
+  .matchup { grid-area: matchup; }
   .lambdaVal { grid-area: lambda; }
   .caret { grid-area: caret; justify-self: end; }
   .pickCell { grid-area: pick; }
-  .pct:nth-of-type(2),
-  .pct:nth-of-type(1) { display: none; }
+  .pct { display: none; }
   .meterCell { grid-area: meter; }
 }

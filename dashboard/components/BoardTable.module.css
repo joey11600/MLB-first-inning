@@ -1,35 +1,27 @@
 .wrap {
   margin-top: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--card);
-  overflow: hidden;
-  box-shadow: var(--shadow-1);
 }
 
 .headRow {
   display: grid;
   grid-template-columns:
-    44px
+    62px
     minmax(220px, 1.3fr)
     78px
-    minmax(180px, 1.2fr)
-    minmax(160px, 1fr)
-    78px
-    78px
-    36px;
+    minmax(150px, 0.95fr)
+    minmax(180px, 1.1fr)
+    72px
+    72px
+    32px;
   align-items: center;
-  padding: 14px 22px;
+  padding: 10px 22px 8px;
   font-family: var(--font-sans);
-  /* Geist label-12 */
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1rem;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted-foreground);
-  background: var(--muted);
-  border-bottom: 1px solid var(--border);
-  gap: 14px;
+  gap: 16px;
   font-weight: 600;
 }
 

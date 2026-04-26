@@ -1,20 +1,15 @@
 "use client";
 
 import type { BoardRow, GameDetail, PickSide, PickStrength } from "@/lib/types";
-import { LambdaMeter } from "./LambdaMeter";
 import { GameDetails } from "./GameDetails";
 import styles from "./BoardRow.module.css";
+
+const SEGMENT_COUNT = 10;
 
 function toneClass(side: PickSide, strength: PickStrength): string {
   if (side === "NRFI") return strength === "STRONG" ? "nrfiStrong" : "nrfiLean";
   if (side === "YRFI") return strength === "STRONG" ? "yrfiStrong" : "yrfiLean";
   return "passTone";
-}
-
-function markerFor(side: PickSide, strength: PickStrength): string {
-  if (side === "PASS") return "—";
-  if (strength === "STRONG") return "⬥⬥";
-  return "⬥";
 }
 
 export function BoardRowItem({
@@ -70,18 +65,20 @@ export function BoardRowItem({
         </span>
 
         <span className={styles.pickCell}>
-          <span className={styles.marker}>{markerFor(row.pickSide, row.pickStrength)}</span>
-          <span className={styles.pickLabel}>
-            {row.pickSide === "PASS"
-              ? row.pickStrength === "NO DATA"
-                ? "NO DATA"
-                : "PASS"
-              : `${row.pickStrength} ${row.pickSide}`}
+          <span className={styles.pickPill}>
+            <span className={styles.pickDot} aria-hidden />
+            <span className={styles.pickLabel}>
+              {row.pickSide === "PASS"
+                ? row.pickStrength === "NO DATA"
+                  ? "NO DATA"
+                  : "PASS"
+                : `${row.pickStrength} ${row.pickSide}`}
+            </span>
           </span>
         </span>
 
         <span className={styles.meterCell}>
-          <LambdaMeter yrfiProb={row.yrfiPct / 100} compact />
+          <SegmentedBar yrfiProb={row.yrfiPct / 100} side={row.pickSide} />
         </span>
 
         <span className={`num ${styles.pct} ${styles.right}`}>
@@ -113,6 +110,38 @@ function Bar({ pct, tone }: { pct: number; tone: "nrfi" | "yrfi" }) {
   return (
     <span className={`${styles.inlineBar} ${styles[tone]}`}>
       <span className={styles.inlineBarFill} style={{ width: `${p}%` }} />
+    </span>
+  );
+}
+
+function SegmentedBar({
+  yrfiProb,
+  side,
+}: {
+  yrfiProb: number;
+  side: PickSide;
+}) {
+  const p = Math.max(0, Math.min(1, yrfiProb));
+  const markerIdx = Math.min(SEGMENT_COUNT - 1, Math.floor(p * SEGMENT_COUNT));
+
+  return (
+    <span
+      className={styles.segBar}
+      role="img"
+      aria-label={`P(YRFI) ${(p * 100).toFixed(1)}%`}
+    >
+      {Array.from({ length: SEGMENT_COUNT }).map((_, i) => {
+        const filled =
+          side === "NRFI" ? i <= markerIdx
+          : side === "YRFI" ? i >= markerIdx
+          : i === markerIdx;
+        const cls = [
+          styles.segBarSeg,
+          filled ? styles.segBarSegFill : "",
+          i === markerIdx ? styles.segBarSegMarker : "",
+        ].filter(Boolean).join(" ");
+        return <span key={i} className={cls} />;
+      })}
     </span>
   );
 }
