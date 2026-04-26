@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import styles from "./ControlPanel.module.css";
 
 export type SideFilter = "ALL" | "NRFI" | "YRFI" | "PASS";
@@ -192,6 +193,10 @@ export function ControlPanel({
           />
         </div>
 
+        <div className={styles.runWrap}>
+          <RunWorkflowControl />
+        </div>
+
         <div className={styles.loadingWrap} aria-live="polite">
           {loading ? (
             <span className={styles.loading}>
@@ -202,5 +207,80 @@ export function ControlPanel({
         </div>
       </div>
     </section>
+  );
+}
+
+type RunStatus = "idle" | "running" | "ok" | "error";
+
+function RunWorkflowControl() {
+  const [status, setStatus] = useState<RunStatus>("idle");
+  const [message, setMessage] = useState<string>("");
+  const [runsUrl, setRunsUrl] = useState<string>("");
+
+  async function trigger(action: "predict" | "grade") {
+    setStatus("running");
+    setMessage("");
+    try {
+      const res = await fetch("/api/run-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus("error");
+        setMessage(data?.error ?? `HTTP ${res.status}`);
+      } else {
+        setStatus("ok");
+        setMessage(`Dispatched: ${action.toUpperCase()}`);
+        setRunsUrl(data?.runsUrl ?? "");
+      }
+    } catch (e) {
+      setStatus("error");
+      setMessage(e instanceof Error ? e.message : "Network error");
+    }
+  }
+
+  return (
+    <div className={styles.runField}>
+      <span className="eyebrow">Run job</span>
+      <div className={styles.runRow}>
+        <button
+          type="button"
+          className={styles.runBtn}
+          data-tone="nrfi"
+          onClick={() => trigger("predict")}
+          disabled={status === "running"}
+          title="Generate today's slate via GitHub Actions"
+        >
+          {status === "running" ? "..." : "Predict"}
+        </button>
+        <button
+          type="button"
+          className={styles.runBtn}
+          data-tone="yrfi"
+          onClick={() => trigger("grade")}
+          disabled={status === "running"}
+          title="Grade today's results via GitHub Actions"
+        >
+          {status === "running" ? "..." : "Grade"}
+        </button>
+      </div>
+      {status === "ok" && (
+        <a
+          className={`${styles.runMsg} ${styles.runMsgOk}`}
+          href={runsUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {message} -> open Actions
+        </a>
+      )}
+      {status === "error" && (
+        <span className={`${styles.runMsg} ${styles.runMsgErr}`} title={message}>
+          {message.slice(0, 60)}
+        </span>
+      )}
+    </div>
   );
 }
