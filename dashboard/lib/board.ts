@@ -110,11 +110,15 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
   if (!raw) return {};
   const rows = parseCsv(raw);
 
+  // Key by game_pk (uniquely identifies a game, including doubleheader split).
+  // Also fall back to "${away}@${home}" so older board CSVs without gamePk
+  // can still find their detail row.
   const out: Record<string, GameDetail> = {};
   for (const r of rows) {
     if (r.date !== iso) continue;
-    const key = `${r.away_team}@${r.home_team}`;
-    out[key] = {
+    const pk      = r.game_pk ?? "";
+    const teamKey = `${r.away_team}@${r.home_team}`;
+    const detail = {
       gamePk: r.game_pk ?? "",
       gameTimeEt: r.game_time_et ?? "",
       parkFactor: toNumber(r.park_factor),
@@ -174,6 +178,11 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
         },
       },
     };
+    // Primary key: game_pk (uniquely identifies even doubleheader splits)
+    if (pk) out[pk] = detail;
+    // Compatibility key: only set when there isn't already a doubleheader
+    // collision (preserves first-game detail when only away@home is queried).
+    if (!(teamKey in out)) out[teamKey] = detail;
   }
   return out;
 }
@@ -209,6 +218,11 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     pickLabel: r.pick_label,
     nrfiPct: Number(r.nrfi_pct) || 0,
     yrfiPct: Number(r.yrfi_pct) || 0,
+    // Doubleheader fields (empty for pre-fix board CSVs)
+    gamePk:       r.game_pk ?? "",
+    gameNumber:   Number(r.game_number) || 1,
+    doubleHeader: r.double_header ?? "N",
+    gameTimeEt:   r.game_time_et ?? "",
   }));
 
   let generatedAt: string | null = null;

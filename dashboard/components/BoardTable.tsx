@@ -50,8 +50,11 @@ export function BoardTable({
         className={`${styles.body} stagger ${loading ? styles.dim : ""}`}
       >
         {rows.map((row) => {
-          const key = `${row.away}@${row.home}`;
-          const detail = details[key];
+          // gamePk is the unique row key (handles doubleheaders correctly).
+          // Fall back to away@home#rank for old board CSVs missing gamePk.
+          const key       = row.gamePk || `${row.away}@${row.home}#${row.rank}`;
+          const detailKey = row.gamePk || `${row.away}@${row.home}`;
+          const detail    = details[detailKey];
           return (
             <BoardRowItem
               key={key}

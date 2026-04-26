@@ -49,6 +49,11 @@ export function BoardRowItem({
           <span className={styles.team}>{row.away}</span>
           <span className={styles.at}>@</span>
           <span className={styles.team}>{row.home}</span>
+          {row.doubleHeader && row.doubleHeader !== "N" && (
+            <span className={styles.dhTag} title={`Doubleheader Game ${row.gameNumber}`}>
+              DH-{row.gameNumber}
+            </span>
+          )}
           {detail?.gradedResult && (
             <ResultBadge
               graded={detail.gradedResult}

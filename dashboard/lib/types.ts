@@ -12,6 +12,11 @@ export interface BoardRow {
   pickLabel: string;
   nrfiPct: number;
   yrfiPct: number;
+  // Doubleheader disambiguation (added later -- old CSVs may not have these)
+  gamePk: string;        // empty when row is from a pre-2026-04 board CSV
+  gameNumber: number;    // 1 by default
+  doubleHeader: string;  // "N" / "Y" / "S"
+  gameTimeEt: string;    // mirrors picks_2026.csv game_time_et for the same row
 }
 
 export interface PitcherStats {

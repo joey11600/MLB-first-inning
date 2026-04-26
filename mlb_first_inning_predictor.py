@@ -1246,6 +1246,8 @@ _BOARD_CSV_FIELDS = [
     "rank", "away", "home", "lambda",
     "pick_side", "pick_strength", "pick_label",
     "nrfi_pct", "yrfi_pct",
+    # Doubleheader disambiguation
+    "game_pk", "game_number", "double_header", "game_time_et",
 ]
 
 
@@ -1310,6 +1312,11 @@ def print_board(results: list[dict], target_date: str) -> None:
             "pick_label":    pick_label,
             "nrfi_pct":      f"{nrfi_pct:.1f}",
             "yrfi_pct":      f"{yrfi_pct:.1f}",
+            # Doubleheader disambiguation
+            "game_pk":       g.get("game_pk", ""),
+            "game_number":   g.get("game_number", 1),
+            "double_header": g.get("double_header", "N"),
+            "game_time_et":  g.get("time", ""),
         })
 
     print(sep)
