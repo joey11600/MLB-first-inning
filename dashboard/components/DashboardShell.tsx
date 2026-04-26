@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { BoardResponse, BoardRow } from "@/lib/types";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
+import { RoiPanel } from "./RoiPanel";
 import { BoardTable } from "./BoardTable";
 import { Ticker } from "./Ticker";
 import { StatusLine } from "./StatusLine";
@@ -94,6 +95,8 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       </header>
 
       <SummaryStrip rows={data.rows} />
+
+      <RoiPanel initialDate={data.date} />
 
       <ControlPanel
         dates={data.availableDates}
