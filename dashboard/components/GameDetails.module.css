@@ -43,13 +43,17 @@
 .projLabel {
   color: var(--muted-foreground);
   font-family: var(--font-sans);
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
+  /* Geist label-14 */
+  font-size: 13px;
+  line-height: 1.25rem;
+  letter-spacing: 0.02em;
   font-weight: 500;
 }
 .projVal {
-  font-size: 14px;
-  color: var(--foreground);
+  /* Geist label-16 */
+  font-size: 15px;
+  line-height: 1.25rem;
+  color: var(--ds-gray-1000);
   font-weight: 500;
   font-family: var(--font-mono);
 }
@@ -82,14 +86,18 @@
 }
 .probLabel {
   font-family: var(--font-sans);
-  font-size: 11.5px;
-  letter-spacing: 0.03em;
+  /* Geist label-14 */
+  font-size: 13px;
+  line-height: 1.25rem;
+  letter-spacing: 0.01em;
   color: var(--muted-foreground);
   font-weight: 500;
 }
 .probVal {
-  font-size: 14px;
-  color: var(--foreground);
+  /* Geist label-16 */
+  font-size: 15px;
+  line-height: 1.25rem;
+  color: var(--ds-gray-1000);
   font-weight: 500;
   font-family: var(--font-mono);
 }
@@ -126,13 +134,18 @@
 .kvRow:last-child { border-bottom: 0; }
 .kvKey {
   font-family: var(--font-sans);
-  font-size: 11.5px;
-  letter-spacing: 0.03em;
+  /* Geist label-14 */
+  font-size: 13px;
+  line-height: 1.25rem;
+  letter-spacing: 0.01em;
   color: var(--muted-foreground);
   font-weight: 500;
 }
 .kvVal {
-  color: var(--foreground);
+  /* Geist label-14 */
+  font-size: 14px;
+  line-height: 1.25rem;
+  color: var(--ds-gray-1000);
   font-weight: 500;
   font-family: var(--font-mono);
 }
@@ -239,17 +252,21 @@
 }
 .statKey {
   font-family: var(--font-sans);
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
+  /* Geist label-12 */
+  font-size: 11px;
+  line-height: 1rem;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--muted-foreground);
   font-weight: 600;
 }
 .statVal {
-  font-size: 17px;
-  color: var(--foreground);
+  /* Geist label-18 */
+  font-size: 18px;
+  line-height: 1.25rem;
+  color: var(--ds-gray-1000);
   font-weight: 500;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
   font-family: var(--font-mono);
 }
 

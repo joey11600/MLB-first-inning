@@ -4,7 +4,7 @@
    Light default; dark via .dark class or prefers-color-scheme.
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@300;400;500;600;700&display=swap");
 
 :root {
   /* User palette — light */
@@ -46,7 +46,11 @@
   /* Type */
   --font-display: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
   --font-sans:    "Geist", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-mono:    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-mono:    "Geist Mono", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Geist design-system parity tokens (mapped from our palette) */
+  --ds-gray-1000: var(--foreground);
+  --ds-blue-900:  var(--primary);
 
   /* Shadows */
   --shadow-1: 0 1px 2px rgba(20, 14, 10, 0.04), 0 1px 1px rgba(20, 14, 10, 0.03);
@@ -144,9 +148,9 @@ html, body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.55;
-  font-feature-settings: "ss01" 1, "cv11" 1;
+  font-size: 15px;
+  line-height: 1.5;
+  font-feature-settings: "ss01" 1, "cv11" 1, "ss03" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -194,12 +198,43 @@ body::after {
   letter-spacing: -0.005em;
 }
 
-/* ----- Eyebrow / micro labels -------------------------------------------- */
+/* ----- Geist typography scale (parity with Vercel's Text component) ------- */
+/* Headings: tight tracking, semibold weight                                  */
+.t-heading-72 { font-size: 72px; font-weight: 600; line-height: 4.5rem;   letter-spacing: -4.32px; }
+.t-heading-64 { font-size: 64px; font-weight: 600; line-height: 4rem;     letter-spacing: -3.84px; }
+.t-heading-56 { font-size: 56px; font-weight: 600; line-height: 3.5rem;   letter-spacing: -3.36px; }
+.t-heading-48 { font-size: 48px; font-weight: 600; line-height: 3.5rem;   letter-spacing: -2.88px; }
+.t-heading-40 { font-size: 40px; font-weight: 600; line-height: 3rem;     letter-spacing: -2.4px; }
+.t-heading-32 { font-size: 32px; font-weight: 600; line-height: 2.5rem;   letter-spacing: -1.28px; }
+.t-heading-24 { font-size: 24px; font-weight: 600; line-height: 2rem;     letter-spacing: -0.96px; }
+.t-heading-20 { font-size: 20px; font-weight: 600; line-height: 1.625rem; letter-spacing: -0.4px; }
+.t-heading-16 { font-size: 16px; font-weight: 600; line-height: 1.5rem;   letter-spacing: -0.32px; }
+/* Buttons / actionable text: medium weight                                   */
+.t-button-16  { font-size: 16px; font-weight: 500; line-height: 1.25rem;  }
+.t-button-14  { font-size: 14px; font-weight: 500; line-height: 1.25rem;  }
+.t-button-12  { font-size: 12px; font-weight: 500; line-height: 1rem;     }
+/* Labels: regular weight, compact leading                                    */
+.t-label-20   { font-size: 20px; line-height: 2rem;     }
+.t-label-18   { font-size: 18px; line-height: 1.25rem;  }
+.t-label-16   { font-size: 16px; line-height: 1.25rem;  }
+.t-label-14   { font-size: 14px; line-height: 1.25rem;  }
+.t-label-13   { font-size: 13px; line-height: 1rem;     }
+.t-label-12   { font-size: 12px; line-height: 1rem;     }
+/* Copy: roomy line-height for prose                                          */
+.t-copy-24    { font-size: 24px; line-height: 2.25rem;   }
+.t-copy-20    { font-size: 20px; line-height: 2.25rem;   }
+.t-copy-18    { font-size: 18px; line-height: 1.75rem;   }
+.t-copy-16    { font-size: 16px; line-height: 1.5rem;    }
+.t-copy-14    { font-size: 14px; line-height: 1.25rem;   }
+.t-copy-13    { font-size: 13px; line-height: 1.125rem;  }
+
+/* ----- Eyebrow / micro labels (Geist label-12) -------------------------- */
 .eyebrow {
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  line-height: 1rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted-foreground);
 }

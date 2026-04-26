@@ -49,8 +49,8 @@
   color: var(--muted-foreground);
   background: transparent;
   font-family: var(--font-sans);
-  font-size: 14px;
-  height: 36px;
+  font-size: 16px;
+  height: 38px;
   transition: color 140ms ease, background 140ms ease;
   border-right: 1px solid var(--input);
 }
@@ -66,11 +66,13 @@
   -webkit-appearance: none;
   background: transparent;
   color: var(--foreground);
-  padding: 0 32px 0 14px;
-  height: 36px;
+  padding: 0 34px 0 14px;
+  height: 38px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  /* Geist label-14 */
+  font-size: 14px;
   font-weight: 500;
+  line-height: 1.25rem;
   letter-spacing: 0.01em;
   border: 1px solid var(--input);
   border-radius: var(--radius);
@@ -103,15 +105,17 @@
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--background);
-  height: 36px;
+  height: 38px;
 }
 
 .seg {
-  padding: 0 14px;
+  padding: 0 16px;
   color: var(--muted-foreground);
   font-family: var(--font-sans);
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  /* Geist button-14 */
+  font-size: 13px;
+  line-height: 1.25rem;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   border-right: 1px solid var(--input);
   transition: color 140ms ease, background 140ms ease;
@@ -135,15 +139,18 @@
 .search { flex: 1 1 140px; min-width: 140px; max-width: 240px; }
 
 .input {
-  height: 36px;
+  height: 38px;
   padding: 0 12px;
   background: var(--background);
   color: var(--foreground);
   border: 1px solid var(--input);
   border-radius: var(--radius);
   font-family: var(--font-mono);
-  font-size: 13px;
-  letter-spacing: 0.04em;
+  /* Geist label-14 */
+  font-size: 14px;
+  line-height: 1.25rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   transition: border-color 140ms ease, box-shadow 140ms ease;
 }
@@ -177,14 +184,16 @@
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--background);
-  height: 36px;
+  height: 38px;
 }
 .runBtn {
-  padding: 0 16px;
+  padding: 0 18px;
   height: 100%;
   font-family: var(--font-sans);
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  /* Geist button-14 */
+  font-size: 13px;
+  line-height: 1.25rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 600;
   color: var(--muted-foreground);
@@ -226,7 +235,7 @@
 .runMsgErr { color: var(--destructive); }
 
 .loadingWrap {
-  height: 36px;
+  height: 38px;
   display: flex;
   align-items: center;
 }

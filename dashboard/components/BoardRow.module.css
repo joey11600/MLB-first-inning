@@ -13,15 +13,15 @@
   grid-template-columns:
     44px
     minmax(220px, 1.3fr)
-    72px
+    78px
     minmax(180px, 1.2fr)
     minmax(160px, 1fr)
-    74px
-    74px
+    78px
+    78px
     36px;
   align-items: center;
   gap: 14px;
-  padding: 18px 22px;
+  padding: 20px 22px;
   text-align: left;
   color: var(--foreground);
   position: relative;
@@ -48,23 +48,25 @@
 .leanYrfi   .spine, .yrfiLean .spine { background: color-mix(in oklab, var(--destructive) 50%, transparent); }
 .yrfiStrong .spine { background: var(--destructive); }
 
-/* Rank — small ordinal */
+/* Rank — small ordinal (Geist label-12) */
 .rank {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1rem;
   color: var(--muted-foreground);
   font-weight: 500;
   letter-spacing: 0.02em;
 }
 
-/* Matchup — primary identity, prominent */
+/* Matchup — primary identity, prominent (Geist label-20) */
 .matchup {
   display: inline-flex;
   align-items: baseline;
   gap: 12px;
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 500;
+  line-height: 2rem;
   letter-spacing: -0.005em;
   color: var(--foreground);
   font-variation-settings: "opsz" 24;
@@ -72,61 +74,63 @@
 }
 .team {
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  line-height: 1.5rem;
+  letter-spacing: 0.01em;
   display: inline-block;
-  min-width: 38px;
+  min-width: 40px;
+  color: var(--ds-gray-1000);
 }
 .at {
   font-family: var(--font-display);
   color: var(--muted-foreground);
   font-style: italic;
   font-weight: 400;
-  font-size: 14px;
+  font-size: 15px;
 }
 
-/* Doubleheader chip */
+/* Doubleheader chip (Geist label-12) */
 .dhTag {
   display: inline-flex;
   align-items: center;
   margin-left: 4px;
-  padding: 1px 7px;
+  padding: 2px 9px;
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.10em;
+  line-height: 1rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--background);
   color: var(--muted-foreground);
-  line-height: 1.6;
   vertical-align: middle;
 }
 
-/* Result badge: W / L / PASS / PP */
+/* Result badge: W / L / PASS / PP (Geist button-12) */
 .resultBadge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-left: 4px;
-  padding: 2px 9px;
+  padding: 3px 10px;
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.10em;
+  line-height: 1rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   border-radius: 999px;
-  line-height: 1.5;
   vertical-align: middle;
 }
-.resultGlyph { letter-spacing: 0.16em; }
+.resultGlyph { letter-spacing: 0.12em; }
 .resultRuns {
-  opacity: 0.85;
+  opacity: 0.92;
   font-weight: 500;
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  letter-spacing: 0.02em;
   font-family: var(--font-mono);
 }
 
@@ -149,10 +153,11 @@
   border: 1px dashed var(--border);
 }
 
-/* P(YRFI) value — secondary number */
+/* P(YRFI) value — secondary number (Geist label-18) */
 .lambdaVal {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
+  line-height: 1.25rem;
   color: var(--foreground);
   font-family: var(--font-mono);
   letter-spacing: -0.005em;
@@ -162,20 +167,22 @@
 .pickCell {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 .marker {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.04em;
   width: 30px;
   display: inline-block;
   color: var(--muted-foreground);
 }
 .pickLabel {
+  /* Geist label-18 with display family for the editorial flavor */
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1.5rem;
   letter-spacing: -0.005em;
   font-weight: 500;
   white-space: nowrap;
@@ -204,16 +211,18 @@
   padding-right: 8px;
 }
 
-/* Right-side percentages */
+/* Right-side percentages (Geist label-14) */
 .pct {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.25rem;
   color: var(--foreground);
   justify-content: flex-end;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .inlineBar {

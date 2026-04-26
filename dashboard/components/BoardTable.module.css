@@ -12,17 +12,19 @@
   grid-template-columns:
     44px
     minmax(220px, 1.3fr)
-    72px
+    78px
     minmax(180px, 1.2fr)
     minmax(160px, 1fr)
-    74px
-    74px
+    78px
+    78px
     36px;
   align-items: center;
   padding: 14px 22px;
   font-family: var(--font-sans);
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
+  /* Geist label-12 */
+  font-size: 12px;
+  line-height: 1rem;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--muted-foreground);
   background: var(--muted);

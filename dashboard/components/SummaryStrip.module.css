@@ -34,11 +34,12 @@
 
 .big {
   font-family: var(--font-display);
-  font-size: 44px;
-  font-weight: 500;
-  color: var(--foreground);
-  line-height: 1;
-  letter-spacing: -0.02em;
+  /* Maps to Geist heading-48 sizing but with display serif for character */
+  font-size: 48px;
+  font-weight: 600;
+  color: var(--ds-gray-1000);
+  line-height: 3.5rem;
+  letter-spacing: -2.4px;
   font-variation-settings: "opsz" 144;
 }
 
@@ -47,9 +48,11 @@
   align-items: center;
   gap: 14px;
   font-family: var(--font-sans);
-  font-size: 12px;
+  /* Geist copy-13 */
+  font-size: 13px;
+  line-height: 1.125rem;
   color: var(--muted-foreground);
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
 }
 
 .footCell { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); }
@@ -107,9 +110,11 @@
 
 .bucketLabel {
   font-family: var(--font-sans);
-  font-size: 10px;
+  /* Geist label-12 */
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.10em;
+  line-height: 1rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted-foreground);
   overflow: hidden;
@@ -120,11 +125,12 @@
 
 .bucketCount {
   font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 500;
-  color: var(--foreground);
-  line-height: 1;
-  letter-spacing: -0.01em;
+  /* Maps to Geist heading-32 */
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--ds-gray-1000);
+  line-height: 2.5rem;
+  letter-spacing: -1.28px;
   font-variation-settings: "opsz" 144;
 }
 
