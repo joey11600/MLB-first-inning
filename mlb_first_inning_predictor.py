@@ -746,14 +746,34 @@ def _load_fi_park_rates() -> dict:
     return _fi_park_rates
 
 
-def lr_features(home_abbr: str, home_pitcher: dict) -> list[float]:
-    """Build the 4-feature vector matching the saved LR model order."""
+def lr_features(
+    home_abbr: str,
+    home_pitcher: dict,
+    away_pitcher: dict,
+    home_offense: dict,
+    away_offense: dict,
+) -> list[float]:
+    """Build the feature vector matching the saved LR model order.
+
+    V2 uses both pitchers + both offenses to model the structure of a
+    first inning: top half = home pitcher vs away offense, bottom half =
+    away pitcher vs home offense, modulated by the home park's FI rate.
+    """
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     return [
         fi_park,
+        # T1: home pitcher vs away offense
         home_pitcher.get("fip",  LEAGUE_AVG_ERA),
         home_pitcher.get("hr9",  LEAGUE_AVG_HR9),
         home_pitcher.get("bb9",  LEAGUE_AVG_BB9),
+        away_offense.get("obp",  LEAGUE_AVG_OBP),
+        away_offense.get("slg",  LEAGUE_AVG_SLG),
+        # B1: away pitcher vs home offense
+        away_pitcher.get("fip",  LEAGUE_AVG_ERA),
+        away_pitcher.get("hr9",  LEAGUE_AVG_HR9),
+        away_pitcher.get("bb9",  LEAGUE_AVG_BB9),
+        home_offense.get("obp",  LEAGUE_AVG_OBP),
+        home_offense.get("slg",  LEAGUE_AVG_SLG),
     ]
 
 
@@ -1100,7 +1120,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # Logistic-regression model takes over for the primary pick when loaded.
         # Same lambda still drives over/under 1.5 (no LR model for that yet).
         if lr_active():
-            features = lr_features(home_ab, home_sp)
+            features = lr_features(home_ab, home_sp, away_sp, home_bat, away_bat)
             lr_nrfi  = lr_predict_nrfi(features)
             if lr_nrfi is not None:
                 nrfi_p              = lr_nrfi
