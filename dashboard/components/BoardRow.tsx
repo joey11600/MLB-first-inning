@@ -58,7 +58,9 @@ export function BoardRowItem({
             <ResultBadge
               graded={detail.gradedResult}
               actual={detail.actualSide}
-              runs={detail.fiTotalRuns}
+              awayRuns={detail.fiAwayRuns}
+              homeRuns={detail.fiHomeRuns}
+              totalRuns={detail.fiTotalRuns}
             />
           )}
         </span>
@@ -118,12 +120,26 @@ function Bar({ pct, tone }: { pct: number; tone: "nrfi" | "yrfi" }) {
 function ResultBadge({
   graded,
   actual,
-  runs,
+  awayRuns,
+  homeRuns,
+  totalRuns,
 }: {
-  graded: NonNullable<GameDetail["gradedResult"]>;
-  actual: GameDetail["actualSide"];
-  runs:   number | null;
+  graded:    NonNullable<GameDetail["gradedResult"]>;
+  actual:    GameDetail["actualSide"];
+  awayRuns:  number | null;
+  homeRuns:  number | null;
+  totalRuns: number | null;
 }) {
+  // Box-score format: away-home, e.g. "0-2".  Falls back to total runs when
+  // we only have an aggregate (older grading data).
+  const score =
+    awayRuns != null && homeRuns != null
+      ? `${awayRuns}-${homeRuns}`
+      : totalRuns != null
+        ? `${totalRuns}R`
+        : "-";
+  const totalText = totalRuns != null ? `${totalRuns}R` : "-";
+
   // Postponed / suspended games: amber pause indicator
   if (graded === "POSTPONED" || graded === "SUSPENDED") {
     return (
@@ -132,12 +148,14 @@ function ResultBadge({
       </span>
     );
   }
-  // PASS picks (model said no edge) -- show actual outcome muted
+  // PASS picks (model said no edge) -- show the actual box score muted
   if (graded === "PASS") {
-    const runText = runs != null ? runs.toString() : "-";
     return (
-      <span className={`${styles.resultBadge} ${styles.resultPass}`} title={`PASS · 1st ${runText}R · ${actual ?? "-"}`}>
-        <span className={styles.resultGlyph}>{actual === "NRFI" ? "0R" : `${runText}R`}</span>
+      <span
+        className={`${styles.resultBadge} ${styles.resultPass}`}
+        title={`PASS · 1st inning ${score} · ${actual ?? "-"} (${totalText})`}
+      >
+        <span className={styles.resultGlyph}>{score}</span>
       </span>
     );
   }
@@ -145,11 +163,13 @@ function ResultBadge({
   const isWin = graded === "WIN";
   const cls   = isWin ? styles.resultWin : styles.resultLoss;
   const glyph = isWin ? "W" : "L";
-  const runText = runs != null ? runs.toString() : "-";
   return (
-    <span className={`${styles.resultBadge} ${cls}`} title={`${graded} · 1st ${runText}R · ${actual ?? "-"}`}>
+    <span
+      className={`${styles.resultBadge} ${cls}`}
+      title={`${graded} · 1st inning ${score} · ${actual ?? "-"} (${totalText})`}
+    >
       <span className={styles.resultGlyph}>{glyph}</span>
-      <span className={styles.resultRuns}>{runText}R</span>
+      <span className={styles.resultRuns}>{score}</span>
     </span>
   );
 }

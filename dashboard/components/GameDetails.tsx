@@ -65,6 +65,13 @@ export function GameDetails({ row, detail }: { row: BoardRow; detail: GameDetail
         </div>
       )}
 
+      {detail?.gradedResult && (
+        <ResultBanner
+          row={row}
+          detail={detail}
+        />
+      )}
+
       <div className={styles.matchupGrid}>
         <TeamCard
           side="AWAY"
@@ -82,6 +89,99 @@ export function GameDetails({ row, detail }: { row: BoardRow; detail: GameDetail
           pitcher={detail?.home.pitcher}
           offense={detail?.home.offense}
         />
+      </div>
+    </div>
+  );
+}
+
+function ResultBanner({
+  row,
+  detail,
+}: {
+  row: BoardRow;
+  detail: GameDetail;
+}) {
+  const graded = detail.gradedResult;
+  const actual = detail.actualSide;
+  const away   = detail.fiAwayRuns;
+  const home   = detail.fiHomeRuns;
+  const total  = detail.fiTotalRuns;
+
+  // Postponed / suspended -- render a quiet pause notice
+  if (graded === "POSTPONED" || graded === "SUSPENDED") {
+    return (
+      <div className={`${styles.resultBanner} ${styles.resultBannerPP}`}>
+        <div className={styles.resultBannerLeft}>
+          <span className="eyebrow">1st-inning result</span>
+          <div className={styles.resultBannerScore}>—</div>
+        </div>
+        <div className={styles.resultBannerMid}>
+          <span className={styles.resultBannerOutcome}>{graded}</span>
+          <span className={styles.resultBannerSub}>
+            Game did not play; not counted as a bet.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  const score = away != null && home != null ? `${away}–${home}` : "—";
+  const totalText = total != null ? `${total} run${total === 1 ? "" : "s"}` : "—";
+
+  // PASS path -- model didn't bet, just inform
+  if (graded === "PASS") {
+    return (
+      <div className={`${styles.resultBanner} ${styles.resultBannerPass}`}>
+        <div className={styles.resultBannerLeft}>
+          <span className="eyebrow">1st-inning result</span>
+          <div className={styles.resultBannerScore}>
+            <span className={styles.bigTeam}>{row.away}</span>
+            <span className={styles.bigScore}>{score}</span>
+            <span className={styles.bigTeam}>{row.home}</span>
+          </div>
+          <span className={styles.resultBannerSub}>
+            {totalText} · actual side: <strong>{actual ?? "—"}</strong>
+          </span>
+        </div>
+        <div className={styles.resultBannerMid}>
+          <span className={styles.resultBannerOutcome} data-tone="pass">
+            PASS
+          </span>
+          <span className={styles.resultBannerSub}>
+            Model said no edge — no bet placed.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // WIN / LOSS
+  const isWin = graded === "WIN";
+  const tone  = isWin ? "win" : "loss";
+  return (
+    <div
+      className={`${styles.resultBanner} ${
+        isWin ? styles.resultBannerWin : styles.resultBannerLoss
+      }`}
+    >
+      <div className={styles.resultBannerLeft}>
+        <span className="eyebrow">1st-inning result</span>
+        <div className={styles.resultBannerScore}>
+          <span className={styles.bigTeam}>{row.away}</span>
+          <span className={styles.bigScore}>{score}</span>
+          <span className={styles.bigTeam}>{row.home}</span>
+        </div>
+        <span className={styles.resultBannerSub}>
+          {totalText} · actual side: <strong>{actual ?? "—"}</strong>
+        </span>
+      </div>
+      <div className={styles.resultBannerMid}>
+        <span className={styles.resultBannerOutcome} data-tone={tone}>
+          {isWin ? "Win" : "Loss"}
+        </span>
+        <span className={styles.resultBannerSub}>
+          {row.pickLabel} → {actual ?? "—"}
+        </span>
       </div>
     </div>
   );

@@ -161,6 +161,124 @@
   border-radius: var(--radius);
   font-weight: 500;
 }
+
+/* ----- Result banner (graded games) ------------------------------------- */
+.resultBanner {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+  padding: 22px 28px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Tone-specific tinted backgrounds */
+.resultBannerWin {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--primary) 8%, var(--card)) 0%,
+    var(--card) 70%);
+  border-color: color-mix(in oklab, var(--primary) 30%, var(--border));
+}
+.resultBannerLoss {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--destructive) 8%, var(--card)) 0%,
+    var(--card) 70%);
+  border-color: color-mix(in oklab, var(--destructive) 30%, var(--border));
+}
+.resultBannerPass {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--secondary) 25%, var(--card)) 0%,
+    var(--card) 70%);
+  border-color: color-mix(in oklab, var(--secondary) 50%, var(--border));
+}
+.resultBannerPP {
+  background: var(--muted);
+  border-color: var(--border);
+  border-style: dashed;
+}
+
+.resultBannerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-right: 1px solid var(--border);
+  padding-right: 24px;
+}
+
+.resultBannerMid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.resultBannerScore {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 14px;
+  font-family: var(--font-display);
+  color: var(--ds-gray-1000);
+  font-variation-settings: "opsz" 144;
+  margin-top: 2px;
+}
+.bigTeam {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+.bigScore {
+  /* Geist heading-48 with our display serif */
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 3rem;
+  letter-spacing: -2.4px;
+  color: var(--ds-gray-1000);
+}
+
+.resultBannerOutcome {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 2.5rem;
+  letter-spacing: -1.28px;
+  color: var(--ds-gray-1000);
+}
+.resultBannerOutcome[data-tone="win"]  { color: var(--primary); }
+.resultBannerOutcome[data-tone="loss"] { color: var(--destructive); }
+.resultBannerOutcome[data-tone="pass"] { color: var(--secondary-foreground); }
+
+.resultBannerSub {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.25rem;
+  color: var(--muted-foreground);
+}
+.resultBannerSub strong {
+  color: var(--ds-gray-1000);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .resultBanner {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 18px 20px;
+  }
+  .resultBannerLeft {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 14px;
+  }
+  .bigScore { font-size: 40px; line-height: 2.5rem; letter-spacing: -2px; }
+}
 .notice code {
   color: var(--foreground);
   padding: 1px 6px;
