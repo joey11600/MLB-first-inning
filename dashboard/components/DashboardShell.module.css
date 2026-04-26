@@ -1,0 +1,115 @@
+.shell {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: flex-end;
+  gap: 32px;
+  padding: 36px 0 24px;
+  border-bottom: 1px solid var(--rule-1);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.mark {
+  width: 44px;
+  height: 44px;
+  position: relative;
+  flex: 0 0 44px;
+  background:
+    linear-gradient(135deg, #5dff9a 0%, #6ad1ff 55%, #ff4a5c 100%);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  box-shadow:
+    0 0 0 1px rgba(93, 255, 154, 0.25),
+    0 0 24px rgba(93, 255, 154, 0.25);
+}
+.mark::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  background: var(--bg-0);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.brandText { display: flex; flex-direction: column; gap: 4px; }
+
+.brandTitle {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  color: var(--ink-0);
+  line-height: 1;
+}
+
+.brandSub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 0;
+  align-items: flex-start;
+}
+.meta > div {
+  padding: 0 20px;
+  border-right: 1px solid var(--rule-1);
+  min-width: 140px;
+}
+.meta > div:last-child { border-right: 0; padding-right: 0; }
+.meta > div:first-child { padding-left: 0; }
+
+.slateDate {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--nrfi);
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+}
+
+.metaValue {
+  font-size: 14px;
+  color: var(--ink-1);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.board {
+  padding: 0;
+}
+
+@media (max-width: 820px) {
+  .shell { padding: 0 16px 80px; }
+  .header {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 28px 0 18px;
+  }
+  .brandTitle { font-size: 22px; }
+  .meta {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .meta > div {
+    min-width: 0;
+    padding: 0 10px;
+  }
+}

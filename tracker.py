@@ -1,5 +1,5 @@
 """
-tracker.py  —  Pick logging, result grading, and performance summary.
+tracker.py  --  Pick logging, result grading, and performance summary.
 
 This module is intentionally self-contained (no imports from the predictor)
 so it can be called from the predictor without circular-import issues.
@@ -62,7 +62,7 @@ FIELDS = [
     "fi_home_runs",
     "fi_total_runs",
     "graded_at",
-    # --- odds & edge (reserved — odds system temporarily disabled) ---
+    # --- odds & edge (reserved -- odds system temporarily disabled) ---
     # These columns are kept in FIELDS so existing CSV rows load cleanly.
     # They are never written or updated while the odds system is disabled.
     "market_nrfi_odds",
@@ -155,7 +155,7 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
     path     = _csv_path(season)
     rows     = _read_rows(path)
 
-    # Build index: (iso_date, str(game_pk)) → list-index
+    # Build index: (iso_date, str(game_pk)) -> list-index
     index: dict[tuple, int] = {}
     for i, row in enumerate(rows):
         key = (row["date"], str(row["game_pk"]))
@@ -285,10 +285,10 @@ def _fetch_first_inning(game_pk: int) -> dict:
     Pull the first-inning run totals for a completed (or live) game.
 
     Returns a dict with keys:
-      state        – "Final" | "Live" | "Preview" | other
-      detail       – detailed state string (e.g. "Postponed")
-      away_runs    – int or None
-      home_runs    – int or None
+      state        - "Final" | "Live" | "Preview" | other
+      detail       - detailed state string (e.g. "Postponed")
+      away_runs    - int or None
+      home_runs    - int or None
     """
     try:
         data = statsapi.get("game", {
@@ -325,7 +325,7 @@ def grade_date(date_str: str, season: int) -> None:
     Grade all picks for a given date that haven't been graded yet.
     Prints a per-game summary, then writes results back to the CSV.
 
-    Grades as soon as innings[0] has both away+home run data — does NOT
+    Grades as soon as innings[0] has both away+home run data -- does NOT
     require the game to be in Final state.
     """
     iso_date = _to_iso(date_str)
@@ -365,7 +365,7 @@ def grade_date(date_str: str, season: int) -> None:
             rows[idx]["actual_result"] = detail.upper()
             rows[idx]["graded_result"] = detail.upper()
             rows[idx]["graded_at"]     = now
-            print(f"{tag}  {detail} — marked, not counted as a bet")
+            print(f"{tag}  {detail} -- marked, not counted as a bet")
             graded_n += 1
             continue
 
@@ -373,13 +373,13 @@ def grade_date(date_str: str, season: int) -> None:
         home_r = result["home_runs"]
 
         if away_r is None or home_r is None:
-            # First inning not yet complete — decide why
+            # First inning not yet complete -- decide why
             if state in ("Preview", "Scheduled"):
-                print(f"{tag}  game not started yet — skipping")
+                print(f"{tag}  game not started yet -- skipping")
             elif state == "Live":
-                print(f"{tag}  Live but 1st inning not yet complete — skipping")
+                print(f"{tag}  Live but 1st inning not yet complete -- skipping")
             else:
-                print(f"{tag}  1st inning data unavailable (state={state!r}) — skipping")
+                print(f"{tag}  1st inning data unavailable (state={state!r}) -- skipping")
             skipped_n += 1
             continue
 
@@ -401,11 +401,11 @@ def grade_date(date_str: str, season: int) -> None:
         rows[idx]["fi_total_runs"] = total_r
         rows[idx]["graded_at"]     = now
 
-        outcome_tag = {"WIN": "✓", "LOSS": "✗", "PASS": "-"}.get(graded_result, "?")
+        outcome_tag = {"WIN": "W", "LOSS": "L", "PASS": "-"}.get(graded_result, "?")
         source_tag  = "" if state == "Final" else f" [from {state}]"
         print(
             f"{tag}  1st inn: {away_r}-{home_r} ({actual})  "
-            f"pick={pick}  →  {outcome_tag} {graded_result}{source_tag}"
+            f"pick={pick}  ->  {outcome_tag} {graded_result}{source_tag}"
         )
         graded_n += 1
 
@@ -419,7 +419,7 @@ def grade_date(date_str: str, season: int) -> None:
 
 def american_to_prob(odds_str: str) -> float | None:
     """
-    Convert an American odds string to implied probability (0–1).
+    Convert an American odds string to implied probability (0-1).
     Handles "-110", "+105", "110" (treated as negative), etc.
     Returns None if the string cannot be parsed.
     """
@@ -441,7 +441,7 @@ def american_to_prob(odds_str: str) -> float | None:
 def payout_per_unit(odds_str: str) -> float | None:
     """
     How much profit you earn per 1 unit risked (not including stake return).
-    E.g. -110 → 0.909,  +105 → 1.05,  +100 (even) → 1.0
+    E.g. -110 -> 0.909,  +105 -> 1.05,  +100 (even) -> 1.0
     Returns None if unparseable.
     """
     if not odds_str:
@@ -479,7 +479,7 @@ def _calc_pnl(row: dict) -> str:
     if graded == "LOSS":
         return _fmt(-units, 3)
 
-    # WIN — need the odds for the picked side to compute payout
+    # WIN -- need the odds for the picked side to compute payout
     pick = row.get("pick_side", "")
     if pick == "NRFI":
         odds_str = row.get("market_nrfi_odds", "")
@@ -614,8 +614,8 @@ def import_odds(
         return
 
     # Build lookup indexes
-    by_pk:   dict[tuple, int] = {}   # (iso_date, str(game_pk)) → idx
-    by_team: dict[tuple, int] = {}   # (iso_date, away, home) → idx
+    by_pk:   dict[tuple, int] = {}   # (iso_date, str(game_pk)) -> idx
+    by_team: dict[tuple, int] = {}   # (iso_date, away, home) -> idx
     for i, r in enumerate(rows):
         d = r["date"]
         by_pk[(d, str(r["game_pk"]))] = i
@@ -695,7 +695,7 @@ def import_odds(
     if missing_odds:
         print(f"  Still missing odds: {len(missing_odds)} pick(s) for {sorted(dates_covered)}")
     print(f"  CSV: {picks_path}")
-    print(f"  → Run --summary to view ROI metrics\n")
+    print(f"  -> Run --summary to view ROI metrics\n")
 
 # ---------------------------------------------------------------------------
 # 4. Odds template export
@@ -744,7 +744,7 @@ def export_odds_template(
                 "sportsbook":       "",
             })
 
-    print(f"\n  Exported {len(targets)} game(s) for {iso_date} → {output_path}")
+    print(f"\n  Exported {len(targets)} game(s) for {iso_date} -> {output_path}")
     print(f"  Fill in market_nrfi_odds / market_yrfi_odds, then run:")
     print(f"  python mlb_first_inning_predictor.py --import-odds {output_path}\n")
     return str(output_path)
@@ -754,7 +754,7 @@ def export_odds_template(
 # 5. CSV audit & repair
 # ---------------------------------------------------------------------------
 
-# Map label prefixes → (pick_side, pick_strength) for safe auto-recovery
+# Map label prefixes -> (pick_side, pick_strength) for safe auto-recovery
 _LABEL_TO_SIDE: dict[str, tuple[str, str]] = {
     "STRONG NRFI": ("NRFI", "STRONG"),
     "LEAN NRFI":   ("NRFI", "LEAN"),
@@ -802,12 +802,12 @@ def audit_csv(season: int | None = None) -> int:
                         break
                 issues.append((
                     tag,
-                    f"graded {grade} but pick_side={side!r} — expected NRFI/YRFI{repair_hint}"
+                    f"graded {grade} but pick_side={side!r} -- expected NRFI/YRFI{repair_hint}"
                 ))
             elif strength not in ("LEAN", "STRONG"):
                 issues.append((
                     tag,
-                    f"graded {grade} but pick_strength={strength!r} — expected LEAN/STRONG"
+                    f"graded {grade} but pick_strength={strength!r} -- expected LEAN/STRONG"
                 ))
 
         if grade == "PASS" and side in ("NRFI", "YRFI"):
@@ -820,7 +820,7 @@ def audit_csv(season: int | None = None) -> int:
     ungraded  = [r for r in rows if not r.get("graded_result")]
     accounted = len(all_bets) + len(passes) + len(delayed) + len(ungraded)
 
-    print(f"\nAudit  —  {path}")
+    print(f"\nAudit  --  {path}")
     print(f"  Total rows    : {len(rows)}")
     print(f"  Accounted for : {accounted}  "
           f"(bets={len(all_bets)} pass={len(passes)} delayed={len(delayed)} ungraded={len(ungraded)})")
@@ -847,10 +847,10 @@ def repair_csv(season: int | None = None, dry_run: bool = False) -> None:
     Safely repair corrupted rows in picks CSV.
 
     Recovers pick_side and pick_strength from pick_label where unambiguous:
-      "LEAN NRFI"   → NRFI / LEAN
-      "STRONG NRFI" → NRFI / STRONG
-      "LEAN YRFI"   → YRFI / LEAN
-      "STRONG YRFI" → YRFI / STRONG
+      "LEAN NRFI"   -> NRFI / LEAN
+      "STRONG NRFI" -> NRFI / STRONG
+      "LEAN YRFI"   -> YRFI / LEAN
+      "STRONG YRFI" -> YRFI / STRONG
 
     Only targets WIN/LOSS rows with wrong pick_side or pick_strength.
     Rows that cannot be confidently repaired are left unchanged and reported.
@@ -892,14 +892,14 @@ def repair_csv(season: int | None = None, dry_run: bool = False) -> None:
                 break
 
         if new_side is None:
-            print(f"  [{tag}]  Cannot repair — label {label!r} is ambiguous; leaving unchanged")
+            print(f"  [{tag}]  Cannot repair -- label {label!r} is ambiguous; leaving unchanged")
             skipped_n += 1
             continue
 
         verb = "(dry-run) would set" if dry_run else "Repaired"
         print(
-            f"  [{tag}]  {verb}:  pick_side {side!r}→{new_side!r}  "
-            f"pick_strength {strength!r}→{new_strength!r}  "
+            f"  [{tag}]  {verb}:  pick_side {side!r}->{new_side!r}  "
+            f"pick_strength {strength!r}->{new_strength!r}  "
             f"(label={label!r}  grade={grade})"
         )
 
@@ -924,7 +924,7 @@ def repair_csv(season: int | None = None, dry_run: bool = False) -> None:
 
 def _record(bets: list, wins: list) -> str:
     if not bets:
-        return "—"
+        return "--"
     pct = len(wins) / len(bets) * 100
     return f"{len(wins)}-{len(bets)-len(wins)}  ({pct:.1f}%)"
 
@@ -944,7 +944,7 @@ def _safe_float(v, default: float = 0.0) -> float:
         return default
 
 
-# odds system temporarily disabled — _roi_line is a stub; use _record directly
+# odds system temporarily disabled -- _roi_line is a stub; use _record directly
 def _roi_line(bets: list, wins: list) -> str:
     return _record(bets, wins)
 
@@ -959,8 +959,8 @@ def show_summary(
     Print a performance summary from the picks CSV.
 
     Filters (applied in order):
-      date_from / date_to  – inclusive ISO date range
-      last_n               – most recent N graded bets
+      date_from / date_to  - inclusive ISO date range
+      last_n               - most recent N graded bets
     """
     if season is None:
         season = date_type.today().year
@@ -990,7 +990,7 @@ def show_summary(
         cutoff_keys = {(r["date"], r["game_pk"]) for r in graded_bets}
         rows = [r for r in rows if (r["date"], r["game_pk"]) in cutoff_keys]
 
-    # ── Categorize rows ──────────────────────────────────────────────────────
+    # -- Categorize rows ------------------------------------------------------
     all_bets  = [r for r in rows if r.get("graded_result") in ("WIN", "LOSS")]
     wins      = [r for r in all_bets if r["graded_result"] == "WIN"]
     losses    = [r for r in all_bets if r["graded_result"] == "LOSS"]
@@ -998,19 +998,19 @@ def show_summary(
     postponed = [r for r in rows if r.get("graded_result") in ("POSTPONED", "SUSPENDED")]
     ungraded  = [r for r in rows if not r.get("graded_result")]
 
-    # ── By side ──────────────────────────────────────────────────────────────
+    # -- By side --------------------------------------------------------------
     nrfi_bets = [r for r in all_bets if _side(r) == "NRFI"]
     yrfi_bets = [r for r in all_bets if _side(r) == "YRFI"]
     nrfi_wins = [r for r in nrfi_bets if r["graded_result"] == "WIN"]
     yrfi_wins = [r for r in yrfi_bets if r["graded_result"] == "WIN"]
 
-    # ── By strength ──────────────────────────────────────────────────────────
+    # -- By strength ----------------------------------------------------------
     lean_bets   = [r for r in all_bets if _strength(r) == "LEAN"]
     strong_bets = [r for r in all_bets if _strength(r) == "STRONG"]
     lean_wins   = [r for r in lean_bets   if r["graded_result"] == "WIN"]
     strong_wins = [r for r in strong_bets if r["graded_result"] == "WIN"]
 
-    # ── Side × Strength cross-tab ─────────────────────────────────────────
+    # -- Side x Strength cross-tab -----------------------------------------
     ln_bets = [r for r in nrfi_bets if _strength(r) == "LEAN"]
     sn_bets = [r for r in nrfi_bets if _strength(r) == "STRONG"]
     ly_bets = [r for r in yrfi_bets if _strength(r) == "LEAN"]
@@ -1020,7 +1020,7 @@ def show_summary(
     ly_wins = [r for r in ly_bets if r["graded_result"] == "WIN"]
     sy_wins = [r for r in sy_bets if r["graded_result"] == "WIN"]
 
-    # ── Quality breakdown ────────────────────────────────────────────────────
+    # -- Quality breakdown ----------------------------------------------------
     hi_qual_bets = [
         r for r in all_bets
         if all(r.get(q, "avg") not in ("", "avg")
@@ -1034,12 +1034,12 @@ def show_summary(
     win_rate = len(wins) / len(all_bets) * 100 if all_bets else 0.0
 
     dates = sorted({r["date"] for r in rows})
-    date_range = f"{dates[0]} → {dates[-1]}" if dates else "no data"
+    date_range = f"{dates[0]} -> {dates[-1]}" if dates else "no data"
 
     sep  = "=" * 60
     sep2 = "-" * 60
     print(f"\n{sep}")
-    print(f"  PERFORMANCE SUMMARY  —  Season {season}")
+    print(f"  PERFORMANCE SUMMARY  --  Season {season}")
     if date_from or date_to or last_n:
         print(f"  Filter : {date_range}")
     print(sep)
@@ -1056,7 +1056,7 @@ def show_summary(
     if total_accounted != len(rows):
         print(f"  [warn] Row count mismatch: {len(rows)} logged, {total_accounted} accounted for")
     if unaccounted > 0:
-        print(f"  [warn] {unaccounted} graded bet(s) have unexpected pick_side — run --audit-csv")
+        print(f"  [warn] {unaccounted} graded bet(s) have unexpected pick_side -- run --audit-csv")
 
     print(f"\n{sep2}")
     print(f"  By side:")

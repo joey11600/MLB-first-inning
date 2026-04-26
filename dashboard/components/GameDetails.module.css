@@ -1,0 +1,263 @@
+.wrap {
+  padding: 18px 20px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-family: var(--font-sans);
+}
+
+.topGrid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 0.9fr;
+  gap: 20px;
+  border: 1px solid var(--rule-1);
+  border-radius: var(--r-md);
+  padding: 16px 18px;
+  background: rgba(15, 19, 23, 0.5);
+}
+
+.projCol, .probCol, .contextCol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.projTable {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.projRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 12.5px;
+  border-bottom: 1px dashed var(--rule-1);
+}
+.projRow:last-child { border-bottom: 0; }
+
+.projLabel { color: var(--ink-2); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.projVal { font-size: 14px; color: var(--ink-1); font-weight: 500; }
+.projRowHl .projLabel { color: var(--ink-0); letter-spacing: 0.12em; }
+.projRowHl .projVal { color: var(--nrfi); font-size: 18px; }
+
+.meterBig { margin-top: 8px; }
+
+.probRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.probHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.probLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.probVal {
+  font-size: 14px;
+  color: var(--ink-0);
+  font-weight: 500;
+}
+
+.probTrack {
+  height: 6px;
+  background: var(--bg-3);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.probFill { height: 100%; transition: width 520ms cubic-bezier(0.16, 1, 0.3, 1); }
+.probFill.nrfi    { background: linear-gradient(90deg, var(--nrfi-dim), var(--nrfi)); }
+.probFill.yrfi    { background: linear-gradient(90deg, var(--yrfi-dim), var(--yrfi)); }
+.probFill.neutral { background: linear-gradient(90deg, #3d4a58, #6ad1ff); }
+
+.kvTable {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 4px;
+}
+.kvRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--rule-1);
+  font-size: 12.5px;
+}
+.kvRow:last-child { border-bottom: 0; }
+.kvKey {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.kvVal { color: var(--ink-1); font-weight: 500; }
+
+.notice {
+  border: 1px solid var(--pass-dim);
+  background: rgba(255, 181, 71, 0.06);
+  color: var(--pass);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+}
+.notice code {
+  color: var(--ink-0);
+  padding: 0 4px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 2px;
+}
+
+.matchupGrid {
+  display: grid;
+  grid-template-columns: 1fr 48px 1fr;
+  gap: 0;
+  border: 1px solid var(--rule-1);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.teamCard {
+  padding: 14px 18px 16px;
+  background: rgba(15, 19, 23, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teamHead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-1);
+}
+.teamSide {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.teamCode {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink-0);
+  letter-spacing: 0.06em;
+}
+
+.subHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+
+.pitcherName {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-0);
+  letter-spacing: 0.02em;
+  padding: 2px 0 6px;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 4px 0;
+}
+.statGridHalf { grid-template-columns: repeat(2, 1fr); }
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule-1);
+  border-radius: var(--r-sm);
+  background: rgba(10, 12, 15, 0.4);
+}
+.statKey {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.statVal {
+  font-size: 16px;
+  color: var(--ink-0);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.qTag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  line-height: 1.4;
+}
+.qTag[data-q="live"] { color: var(--q-live); }
+.qTag[data-q="ltd"]  { color: var(--q-ltd); }
+.qTag[data-q="sm"]   { color: var(--q-sm); }
+.qTag[data-q="avg"]  { color: var(--q-avg); }
+
+.fiIp {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  letter-spacing: 0.1em;
+}
+
+.vsCol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: linear-gradient(180deg, rgba(15, 19, 23, 0.3), rgba(7, 9, 11, 0.1));
+  border-left: 1px solid var(--rule-1);
+  border-right: 1px solid var(--rule-1);
+}
+.vs {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--ink-3);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+@media (max-width: 960px) {
+  .topGrid { grid-template-columns: 1fr; }
+  .matchupGrid { grid-template-columns: 1fr; }
+  .vsCol {
+    border: 0;
+    border-top: 1px solid var(--rule-1);
+    border-bottom: 1px solid var(--rule-1);
+    padding: 6px 0;
+  }
+  .vs { writing-mode: horizontal-tb; transform: none; }
+}

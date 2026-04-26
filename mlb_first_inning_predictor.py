@@ -7,15 +7,15 @@ Predicts NRFI / YRFI probability (and over/under 1.5 runs) for today's games.
 Methodology:
   - Fetches schedule via the raw MLB StatsAPI schedule endpoint with
     probablePitcher hydration, giving us both pitcher names AND IDs in
-    one call (statsapi.schedule() strips the IDs – we bypass it).
+    one call (statsapi.schedule() strips the IDs - we bypass it).
   - Pulls per-pitcher season stats from /people/{id} with pitching
-    hydration: ERA, WHIP, K, BB, HR, IP → computes FIP in-script.
+    hydration: ERA, WHIP, K, BB, HR, IP -> computes FIP in-script.
   - Pulls per-team season batting stats from the correct
     /teams/{teamId}/stats endpoint (team_stats in the statsapi map).
-  - Models each half-inning as Poisson(λ); sums both halves for total.
+  - Models each half-inning as Poisson(lambda); sums both halves for total.
   - Classifies the game into NRFI/YRFI/PASS using thresholds calibrated
-    against the real MLB baseline (YRFI ≈ 62% for an average game).
-  - Tracks data quality per game; games with ≤1 real data point are
+    against the real MLB baseline (YRFI ~ 62% for an average game).
+  - Tracks data quality per game; games with <=1 real data point are
     shown as PASS / INSUFFICIENT DATA so they don't pollute the slate.
 
 Usage:
@@ -25,9 +25,11 @@ Usage:
 """
 
 import argparse
+import json
 import math
 import sys
 from datetime import date, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:
@@ -68,8 +70,8 @@ LEAGUE_AVG_RPG           = 4.45
 FIP_CONSTANT             = 3.10
 
 # Bayesian shrinkage: how many "prior" IP/games we add before trusting real data.
-# At IP=PITCHER_PRIOR_IP  →  50% real / 50% league avg.
-# At IP=3×PITCHER_PRIOR_IP →  75% real / 25% league avg.
+# At IP=PITCHER_PRIOR_IP  ->  50% real / 50% league avg.
+# At IP=3xPITCHER_PRIOR_IP ->  75% real / 25% league avg.
 PITCHER_PRIOR_IP  = 40.0
 TEAM_PRIOR_GAMES  = 15.0
 
@@ -82,7 +84,7 @@ LEAGUE_AVG_HR9  = 1.2
 LEAGUE_AVG_OBP  = 0.318
 LEAGUE_AVG_SLG  = 0.414
 
-# Pitcher multiplier weights — tuned for first-inning relevance
+# Pitcher multiplier weights -- tuned for first-inning relevance
 # BB/9 weighted highly: leadoff walks directly cause first-inning runs
 # HR/9 weighted highly: solo HR = immediate YRFI
 WHIP_WEIGHT  = 0.30
@@ -90,7 +92,7 @@ FIP_WEIGHT   = 0.25
 BB9_WEIGHT   = 0.25
 HR9_WEIGHT   = 0.20
 
-# Offense multiplier weights — OBP highest: getting on base is the
+# Offense multiplier weights -- OBP highest: getting on base is the
 # primary first-inning scoring driver (3-batter sequences, not extra bases)
 OBP_WEIGHT  = 0.45
 RPG_WEIGHT  = 0.35
@@ -106,25 +108,25 @@ HOME_RUN_FACTOR  = 1.025
 AWAY_RUN_FACTOR  = 0.975
 
 # ---------------------------------------------------------------------------
-# Pick thresholds — driven by combined first-inning lambda (projected runs)
+# Pick thresholds -- driven by combined first-inning lambda (projected runs)
 #
 # Calibrated to produce a realistic board distribution across a full slate.
-# Model outputs cluster in the 0.80–0.95 range so thresholds are shifted up
+# Model outputs cluster in the 0.80-0.95 range so thresholds are shifted up
 # relative to the raw scale.  Revisit when model is recalibrated.
 #
-#   λ ≤ 0.72            → STRONG NRFI
-#   0.73 ≤ λ ≤ 0.80     → LEAN NRFI
-#   0.81 ≤ λ ≤ 0.88     → PASS  (dead zone)
-#   0.89 ≤ λ ≤ 0.99     → LEAN YRFI
-#   λ ≥ 1.00            → STRONG YRFI
+#   lambda <= 0.72            -> STRONG NRFI
+#   0.73 <= lambda <= 0.80     -> LEAN NRFI
+#   0.81 <= lambda <= 0.88     -> PASS  (dead zone)
+#   0.89 <= lambda <= 0.99     -> LEAN YRFI
+#   lambda >= 1.00            -> STRONG YRFI
 # ---------------------------------------------------------------------------
-NRFI_STRONG_LAM = 0.72   # λ ≤ this → STRONG NRFI
-NRFI_LEAN_LAM   = 0.80   # λ ≤ this → LEAN NRFI
-PASS_LAM_MAX    = 0.88   # λ ≤ this → PASS (dead zone)
-YRFI_LEAN_LAM   = 0.99   # λ ≤ this → LEAN YRFI  (λ > this → STRONG YRFI)
+NRFI_STRONG_LAM = 0.72   # lambda <= this -> STRONG NRFI
+NRFI_LEAN_LAM   = 0.80   # lambda <= this -> LEAN NRFI
+PASS_LAM_MAX    = 0.88   # lambda <= this -> PASS (dead zone)
+YRFI_LEAN_LAM   = 0.99   # lambda <= this -> LEAN YRFI  (lambda > this -> STRONG YRFI)
 
 # ---------------------------------------------------------------------------
-# Stable MLB team ID → abbreviation map (IDs do not change)
+# Stable MLB team ID -> abbreviation map (IDs do not change)
 # ---------------------------------------------------------------------------
 TEAM_ID_TO_ABBR: dict[int, str] = {
     108: "LAA",
@@ -281,7 +283,7 @@ def fetch_schedule(date_str: str) -> list[dict]:
                 "home_team_id":    home_id,
                 "home_team_name":  home_team.get("name", "???"),
                 "home_abbr":       team_abbr(home_id, home_team.get("abbreviation", "???")),
-                # Pitcher IDs and names – None if not announced
+                # Pitcher IDs and names - None if not announced
                 "away_pitcher_id":   away_probable.get("id"),
                 "away_pitcher_name": away_probable.get("fullName", "TBD"),
                 "home_pitcher_id":   home_probable.get("id"),
@@ -399,12 +401,12 @@ def fetch_pitcher_stats(player_id: int | None, known_name: str, season: int) -> 
     Fetch pitcher stats via yearByYear hydration (one API call, all seasons).
 
     Strategy:
-      1. Parse current-year splits → Bayesian-blend with prior year + league avg.
+      1. Parse current-year splits -> Bayesian-blend with prior year + league avg.
       2. If current year has < 1 IP (hasn't started yet), fall back to prior year.
       3. If nothing usable, return full league-average defaults.
 
     Returns (stats_dict, quality_tag).
-    quality_tag: "live" (IP≥80) | "ltd" (IP≥20) | "sm" (IP≥1) | "avg" (no data).
+    quality_tag: "live" (IP>=80) | "ltd" (IP>=20) | "sm" (IP>=1) | "avg" (no data).
     The known_name is ALWAYS preserved so pitcher names are never "Unknown".
     """
     def _default(name: str) -> tuple[dict, str]:
@@ -447,7 +449,7 @@ def fetch_pitcher_stats(player_id: int | None, known_name: str, season: int) -> 
         blended = _blend_pitcher(curr, curr["ip"], extra_prior=prev)
         quality = _pitcher_quality_tag(curr["ip"])
     elif prev and prev["ip"] >= 20:
-        # Pitcher hasn't thrown in the new season yet – use prior year
+        # Pitcher hasn't thrown in the new season yet - use prior year
         # with heavier league-avg regression (75% max trust for prior year)
         w_prev   = min(prev["ip"] / 120.0, 0.75)
         w_league = 1.0 - w_prev
@@ -492,7 +494,7 @@ def _try_fetch_pitcher_fi_stats(player_id: int | None, season: int) -> dict | No
         for sp in splits:
             s  = sp.get("stat", {})
             ip = safe_float(s.get("inningsPitched"), 0.0)
-            if ip < 3.0:   # < ~10 first-inning appearances — too small
+            if ip < 3.0:   # < ~10 first-inning appearances -- too small
                 return None
             era  = safe_float(s.get("era"),  LEAGUE_AVG_ERA)
             whip = safe_float(s.get("whip"), LEAGUE_AVG_WHIP)
@@ -520,7 +522,7 @@ def fetch_team_batting(team_id: int, season: int) -> tuple[dict, str]:
     Fetch season team hitting stats via /teams/{teamId}/stats.
 
     Returns (stats_dict, quality_tag).
-    quality_tag: "live" (games≥20) | "ltd" (games≥5) | "sm" (games≥1) | "avg".
+    quality_tag: "live" (games>=20) | "ltd" (games>=5) | "sm" (games>=1) | "avg".
 
     Small samples are Bayesian-blended toward league average rather than
     rejected outright, so early-April data (2-3 games) still contributes
@@ -590,9 +592,9 @@ def pitcher_multiplier(stats: dict) -> float:
     bb9_mult  = stats.get("bb9", LEAGUE_AVG_BB9) / LEAGUE_AVG_BB9
     hr9_mult  = stats.get("hr9", LEAGUE_AVG_HR9) / LEAGUE_AVG_HR9
 
-    # K/9 acts as a dampener: elite strikeout rate → fewer baserunners/runs
+    # K/9 acts as a dampener: elite strikeout rate -> fewer baserunners/runs
     k9      = stats.get("k9", LEAGUE_AVG_K9)
-    k9_adj  = 1.0 - (k9 - LEAGUE_AVG_K9) * 0.012   # ±1.2% per unit above/below avg
+    k9_adj  = 1.0 - (k9 - LEAGUE_AVG_K9) * 0.012   # +/-1.2% per unit above/below avg
     k9_adj  = max(0.90, min(k9_adj, 1.08))
 
     raw = (
@@ -629,7 +631,7 @@ def expected_half_inning_runs(
     """
     Expected runs for ONE team in the first inning.
     If first-inning-specific pitcher stats are available (fi_pitcher), they are
-    blended in — weighted by how much first-inning sample the pitcher has.
+    blended in -- weighted by how much first-inning sample the pitcher has.
     """
     # Blend season stats with first-inning specific stats if available
     if fi_pitcher and fi_pitcher.get("ip", 0) >= 3.0:
@@ -670,6 +672,135 @@ def classify_pick(lam: float, data_pts: int) -> tuple[str, str]:
     if lam <= YRFI_LEAN_LAM:
         return "YRFI", "LEAN"
     return "YRFI", "STRONG"
+
+
+# ---------------------------------------------------------------------------
+# Logistic-regression model layer (the actual production predictor)
+# ---------------------------------------------------------------------------
+# This is the empirically validated model -- 4 features, beats climatology
+# on both 2024 and 2025 backtests bidirectionally:
+#   1. fi_park_nrfi_rate   -- empirical first-inning NRFI rate per park
+#   2. home_fip            -- home pitcher FIP
+#   3. home_hr9            -- home pitcher HR/9
+#   4. home_bb9            -- home pitcher BB/9
+# Top-quintile NRFI picks win 57-61% (profitable at typical NRFI +140/+160 odds).
+#
+# When the model + park-factor JSONs are present on disk, the run() pipeline
+# uses LR-based picks.  If either is missing, falls back to the old
+# lambda-threshold classify_pick().
+
+_LR_MODEL_PATH      = Path(__file__).parent / "data" / "lr_model.json"
+_FI_PARK_PATH       = Path(__file__).parent / "data" / "fi_park_factors.json"
+_FI_PARK_NRFI_DEFAULT = 0.50
+
+# Calibrated probability thresholds for pick zones (from calibration.py)
+_LR_STRONG_NRFI_P = 0.60
+_LR_LEAN_NRFI_P   = 0.53
+_LR_PASS_LO_P     = 0.47
+_LR_LEAN_YRFI_P   = 0.40
+
+# Lazy-loaded singletons.  None = "tried to load and failed" (graceful fallback).
+_lr_model = None
+_lr_loaded = False
+_fi_park_rates: dict | None = None
+_fi_park_loaded = False
+
+
+def _load_lr_model():
+    """Load the LR model + standardization params once. Returns None if unavailable."""
+    global _lr_model, _lr_loaded
+    if _lr_loaded:
+        return _lr_model
+    _lr_loaded = True
+    if not _LR_MODEL_PATH.exists():
+        return None
+    try:
+        with open(_LR_MODEL_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+        _lr_model = {
+            "weights":       d["weights"],
+            "bias":          float(d["bias"]),
+            "feature_names": d["feature_names"],
+            "mean":          d["mean"],
+            "std":           d["std"],
+        }
+    except Exception:
+        _lr_model = None
+    return _lr_model
+
+
+def _load_fi_park_rates() -> dict:
+    """Load the empirical FI park factors. Returns {} if unavailable."""
+    global _fi_park_rates, _fi_park_loaded
+    if _fi_park_loaded:
+        return _fi_park_rates or {}
+    _fi_park_loaded = True
+    if not _FI_PARK_PATH.exists():
+        _fi_park_rates = {}
+        return _fi_park_rates
+    try:
+        with open(_FI_PARK_PATH, encoding="utf-8") as f:
+            _fi_park_rates = json.load(f)
+    except Exception:
+        _fi_park_rates = {}
+    return _fi_park_rates
+
+
+def lr_features(home_abbr: str, home_pitcher: dict) -> list[float]:
+    """Build the 4-feature vector matching the saved LR model order."""
+    fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
+    return [
+        fi_park,
+        home_pitcher.get("fip",  LEAGUE_AVG_ERA),
+        home_pitcher.get("hr9",  LEAGUE_AVG_HR9),
+        home_pitcher.get("bb9",  LEAGUE_AVG_BB9),
+    ]
+
+
+def lr_predict_nrfi(features: list[float]) -> float | None:
+    """
+    Apply the standardized-feature logistic regression to get P(NRFI).
+    Returns None when no model is loaded.  Pure-Python implementation so the
+    live predictor doesn't need numpy.
+    """
+    m = _load_lr_model()
+    if m is None:
+        return None
+    z = m["bias"]
+    for x, mean, std, w in zip(features, m["mean"], m["std"], m["weights"]):
+        if std <= 0:
+            continue
+        z += w * (x - mean) / std
+    # logistic
+    if z >= 0:
+        ez = math.exp(-z)
+        return 1.0 / (1.0 + ez)
+    ez = math.exp(z)
+    return ez / (1.0 + ez)
+
+
+def classify_pick_lr(p_nrfi: float, data_pts: int) -> tuple[str, str]:
+    """
+    Pick zone based on calibrated NRFI probability rather than raw lambda.
+    Mirrors classify_pick() shape so call sites can drop in.
+    """
+    if data_pts == 0:
+        return "PASS", "NO DATA"
+    if p_nrfi >= _LR_STRONG_NRFI_P:
+        return "NRFI", "STRONG"
+    if p_nrfi >= _LR_LEAN_NRFI_P:
+        return "NRFI", "LEAN"
+    if p_nrfi >= _LR_PASS_LO_P:
+        return "PASS", "NO EDGE"
+    if p_nrfi >= _LR_LEAN_YRFI_P:
+        return "YRFI", "LEAN"
+    return "YRFI", "STRONG"
+
+
+def lr_active() -> bool:
+    """True when LR model + park factors are both loaded successfully."""
+    return _load_lr_model() is not None and bool(_load_fi_park_rates())
+
 
 # ---------------------------------------------------------------------------
 # Display helpers
@@ -749,13 +880,32 @@ def print_game_result(game: dict, only_strong: bool = False) -> None:
     )
     live_count = sum(1 for q in [ap['pitcher_q'], hp['pitcher_q'], ap['batting_q'], hp['batting_q']] if q != "avg")
     print(f"  Park factor: {game['park_factor']:.3f}  |  Live/blended inputs: {live_count}/4")
+
+    # Pitcher recent first-inning record (last 5 / last 10 starts).  Game-level
+    # NRFI rate = how often the pitcher's start went NRFI overall.  Pitcher
+    # NRFI rate = how often THIS pitcher gave up no runs in their own half.
+    def _last_n_str(rec):
+        if not rec:
+            return "no recent data"
+        n   = rec["n"]
+        gp  = rec["game_nrfi_rate"]    * 100
+        pp  = rec["pitcher_nrfi_rate"] * 100
+        return f"NRFI {gp:>4.0f}%  |  ownNRFI {pp:>4.0f}% (n={n})"
+
+    a5 = ap.get("last5"); a10 = ap.get("last10")
+    h5 = hp.get("last5"); h10 = hp.get("last10")
+    if any([a5, a10, h5, h10]):
+        print(f"  Recent (last 5):  {away_abbr} {_last_n_str(a5):<32}  "
+              f"{home_abbr} {_last_n_str(h5)}")
+        print(f"  Recent (last 10): {away_abbr} {_last_n_str(a10):<32}  "
+              f"{home_abbr} {_last_n_str(h10)}")
     print()
 
     # Projected runs
     print("  Projected 1st-inning runs:")
     print(f"    {away_abbr} bats (top 1st)   : {ap['lambda']:.3f}")
     print(f"    {home_abbr} bats (bot 1st)   : {hp['lambda']:.3f}")
-    print(f"    Combined λ              : {lam:.3f}")
+    print(f"    Combined lambda              : {lam:.3f}")
     print()
 
     # Probability table
@@ -766,25 +916,70 @@ def print_game_result(game: dict, only_strong: bool = False) -> None:
     print(f"    Under 1.5 runs     {color_for_prob(under15,prob_bar(under15))}")
     print()
 
-    # Pick line — format varies by side so the probability is never ambiguous
-    # NRFI shows edge above the ~38% baseline; YRFI shows probability directly.
-    BASELINE_NRFI = 0.38
-    BASELINE_YRFI = 0.62
+    # Pick line -- under LR the baseline is the empirical ~50% NRFI rate, so
+    # we just show the predicted probability directly with a signed edge.
     conf_colors = {"STRONG": "GREEN", "LEAN": "YELLOW", "NO EDGE": "RED", "NO DATA": "RED"}
 
-    if side == "NRFI":
-        edge = round((nrfi - BASELINE_NRFI) * 100, 1)
-        pick_line = (
-            f"  >> {conf} NRFI  |  NRFI {nrfi*100:.1f}%  "
-            f"(+{edge}pp above {BASELINE_NRFI*100:.0f}% avg)"
-        )
-    elif side == "YRFI":
-        edge = round((yrfi - BASELINE_YRFI) * 100, 1)
-        pick_line = f"  >> {conf} YRFI  |  YRFI {yrfi*100:.1f}%  (+{edge}pp above avg)"
-    elif conf == "NO DATA":
-        pick_line = f"  >> PASS  |  Insufficient data  (YRFI {yrfi*100:.1f}%)"
+    def _signed(pp: float) -> str:
+        return f"+{pp:.1f}pp" if pp >= 0 else f"{pp:.1f}pp"
+
+    # Empirically-derived realistic win rates per zone, computed from the
+    # 2024+2025 backtest (4,802 games of v1 LR predictions vs actual outcomes).
+    # Use these (not raw model probability) for breakeven odds -- the model
+    # is slightly overconfident at the extremes.
+    _ZONE_WIN_RATE = {
+        ("NRFI",  "STRONG"):  0.575,   # observed Q5 NRFI rate
+        ("NRFI",  "LEAN"):    0.535,
+        ("YRFI",  "LEAN"):    0.545,
+        ("YRFI",  "STRONG"):  0.629,   # observed STRONG YRFI rate
+    }
+
+    def _be_from_winrate(wr: float) -> str:
+        """American-odds break-even given empirical win rate."""
+        wr = max(0.001, min(0.999, wr))
+        if wr >= 0.5:
+            return f"-{round(100 * wr / (1 - wr))}"
+        return f"+{round(100 * (1 - wr) / wr)}"
+
+    if lr_active():
+        baseline = 0.50
+        if side in ("NRFI", "YRFI"):
+            wr_emp = _ZONE_WIN_RATE.get((side, conf), 0.50)
+            be     = _be_from_winrate(wr_emp)
+            if side == "NRFI":
+                edge = round((nrfi - baseline) * 100, 1)
+                pick_line = (
+                    f"  >> {conf} NRFI  |  NRFI {nrfi*100:.1f}%  "
+                    f"({_signed(edge)} vs 50%)  |  hist wins {wr_emp*100:.1f}%, "
+                    f"bet at any line >= {be}"
+                )
+            else:
+                edge = round((yrfi - baseline) * 100, 1)
+                pick_line = (
+                    f"  >> {conf} YRFI  |  YRFI {yrfi*100:.1f}%  "
+                    f"({_signed(edge)} vs 50%)  |  hist wins {wr_emp*100:.1f}%, "
+                    f"bet at any line >= {be}"
+                )
+        elif conf == "NO DATA":
+            pick_line = f"  >> PASS  |  Insufficient data  (NRFI {nrfi*100:.1f}%)"
+        else:
+            pick_line = f"  >> PASS  |  No meaningful edge  (NRFI {nrfi*100:.1f}%)"
     else:
-        pick_line = f"  >> PASS  |  No meaningful edge  (YRFI {yrfi*100:.1f}%)"
+        BASELINE_NRFI = 0.38
+        BASELINE_YRFI = 0.62
+        if side == "NRFI":
+            edge = round((nrfi - BASELINE_NRFI) * 100, 1)
+            pick_line = (
+                f"  >> {conf} NRFI  |  NRFI {nrfi*100:.1f}%  "
+                f"({_signed(edge)} above {BASELINE_NRFI*100:.0f}% avg)"
+            )
+        elif side == "YRFI":
+            edge = round((yrfi - BASELINE_YRFI) * 100, 1)
+            pick_line = f"  >> {conf} YRFI  |  YRFI {yrfi*100:.1f}%  ({_signed(edge)} above avg)"
+        elif conf == "NO DATA":
+            pick_line = f"  >> PASS  |  Insufficient data  (YRFI {yrfi*100:.1f}%)"
+        else:
+            pick_line = f"  >> PASS  |  No meaningful edge  (YRFI {yrfi*100:.1f}%)"
 
     print(_c(conf_colors.get(conf, ""), pick_line) if HAS_COLOR else pick_line)
     print()
@@ -794,11 +989,31 @@ def print_game_result(game: dict, only_strong: bool = False) -> None:
 # Main pipeline
 # ---------------------------------------------------------------------------
 
+def _target_iso(target_date: str) -> str:
+    """Convert MM/DD/YYYY to YYYY-MM-DD."""
+    if "/" in target_date:
+        m, d, y = target_date.split("/")
+        return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+    return target_date[:10]
+
+
 def run(target_date: str, only_strong: bool = False, debug: bool = False) -> None:
     season = int(target_date.split("/")[-1]) if "/" in target_date else date.today().year
+    target_iso = _target_iso(target_date)
 
+    model_tag = "LR-v1 (4 features)" if lr_active() else "lambda-v1 (legacy)"
     print(f"\nMLB First Inning Run Predictor  |  {target_date}  (season {season})")
+    print(f"  Model: {model_tag}")
     print("Fetching schedule and stats...\n")
+
+    # Lazy import -- backtest module reuses cache + last-N helpers without
+    # creating a circular import at module load.
+    try:
+        from backtest import pitcher_last_n_first_inning
+        recency_available = True
+    except Exception:
+        pitcher_last_n_first_inning = None
+        recency_available = False
 
     schedule = fetch_schedule(target_date)
 
@@ -841,13 +1056,13 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             fi_home = f" FI-ERA={home_fi_sp['era']:.2f}({home_fi_sp['ip']:.0f}ip)" if home_fi_sp else ""
             print(
                 f"  away SP: {game['away_pitcher_name']} (id={game['away_pitcher_id']}) "
-                f"→ ERA {away_sp['era']:.2f} WHIP {away_sp['whip']:.2f} FIP {away_sp['fip']:.2f} "
+                f"-> ERA {away_sp['era']:.2f} WHIP {away_sp['whip']:.2f} FIP {away_sp['fip']:.2f} "
                 f"BB/9 {away_sp.get('bb9',3.0):.1f} HR/9 {away_sp.get('hr9',1.2):.1f} K/9 {away_sp.get('k9',8.9):.1f} "
                 f"[{away_sp_q}]{fi_away}"
             )
             print(
                 f"  home SP: {game['home_pitcher_name']} (id={game['home_pitcher_id']}) "
-                f"→ ERA {home_sp['era']:.2f} WHIP {home_sp['whip']:.2f} FIP {home_sp['fip']:.2f} "
+                f"-> ERA {home_sp['era']:.2f} WHIP {home_sp['whip']:.2f} FIP {home_sp['fip']:.2f} "
                 f"BB/9 {home_sp.get('bb9',3.0):.1f} HR/9 {home_sp.get('hr9',1.2):.1f} K/9 {home_sp.get('k9',8.9):.1f} "
                 f"[{home_sp_q}]{fi_home}"
             )
@@ -859,10 +1074,36 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             )
             print()
 
-        nrfi_p  = prob_nrfi(total_lam)
-        yrfi_p  = prob_yrfi(total_lam)
-        over15p = prob_over_1_5(total_lam)
-        pick_side, pick_conf = classify_pick(total_lam, data_pts)
+        # Recent-form (informational; not part of the model decision).
+        # Last-N first-inning history per pitcher.
+        away_l5 = away_l10 = home_l5 = home_l10 = None
+        if recency_available and pitcher_last_n_first_inning is not None:
+            away_l5  = pitcher_last_n_first_inning(game["away_pitcher_id"], target_iso, season, n=5)
+            away_l10 = pitcher_last_n_first_inning(game["away_pitcher_id"], target_iso, season, n=10)
+            home_l5  = pitcher_last_n_first_inning(game["home_pitcher_id"], target_iso, season, n=5)
+            home_l10 = pitcher_last_n_first_inning(game["home_pitcher_id"], target_iso, season, n=10)
+
+        # Raw Poisson probabilities (legacy, kept for reference + over/under)
+        raw_nrfi_p = prob_nrfi(total_lam)
+        raw_yrfi_p = prob_yrfi(total_lam)
+        over15p    = prob_over_1_5(total_lam)
+        raw_side, raw_conf = classify_pick(total_lam, data_pts)
+
+        # Logistic-regression model takes over for the primary pick when loaded.
+        # Same lambda still drives over/under 1.5 (no LR model for that yet).
+        if lr_active():
+            features = lr_features(home_ab, home_sp)
+            lr_nrfi  = lr_predict_nrfi(features)
+            if lr_nrfi is not None:
+                nrfi_p              = lr_nrfi
+                yrfi_p              = 1.0 - lr_nrfi
+                pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts)
+            else:
+                nrfi_p, yrfi_p       = raw_nrfi_p, raw_yrfi_p
+                pick_side, pick_conf = raw_side, raw_conf
+        else:
+            nrfi_p, yrfi_p       = raw_nrfi_p, raw_yrfi_p
+            pick_side, pick_conf = raw_side, raw_conf
 
         results.append({
             "game_pk":       game["game_pk"],
@@ -899,6 +1140,9 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 "fi_era":  away_fi_sp["era"]  if away_fi_sp else None,
                 "fi_whip": away_fi_sp["whip"] if away_fi_sp else None,
                 "fi_ip":   away_fi_sp["ip"]   if away_fi_sp else None,
+                # last-N first-inning history (informational)
+                "last5":  away_l5,
+                "last10": away_l10,
             },
             "home": {
                 "abbr":         home_ab,
@@ -921,6 +1165,9 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 "fi_era":  home_fi_sp["era"]  if home_fi_sp else None,
                 "fi_whip": home_fi_sp["whip"] if home_fi_sp else None,
                 "fi_ip":   home_fi_sp["ip"]   if home_fi_sp else None,
+                # last-N first-inning history (informational)
+                "last5":  home_l5,
+                "last10": home_l10,
             },
             "lambda_total": total_lam,
         })
@@ -949,24 +1196,24 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
     try:
         from tracker import log_picks
         written = log_picks(target_date, season, results)
-        print(f"  Logged {written} picks → data/picks_{season}.csv")
+        print(f"  Logged {written} picks -> data/picks_{season}.csv")
     except Exception as exc:
         print(f"  Warning: could not write picks log ({exc})")
 
-    # Footer summary
+    # Footer summary -- count actual pick assignments (LR or lambda).
     print("=" * 70)
     lams = [g["lambda_total"] for g in results]
     avg_lam   = sum(lams) / len(lams)
-    nrfi_cnt  = sum(1 for g in results if classify_pick(g["lambda_total"], g["data_points"])[0] == "NRFI")
-    yrfi_cnt  = sum(1 for g in results if classify_pick(g["lambda_total"], g["data_points"])[0] == "YRFI")
+    nrfi_cnt  = sum(1 for g in results if g["pick_side"] == "NRFI")
+    yrfi_cnt  = sum(1 for g in results if g["pick_side"] == "YRFI")
     pass_cnt  = len(results) - nrfi_cnt - yrfi_cnt
     hi_qual   = sum(1 for g in results if g["data_points"] >= 3)
 
     print(f"  Games today         : {len(results)}")
-    print(f"  Avg combined λ      : {avg_lam:.3f}")
+    print(f"  Avg combined lambda      : {avg_lam:.3f}")
     print(f"  NRFI picks          : {nrfi_cnt}  |  YRFI picks: {yrfi_cnt}  |  PASS: {pass_cnt}")
-    print(f"  Blended inputs ≥3/4 : {hi_qual} games")
-    print(f"  Quality key         : [live]≥80IP/20G  [ltd]≥20IP/5G  [sm]≥1IP/1G  [avg]=league default")
+    print(f"  Blended inputs >=3/4 : {hi_qual} games")
+    print(f"  Quality key         : [live]>=80IP/20G  [ltd]>=20IP/5G  [sm]>=1IP/1G  [avg]=league default")
     print()
 
     print_board(results, target_date)
@@ -976,15 +1223,15 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
 # Ranking board
 # ---------------------------------------------------------------------------
 
-# Zone display: (pick_side, pick_conf) → (color_marker_text, pick_description)
+# Zone display: (pick_side, pick_conf) -> (color_marker_text, pick_description)
 _BOARD_ZONE: dict[tuple[str, str], tuple[str, str, str]] = {
     # marker_text, colorama_attr, pick_desc
-    ("NRFI", "STRONG"): ("[GREEN]", "GREEN",  "★★ STRONG NRFI"),
-    ("NRFI", "LEAN"):   ("[GREEN]", "GREEN",  "★  LEAN NRFI  "),
+    ("NRFI", "STRONG"): ("[GREEN]", "GREEN",  "** STRONG NRFI"),
+    ("NRFI", "LEAN"):   ("[GREEN]", "GREEN",  "*  LEAN NRFI  "),
     ("PASS", "NO EDGE"):("[GRAY] ", "WHITE",  "--  PASS       "),
     ("PASS", "NO DATA"):("[GRAY] ", "WHITE",  "--  NO DATA    "),
-    ("YRFI", "LEAN"):   ("[RED]  ", "RED",    "★  LEAN YRFI  "),
-    ("YRFI", "STRONG"): ("[RED]  ", "RED",    "★★ STRONG YRFI"),
+    ("YRFI", "LEAN"):   ("[RED]  ", "RED",    "*  LEAN YRFI  "),
+    ("YRFI", "STRONG"): ("[RED]  ", "RED",    "** STRONG YRFI"),
 }
 
 _BOARD_CSV_FIELDS = [
@@ -1018,9 +1265,9 @@ def print_board(results: list[dict], target_date: str) -> None:
     sep2 = "-" * 68
 
     print(f"\n{sep}")
-    print(f"  RANKING BOARD  —  {iso_date}  (combined λ, highest → lowest)")
+    print(f"  RANKING BOARD  --  {iso_date}  (combined lambda, highest -> lowest)")
     print(sep)
-    print(f"  {'#':<3}  {'Matchup':<11}  {'  λ':>5}  {'Zone':<8}  {'Pick':<16}  {'NRFI%':>6}  {'YRFI%':>6}")
+    print(f"  {'#':<3}  {'Matchup':<11}  {'  lambda':>5}  {'Zone':<8}  {'Pick':<16}  {'NRFI%':>6}  {'YRFI%':>6}")
     print(sep2)
 
     csv_rows = []
@@ -1059,19 +1306,22 @@ def print_board(results: list[dict], target_date: str) -> None:
 
     print(sep)
 
-    # Lambda distribution summary (helps verify board calibration)
-    zones = [
-        ("STRONG NRFI", lambda l: l <= NRFI_STRONG_LAM),
-        ("LEAN NRFI",   lambda l: NRFI_STRONG_LAM < l <= NRFI_LEAN_LAM),
-        ("PASS",        lambda l: NRFI_LEAN_LAM    < l <= PASS_LAM_MAX),
-        ("LEAN YRFI",   lambda l: PASS_LAM_MAX     < l <= YRFI_LEAN_LAM),
-        ("STRONG YRFI", lambda l: l > YRFI_LEAN_LAM),
-    ]
-    counts = {name: sum(1 for g in board if fn(g["lambda_total"])) for name, fn in zones}
+    # Distribution summary -- count by actual pick assignments (works for both
+    # LR-based and lambda-threshold modes since both produce the same labels).
+    zone_order = ["STRONG NRFI", "LEAN NRFI", "PASS", "LEAN YRFI", "STRONG YRFI"]
+    counts = {name: 0 for name in zone_order}
+    for g in board:
+        side, conf = g["pick_side"], g["pick_conf"]
+        if side == "PASS":
+            counts["PASS"] += 1
+        elif side in ("NRFI", "YRFI"):
+            key = f"{conf} {side}"
+            if key in counts:
+                counts[key] += 1
     lam_vals = [g["lambda_total"] for g in board]
-    dist_parts = "  ".join(f"{name}: {counts[name]}" for name, _ in zones)
-    print(f"  Distribution  →  {dist_parts}")
-    print(f"  λ range       →  {min(lam_vals):.3f} – {max(lam_vals):.3f}  "
+    dist_parts = "  ".join(f"{name}: {counts[name]}" for name in zone_order)
+    print(f"  Distribution  ->  {dist_parts}")
+    print(f"  lambda range       ->  {min(lam_vals):.3f} - {max(lam_vals):.3f}  "
           f"(avg {sum(lam_vals)/len(lam_vals):.3f})")
 
     # Save CSV board
@@ -1083,7 +1333,7 @@ def print_board(results: list[dict], target_date: str) -> None:
         writer.writeheader()
         writer.writerows(csv_rows)
 
-    print(f"  Board saved → {board_path}")
+    print(f"  Board saved -> {board_path}")
     print()
 
 
@@ -1117,7 +1367,7 @@ Examples:
     parser.add_argument("--debug",                action="store_true", help="Print raw IDs and blended stat values")
     parser.add_argument("--grade",                action="store_true", help="Grade logged picks against actual results")
     parser.add_argument("--summary",              action="store_true", help="Show performance summary from CSV")
-    # odds system temporarily disabled — flags kept so old shell scripts don't break
+    # odds system temporarily disabled -- flags kept so old shell scripts don't break
     parser.add_argument("--import-odds",          metavar="FILE",      help=argparse.SUPPRESS)
     parser.add_argument("--export-odds-template", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--min-edge",             type=float, default=0.00, metavar="FRAC", help=argparse.SUPPRESS)

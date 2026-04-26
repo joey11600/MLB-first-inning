@@ -1,0 +1,206 @@
+/* ============================================================
+   Diamond Terminal  —  NRFI/YRFI dashboard
+   Near-black base, phosphor green / signal red / amber zones.
+   IBM Plex Mono + IBM Plex Sans. Tabular figures everywhere.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap");
+
+:root {
+  /* Surface */
+  --bg-0: #07090b;
+  --bg-1: #0a0c0f;
+  --bg-2: #0f1317;
+  --bg-3: #141920;
+  --bg-4: #1b222b;
+
+  /* Ink */
+  --ink-0: #e8ecf0;
+  --ink-1: #c7ced6;
+  --ink-2: #8b95a1;
+  --ink-3: #5a636e;
+  --ink-4: #3a424c;
+
+  /* Grid/rule */
+  --rule-1: #1a2028;
+  --rule-2: #242c36;
+
+  /* Semantic — picks */
+  --nrfi: #5dff9a;      /* phosphor green */
+  --nrfi-dim: #2b8f56;
+  --nrfi-glow: rgba(93, 255, 154, 0.14);
+
+  --yrfi: #ff4a5c;      /* signal red */
+  --yrfi-dim: #8f2a33;
+  --yrfi-glow: rgba(255, 74, 92, 0.14);
+
+  --pass: #ffb547;      /* amber */
+  --pass-dim: #8a6020;
+  --pass-glow: rgba(255, 181, 71, 0.12);
+
+  --accent: #6ad1ff;    /* cool cyan — meta accents */
+  --accent-dim: #2a6a8a;
+
+  /* Data quality */
+  --q-live: #5dff9a;
+  --q-ltd: #ffb547;
+  --q-sm: #6ad1ff;
+  --q-avg: #5a636e;
+
+  /* Type */
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+  --font-serif: "IBM Plex Serif", Georgia, serif;
+
+  /* Radii / spacing */
+  --r-sm: 2px;
+  --r-md: 4px;
+  --r-lg: 6px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-0);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  font-feature-settings: "tnum" 1, "cv08" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Defensive: prevent horizontal overflow from full-bleed elements
+     (the sticky Ticker and any future viewport-spanning elements) */
+  overflow-x: clip;
+  max-width: 100vw;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(93, 255, 154, 0.04), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(255, 74, 92, 0.035), transparent 65%),
+    linear-gradient(180deg, #07090b 0%, #05070a 100%);
+  background-attachment: fixed;
+}
+
+/* Subtle scanline backdrop */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.012) 0px,
+    rgba(255, 255, 255, 0.012) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  z-index: 1;
+}
+
+/* Grid overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 20%, black 40%, transparent 80%);
+  z-index: 1;
+}
+
+#__next, main {
+  position: relative;
+  z-index: 2;
+}
+
+/* Mono defaults for numbers */
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* Tiny caps headings */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Buttons / chip base */
+button {
+  font-family: var(--font-mono);
+  background: transparent;
+  color: inherit;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: inherit;
+}
+button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: rgba(93, 255, 154, 0.28);
+  color: var(--ink-0);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #2a333e; }
+
+/* Utility */
+.hairline-b { border-bottom: 1px solid var(--rule-1); }
+.hairline-t { border-top: 1px solid var(--rule-1); }
+.hairline-r { border-right: 1px solid var(--rule-1); }
+.hairline-l { border-left: 1px solid var(--rule-1); }
+
+.fade-in {
+  animation: fadeIn 420ms ease-out both;
+}
+.stagger > * {
+  animation: fadeIn 380ms ease-out both;
+}
+.stagger > *:nth-child(1)  { animation-delay: 20ms; }
+.stagger > *:nth-child(2)  { animation-delay: 40ms; }
+.stagger > *:nth-child(3)  { animation-delay: 60ms; }
+.stagger > *:nth-child(4)  { animation-delay: 80ms; }
+.stagger > *:nth-child(5)  { animation-delay: 100ms; }
+.stagger > *:nth-child(6)  { animation-delay: 120ms; }
+.stagger > *:nth-child(7)  { animation-delay: 140ms; }
+.stagger > *:nth-child(8)  { animation-delay: 160ms; }
+.stagger > *:nth-child(9)  { animation-delay: 180ms; }
+.stagger > *:nth-child(10) { animation-delay: 200ms; }
+.stagger > *:nth-child(n+11) { animation-delay: 220ms; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
+@keyframes sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}

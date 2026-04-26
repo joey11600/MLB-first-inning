@@ -1,0 +1,9 @@
+node_modules
+.next
+.vercel
+.env*.local
+*.log
+# copy-data.mjs mirrors ../data here at build time — not a source artifact
+/data
+
+.vercel

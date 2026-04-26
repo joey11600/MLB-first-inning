@@ -2,3 +2,10 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+
+# Local Claude Code config + worktrees
+.claude/
+
+# StatsAPI response cache (large + transient; rebuilds on demand)
+data/cache/
+data/backtests/logs/

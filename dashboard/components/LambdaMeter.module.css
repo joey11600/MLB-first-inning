@@ -1,0 +1,90 @@
+.meter {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.track {
+  position: relative;
+  display: block;
+  height: 10px;
+  width: 100%;
+  background: var(--bg-3);
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--rule-1);
+}
+
+.compact .track {
+  height: 6px;
+  border-radius: 1px;
+}
+
+.zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: block;
+  opacity: 0.32;
+}
+
+.strongNrfi { background: var(--nrfi); }
+.leanNrfi   { background: var(--nrfi-dim); }
+.pass       { background: var(--pass-dim); }
+.leanYrfi   { background: var(--yrfi-dim); }
+.strongYrfi { background: var(--yrfi); }
+
+.midMark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  z-index: 1;
+}
+
+.pin {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: 200%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pinStem {
+  display: block;
+  width: 1px;
+  flex: 1;
+  background: var(--ink-0);
+}
+
+.pinDiamond {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: var(--ink-0);
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 1px var(--bg-0), 0 0 10px rgba(255,255,255,0.25);
+  margin-top: -4px;
+}
+
+.compact .pinDiamond {
+  width: 6px;
+  height: 6px;
+}
+
+.scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-4);
+  letter-spacing: 0.06em;
+}
+.scale > span { display: inline-block; }
+.zone { display: block; }

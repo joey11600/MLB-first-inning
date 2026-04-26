@@ -1,0 +1,66 @@
+export type PickSide = "NRFI" | "YRFI" | "PASS";
+export type PickStrength = "STRONG" | "LEAN" | "NO EDGE" | "NO DATA";
+export type DataQuality = "live" | "ltd" | "sm" | "avg" | "";
+
+export interface BoardRow {
+  rank: number;
+  away: string;
+  home: string;
+  lambda: number;
+  pickSide: PickSide;
+  pickStrength: PickStrength;
+  pickLabel: string;
+  nrfiPct: number;
+  yrfiPct: number;
+}
+
+export interface PitcherStats {
+  name: string;
+  era: number | null;
+  whip: number | null;
+  fip: number | null;
+  bb9: number | null;
+  hr9: number | null;
+  k9: number | null;
+  fiEra: number | null;
+  fiWhip: number | null;
+  fiIp: number | null;
+  quality: DataQuality;
+}
+
+export interface OffenseStats {
+  obp: number | null;
+  slg: number | null;
+  rpg: number | null;
+  quality: DataQuality;
+}
+
+export interface GameDetail {
+  gamePk: string;
+  gameTimeEt: string;
+  parkFactor: number | null;
+  awayProj: number | null;
+  homeProj: number | null;
+  combinedLambda: number | null;
+  overProb: number | null;
+  underProb: number | null;
+  blendedInputs: number | null;
+  away: {
+    team: string;
+    pitcher: PitcherStats;
+    offense: OffenseStats;
+  };
+  home: {
+    team: string;
+    pitcher: PitcherStats;
+    offense: OffenseStats;
+  };
+}
+
+export interface BoardResponse {
+  date: string;              // YYYY-MM-DD
+  availableDates: string[];  // sorted desc
+  rows: BoardRow[];
+  details: Record<string, GameDetail>;  // keyed by "AWAY@HOME"
+  generatedAt: string | null;
+}
