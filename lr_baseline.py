@@ -138,6 +138,22 @@ V2_REST_FEATURES: list[str] = V2_FEATURES + ["away_days_rest", "home_days_rest"]
 # probably noise, since LR-v2 only uses home_pitcher stats anyway)
 V2_REST_HOME_FEATURES: list[str] = V2_FEATURES + ["home_days_rest"]
 
+# v2 + pitcher arsenal style (FB/BB/OFF mix and velocity for both pitchers)
+V2_ARSENAL_FEATURES: list[str] = V2_FEATURES + [
+    # Pitch-mix shares (off% redundant with fb+bb but kept for stability)
+    "home_arsenal_fb_pct", "home_arsenal_bb_pct",
+    "away_arsenal_fb_pct", "away_arsenal_bb_pct",
+    # Speeds
+    "home_arsenal_fb_velo", "home_arsenal_velo_gap",
+    "away_arsenal_fb_velo", "away_arsenal_velo_gap",
+]
+
+# v2 + arsenal-lite (just FB% and FB velo, fewer features = less overfit risk)
+V2_ARSENAL_LITE_FEATURES: list[str] = V2_FEATURES + [
+    "home_arsenal_fb_pct", "home_arsenal_fb_velo",
+    "away_arsenal_fb_pct", "away_arsenal_fb_velo",
+]
+
 # v2 + everything we have
 V2_ALL_FEATURES: list[str] = V2_FEATURES + [
     # handedness
@@ -215,6 +231,8 @@ FEATURE_SETS = {
     "v2daygame":   V2_DAYGAME_FEATURES,
     "v2rest":      V2_REST_FEATURES,
     "v2resthome":  V2_REST_HOME_FEATURES,
+    "v2arsenal":   V2_ARSENAL_FEATURES,
+    "v2arsenallite": V2_ARSENAL_LITE_FEATURES,
     "v2all":       V2_ALL_FEATURES,
     "v1blend":     V1_BLEND_FEATURES,
     "v1blendaway": V1_BLEND_AWAY_FEATURES,
@@ -256,6 +274,12 @@ FEATURE_DEFAULTS: dict[str, float] = {
     "away_pitcher_throws_l": 0.0, "home_pitcher_throws_l": 0.0,
     # Days rest: 5 = MLB rotation default (4-day rest is the typical short)
     "away_days_rest": 5.0, "home_days_rest": 5.0,
+    # Pitcher arsenal: league-typical defaults when missing data
+    "away_arsenal_fb_pct":  0.55, "home_arsenal_fb_pct":  0.55,
+    "away_arsenal_bb_pct":  0.30, "home_arsenal_bb_pct":  0.30,
+    "away_arsenal_off_pct": 0.15, "home_arsenal_off_pct": 0.15,
+    "away_arsenal_fb_velo": 93.0, "home_arsenal_fb_velo": 93.0,
+    "away_arsenal_velo_gap": 9.0, "home_arsenal_velo_gap": 9.0,
 }
 
 DEFAULT_FEATURES: list[str] = FULL_FEATURES
