@@ -131,6 +131,13 @@ V2_WEATHER_FEATURES: list[str] = V2_FEATURES + [
 # v2 + day-game flag (afternoon games score ~0.3 fewer runs/game on average)
 V2_DAYGAME_FEATURES: list[str] = V2_FEATURES + ["is_day_game"]
 
+# v2 + days rest for both starters (4-day rest vs 5-day vs 6+ affects command)
+V2_REST_FEATURES: list[str] = V2_FEATURES + ["away_days_rest", "home_days_rest"]
+
+# v2 + home-pitcher rest only (away_days_rest came in with opposite sign --
+# probably noise, since LR-v2 only uses home_pitcher stats anyway)
+V2_REST_HOME_FEATURES: list[str] = V2_FEATURES + ["home_days_rest"]
+
 # v2 + everything we have
 V2_ALL_FEATURES: list[str] = V2_FEATURES + [
     # handedness
@@ -206,6 +213,8 @@ FEATURE_SETS = {
     "v2top3cur":   V2_TOP3CUR_FEATURES,
     "v2weather":   V2_WEATHER_FEATURES,
     "v2daygame":   V2_DAYGAME_FEATURES,
+    "v2rest":      V2_REST_FEATURES,
+    "v2resthome":  V2_REST_HOME_FEATURES,
     "v2all":       V2_ALL_FEATURES,
     "v1blend":     V1_BLEND_FEATURES,
     "v1blendaway": V1_BLEND_AWAY_FEATURES,
@@ -245,6 +254,8 @@ FEATURE_DEFAULTS: dict[str, float] = {
     "away_top3_lhb":         1.0, "home_top3_lhb":         1.0,
     "away_top3_switch":      0.0, "home_top3_switch":      0.0,
     "away_pitcher_throws_l": 0.0, "home_pitcher_throws_l": 0.0,
+    # Days rest: 5 = MLB rotation default (4-day rest is the typical short)
+    "away_days_rest": 5.0, "home_days_rest": 5.0,
 }
 
 DEFAULT_FEATURES: list[str] = FULL_FEATURES
