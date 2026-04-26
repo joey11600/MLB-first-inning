@@ -1,0 +1,83 @@
+name: Daily NRFI predict + grade
+
+# Cron times are UTC. EDT (Apr-Oct) = UTC-4, EST (Nov-Mar) = UTC-5.
+# Schedules below are EDT-aligned; bump each cron forward 1 hour after DST ends.
+#   0  13 * * *  =  9:00 AM ET (EDT)  -- predict today's slate
+#   30  3 * * *  = 11:30 PM ET (EDT)  -- grade today's slate (most games final)
+on:
+  schedule:
+    - cron: "0 13 * * *"
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Which job to run"
+        type: choice
+        options: [predict, grade]
+        default: predict
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-nrfi
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need write back; default token has contents:write per `permissions:` above.
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Decide which action to run
+        id: action
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          MANUAL:   ${{ github.event.inputs.action }}
+        run: |
+          if [ "$SCHEDULE" = "0 13 * * *" ]; then
+            echo "what=predict" >> "$GITHUB_OUTPUT"
+          elif [ "$SCHEDULE" = "30 3 * * *" ]; then
+            echo "what=grade" >> "$GITHUB_OUTPUT"
+          else
+            echo "what=${MANUAL:-predict}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "today=$(TZ=America/New_York date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+          echo "slate=$(TZ=America/New_York date +%m/%d/%Y)" >> "$GITHUB_OUTPUT"
+
+      - name: Run predictor (predict)
+        if: steps.action.outputs.what == 'predict'
+        run: python mlb_first_inning_predictor.py
+
+      - name: Run grader (grade)
+        if: steps.action.outputs.what == 'grade'
+        run: python mlb_first_inning_predictor.py --date "${{ steps.action.outputs.slate }}" --grade
+
+      - name: Commit data changes (if any)
+        env:
+          ACTION:  ${{ steps.action.outputs.what }}
+          TODAY:   ${{ steps.action.outputs.today }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "No data changes -- nothing to commit."
+            exit 0
+          fi
+          git commit -m "auto: $ACTION $TODAY"
+          # Push to whatever branch the workflow ran from
+          git push
