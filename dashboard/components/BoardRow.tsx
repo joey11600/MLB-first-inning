@@ -49,6 +49,13 @@ export function BoardRowItem({
           <span className={styles.team}>{row.away}</span>
           <span className={styles.at}>@</span>
           <span className={styles.team}>{row.home}</span>
+          {detail?.gradedResult && (
+            <ResultBadge
+              graded={detail.gradedResult}
+              actual={detail.actualSide}
+              runs={detail.fiTotalRuns}
+            />
+          )}
         </span>
 
         <span className={`num ${styles.lambdaVal} ${styles.right}`}>
@@ -99,6 +106,45 @@ function Bar({ pct, tone }: { pct: number; tone: "nrfi" | "yrfi" }) {
   return (
     <span className={`${styles.inlineBar} ${styles[tone]}`}>
       <span className={styles.inlineBarFill} style={{ width: `${p}%` }} />
+    </span>
+  );
+}
+
+function ResultBadge({
+  graded,
+  actual,
+  runs,
+}: {
+  graded: NonNullable<GameDetail["gradedResult"]>;
+  actual: GameDetail["actualSide"];
+  runs:   number | null;
+}) {
+  // Postponed / suspended games: amber pause indicator
+  if (graded === "POSTPONED" || graded === "SUSPENDED") {
+    return (
+      <span className={`${styles.resultBadge} ${styles.resultPP}`} title={graded}>
+        <span className={styles.resultGlyph}>PP</span>
+      </span>
+    );
+  }
+  // PASS picks (model said no edge) -- show actual outcome muted
+  if (graded === "PASS") {
+    const runText = runs != null ? runs.toString() : "-";
+    return (
+      <span className={`${styles.resultBadge} ${styles.resultPass}`} title={`PASS · 1st ${runText}R · ${actual ?? "-"}`}>
+        <span className={styles.resultGlyph}>{actual === "NRFI" ? "0R" : `${runText}R`}</span>
+      </span>
+    );
+  }
+  // Real bet outcomes
+  const isWin = graded === "WIN";
+  const cls   = isWin ? styles.resultWin : styles.resultLoss;
+  const glyph = isWin ? "W" : "L";
+  const runText = runs != null ? runs.toString() : "-";
+  return (
+    <span className={`${styles.resultBadge} ${cls}`} title={`${graded} · 1st ${runText}R · ${actual ?? "-"}`}>
+      <span className={styles.resultGlyph}>{glyph}</span>
+      <span className={styles.resultRuns}>{runText}R</span>
     </span>
   );
 }

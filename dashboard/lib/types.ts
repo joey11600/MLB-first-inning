@@ -35,6 +35,9 @@ export interface OffenseStats {
   quality: DataQuality;
 }
 
+export type GradedResult = "WIN" | "LOSS" | "PASS" | "POSTPONED" | "SUSPENDED" | null;
+export type ActualSide   = "NRFI" | "YRFI" | "POSTPONED" | "SUSPENDED" | null;
+
 export interface GameDetail {
   gamePk: string;
   gameTimeEt: string;
@@ -45,6 +48,12 @@ export interface GameDetail {
   overProb: number | null;
   underProb: number | null;
   blendedInputs: number | null;
+  // Grading (filled by tracker.py --grade; null when not yet graded)
+  actualSide:    ActualSide;
+  gradedResult:  GradedResult;
+  fiAwayRuns:    number | null;
+  fiHomeRuns:    number | null;
+  fiTotalRuns:   number | null;
   away: {
     team: string;
     pitcher: PitcherStats;

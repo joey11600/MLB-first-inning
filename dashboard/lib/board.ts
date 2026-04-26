@@ -8,6 +8,8 @@ import type {
   PickSide,
   PickStrength,
   DataQuality,
+  ActualSide,
+  GradedResult,
 } from "./types";
 
 /**
@@ -79,6 +81,24 @@ function normalizeQuality(s: string | undefined): DataQuality {
   return "";
 }
 
+function normalizeActualSide(s: string | undefined): ActualSide {
+  const up = (s ?? "").toUpperCase();
+  if (up === "NRFI" || up === "YRFI" || up === "POSTPONED" || up === "SUSPENDED") return up;
+  return null;
+}
+
+function normalizeGradedResult(s: string | undefined): GradedResult {
+  const up = (s ?? "").toUpperCase();
+  if (up === "WIN" || up === "LOSS" || up === "PASS" || up === "POSTPONED" || up === "SUSPENDED") return up;
+  return null;
+}
+
+function nullableNumber(s: string | undefined): number | null {
+  if (s == null || s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
 /**
  * Build detail map from the season picks CSV for a given date.
  * The picks CSV has the same schema as tracker.FIELDS.
@@ -104,6 +124,11 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
       overProb: toNumber(r.over_1_5_prob),
       underProb: toNumber(r.under_1_5_prob),
       blendedInputs: toNumber(r.blended_inputs),
+      actualSide:    normalizeActualSide(r.actual_result),
+      gradedResult:  normalizeGradedResult(r.graded_result),
+      fiAwayRuns:    nullableNumber(r.fi_away_runs),
+      fiHomeRuns:    nullableNumber(r.fi_home_runs),
+      fiTotalRuns:   nullableNumber(r.fi_total_runs),
       away: {
         team: r.away_team,
         pitcher: {
