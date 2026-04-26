@@ -1,19 +1,21 @@
-name: Daily NRFI predict + grade
+name: Daily NRFI predict + grade + weekly recalibrate
 
-# Cron times are UTC. EDT (Apr-Oct) = UTC-4, EST (Nov-Mar) = UTC-5.
-# Schedules below are EDT-aligned; bump each cron forward 1 hour after DST ends.
-#   0  13 * * *  =  9:00 AM ET (EDT)  -- predict today's slate
-#   30  3 * * *  = 11:30 PM ET (EDT)  -- grade today's slate (most games final)
+# Cron times are UTC.  EDT (Apr-Oct) = UTC-4, EST (Nov-Mar) = UTC-5.
+# Schedules below are EDT-aligned; bump each cron forward 1 hour after DST.
+#   0  13 * * *   =  9:00 AM ET  -- predict today's slate
+#   30  3 * * *   = 11:30 PM ET  -- grade today's slate
+#   45  4 * * 1   = 12:45 AM ET Mon (= late Sunday) -- recalibrate after grade
 on:
   schedule:
     - cron: "0 13 * * *"
     - cron: "30 3 * * *"
+    - cron: "45 4 * * 1"
   workflow_dispatch:
     inputs:
       action:
         description: "Which job to run"
         type: choice
-        options: [predict, grade]
+        options: [predict, grade, recalibrate]
         default: predict
 
 permissions:
@@ -52,6 +54,8 @@ jobs:
             echo "what=predict" >> "$GITHUB_OUTPUT"
           elif [ "$SCHEDULE" = "30 3 * * *" ]; then
             echo "what=grade" >> "$GITHUB_OUTPUT"
+          elif [ "$SCHEDULE" = "45 4 * * 1" ]; then
+            echo "what=recalibrate" >> "$GITHUB_OUTPUT"
           else
             echo "what=${MANUAL:-predict}" >> "$GITHUB_OUTPUT"
           fi
@@ -65,6 +69,10 @@ jobs:
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'
         run: python mlb_first_inning_predictor.py --date "${{ steps.action.outputs.slate }}" --grade
+
+      - name: Recalibrate (weekly)
+        if: steps.action.outputs.what == 'recalibrate'
+        run: python recalibrate_v2.py
 
       - name: Commit data changes (if any)
         env:

@@ -44,6 +44,15 @@ export function RoiPanel({ initialDate }: { initialDate: string }) {
           {data && (
             <span className={styles.range}>
               {data.startDate} → {data.endDate}
+              {data.daysIncluded > 0 && (
+                <>
+                  {" · "}
+                  <span className={styles.rangeStrong}>
+                    {data.totalPicks} picks
+                  </span>{" "}
+                  across {data.daysIncluded} {data.daysIncluded === 1 ? "day" : "days"}
+                </>
+              )}
             </span>
           )}
         </div>
@@ -100,9 +109,11 @@ function TotalCard({ total }: { total: ZoneRoi | undefined }) {
   return (
     <div className={`${styles.totalCard} ${styles[`totalCard_${tone}`]}`}>
       <div className={styles.totalLeft}>
-        <span className={styles.totalEyebrow}>Net P&amp;L</span>
+        <span className={styles.totalEyebrow}>Net P&amp;L · bet zones only</span>
         <span className={styles.totalUnits}>{formatUnits(total.unitsPL)}</span>
-        <span className={styles.totalSub}>units, {total.bets} bets</span>
+        <span className={styles.totalSub}>
+          units across {total.bets} graded bets ({total.wins}W-{total.losses}L)
+        </span>
       </div>
       <div className={styles.totalRight}>
         <Stat

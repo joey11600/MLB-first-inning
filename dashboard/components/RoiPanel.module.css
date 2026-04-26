@@ -43,6 +43,10 @@
   color: var(--muted-foreground);
   letter-spacing: 0.04em;
 }
+.rangeStrong {
+  color: var(--foreground);
+  font-weight: 600;
+}
 
 /* ---- Window toggle ---- */
 .windowToggle {

@@ -59,6 +59,12 @@ export interface RoiResponse {
   window: RoiWindow;
   startDate: string;     // ISO yyyy-mm-dd, inclusive
   endDate:   string;     // ISO yyyy-mm-dd, inclusive
+  /** every pick row in the window (NRFI + YRFI + PASS, graded + ungraded) */
+  totalPicks: number;
+  /** picks that have a final outcome (W/L/PASS) -- excludes ungraded + PP */
+  gradedPicks: number;
+  /** distinct slate dates included in the window */
+  daysIncluded: number;
   /** zones we'd actually bet on (excludes PASS) */
   betZones:  ZoneRoi[];
   /** PASS zones (informational; never bet) */
@@ -168,6 +174,9 @@ export async function loadRoi(
     window,
     startDate,
     endDate: today,
+    totalPicks:  0,
+    gradedPicks: 0,
+    daysIncluded: 0,
     betZones:  [],
     passZones: [],
     total: emptyZone("TOTAL", "NRFI", "STRONG"),
@@ -185,6 +194,10 @@ export async function loadRoi(
   const buckets = new Map<string, ZoneRoi>();
   // Per-day P&L list (only counts wins/losses on bet zones)
   const dayPL = new Map<string, number>();
+  // Aggregate counters across the whole window (regardless of zone)
+  let totalPicks  = 0;
+  let gradedPicks = 0;
+  const daysSet = new Set<string>();
 
   for (const r of rows) {
     const date = (r.date ?? "").slice(0, 10);
@@ -211,8 +224,13 @@ export async function loadRoi(
     }
 
     z.picks += 1;
+    totalPicks += 1;
+    daysSet.add(date);
 
     const graded = (r.graded_result ?? "").toUpperCase();
+    if (graded === "WIN" || graded === "LOSS" || graded === "PASS") {
+      gradedPicks += 1;
+    }
     if (graded === "WIN") {
       z.wins += 1;
       const prev = dayPL.get(date) ?? 0;
@@ -278,6 +296,9 @@ export async function loadRoi(
     window,
     startDate,
     endDate: today,
+    totalPicks,
+    gradedPicks,
+    daysIncluded: daysSet.size,
     betZones,
     passZones,
     total: totalFinal,
