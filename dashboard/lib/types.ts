@@ -1,5 +1,10 @@
 export type PickSide = "NRFI" | "YRFI" | "PASS";
-export type PickStrength = "STRONG" | "LEAN" | "NO EDGE" | "NO DATA";
+export type PickStrength =
+  | "STRONG"
+  | "LEAN"
+  | "NO EDGE"
+  | "NO DATA"
+  | "STARTER PENDING";
 export type DataQuality = "live" | "ltd" | "sm" | "avg" | "";
 
 export interface BoardRow {

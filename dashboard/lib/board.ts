@@ -70,7 +70,13 @@ function normalizePickSide(s: string): PickSide {
 
 function normalizePickStrength(s: string): PickStrength {
   const up = s.toUpperCase();
-  if (up === "STRONG" || up === "LEAN" || up === "NO EDGE" || up === "NO DATA")
+  if (
+    up === "STRONG" ||
+    up === "LEAN" ||
+    up === "NO EDGE" ||
+    up === "NO DATA" ||
+    up === "STARTER PENDING"
+  )
     return up as PickStrength;
   return "NO EDGE";
 }

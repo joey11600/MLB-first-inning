@@ -270,6 +270,28 @@
 .passTone .pickDot   { background: var(--secondary); }
 .passTone .pickLabel { color: var(--secondary); font-style: normal; }
 
+/* "Starter pending" — overrides the PASS tone with a dashed muted look so it
+   reads as a data-quality halt, not a model decision. */
+.pickPillPending {
+  background: var(--muted) !important;
+  border-style: dashed !important;
+  border-color: color-mix(in oklab, var(--muted-foreground) 35%, var(--border)) !important;
+}
+.pickPillPending .pickDot {
+  background: var(--muted-foreground) !important;
+  box-shadow: none !important;
+  animation: pendingPulse 2s ease-in-out infinite;
+}
+.pickPillPending .pickLabel {
+  color: var(--muted-foreground) !important;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+@keyframes pendingPulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
 .yrfiLean .pickPill {
   background: color-mix(in oklab, var(--destructive) 8%, transparent);
   border-color: color-mix(in oklab, var(--destructive) 28%, var(--border));

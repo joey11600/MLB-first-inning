@@ -1113,6 +1113,13 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             nrfi_p, yrfi_p       = raw_nrfi_p, raw_yrfi_p
             pick_side, pick_conf = raw_side, raw_conf
 
+        # Starter-pending guard: when either probable pitcher is league-average
+        # fallback (TBD or unannounced), there isn't enough information for a
+        # real bet recommendation -- force PASS regardless of what the model
+        # spits out.  Probability stays visible as informational only.
+        if away_sp_q == "avg" or home_sp_q == "avg":
+            pick_side, pick_conf = "PASS", "STARTER PENDING"
+
         results.append({
             "game_pk":       game["game_pk"],
             "game_number":   game["game_number"],

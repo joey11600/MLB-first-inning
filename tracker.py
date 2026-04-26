@@ -193,7 +193,12 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
         hp     = g["home"]
 
         if side == "PASS":
-            label = f"PASS - {'No data' if conf == 'NO DATA' else 'No edge'}"
+            if conf == "NO DATA":
+                label = "PASS - No data"
+            elif conf == "STARTER PENDING":
+                label = "PASS - Starter pending"
+            else:
+                label = "PASS - No edge"
         else:
             label = f"{conf} {side}"
 

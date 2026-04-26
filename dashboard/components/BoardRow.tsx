@@ -11,6 +11,12 @@ function toneClass(side: PickSide, strength: PickStrength): string {
   return "passTone";
 }
 
+function pickLabelText(side: PickSide, strength: PickStrength): string {
+  if (strength === "STARTER PENDING") return "STARTER PENDING";
+  if (side === "PASS") return strength === "NO DATA" ? "NO DATA" : "PASS";
+  return `${strength} ${side}`;
+}
+
 // "2:10 PM ET" -> "2:10 PM"; missing/empty -> "—"
 function formatGameTime(s: string): string {
   if (!s) return "—";
@@ -75,14 +81,14 @@ export function BoardRowItem({
         </span>
 
         <span className={styles.pickCell}>
-          <span className={styles.pickPill}>
+          <span
+            className={`${styles.pickPill} ${
+              row.pickStrength === "STARTER PENDING" ? styles.pickPillPending : ""
+            }`}
+          >
             <span className={styles.pickDot} aria-hidden />
             <span className={styles.pickLabel}>
-              {row.pickSide === "PASS"
-                ? row.pickStrength === "NO DATA"
-                  ? "NO DATA"
-                  : "PASS"
-                : `${row.pickStrength} ${row.pickSide}`}
+              {pickLabelText(row.pickSide, row.pickStrength)}
             </span>
           </span>
         </span>
