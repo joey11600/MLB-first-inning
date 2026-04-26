@@ -57,11 +57,11 @@
   display: grid;
   width: 100%;
   grid-template-columns:
-    62px                 /* big rank */
+    92px                 /* game time */
     minmax(220px, 1.3fr) /* matchup */
     78px                 /* P(YRFI) */
     minmax(150px, 0.95fr) /* pick pill */
-    minmax(180px, 1.1fr)  /* segmented bar */
+    minmax(180px, 1.1fr)  /* meter */
     72px                 /* NRFI % */
     72px                 /* YRFI % */
     32px;                /* caret */
@@ -83,15 +83,17 @@
 /* Spine gone — the right-side gradient does the tone work now */
 .spine { display: none; }
 
-/* Big rank — the most prominent left-side element (echoes server-table "01") */
+/* Game time — left-side anchor (replaces the old rank ordinal) */
 .rank {
   font-family: var(--font-mono);
-  font-size: 28px;
-  line-height: 2rem;
-  color: color-mix(in oklab, var(--muted-foreground) 70%, var(--foreground));
+  font-size: 17px;
+  line-height: 1.25rem;
+  color: var(--foreground);
   font-weight: 500;
-  letter-spacing: -0.04em;
+  letter-spacing: 0.02em;
   text-align: left;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .nrfiStrong .rank { color: var(--primary); }
 .yrfiStrong .rank { color: var(--destructive); }
@@ -337,7 +339,7 @@
 
 @media (max-width: 1180px) {
   .clickable {
-    grid-template-columns: 50px 1fr 70px 28px;
+    grid-template-columns: 76px 1fr 70px 28px;
     grid-template-areas:
       "rank matchup lambda caret"
       ".    pick    pick   pick"
@@ -345,7 +347,7 @@
     padding: 16px 18px 18px;
     row-gap: 12px;
   }
-  .rank { grid-area: rank; font-size: 24px; }
+  .rank { grid-area: rank; font-size: 14px; }
   .matchup { grid-area: matchup; }
   .lambdaVal { grid-area: lambda; }
   .caret { grid-area: caret; justify-self: end; }

@@ -35,7 +35,7 @@ export function BoardTable({
   return (
     <div className={styles.wrap}>
       <div className={styles.headRow} role="row">
-        <div>#</div>
+        <div>Time</div>
         <div>Matchup</div>
         <div className={styles.right}>P(YRFI)</div>
         <div>Pick</div>

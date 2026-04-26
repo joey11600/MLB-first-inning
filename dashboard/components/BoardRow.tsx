@@ -11,6 +11,12 @@ function toneClass(side: PickSide, strength: PickStrength): string {
   return "passTone";
 }
 
+// "2:10 PM ET" -> "2:10 PM"; missing/empty -> "—"
+function formatGameTime(s: string): string {
+  if (!s) return "—";
+  return s.replace(/\s*ET\s*$/, "").trim();
+}
+
 export function BoardRowItem({
   row,
   detail,
@@ -36,7 +42,7 @@ export function BoardRowItem({
         <span className={styles.spine} aria-hidden />
 
         <span className={`num ${styles.rank}`}>
-          {row.rank.toString().padStart(2, "0")}
+          {formatGameTime(row.gameTimeEt || detail?.gameTimeEt || "")}
         </span>
 
         <span className={styles.matchup}>

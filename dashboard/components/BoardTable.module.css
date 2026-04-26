@@ -5,7 +5,7 @@
 .headRow {
   display: grid;
   grid-template-columns:
-    62px
+    92px
     minmax(220px, 1.3fr)
     78px
     minmax(150px, 0.95fr)
