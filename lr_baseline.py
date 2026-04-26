@@ -101,6 +101,53 @@ V2_FEATURES: list[str] = [
     "home_obp", "home_slg",
 ]
 
+# v2 + handedness extras (platoon splits, LHB counts, pitcher throws_l)
+V2_HAND_FEATURES: list[str] = V2_FEATURES + [
+    "away_top3_platoon",  "home_top3_platoon",
+    "away_top3_lhb",      "home_top3_lhb",
+    "away_top3_switch",   "home_top3_switch",
+    "away_pitcher_throws_l", "home_pitcher_throws_l",
+]
+
+# v2 + pitcher first-inning recency (last 5 / last 10 game NRFI rate)
+V2_RECENCY_FEATURES: list[str] = V2_FEATURES + [
+    "away_p_last5_game_nrfi",     "home_p_last5_game_nrfi",
+    "away_p_last5_pitcher_nrfi",  "home_p_last5_pitcher_nrfi",
+    "away_p_last10_game_nrfi",    "home_p_last10_game_nrfi",
+    "away_p_last10_pitcher_nrfi", "home_p_last10_pitcher_nrfi",
+]
+
+# v2 + current-season top-of-order stats (point-in-time, not prior-year)
+V2_TOP3CUR_FEATURES: list[str] = V2_FEATURES + [
+    "away_top3c_obp", "home_top3c_obp",
+    "away_top3c_iso", "home_top3c_iso",
+]
+
+# v2 + weather
+V2_WEATHER_FEATURES: list[str] = V2_FEATURES + [
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+]
+
+# v2 + day-game flag (afternoon games score ~0.3 fewer runs/game on average)
+V2_DAYGAME_FEATURES: list[str] = V2_FEATURES + ["is_day_game"]
+
+# v2 + everything we have
+V2_ALL_FEATURES: list[str] = V2_FEATURES + [
+    # handedness
+    "away_top3_platoon", "home_top3_platoon",
+    "away_top3_lhb",     "home_top3_lhb",
+    "away_top3_switch",  "home_top3_switch",
+    "away_pitcher_throws_l", "home_pitcher_throws_l",
+    # pitcher recency
+    "away_p_last5_pitcher_nrfi",  "home_p_last5_pitcher_nrfi",
+    "away_p_last10_pitcher_nrfi", "home_p_last10_pitcher_nrfi",
+    # current top-3
+    "away_top3c_obp", "home_top3c_obp",
+    "away_top3c_iso", "home_top3c_iso",
+    # weather
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+]
+
 # v1-blend: same shape, but pitcher stats are blended with current-season-to-date
 V1_BLEND_FEATURES: list[str] = [
     "fi_park_nrfi_rate",
@@ -154,6 +201,12 @@ FEATURE_SETS = {
     "v1fi":        V1_FI_FEATURES,
     "v1bilat":     V1_BILAT_FEATURES,
     "v2":          V2_FEATURES,
+    "v2hand":      V2_HAND_FEATURES,
+    "v2recency":   V2_RECENCY_FEATURES,
+    "v2top3cur":   V2_TOP3CUR_FEATURES,
+    "v2weather":   V2_WEATHER_FEATURES,
+    "v2daygame":   V2_DAYGAME_FEATURES,
+    "v2all":       V2_ALL_FEATURES,
     "v1blend":     V1_BLEND_FEATURES,
     "v1blendaway": V1_BLEND_AWAY_FEATURES,
     "v1hand":      V1_HAND_FEATURES,
@@ -187,6 +240,11 @@ FEATURE_DEFAULTS: dict[str, float] = {
     "away_fi_era":  4.20, "home_fi_era":  4.20,
     "away_fi_whip": 1.25, "home_fi_whip": 1.25,
     "away_fi_ip":   0.0,  "home_fi_ip":   0.0,
+    # Handedness: platoon split = 0 (no advantage), 1 LHB out of 3, 0 switch
+    "away_top3_platoon":     0.0, "home_top3_platoon":     0.0,
+    "away_top3_lhb":         1.0, "home_top3_lhb":         1.0,
+    "away_top3_switch":      0.0, "home_top3_switch":      0.0,
+    "away_pitcher_throws_l": 0.0, "home_pitcher_throws_l": 0.0,
 }
 
 DEFAULT_FEATURES: list[str] = FULL_FEATURES
