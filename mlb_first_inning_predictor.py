@@ -829,8 +829,16 @@ def data_tag(quality: str) -> str:
     return _c(col, quality) if HAS_COLOR else quality
 
 def format_game_time(iso_str: str) -> str:
+    """
+    MLB API returns UTC ISO timestamps (e.g. '2026-04-25T23:10:00Z').
+    Convert to US Eastern wall-clock time and format as '07:10 PM ET'.
+    Auto-handles EDT vs EST via the zoneinfo db.
+    """
     try:
-        return datetime.fromisoformat(iso_str.replace("Z", "+00:00")).strftime("%I:%M %p ET")
+        dt_utc = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        dt_et  = dt_utc.astimezone(_ET)
+        # %I gives zero-padded 12h on Linux, but %#I (Windows) / removing zero with lstrip is fine.
+        return dt_et.strftime("%I:%M %p ET").lstrip("0") or "12:00 AM ET"
     except Exception:
         return iso_str or "TBD"
 

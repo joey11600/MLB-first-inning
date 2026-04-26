@@ -97,6 +97,26 @@ def _to_iso(date_str: str) -> str:
 def _now_utc() -> str:
     return datetime.utcnow().isoformat(timespec="seconds") + "Z"
 
+
+def _hours_since_slate_date(iso_date: str) -> float:
+    """
+    Hours elapsed since midnight ET *after* the slate date.  e.g. for
+    iso_date='2026-04-25', returns hours past 2026-04-26 00:00 ET.
+    Used to decide whether a still-'Scheduled' game is a stale rainout.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        et = ZoneInfo("America/New_York")
+        d = datetime.fromisoformat(iso_date)
+        # Anchor: midnight ET the day after the slate; games that haven't
+        # started by then were almost certainly cancelled.
+        from datetime import timedelta
+        end_of_slate = (d.replace(tzinfo=et) + timedelta(days=1))
+        now_utc = datetime.now(tz=ZoneInfo("UTC"))
+        return (now_utc - end_of_slate).total_seconds() / 3600.0
+    except Exception:
+        return 0.0
+
 # ---------------------------------------------------------------------------
 # CSV I/O
 # ---------------------------------------------------------------------------
@@ -375,6 +395,24 @@ def grade_date(date_str: str, season: int) -> None:
         if away_r is None or home_r is None:
             # First inning not yet complete -- decide why
             if state in ("Preview", "Scheduled"):
+                # If the slate's calendar date is more than ~18h in the past
+                # AND the game still says "Scheduled", treat it as effectively
+                # postponed.  MLB's API often lags on the official Postponed
+                # status update -- this prevents the daily grader from leaving
+                # rainouts ungraded forever.
+                hours_past = _hours_since_slate_date(iso_date)
+                # 6h past midnight ET (= 6am ET next day).  Genuine games
+                # are over by 1-2am ET at the latest; if status is still
+                # "Scheduled" by 6am the next day, MLB has just lagged on
+                # marking it postponed.
+                if hours_past >= 6:
+                    rows[idx]["actual_result"] = "POSTPONED"
+                    rows[idx]["graded_result"] = "POSTPONED"
+                    rows[idx]["graded_at"]     = now
+                    print(f"{tag}  stale-scheduled ({hours_past:.0f}h past slate) "
+                          f"-- marking POSTPONED")
+                    graded_n += 1
+                    continue
                 print(f"{tag}  game not started yet -- skipping")
             elif state == "Live":
                 print(f"{tag}  Live but 1st inning not yet complete -- skipping")
