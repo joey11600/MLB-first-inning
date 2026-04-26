@@ -21,6 +21,7 @@ export interface BoardRow {
 
 export interface PitcherStats {
   name: string;
+  mlbId: number | null;        // null = unknown / TBD / older row without id
   era: number | null;
   whip: number | null;
   fip: number | null;

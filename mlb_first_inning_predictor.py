@@ -1129,6 +1129,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "pick_conf":     pick_conf,
             "away": {
                 "abbr":         away_ab,
+                "pitcher_id":   game["away_pitcher_id"],
                 "pitcher_name": away_sp["name"],
                 "pitcher_q":    away_sp_q,
                 "batting_q":    away_bat_q,
@@ -1154,6 +1155,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             },
             "home": {
                 "abbr":         home_ab,
+                "pitcher_id":   game["home_pitcher_id"],
                 "pitcher_name": home_sp["name"],
                 "pitcher_q":    home_sp_q,
                 "batting_q":    home_bat_q,

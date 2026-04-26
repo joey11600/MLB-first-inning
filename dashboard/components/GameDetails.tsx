@@ -281,8 +281,14 @@ function TeamCard({
         <span className="eyebrow">Pitcher</span>
         <QualityTag q={pitcher?.quality} />
       </section>
-      <div className={styles.pitcherName}>
-        {pitcher?.name ?? "—"}
+      <div className={styles.pitcherRow}>
+        <PitcherAvatar
+          mlbId={pitcher?.mlbId ?? null}
+          name={pitcher?.name}
+        />
+        <div className={styles.pitcherName}>
+          {pitcher?.name ?? "—"}
+        </div>
       </div>
       <StatGrid
         stats={[
@@ -354,4 +360,34 @@ function QualityTag({ q }: { q: DataQuality | undefined }) {
       {label}
     </span>
   );
+}
+
+function PitcherAvatar({
+  mlbId,
+  name,
+}: {
+  mlbId: number | null;
+  name: string | undefined;
+}) {
+  if (!mlbId) {
+    const fallback = (name || "").trim().toUpperCase() === "TBD"
+      ? "TBD"
+      : initialsFromName(name);
+    return <div className={styles.pitcherAvatarFallback}>{fallback || "—"}</div>;
+  }
+
+  const url = `https://midfield.mlbstatic.com/v1/people/${mlbId}/spots/120`;
+  return (
+    <div className={styles.pitcherAvatar}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt={name ? `${name} headshot` : "Pitcher headshot"} loading="lazy" />
+    </div>
+  );
+}
+
+function initialsFromName(name: string | undefined): string {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }

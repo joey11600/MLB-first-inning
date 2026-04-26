@@ -137,6 +137,7 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
         team: r.away_team,
         pitcher: {
           name: r.away_pitcher || "TBD",
+          mlbId: nullableNumber(r.away_pitcher_id),
           era: toNumber(r.away_era),
           whip: toNumber(r.away_whip),
           fip: toNumber(r.away_fip),
@@ -159,6 +160,7 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
         team: r.home_team,
         pitcher: {
           name: r.home_pitcher || "TBD",
+          mlbId: nullableNumber(r.home_pitcher_id),
           era: toNumber(r.home_era),
           whip: toNumber(r.home_whip),
           fip: toNumber(r.home_fip),
