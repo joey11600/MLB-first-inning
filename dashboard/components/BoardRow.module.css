@@ -58,36 +58,35 @@
   letter-spacing: 0.02em;
 }
 
-/* Matchup — primary identity, prominent (Geist label-20) */
+/* Matchup — primary identity, prominent (Geist Mono terminal-style) */
 .matchup {
   display: inline-flex;
   align-items: baseline;
-  gap: 12px;
-  font-family: var(--font-display);
-  font-size: 20px;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 16px;
   font-weight: 500;
-  line-height: 2rem;
-  letter-spacing: -0.005em;
+  line-height: 1.5rem;
+  letter-spacing: 0.04em;
   color: var(--foreground);
-  font-variation-settings: "opsz" 24;
   flex-wrap: wrap;
 }
 .team {
   font-family: var(--font-mono);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.5rem;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
   display: inline-block;
-  min-width: 40px;
-  color: var(--ds-gray-1000);
+  min-width: 38px;
+  color: var(--foreground);
 }
 .at {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   color: var(--muted-foreground);
-  font-style: italic;
   font-weight: 400;
-  font-size: 15px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
 }
 
 /* Doubleheader chip (Geist label-12) */
@@ -179,14 +178,13 @@
   color: var(--muted-foreground);
 }
 .pickLabel {
-  /* Geist label-18 with display family for the editorial flavor */
-  font-family: var(--font-display);
-  font-size: 18px;
-  line-height: 1.5rem;
-  letter-spacing: -0.005em;
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.25rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
   white-space: nowrap;
-  font-variation-settings: "opsz" 24;
 }
 
 .nrfiStrong .marker { color: var(--primary); }
@@ -245,13 +243,12 @@
 .inlineBar.yrfi .inlineBarFill { background: var(--destructive); }
 
 .caret {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   color: var(--muted-foreground);
-  font-size: 22px;
+  font-size: 18px;
   text-align: center;
   transition: color 180ms ease, transform 220ms ease;
   width: 24px;
-  font-style: italic;
 }
 .row.open .caret {
   color: var(--primary);

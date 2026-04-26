@@ -52,19 +52,20 @@
   background: var(--card);
 }
 .emptyFig {
-  font-family: var(--font-display);
-  font-size: 56px;
-  color: color-mix(in oklab, var(--primary) 20%, transparent);
+  font-family: var(--font-mono);
+  font-size: 48px;
+  color: color-mix(in oklab, var(--primary) 30%, transparent);
   margin-bottom: 14px;
-  font-style: italic;
+  letter-spacing: -0.04em;
 }
 .emptyTitle {
-  font-family: var(--font-display);
-  font-size: 18px;
-  letter-spacing: -0.005em;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
   color: var(--foreground);
   margin-bottom: 8px;
-  font-variation-settings: "opsz" 24;
+  font-weight: 600;
 }
 .emptySub {
   font-size: 13px;

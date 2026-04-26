@@ -27,20 +27,19 @@
 .tile.primary {
   background:
     radial-gradient(220px 140px at 0% 0%,
-      var(--nrfi-soft),
+      var(--nrfi-soft-2),
       transparent 60%),
     var(--card);
 }
 
 .big {
-  font-family: var(--font-display);
-  /* Maps to Geist heading-48 sizing but with display serif for character */
-  font-size: 48px;
-  font-weight: 600;
-  color: var(--ds-gray-1000);
-  line-height: 3.5rem;
-  letter-spacing: -2.4px;
-  font-variation-settings: "opsz" 144;
+  /* Geist Mono heading-40 -- numeric, terminal feel */
+  font-family: var(--font-mono);
+  font-size: 40px;
+  font-weight: 500;
+  color: var(--foreground);
+  line-height: 3rem;
+  letter-spacing: -1.6px;
 }
 
 .foot {
@@ -124,14 +123,12 @@
 }
 
 .bucketCount {
-  font-family: var(--font-display);
-  /* Maps to Geist heading-32 */
-  font-size: 32px;
-  font-weight: 600;
-  color: var(--ds-gray-1000);
-  line-height: 2.5rem;
-  letter-spacing: -1.28px;
-  font-variation-settings: "opsz" 144;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--foreground);
+  line-height: 2rem;
+  letter-spacing: -0.8px;
 }
 
 .bucketBar {

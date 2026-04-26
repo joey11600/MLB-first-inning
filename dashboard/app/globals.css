@@ -1,145 +1,165 @@
 /* ============================================================
-   NRFI Almanac  —  warm editorial theme
-   Fraunces (display serif) · Geist (UI sans) · JetBrains Mono (figures)
-   Light default; dark via .dark class or prefers-color-scheme.
+   Diamond Terminal -- Bloomberg-style dark theme
+   Geist Sans (UI) + Geist Mono (figures), no serif
+   Light theme is a soft inverse for daylight reading.
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@300;400;500;600;700&display=swap");
 
+/* --------- Default theme = Bloomberg dark --------- */
 :root {
-  /* User palette — light */
-  --card: #fcfcfc;
-  --ring: #644a40;
-  --input: #d8d8d8;
-  --muted: #efefef;
-  --accent: #e8e8e8;
-  --border: #d8d8d8;
-  --radius: 0.5rem;
-  --popover: #fcfcfc;
-  --primary: #644a40;
-  --secondary: #ffdfb5;
-  --background: #f9f9f9;
-  --foreground: #202020;
-  --destructive: #e54d2e;
-  --card-foreground: #202020;
-  --muted-foreground: #646464;
-  --accent-foreground: #202020;
-  --popover-foreground: #202020;
-  --primary-foreground: #ffffff;
-  --secondary-foreground: #582d1d;
-  --destructive-foreground: #ffffff;
+  /* Surfaces */
+  --background:        #07090b;
+  --card:              #0f1317;
+  --popover:           #0f1317;
+  --muted:             #1b222b;
+  --accent:            #1b222b;
+  --input:             #242c36;
+  --border:            #1a2028;
+  --ring:              #5dff9a;
+  --radius:            0.375rem;
 
-  /* Semantic mappings — picks */
-  --nrfi:               var(--primary);            /* warm brown */
-  --nrfi-foreground:    var(--primary-foreground);
-  --nrfi-soft:          rgba(100, 74, 64, 0.10);
-  --nrfi-soft-2:        rgba(100, 74, 64, 0.22);
+  /* Ink */
+  --foreground:           #e8ecf0;
+  --card-foreground:      #e8ecf0;
+  --popover-foreground:   #e8ecf0;
+  --accent-foreground:    #e8ecf0;
+  --muted-foreground:     #8b95a1;
 
-  --yrfi:               var(--destructive);         /* brick red */
-  --yrfi-foreground:    var(--destructive-foreground);
-  --yrfi-soft:          rgba(229, 77, 46, 0.10);
-  --yrfi-soft-2:        rgba(229, 77, 46, 0.22);
+  /* Phosphor accents */
+  --primary:               #5dff9a;     /* phosphor green = NRFI */
+  --primary-foreground:    #07090b;
+  --secondary:             #ffb547;     /* amber = PASS */
+  --secondary-foreground:  #07090b;
+  --destructive:           #ff4a5c;     /* signal red = YRFI */
+  --destructive-foreground:#07090b;
 
-  --pass-bg:            var(--secondary);          /* peach */
-  --pass-fg:            var(--secondary-foreground);
+  /* Bloomberg meta accent */
+  --accent-cyan:           #6ad1ff;
 
-  /* Type */
-  --font-display: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  --font-sans:    "Geist", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-mono:    "Geist Mono", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-
-  /* Geist design-system parity tokens (mapped from our palette) */
-  --ds-gray-1000: var(--foreground);
-  --ds-blue-900:  var(--primary);
-
-  /* Shadows */
-  --shadow-1: 0 1px 2px rgba(20, 14, 10, 0.04), 0 1px 1px rgba(20, 14, 10, 0.03);
-  --shadow-2: 0 4px 14px rgba(20, 14, 10, 0.06), 0 1px 3px rgba(20, 14, 10, 0.04);
-  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(20, 14, 10, 0.03);
-}
-
-/* ----- Dark mode ---------------------------------------------------------- */
-.dark {
-  --card: #191919;
-  --ring: #ffe0c2;
-  --input: #484848;
-  --muted: #222222;
-  --accent: #2a2a2a;
-  --border: #2a261f;
-  --popover: #191919;
-  --primary: #ffe0c2;
-  --secondary: #393028;
-  --background: #111111;
-  --foreground: #eeeeee;
-  --destructive: #e54d2e;
-  --card-foreground: #eeeeee;
-  --muted-foreground: #b4b4b4;
-  --accent-foreground: #eeeeee;
-  --popover-foreground: #eeeeee;
-  --primary-foreground: #081a1b;
-  --secondary-foreground: #ffe0c2;
-  --destructive-foreground: #ffffff;
-
+  /* Semantic mappings */
   --nrfi:               var(--primary);
   --nrfi-foreground:    var(--primary-foreground);
-  --nrfi-soft:          rgba(255, 224, 194, 0.12);
-  --nrfi-soft-2:        rgba(255, 224, 194, 0.26);
+  --nrfi-soft:          rgba(93, 255, 154, 0.10);
+  --nrfi-soft-2:        rgba(93, 255, 154, 0.22);
 
   --yrfi:               var(--destructive);
   --yrfi-foreground:    var(--destructive-foreground);
-  --yrfi-soft:          rgba(229, 77, 46, 0.16);
-  --yrfi-soft-2:        rgba(229, 77, 46, 0.30);
+  --yrfi-soft:          rgba(255, 74, 92, 0.10);
+  --yrfi-soft-2:        rgba(255, 74, 92, 0.22);
 
   --pass-bg:            var(--secondary);
   --pass-fg:            var(--secondary-foreground);
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.25);
-  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
-  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.25);
+  /* Geist parity tokens */
+  --ds-gray-1000: var(--foreground);
+  --ds-blue-900:  var(--accent-cyan);
+
+  /* Type -- Geist throughout, no serif */
+  --font-display: "Geist", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-sans:    "Geist", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono:    "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Shadows for depth on dark */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.2);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --card: #191919;
-    --ring: #ffe0c2;
-    --input: #484848;
-    --muted: #222222;
-    --accent: #2a2a2a;
-    --border: #2a261f;
-    --popover: #191919;
-    --primary: #ffe0c2;
-    --secondary: #393028;
-    --background: #111111;
-    --foreground: #eeeeee;
-    --destructive: #e54d2e;
-    --card-foreground: #eeeeee;
-    --muted-foreground: #b4b4b4;
-    --accent-foreground: #eeeeee;
-    --popover-foreground: #eeeeee;
-    --primary-foreground: #081a1b;
-    --secondary-foreground: #ffe0c2;
-    --destructive-foreground: #ffffff;
+/* --------- Dark mode is the default; .dark class is a no-op pin --------- */
+.dark {
+  /* Same as :root above */
+}
 
-    --nrfi:               var(--primary);
-    --nrfi-foreground:    var(--primary-foreground);
-    --nrfi-soft:          rgba(255, 224, 194, 0.12);
-    --nrfi-soft-2:        rgba(255, 224, 194, 0.26);
+/* --------- Light mode -- soft inverse for daylight terminals --------- */
+.light {
+  /* Surfaces */
+  --background:        #f5f6f7;
+  --card:              #ffffff;
+  --popover:           #ffffff;
+  --muted:             #ebedef;
+  --accent:            #ebedef;
+  --input:             #d8dce0;
+  --border:            #d8dce0;
+  --ring:              #2b8f56;
+  --radius:            0.375rem;
 
-    --yrfi:               var(--destructive);
-    --yrfi-foreground:    var(--destructive-foreground);
-    --yrfi-soft:          rgba(229, 77, 46, 0.16);
-    --yrfi-soft-2:        rgba(229, 77, 46, 0.30);
+  /* Ink */
+  --foreground:           #14181c;
+  --card-foreground:      #14181c;
+  --popover-foreground:   #14181c;
+  --accent-foreground:    #14181c;
+  --muted-foreground:     #5a636e;
 
-    --pass-bg:            var(--secondary);
-    --pass-fg:            var(--secondary-foreground);
+  /* Same accents but darker for contrast on white */
+  --primary:               #1f8e4f;     /* dark phosphor */
+  --primary-foreground:    #ffffff;
+  --secondary:             #b87a1a;     /* dark amber */
+  --secondary-foreground:  #ffffff;
+  --destructive:           #c62a3a;     /* dark signal red */
+  --destructive-foreground:#ffffff;
 
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.25);
-    --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
-    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --accent-cyan:           #2a6a8a;
+
+  --nrfi:               var(--primary);
+  --nrfi-foreground:    var(--primary-foreground);
+  --nrfi-soft:          rgba(31, 142, 79, 0.10);
+  --nrfi-soft-2:        rgba(31, 142, 79, 0.22);
+
+  --yrfi:               var(--destructive);
+  --yrfi-foreground:    var(--destructive-foreground);
+  --yrfi-soft:          rgba(198, 42, 58, 0.10);
+  --yrfi-soft-2:        rgba(198, 42, 58, 0.22);
+
+  --pass-bg:            var(--secondary);
+  --pass-fg:            var(--secondary-foreground);
+
+  --ds-gray-1000: var(--foreground);
+  --ds-blue-900:  var(--accent-cyan);
+
+  --shadow-1: 0 1px 2px rgba(20, 24, 28, 0.06), 0 1px 1px rgba(20, 24, 28, 0.04);
+  --shadow-2: 0 4px 14px rgba(20, 24, 28, 0.08), 0 1px 3px rgba(20, 24, 28, 0.05);
+  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(20, 24, 28, 0.04);
+}
+
+/* prefers-color-scheme: light overrides ONLY when no explicit class */
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    --background:        #f5f6f7;
+    --card:              #ffffff;
+    --popover:           #ffffff;
+    --muted:             #ebedef;
+    --accent:            #ebedef;
+    --input:             #d8dce0;
+    --border:            #d8dce0;
+    --ring:              #2b8f56;
+
+    --foreground:           #14181c;
+    --card-foreground:      #14181c;
+    --popover-foreground:   #14181c;
+    --accent-foreground:    #14181c;
+    --muted-foreground:     #5a636e;
+
+    --primary:               #1f8e4f;
+    --primary-foreground:    #ffffff;
+    --secondary:             #b87a1a;
+    --secondary-foreground:  #ffffff;
+    --destructive:           #c62a3a;
+    --destructive-foreground:#ffffff;
+    --accent-cyan:           #2a6a8a;
+
+    --nrfi-soft:   rgba(31, 142, 79, 0.10);
+    --nrfi-soft-2: rgba(31, 142, 79, 0.22);
+    --yrfi-soft:   rgba(198, 42, 58, 0.10);
+    --yrfi-soft-2: rgba(198, 42, 58, 0.22);
+
+    --shadow-1: 0 1px 2px rgba(20, 24, 28, 0.06), 0 1px 1px rgba(20, 24, 28, 0.04);
+    --shadow-2: 0 4px 14px rgba(20, 24, 28, 0.08), 0 1px 3px rgba(20, 24, 28, 0.05);
+    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(20, 24, 28, 0.04);
   }
 }
 
-/* ----- Base --------------------------------------------------------------- */
+/* --------- Base ---------- */
 * { box-sizing: border-box; }
 
 html, body {
@@ -158,48 +178,61 @@ html, body {
   max-width: 100vw;
 }
 
-/* Soft warm wash and a subtle paper grain — replaces the old scanline backdrop */
+/* Subtle phosphor-tinged radial wash + scanlines (Diamond Terminal signature) */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(1200px 700px at 0% -10%,
-      color-mix(in oklab, var(--primary) 8%, transparent),
-      transparent 65%),
-    radial-gradient(900px 600px at 100% 0%,
-      color-mix(in oklab, var(--secondary) 22%, transparent),
-      transparent 70%);
+    radial-gradient(1200px 600px at 12% -10%, rgba(93, 255, 154, 0.04), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(255, 74, 92, 0.035), transparent 65%);
   z-index: 0;
 }
 
 body::after {
-  /* very faint cross-hatch reminiscent of newsprint */
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.4;
   background-image:
-    repeating-linear-gradient(0deg,
-      rgba(20, 14, 10, 0.012) 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(90deg,
-      rgba(20, 14, 10, 0.012) 0 1px, transparent 1px 4px);
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.012) 0px,
+      rgba(255, 255, 255, 0.012) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: auto, 64px 64px, 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 20%, black 40%, transparent 80%);
   z-index: 0;
+}
+
+.light body::before {
+  background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(31, 142, 79, 0.05), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(198, 42, 58, 0.035), transparent 65%);
+}
+.light body::after {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 20%, black 40%, transparent 80%);
 }
 
 #__next, main { position: relative; z-index: 1; }
 
-/* ----- Numerics ----------------------------------------------------------- */
+/* --------- Numerics ---------- */
 .mono, .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.005em;
 }
 
-/* ----- Geist typography scale (parity with Vercel's Text component) ------- */
-/* Headings: tight tracking, semibold weight                                  */
+/* --------- Geist typography scale (used selectively) ---------- */
 .t-heading-72 { font-size: 72px; font-weight: 600; line-height: 4.5rem;   letter-spacing: -4.32px; }
 .t-heading-64 { font-size: 64px; font-weight: 600; line-height: 4rem;     letter-spacing: -3.84px; }
 .t-heading-56 { font-size: 56px; font-weight: 600; line-height: 3.5rem;   letter-spacing: -3.36px; }
@@ -209,18 +242,15 @@ body::after {
 .t-heading-24 { font-size: 24px; font-weight: 600; line-height: 2rem;     letter-spacing: -0.96px; }
 .t-heading-20 { font-size: 20px; font-weight: 600; line-height: 1.625rem; letter-spacing: -0.4px; }
 .t-heading-16 { font-size: 16px; font-weight: 600; line-height: 1.5rem;   letter-spacing: -0.32px; }
-/* Buttons / actionable text: medium weight                                   */
 .t-button-16  { font-size: 16px; font-weight: 500; line-height: 1.25rem;  }
 .t-button-14  { font-size: 14px; font-weight: 500; line-height: 1.25rem;  }
 .t-button-12  { font-size: 12px; font-weight: 500; line-height: 1rem;     }
-/* Labels: regular weight, compact leading                                    */
 .t-label-20   { font-size: 20px; line-height: 2rem;     }
 .t-label-18   { font-size: 18px; line-height: 1.25rem;  }
 .t-label-16   { font-size: 16px; line-height: 1.25rem;  }
 .t-label-14   { font-size: 14px; line-height: 1.25rem;  }
 .t-label-13   { font-size: 13px; line-height: 1rem;     }
 .t-label-12   { font-size: 12px; line-height: 1rem;     }
-/* Copy: roomy line-height for prose                                          */
 .t-copy-24    { font-size: 24px; line-height: 2.25rem;   }
 .t-copy-20    { font-size: 20px; line-height: 2.25rem;   }
 .t-copy-18    { font-size: 18px; line-height: 1.75rem;   }
@@ -228,18 +258,18 @@ body::after {
 .t-copy-14    { font-size: 14px; line-height: 1.25rem;   }
 .t-copy-13    { font-size: 13px; line-height: 1.125rem;  }
 
-/* ----- Eyebrow / micro labels (Geist label-12) -------------------------- */
+/* --------- Eyebrow / micro labels ---------- */
 .eyebrow {
   font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
 
-/* ----- Buttons ------------------------------------------------------------ */
+/* --------- Buttons ---------- */
 button {
   font-family: var(--font-sans);
   background: transparent;
@@ -249,41 +279,42 @@ button {
   font-size: inherit;
 }
 button:focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 1px solid var(--accent-cyan);
   outline-offset: 2px;
 }
 
-/* ----- Selection / scrollbar -------------------------------------------- */
+/* --------- Selection / scrollbar ---------- */
 ::selection {
-  background: var(--secondary);
-  color: var(--secondary-foreground);
+  background: rgba(93, 255, 154, 0.28);
+  color: var(--foreground);
 }
+.light ::selection {
+  background: rgba(31, 142, 79, 0.22);
+  color: var(--foreground);
+}
+
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-track { background: var(--card); }
 ::-webkit-scrollbar-thumb { background: var(--input); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
 
-/* ----- Animations -------------------------------------------------------- */
-.fade-in {
-  animation: fadeIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.stagger > * {
-  animation: fadeIn 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
+/* --------- Animations ---------- */
+.fade-in { animation: fadeIn 420ms ease-out both; }
+.stagger > * { animation: fadeIn 380ms ease-out both; }
 .stagger > *:nth-child(1)  { animation-delay: 20ms; }
-.stagger > *:nth-child(2)  { animation-delay: 50ms; }
-.stagger > *:nth-child(3)  { animation-delay: 80ms; }
-.stagger > *:nth-child(4)  { animation-delay: 110ms; }
-.stagger > *:nth-child(5)  { animation-delay: 140ms; }
-.stagger > *:nth-child(6)  { animation-delay: 170ms; }
-.stagger > *:nth-child(7)  { animation-delay: 200ms; }
-.stagger > *:nth-child(8)  { animation-delay: 230ms; }
-.stagger > *:nth-child(9)  { animation-delay: 260ms; }
-.stagger > *:nth-child(10) { animation-delay: 290ms; }
-.stagger > *:nth-child(n+11) { animation-delay: 320ms; }
+.stagger > *:nth-child(2)  { animation-delay: 40ms; }
+.stagger > *:nth-child(3)  { animation-delay: 60ms; }
+.stagger > *:nth-child(4)  { animation-delay: 80ms; }
+.stagger > *:nth-child(5)  { animation-delay: 100ms; }
+.stagger > *:nth-child(6)  { animation-delay: 120ms; }
+.stagger > *:nth-child(7)  { animation-delay: 140ms; }
+.stagger > *:nth-child(8)  { animation-delay: 160ms; }
+.stagger > *:nth-child(9)  { animation-delay: 180ms; }
+.stagger > *:nth-child(10) { animation-delay: 200ms; }
+.stagger > *:nth-child(n+11) { animation-delay: 220ms; }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes tickerScroll {
@@ -291,8 +322,8 @@ button:focus-visible {
   to   { transform: translateX(-50%); }
 }
 @keyframes pulseDot {
-  0%, 100% { opacity: 0.45; transform: scale(1); }
-  50%      { opacity: 1;    transform: scale(1.2); }
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
 }
 @keyframes sweep {
   0%   { transform: translateX(-100%); }

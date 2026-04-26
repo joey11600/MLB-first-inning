@@ -113,7 +113,7 @@ function ResultBanner({
       <div className={`${styles.resultBanner} ${styles.resultBannerPP}`}>
         <div className={styles.resultBannerLeft}>
           <span className="eyebrow">1st-inning result</span>
-          <div className={styles.resultBannerScore}>—</div>
+          <div className={styles.resultBannerScoreEmpty}>NOT PLAYED</div>
         </div>
         <div className={styles.resultBannerMid}>
           <span className={styles.resultBannerOutcome}>{graded}</span>
@@ -125,64 +125,85 @@ function ResultBanner({
     );
   }
 
-  const score = away != null && home != null ? `${away}–${home}` : "—";
   const totalText = total != null ? `${total} run${total === 1 ? "" : "s"}` : "—";
-
-  // PASS path -- model didn't bet, just inform
-  if (graded === "PASS") {
-    return (
-      <div className={`${styles.resultBanner} ${styles.resultBannerPass}`}>
-        <div className={styles.resultBannerLeft}>
-          <span className="eyebrow">1st-inning result</span>
-          <div className={styles.resultBannerScore}>
-            <span className={styles.bigTeam}>{row.away}</span>
-            <span className={styles.bigScore}>{score}</span>
-            <span className={styles.bigTeam}>{row.home}</span>
-          </div>
-          <span className={styles.resultBannerSub}>
-            {totalText} · actual side: <strong>{actual ?? "—"}</strong>
-          </span>
-        </div>
-        <div className={styles.resultBannerMid}>
-          <span className={styles.resultBannerOutcome} data-tone="pass">
-            PASS
-          </span>
-          <span className={styles.resultBannerSub}>
-            Model said no edge — no bet placed.
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // WIN / LOSS
   const isWin = graded === "WIN";
-  const tone  = isWin ? "win" : "loss";
+  const isPass = graded === "PASS";
+
+  const containerCls = isPass
+    ? styles.resultBannerPass
+    : isWin
+    ? styles.resultBannerWin
+    : styles.resultBannerLoss;
+
+  const tone = isPass ? "pass" : isWin ? "win" : "loss";
+  const outcomeLabel = isPass ? "PASS" : isWin ? "WIN" : "LOSS";
+  const subText = isPass
+    ? "Model said no edge — no bet placed."
+    : `${row.pickLabel} → ${actual ?? "—"}`;
+
   return (
-    <div
-      className={`${styles.resultBanner} ${
-        isWin ? styles.resultBannerWin : styles.resultBannerLoss
-      }`}
-    >
+    <div className={`${styles.resultBanner} ${containerCls}`}>
       <div className={styles.resultBannerLeft}>
         <span className="eyebrow">1st-inning result</span>
-        <div className={styles.resultBannerScore}>
-          <span className={styles.bigTeam}>{row.away}</span>
-          <span className={styles.bigScore}>{score}</span>
-          <span className={styles.bigTeam}>{row.home}</span>
+
+        <div className={styles.scoreboard}>
+          <TeamScore side="AWAY" team={row.away} runs={away} />
+          <span className={styles.scoreSep}>–</span>
+          <TeamScore side="HOME" team={row.home} runs={home} />
         </div>
-        <span className={styles.resultBannerSub}>
-          {totalText} · actual side: <strong>{actual ?? "—"}</strong>
-        </span>
+
+        <div className={styles.scoreboardFoot}>
+          <span>Total: <strong>{totalText}</strong></span>
+          <span className={styles.scoreboardFootSep}>·</span>
+          <span>Actual side: <strong>{actual ?? "—"}</strong></span>
+        </div>
       </div>
+
       <div className={styles.resultBannerMid}>
         <span className={styles.resultBannerOutcome} data-tone={tone}>
-          {isWin ? "Win" : "Loss"}
+          {outcomeLabel}
         </span>
-        <span className={styles.resultBannerSub}>
-          {row.pickLabel} → {actual ?? "—"}
-        </span>
+        <span className={styles.resultBannerSub}>{subText}</span>
       </div>
+    </div>
+  );
+}
+
+function TeamScore({
+  side,
+  team,
+  runs,
+}: {
+  side: "AWAY" | "HOME";
+  team: string;
+  runs: number | null | undefined;
+}) {
+  const hasData = runs !== null && runs !== undefined;
+  const scored = hasData && (runs as number) > 0;
+  const shutout = hasData && (runs as number) === 0;
+
+  const cls = [
+    styles.teamPanel,
+    scored ? styles.teamPanelScored : "",
+    shutout ? styles.teamPanelShutout : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const stateLabel = scored ? "SCORED" : shutout ? "SHUT OUT" : "—";
+
+  return (
+    <div className={cls}>
+      <span className={styles.teamPanelLabel}>{side} · {stateLabel}</span>
+      <span className={styles.teamPanelTeam}>{team}</span>
+      <span className={styles.teamPanelRuns}>
+        <span className={styles.teamPanelRunsNum}>
+          {hasData ? runs : "—"}
+        </span>
+        <span className={styles.teamPanelRunsLabel}>
+          {(runs as number) === 1 ? "RUN" : "RUNS"}
+        </span>
+      </span>
     </div>
   );
 }
