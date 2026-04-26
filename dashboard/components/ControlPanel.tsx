@@ -273,7 +273,7 @@ function RunWorkflowControl() {
           target="_blank"
           rel="noreferrer"
         >
-          {message} -> open Actions
+          {message} {"->"} open Actions
         </a>
       )}
       {status === "error" && (
