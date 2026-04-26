@@ -54,7 +54,10 @@ export function BoardRowItem({
               DH-{row.gameNumber}
             </span>
           )}
-          {detail?.gradedResult && (
+        </span>
+
+        <span className={styles.resultCell}>
+          {detail?.gradedResult ? (
             <ResultBadge
               graded={detail.gradedResult}
               actual={detail.actualSide}
@@ -62,6 +65,8 @@ export function BoardRowItem({
               homeRuns={detail.fiHomeRuns}
               totalRuns={detail.fiTotalRuns}
             />
+          ) : (
+            <span className={styles.resultPending}>—</span>
           )}
         </span>
 

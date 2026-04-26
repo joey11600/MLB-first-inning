@@ -6,12 +6,13 @@
   display: grid;
   grid-template-columns:
     92px
-    minmax(220px, 1.3fr)
-    78px
-    minmax(150px, 0.95fr)
     minmax(180px, 1.1fr)
+    86px
     72px
-    72px
+    minmax(140px, 0.85fr)
+    minmax(170px, 1fr)
+    66px
+    66px
     32px;
   align-items: center;
   padding: 10px 22px 8px;
@@ -21,7 +22,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted-foreground);
-  gap: 16px;
+  gap: 14px;
   font-weight: 600;
 }
 
