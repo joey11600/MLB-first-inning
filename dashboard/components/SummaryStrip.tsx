@@ -13,19 +13,19 @@ interface Bucket {
 const BUCKETS: Bucket[] = [
   {
     key: "strong-nrfi",
-    label: "STRONG NRFI",
+    label: "Strong NRFI",
     className: "strongNrfi",
     test: (r) => r.pickSide === "NRFI" && r.pickStrength === "STRONG",
   },
   {
     key: "lean-nrfi",
-    label: "LEAN NRFI",
+    label: "Lean NRFI",
     className: "leanNrfi",
     test: (r) => r.pickSide === "NRFI" && r.pickStrength === "LEAN",
   },
   {
     key: "pass",
-    label: "PASS / NO EDGE",
+    label: "Pass",
     className: "pass",
     test: (r) =>
       r.pickSide === "PASS" ||
@@ -33,13 +33,13 @@ const BUCKETS: Bucket[] = [
   },
   {
     key: "lean-yrfi",
-    label: "LEAN YRFI",
+    label: "Lean YRFI",
     className: "leanYrfi",
     test: (r) => r.pickSide === "YRFI" && r.pickStrength === "LEAN",
   },
   {
     key: "strong-yrfi",
-    label: "STRONG YRFI",
+    label: "Strong YRFI",
     className: "strongYrfi",
     test: (r) => r.pickSide === "YRFI" && r.pickStrength === "STRONG",
   },
@@ -59,25 +59,25 @@ export function SummaryStrip({ rows }: { rows: BoardRow[] }) {
     <section className={styles.wrap} aria-label="Slate summary">
       <div className={styles.tiles}>
         <div className={`${styles.tile} ${styles.primary}`}>
-          <div className="eyebrow">Total games</div>
-          <div className={`num ${styles.big}`}>{rows.length}</div>
+          <div className="eyebrow">Games today</div>
+          <div className={styles.big}>{rows.length}</div>
           <div className={styles.foot}>
             <span className={styles.footCell}>
-              <span className={styles.tinyDot} data-tone="nrfi" />N {nrfiCnt}
+              <span className={styles.tinyDot} data-tone="nrfi" />NRFI {nrfiCnt}
             </span>
             <span className={styles.footCell}>
-              <span className={styles.tinyDot} data-tone="yrfi" />Y {yrfiCnt}
+              <span className={styles.tinyDot} data-tone="yrfi" />YRFI {yrfiCnt}
             </span>
           </div>
         </div>
 
         <div className={styles.tile}>
           <div className="eyebrow">Avg λ</div>
-          <div className={`num ${styles.big}`}>{avgLambda.toFixed(3)}</div>
+          <div className={styles.big}>{avgLambda.toFixed(3)}</div>
           <div className={styles.foot}>
-            <span className="num">min {minLambda.toFixed(3)}</span>
-            <span className={styles.sep}>·</span>
-            <span className="num">max {maxLambda.toFixed(3)}</span>
+            <span className="num">{minLambda.toFixed(3)}</span>
+            <span className={styles.sep}>—</span>
+            <span className="num">{maxLambda.toFixed(3)}</span>
           </div>
         </div>
 

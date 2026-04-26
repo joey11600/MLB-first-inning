@@ -47,7 +47,7 @@ export function BoardRowItem({
 
         <span className={styles.matchup}>
           <span className={styles.team}>{row.away}</span>
-          <span className={styles.at}>@</span>
+          <span className={styles.at}>at</span>
           <span className={styles.team}>{row.home}</span>
           {row.doubleHeader && row.doubleHeader !== "N" && (
             <span className={styles.dhTag} title={`Doubleheader Game ${row.gameNumber}`}>
@@ -93,7 +93,7 @@ export function BoardRowItem({
         </span>
 
         <span className={styles.caret} aria-hidden>
-          {expanded ? "−" : "+"}
+          ⌄
         </span>
       </button>
 

@@ -2,53 +2,55 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .track {
   position: relative;
   display: block;
-  height: 10px;
+  height: 12px;
   width: 100%;
-  background: var(--bg-3);
-  border-radius: 2px;
+  border-radius: 999px;
   overflow: hidden;
-  border: 1px solid var(--rule-1);
+  border: 1px solid var(--border);
+  /* Continuous warm gradient: brown -> peach -> brick red.
+     The 0.40 / 0.50 / 0.60 inflection points line up with our pick zones. */
+  background: linear-gradient(90deg,
+    var(--primary) 0%,
+    color-mix(in oklab, var(--primary) 55%, var(--secondary)) 30%,
+    var(--secondary) 47%,
+    var(--secondary) 53%,
+    color-mix(in oklab, var(--destructive) 55%, var(--secondary)) 70%,
+    var(--destructive) 100%);
 }
 
 .compact .track {
-  height: 6px;
-  border-radius: 1px;
+  height: 8px;
+  border-radius: 999px;
 }
 
-.zone {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  display: block;
-  opacity: 0.32;
-}
+/* Zones are now decorative -- the continuous gradient does the work.
+   Keep the selectors but make them no-ops so existing JSX still mounts. */
+.zone { display: none; }
+.strongNrfi, .leanNrfi, .pass, .leanYrfi, .strongYrfi { /* tone classes used elsewhere */ }
 
-.strongNrfi { background: var(--nrfi); }
-.leanNrfi   { background: var(--nrfi-dim); }
-.pass       { background: var(--pass-dim); }
-.leanYrfi   { background: var(--yrfi-dim); }
-.strongYrfi { background: var(--yrfi); }
-
+/* 0.50 mid-mark — the NRFI/YRFI boundary */
 .midMark {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background: rgba(255, 255, 255, 0.15);
+  width: 2px;
+  background: var(--card);
   z-index: 1;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 18%, transparent);
 }
 
+/* The pin (current game's position) */
 .pin {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  height: 200%;
+  height: 220%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -57,25 +59,29 @@
 }
 
 .pinStem {
-  display: block;
-  width: 1px;
-  flex: 1;
-  background: var(--ink-0);
+  display: none;
 }
 
 .pinDiamond {
   display: block;
-  width: 8px;
-  height: 8px;
-  background: var(--ink-0);
+  width: 12px;
+  height: 12px;
+  background: var(--card);
   transform: rotate(45deg);
-  box-shadow: 0 0 0 1px var(--bg-0), 0 0 10px rgba(255,255,255,0.25);
-  margin-top: -4px;
+  border: 1.5px solid var(--foreground);
+  border-radius: 1px;
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 2px 6px rgba(20, 14, 10, 0.18);
 }
 
 .compact .pinDiamond {
-  width: 6px;
-  height: 6px;
+  width: 9px;
+  height: 9px;
+  border-width: 1.5px;
+  box-shadow:
+    0 0 0 1.5px var(--card),
+    0 1px 3px rgba(20, 14, 10, 0.18);
 }
 
 .scale {
@@ -83,8 +89,10 @@
   justify-content: space-between;
   font-family: var(--font-mono);
   font-size: 9.5px;
-  color: var(--ink-4);
-  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
 }
 .scale > span { display: inline-block; }
-.zone { display: block; }
+.scale > span:first-child { color: var(--primary); font-weight: 600; }
+.scale > span:last-child  { color: var(--destructive); font-weight: 600; }

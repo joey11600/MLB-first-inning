@@ -7,6 +7,7 @@ import { SummaryStrip } from "./SummaryStrip";
 import { BoardTable } from "./BoardTable";
 import { Ticker } from "./Ticker";
 import { StatusLine } from "./StatusLine";
+import { ThemeToggle } from "./ThemeToggle";
 import styles from "./DashboardShell.module.css";
 
 export function DashboardShell({ initial }: { initial: BoardResponse }) {
@@ -58,21 +59,23 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         <div className={styles.brand}>
           <div className={styles.mark} aria-hidden />
           <div className={styles.brandText}>
-            <div className={styles.brandTitle}>NRFI TERMINAL</div>
+            <div className={styles.brandTitle}>
+              NRFI <em>almanac</em>
+            </div>
             <div className={styles.brandSub}>
-              FIRST-INNING INTELLIGENCE · POISSON · PITCHER × OFFENSE × PARK
+              First-inning intelligence · pitcher × offense × park
             </div>
           </div>
         </div>
         <div className={styles.meta}>
           <div>
-            <div className="eyebrow">SLATE</div>
+            <div className="eyebrow">Slate</div>
             <div className={styles.slateDate}>
               {formatDateHeader(data.date)}
             </div>
           </div>
           <div>
-            <div className="eyebrow">GENERATED</div>
+            <div className="eyebrow">Updated</div>
             <div className={`num ${styles.metaValue}`}>
               {data.generatedAt
                 ? new Date(data.generatedAt).toLocaleString("en-US", {
@@ -85,10 +88,11 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
             </div>
           </div>
           <div>
-            <div className="eyebrow">MODEL</div>
-            <div className={`num ${styles.metaValue}`}>v1.0 · λ-rank</div>
+            <div className="eyebrow">Model</div>
+            <div className={`num ${styles.metaValue}`}>LR-v1</div>
           </div>
         </div>
+        <ThemeToggle />
       </header>
 
       <SummaryStrip rows={data.rows} />

@@ -1,251 +1,282 @@
 .row {
   position: relative;
-  border-bottom: 1px solid var(--rule-1);
-  transition: background 160ms ease;
+  border-bottom: 1px solid var(--border);
+  transition: background 180ms ease;
 }
 .row:last-child { border-bottom: 0; }
-.row:hover { background: rgba(27, 34, 43, 0.35); }
-.row.open { background: rgba(27, 34, 43, 0.45); }
+.row:hover { background: var(--muted); }
+.row.open { background: var(--muted); }
 
 .clickable {
   display: grid;
   width: 100%;
   grid-template-columns:
-    46px
-    minmax(180px, 1.1fr)
+    44px
+    minmax(220px, 1.3fr)
     72px
-    minmax(180px, 1.3fr)
+    minmax(180px, 1.2fr)
     minmax(160px, 1fr)
-    82px
-    82px
-    40px;
+    74px
+    74px
+    36px;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px 12px 16px;
+  gap: 14px;
+  padding: 18px 22px;
   text-align: left;
-  color: var(--ink-1);
+  color: var(--foreground);
   position: relative;
 }
 .clickable:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
 }
 
 .right { text-align: right; justify-self: end; }
 
+/* Spine — colored bar on the left of strong picks, subtle on others */
 .spine {
   position: absolute;
-  left: 0; top: 0; bottom: 0;
+  left: 0; top: 8px; bottom: 8px;
   width: 3px;
-  background: var(--ink-4);
+  border-radius: 0 2px 2px 0;
+  background: transparent;
   transition: background 200ms ease;
 }
-.nrfiStrong .spine { background: var(--nrfi); box-shadow: 0 0 10px var(--nrfi); }
-.nrfiLean   .spine { background: var(--nrfi-dim); }
-.passTone   .spine { background: var(--pass-dim); opacity: 0.7; }
-.leanYrfi   .spine, .yrfiLean .spine { background: var(--yrfi-dim); }
-.yrfiStrong .spine { background: var(--yrfi); box-shadow: 0 0 10px var(--yrfi); }
+.nrfiStrong .spine { background: var(--primary); }
+.nrfiLean   .spine { background: color-mix(in oklab, var(--primary) 50%, transparent); }
+.passTone   .spine { background: var(--secondary); }
+.leanYrfi   .spine, .yrfiLean .spine { background: color-mix(in oklab, var(--destructive) 50%, transparent); }
+.yrfiStrong .spine { background: var(--destructive); }
 
+/* Rank — small ordinal */
 .rank {
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--ink-3);
+  color: var(--muted-foreground);
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
 }
 
+/* Matchup — primary identity, prominent */
 .matchup {
   display: inline-flex;
   align-items: baseline;
-  gap: 10px;
-  font-family: var(--font-mono);
-  font-size: 15px;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: 19px;
   font-weight: 500;
-  letter-spacing: 0.06em;
-  color: var(--ink-0);
+  letter-spacing: -0.005em;
+  color: var(--foreground);
+  font-variation-settings: "opsz" 24;
+  flex-wrap: wrap;
 }
-.team { min-width: 38px; display: inline-block; }
+.team {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: inline-block;
+  min-width: 38px;
+}
 .at {
-  color: var(--ink-4);
+  font-family: var(--font-display);
+  color: var(--muted-foreground);
+  font-style: italic;
   font-weight: 400;
-  font-size: 11px;
+  font-size: 14px;
 }
 
-/* Doubleheader tag (DH-1 / DH-2) */
+/* Doubleheader chip */
 .dhTag {
   display: inline-flex;
   align-items: center;
-  margin-left: 6px;
-  padding: 1px 6px;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
+  margin-left: 4px;
+  padding: 1px 7px;
+  font-family: var(--font-sans);
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  border-radius: 2px;
-  border: 1px solid var(--accent-dim);
-  background: rgba(106, 209, 255, 0.06);
-  color: var(--accent);
-  line-height: 1.5;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+  line-height: 1.6;
   vertical-align: middle;
 }
 
-/* Graded-result badge appended to matchup (W / L / PP / PASS-result) */
+/* Result badge: W / L / PASS / PP */
 .resultBadge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-left: 6px;
-  padding: 1px 6px;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  gap: 5px;
+  margin-left: 4px;
+  padding: 2px 9px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  border-radius: 2px;
-  border: 1px solid currentColor;
+  border-radius: 999px;
   line-height: 1.5;
   vertical-align: middle;
 }
-.resultGlyph { letter-spacing: 0.18em; }
+.resultGlyph { letter-spacing: 0.16em; }
 .resultRuns {
-  opacity: 0.7;
-  font-weight: 400;
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  opacity: 0.85;
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
 }
 
 .resultWin {
-  color: var(--nrfi);
-  background: rgba(93, 255, 154, 0.10);
-  box-shadow: 0 0 8px rgba(93, 255, 154, 0.25);
+  color: var(--primary-foreground);
+  background: var(--primary);
 }
 .resultLoss {
-  color: var(--yrfi);
-  background: rgba(255, 74, 92, 0.10);
+  color: var(--destructive-foreground);
+  background: var(--destructive);
 }
 .resultPass {
-  color: var(--ink-3);
-  background: rgba(255, 255, 255, 0.02);
-  border-style: dashed;
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  border: 1px solid color-mix(in oklab, var(--secondary-foreground) 18%, transparent);
 }
 .resultPP {
-  color: var(--pass);
-  background: rgba(255, 181, 71, 0.08);
-  border-style: dashed;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border: 1px dashed var(--border);
 }
 
+/* P(YRFI) value — secondary number */
 .lambdaVal {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
-  color: var(--ink-0);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  letter-spacing: -0.005em;
 }
 
+/* Pick zone — THE most prominent thing per row */
 .pickCell {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 .marker {
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   letter-spacing: 0.04em;
-  width: 32px;
+  width: 30px;
   display: inline-block;
+  color: var(--muted-foreground);
 }
 .pickLabel {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: -0.005em;
   font-weight: 500;
+  white-space: nowrap;
+  font-variation-settings: "opsz" 24;
 }
 
-.nrfiStrong .marker, .nrfiStrong .pickLabel { color: var(--nrfi); }
-.nrfiLean   .marker, .nrfiLean .pickLabel   { color: #8effbd; }
-.passTone   .marker, .passTone .pickLabel   { color: var(--pass); }
-.yrfiLean   .marker, .yrfiLean .pickLabel   { color: #ff8090; }
-.yrfiStrong .marker, .yrfiStrong .pickLabel { color: var(--yrfi); }
+.nrfiStrong .marker { color: var(--primary); }
+.nrfiStrong .pickLabel { color: var(--primary); font-weight: 600; }
 
-.nrfiStrong .pickLabel { text-shadow: 0 0 12px rgba(93, 255, 154, 0.4); }
-.yrfiStrong .pickLabel { text-shadow: 0 0 12px rgba(255, 74, 92, 0.4); }
+.nrfiLean .marker { color: color-mix(in oklab, var(--primary) 70%, var(--muted-foreground)); }
+.nrfiLean .pickLabel { color: color-mix(in oklab, var(--primary) 80%, var(--muted-foreground)); }
 
+.passTone .marker { color: var(--muted-foreground); }
+.passTone .pickLabel { color: var(--muted-foreground); font-style: italic; font-weight: 400; }
+
+.yrfiLean .marker { color: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground)); }
+.yrfiLean .pickLabel { color: color-mix(in oklab, var(--destructive) 85%, var(--muted-foreground)); }
+
+.yrfiStrong .marker { color: var(--destructive); }
+.yrfiStrong .pickLabel { color: var(--destructive); font-weight: 600; }
+
+/* Position meter cell */
 .meterCell {
   display: block;
   min-width: 0;
-  padding-right: 4px;
+  padding-right: 8px;
 }
 
+/* Right-side percentages */
 .pct {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
-  color: var(--ink-1);
+  font-size: 13px;
+  color: var(--foreground);
   justify-content: flex-end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .inlineBar {
   position: relative;
   display: inline-block;
-  width: 48px;
+  width: 44px;
   height: 4px;
-  background: var(--bg-3);
-  border-radius: 1px;
+  background: var(--muted);
+  border-radius: 2px;
   overflow: hidden;
   vertical-align: middle;
 }
 .inlineBarFill {
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  border-radius: 1px;
-  transition: width 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 2px;
+  transition: width 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.inlineBar.nrfi .inlineBarFill { background: var(--nrfi); }
-.inlineBar.yrfi .inlineBarFill { background: var(--yrfi); }
+.inlineBar.nrfi .inlineBarFill { background: var(--primary); }
+.inlineBar.yrfi .inlineBarFill { background: var(--destructive); }
 
 .caret {
-  font-family: var(--font-mono);
-  color: var(--ink-3);
-  font-size: 18px;
+  font-family: var(--font-display);
+  color: var(--muted-foreground);
+  font-size: 22px;
   text-align: center;
-  transition: color 160ms ease;
+  transition: color 180ms ease, transform 220ms ease;
   width: 24px;
+  font-style: italic;
 }
-.row.open .caret { color: var(--ink-0); }
+.row.open .caret {
+  color: var(--primary);
+  transform: rotate(180deg);
+}
 
 .detailsWrap {
-  padding: 0 0 14px 0;
-  border-top: 1px solid var(--rule-1);
-  background:
-    linear-gradient(180deg, rgba(10, 12, 15, 0.6), rgba(7, 9, 11, 0.0));
-  animation: fadeIn 280ms ease-out both;
+  padding: 0 0 18px 0;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--background), transparent);
+  animation: detailFade 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes detailFade {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 1100px) {
   .clickable {
-    grid-template-columns: 40px 1fr 68px 32px;
+    grid-template-columns: 36px 1fr 70px 28px;
     grid-template-areas:
       "rank matchup lambda caret"
       "spine pick pick pick"
-      "spine pct pct pct"
       "spine meter meter meter";
-    padding: 12px 16px 14px;
-    row-gap: 8px;
+    padding: 16px 18px 18px;
+    row-gap: 10px;
   }
   .rank { grid-area: rank; }
-  .matchup { grid-area: matchup; }
+  .matchup { grid-area: matchup; font-size: 17px; }
   .lambdaVal { grid-area: lambda; }
   .caret { grid-area: caret; justify-self: end; }
   .pickCell { grid-area: pick; }
   .pct:nth-of-type(2),
   .pct:nth-of-type(1) { display: none; }
   .meterCell { grid-area: meter; }
-
-  /* Show pct inline within pick label replacement for mobile */
 }

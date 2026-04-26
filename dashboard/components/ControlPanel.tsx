@@ -56,11 +56,6 @@ export function ControlPanel({
 
   return (
     <section className={styles.panel} aria-label="Control panel">
-      <div className={styles.corner} data-pos="tl" aria-hidden />
-      <div className={styles.corner} data-pos="tr" aria-hidden />
-      <div className={styles.corner} data-pos="bl" aria-hidden />
-      <div className={styles.corner} data-pos="br" aria-hidden />
-
       <div className={styles.row}>
         <div className={styles.field}>
           <label className="eyebrow" htmlFor="dateSelect">

@@ -1,143 +1,212 @@
 /* ============================================================
-   Diamond Terminal  —  NRFI/YRFI dashboard
-   Near-black base, phosphor green / signal red / amber zones.
-   IBM Plex Mono + IBM Plex Sans. Tabular figures everywhere.
+   NRFI Almanac  —  warm editorial theme
+   Fraunces (display serif) · Geist (UI sans) · JetBrains Mono (figures)
+   Light default; dark via .dark class or prefers-color-scheme.
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap");
 
 :root {
-  /* Surface */
-  --bg-0: #07090b;
-  --bg-1: #0a0c0f;
-  --bg-2: #0f1317;
-  --bg-3: #141920;
-  --bg-4: #1b222b;
+  /* User palette — light */
+  --card: #fcfcfc;
+  --ring: #644a40;
+  --input: #d8d8d8;
+  --muted: #efefef;
+  --accent: #e8e8e8;
+  --border: #d8d8d8;
+  --radius: 0.5rem;
+  --popover: #fcfcfc;
+  --primary: #644a40;
+  --secondary: #ffdfb5;
+  --background: #f9f9f9;
+  --foreground: #202020;
+  --destructive: #e54d2e;
+  --card-foreground: #202020;
+  --muted-foreground: #646464;
+  --accent-foreground: #202020;
+  --popover-foreground: #202020;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #582d1d;
+  --destructive-foreground: #ffffff;
 
-  /* Ink */
-  --ink-0: #e8ecf0;
-  --ink-1: #c7ced6;
-  --ink-2: #8b95a1;
-  --ink-3: #5a636e;
-  --ink-4: #3a424c;
+  /* Semantic mappings — picks */
+  --nrfi:               var(--primary);            /* warm brown */
+  --nrfi-foreground:    var(--primary-foreground);
+  --nrfi-soft:          rgba(100, 74, 64, 0.10);
+  --nrfi-soft-2:        rgba(100, 74, 64, 0.22);
 
-  /* Grid/rule */
-  --rule-1: #1a2028;
-  --rule-2: #242c36;
+  --yrfi:               var(--destructive);         /* brick red */
+  --yrfi-foreground:    var(--destructive-foreground);
+  --yrfi-soft:          rgba(229, 77, 46, 0.10);
+  --yrfi-soft-2:        rgba(229, 77, 46, 0.22);
 
-  /* Semantic — picks */
-  --nrfi: #5dff9a;      /* phosphor green */
-  --nrfi-dim: #2b8f56;
-  --nrfi-glow: rgba(93, 255, 154, 0.14);
-
-  --yrfi: #ff4a5c;      /* signal red */
-  --yrfi-dim: #8f2a33;
-  --yrfi-glow: rgba(255, 74, 92, 0.14);
-
-  --pass: #ffb547;      /* amber */
-  --pass-dim: #8a6020;
-  --pass-glow: rgba(255, 181, 71, 0.12);
-
-  --accent: #6ad1ff;    /* cool cyan — meta accents */
-  --accent-dim: #2a6a8a;
-
-  /* Data quality */
-  --q-live: #5dff9a;
-  --q-ltd: #ffb547;
-  --q-sm: #6ad1ff;
-  --q-avg: #5a636e;
+  --pass-bg:            var(--secondary);          /* peach */
+  --pass-fg:            var(--secondary-foreground);
 
   /* Type */
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
-  --font-serif: "IBM Plex Serif", Georgia, serif;
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-sans:    "Geist", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  /* Radii / spacing */
-  --r-sm: 2px;
-  --r-md: 4px;
-  --r-lg: 6px;
+  /* Shadows */
+  --shadow-1: 0 1px 2px rgba(20, 14, 10, 0.04), 0 1px 1px rgba(20, 14, 10, 0.03);
+  --shadow-2: 0 4px 14px rgba(20, 14, 10, 0.06), 0 1px 3px rgba(20, 14, 10, 0.04);
+  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(20, 14, 10, 0.03);
 }
 
+/* ----- Dark mode ---------------------------------------------------------- */
+.dark {
+  --card: #191919;
+  --ring: #ffe0c2;
+  --input: #484848;
+  --muted: #222222;
+  --accent: #2a2a2a;
+  --border: #2a261f;
+  --popover: #191919;
+  --primary: #ffe0c2;
+  --secondary: #393028;
+  --background: #111111;
+  --foreground: #eeeeee;
+  --destructive: #e54d2e;
+  --card-foreground: #eeeeee;
+  --muted-foreground: #b4b4b4;
+  --accent-foreground: #eeeeee;
+  --popover-foreground: #eeeeee;
+  --primary-foreground: #081a1b;
+  --secondary-foreground: #ffe0c2;
+  --destructive-foreground: #ffffff;
+
+  --nrfi:               var(--primary);
+  --nrfi-foreground:    var(--primary-foreground);
+  --nrfi-soft:          rgba(255, 224, 194, 0.12);
+  --nrfi-soft-2:        rgba(255, 224, 194, 0.26);
+
+  --yrfi:               var(--destructive);
+  --yrfi-foreground:    var(--destructive-foreground);
+  --yrfi-soft:          rgba(229, 77, 46, 0.16);
+  --yrfi-soft-2:        rgba(229, 77, 46, 0.30);
+
+  --pass-bg:            var(--secondary);
+  --pass-fg:            var(--secondary-foreground);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --card: #191919;
+    --ring: #ffe0c2;
+    --input: #484848;
+    --muted: #222222;
+    --accent: #2a2a2a;
+    --border: #2a261f;
+    --popover: #191919;
+    --primary: #ffe0c2;
+    --secondary: #393028;
+    --background: #111111;
+    --foreground: #eeeeee;
+    --destructive: #e54d2e;
+    --card-foreground: #eeeeee;
+    --muted-foreground: #b4b4b4;
+    --accent-foreground: #eeeeee;
+    --popover-foreground: #eeeeee;
+    --primary-foreground: #081a1b;
+    --secondary-foreground: #ffe0c2;
+    --destructive-foreground: #ffffff;
+
+    --nrfi:               var(--primary);
+    --nrfi-foreground:    var(--primary-foreground);
+    --nrfi-soft:          rgba(255, 224, 194, 0.12);
+    --nrfi-soft-2:        rgba(255, 224, 194, 0.26);
+
+    --yrfi:               var(--destructive);
+    --yrfi-foreground:    var(--destructive-foreground);
+    --yrfi-soft:          rgba(229, 77, 46, 0.16);
+    --yrfi-soft-2:        rgba(229, 77, 46, 0.30);
+
+    --pass-bg:            var(--secondary);
+    --pass-fg:            var(--secondary-foreground);
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.25);
+    --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
+    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* ----- Base --------------------------------------------------------------- */
 * { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg-0);
-  color: var(--ink-1);
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
-  font-size: 13px;
-  line-height: 1.45;
-  font-feature-settings: "tnum" 1, "cv08" 1, "ss01" 1;
+  font-size: 14px;
+  line-height: 1.55;
+  font-feature-settings: "ss01" 1, "cv11" 1;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  /* Defensive: prevent horizontal overflow from full-bleed elements
-     (the sticky Ticker and any future viewport-spanning elements) */
   overflow-x: clip;
   max-width: 100vw;
 }
 
-body {
-  min-height: 100vh;
-  background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(93, 255, 154, 0.04), transparent 60%),
-    radial-gradient(900px 500px at 95% 0%, rgba(255, 74, 92, 0.035), transparent 65%),
-    linear-gradient(180deg, #07090b 0%, #05070a 100%);
-  background-attachment: fixed;
-}
-
-/* Subtle scanline backdrop */
+/* Soft warm wash and a subtle paper grain — replaces the old scanline backdrop */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.012) 0px,
-    rgba(255, 255, 255, 0.012) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  z-index: 1;
+  background:
+    radial-gradient(1200px 700px at 0% -10%,
+      color-mix(in oklab, var(--primary) 8%, transparent),
+      transparent 65%),
+    radial-gradient(900px 600px at 100% 0%,
+      color-mix(in oklab, var(--secondary) 22%, transparent),
+      transparent 70%);
+  z-index: 0;
 }
 
-/* Grid overlay */
 body::after {
+  /* very faint cross-hatch reminiscent of newsprint */
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
+  opacity: 0.4;
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: radial-gradient(ellipse at 50% 20%, black 40%, transparent 80%);
-  z-index: 1;
+    repeating-linear-gradient(0deg,
+      rgba(20, 14, 10, 0.012) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg,
+      rgba(20, 14, 10, 0.012) 0 1px, transparent 1px 4px);
+  z-index: 0;
 }
 
-#__next, main {
-  position: relative;
-  z-index: 2;
+#__next, main { position: relative; z-index: 1; }
+
+/* ----- Numerics ----------------------------------------------------------- */
+.mono, .num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
 }
 
-/* Mono defaults for numbers */
-.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-
-/* Tiny caps headings */
+/* ----- Eyebrow / micro labels -------------------------------------------- */
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.18em;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--muted-foreground);
 }
 
-/* Buttons / chip base */
+/* ----- Buttons ------------------------------------------------------------ */
 button {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   background: transparent;
   color: inherit;
   border: 1px solid transparent;
@@ -145,61 +214,51 @@ button {
   font-size: inherit;
 }
 button:focus-visible {
-  outline: 1px solid var(--accent);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
-/* Selection */
+/* ----- Selection / scrollbar -------------------------------------------- */
 ::selection {
-  background: rgba(93, 255, 154, 0.28);
-  color: var(--ink-0);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
 }
-
-/* Scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--bg-1); }
-::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #2a333e; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--input); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
 
-/* Utility */
-.hairline-b { border-bottom: 1px solid var(--rule-1); }
-.hairline-t { border-top: 1px solid var(--rule-1); }
-.hairline-r { border-right: 1px solid var(--rule-1); }
-.hairline-l { border-left: 1px solid var(--rule-1); }
-
+/* ----- Animations -------------------------------------------------------- */
 .fade-in {
-  animation: fadeIn 420ms ease-out both;
+  animation: fadeIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .stagger > * {
-  animation: fadeIn 380ms ease-out both;
+  animation: fadeIn 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .stagger > *:nth-child(1)  { animation-delay: 20ms; }
-.stagger > *:nth-child(2)  { animation-delay: 40ms; }
-.stagger > *:nth-child(3)  { animation-delay: 60ms; }
-.stagger > *:nth-child(4)  { animation-delay: 80ms; }
-.stagger > *:nth-child(5)  { animation-delay: 100ms; }
-.stagger > *:nth-child(6)  { animation-delay: 120ms; }
-.stagger > *:nth-child(7)  { animation-delay: 140ms; }
-.stagger > *:nth-child(8)  { animation-delay: 160ms; }
-.stagger > *:nth-child(9)  { animation-delay: 180ms; }
-.stagger > *:nth-child(10) { animation-delay: 200ms; }
-.stagger > *:nth-child(n+11) { animation-delay: 220ms; }
+.stagger > *:nth-child(2)  { animation-delay: 50ms; }
+.stagger > *:nth-child(3)  { animation-delay: 80ms; }
+.stagger > *:nth-child(4)  { animation-delay: 110ms; }
+.stagger > *:nth-child(5)  { animation-delay: 140ms; }
+.stagger > *:nth-child(6)  { animation-delay: 170ms; }
+.stagger > *:nth-child(7)  { animation-delay: 200ms; }
+.stagger > *:nth-child(8)  { animation-delay: 230ms; }
+.stagger > *:nth-child(9)  { animation-delay: 260ms; }
+.stagger > *:nth-child(10) { animation-delay: 290ms; }
+.stagger > *:nth-child(n+11) { animation-delay: 320ms; }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes tickerScroll {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
-
 @keyframes pulseDot {
-  0%, 100% { opacity: 0.4; }
-  50%      { opacity: 1; }
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.2); }
 }
-
 @keyframes sweep {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(300%); }

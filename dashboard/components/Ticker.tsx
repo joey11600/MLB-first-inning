@@ -35,7 +35,7 @@ export function Ticker({ rows, date }: { rows: BoardRow[]; date: string }) {
     <div className={styles.bar} role="marquee" aria-label="Slate ticker">
       <div className={styles.label}>
         <span className={styles.dot} />
-        LIVE SLATE · λ̄ {avgLambda.toFixed(3)} · {rows.length} GAMES
+        Live slate · <span className={styles.lambda}>λ̄ {avgLambda.toFixed(3)}</span> · {rows.length} games
       </div>
       <div className={styles.track}>
         <div className={styles.scroll}>

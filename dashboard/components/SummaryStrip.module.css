@@ -1,70 +1,77 @@
 .wrap {
-  padding: 20px 0 16px;
+  padding: 28px 0 20px;
 }
 
 .tiles {
   display: grid;
-  grid-template-columns: 200px 200px 1fr;
-  gap: 0;
-  border: 1px solid var(--rule-1);
-  border-radius: var(--r-md);
-  background: linear-gradient(180deg, rgba(15, 19, 23, 0.7), rgba(10, 12, 15, 0.3));
+  grid-template-columns: 220px 220px 1fr;
+  gap: 16px;
+  align-items: stretch;
 }
 
 .tile {
-  padding: 14px 18px;
-  border-right: 1px solid var(--rule-1);
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 8px;
-  min-height: 106px;
+  gap: 10px;
+  min-height: 122px;
   position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
   overflow: hidden;
 }
 
-.tile.primary::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(220px 140px at 0% 0%, var(--nrfi-glow), transparent 60%);
-  pointer-events: none;
+.tile.primary {
+  background:
+    radial-gradient(220px 140px at 0% 0%,
+      var(--nrfi-soft),
+      transparent 60%),
+    var(--card);
 }
 
 .big {
-  font-size: 34px;
+  font-family: var(--font-display);
+  font-size: 44px;
   font-weight: 500;
-  color: var(--ink-0);
+  color: var(--foreground);
   line-height: 1;
   letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 144;
 }
 
 .foot {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--ink-3);
-  letter-spacing: 0.06em;
+  gap: 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.01em;
 }
 
-.footCell { display: inline-flex; align-items: center; gap: 6px; }
+.footCell { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); }
 .tinyDot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
-.tinyDot[data-tone="nrfi"] { background: var(--nrfi); box-shadow: 0 0 6px var(--nrfi); }
-.tinyDot[data-tone="yrfi"] { background: var(--yrfi); box-shadow: 0 0 6px var(--yrfi); }
+.tinyDot[data-tone="nrfi"] { background: var(--primary); }
+.tinyDot[data-tone="yrfi"] { background: var(--destructive); }
 
-.sep { color: var(--ink-4); }
+.sep { color: var(--border); margin: 0 2px; }
 
 .distribution {
-  padding: 14px 18px;
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
 }
 
 .buckets {
@@ -77,44 +84,54 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 10px;
-  border: 1px solid var(--rule-1);
-  border-radius: var(--r-sm);
-  background: rgba(10, 12, 15, 0.5);
+  padding: 12px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
   position: relative;
   min-width: 0;
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+.bucket:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-1);
 }
 
+/* Number first (big), label below — gives the label the full width */
 .bucketHead {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .bucketLabel {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--muted-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .bucketCount {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--ink-0);
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 500;
+  color: var(--foreground);
   line-height: 1;
+  letter-spacing: -0.01em;
+  font-variation-settings: "opsz" 144;
 }
 
 .bucketBar {
   height: 3px;
   width: 100%;
-  background: var(--bg-3);
+  background: var(--muted);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -122,43 +139,45 @@
 .bucketFill {
   height: 100%;
   border-radius: 2px;
-  transition: width 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bucketPct {
-  font-size: 10px;
-  color: var(--ink-3);
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
 }
 
-/* Tone-specific */
-.strongNrfi { border-top: 2px solid var(--nrfi); }
-.strongNrfi .bucketFill { background: linear-gradient(90deg, var(--nrfi-dim), var(--nrfi)); }
-.strongNrfi .bucketCount { color: var(--nrfi); }
+/* Tone-specific accents */
+.strongNrfi { border-top: 2px solid var(--primary); }
+.strongNrfi .bucketFill { background: var(--primary); }
+.strongNrfi .bucketCount { color: var(--primary); }
 
-.leanNrfi { border-top: 2px solid var(--nrfi-dim); }
-.leanNrfi .bucketFill { background: var(--nrfi-dim); }
-.leanNrfi .bucketCount { color: #8effbd; }
+.leanNrfi { border-top: 2px solid color-mix(in oklab, var(--primary) 55%, transparent); }
+.leanNrfi .bucketFill { background: color-mix(in oklab, var(--primary) 55%, transparent); }
+.leanNrfi .bucketCount { color: var(--primary); opacity: 0.78; }
 
-.pass { border-top: 2px solid var(--pass); }
-.pass .bucketFill { background: linear-gradient(90deg, var(--pass-dim), var(--pass)); }
-.pass .bucketCount { color: var(--pass); }
+.pass { border-top: 2px solid var(--secondary); }
+.pass .bucketFill { background: var(--secondary); }
+.pass .bucketCount { color: var(--secondary-foreground); }
 
-.leanYrfi { border-top: 2px solid var(--yrfi-dim); }
-.leanYrfi .bucketFill { background: var(--yrfi-dim); }
-.leanYrfi .bucketCount { color: #ff8090; }
+.leanYrfi { border-top: 2px solid color-mix(in oklab, var(--destructive) 55%, transparent); }
+.leanYrfi .bucketFill { background: color-mix(in oklab, var(--destructive) 55%, transparent); }
+.leanYrfi .bucketCount { color: var(--destructive); opacity: 0.85; }
 
-.strongYrfi { border-top: 2px solid var(--yrfi); }
-.strongYrfi .bucketFill { background: linear-gradient(90deg, var(--yrfi-dim), var(--yrfi)); }
-.strongYrfi .bucketCount { color: var(--yrfi); }
+.strongYrfi { border-top: 2px solid var(--destructive); }
+.strongYrfi .bucketFill { background: var(--destructive); }
+.strongYrfi .bucketCount { color: var(--destructive); }
 
 @media (max-width: 980px) {
   .tiles { grid-template-columns: 1fr 1fr; }
-  .distribution { grid-column: 1 / -1; border-top: 1px solid var(--rule-1); }
+  .distribution { grid-column: 1 / -1; }
   .buckets { grid-template-columns: repeat(5, 1fr); }
 }
 @media (max-width: 640px) {
-  .tile { border-right: 0; border-bottom: 1px solid var(--rule-1); }
+  .tile { min-height: 102px; }
   .tiles { grid-template-columns: 1fr 1fr; }
-  .buckets { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .buckets { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .big { font-size: 38px; }
 }

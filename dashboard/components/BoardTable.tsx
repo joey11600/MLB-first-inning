@@ -21,10 +21,8 @@ export function BoardTable({
   if (rows.length === 0) {
     return (
       <div className={styles.empty}>
-        <div className={styles.emptyFig} aria-hidden>
-          ⬥
-        </div>
-        <div className={styles.emptyTitle}>NO GAMES MATCH</div>
+        <div className={styles.emptyFig} aria-hidden>—</div>
+        <div className={styles.emptyTitle}>No games match</div>
         <div className={styles.emptySub}>
           {totalCount === 0
             ? "The board for this date is empty or the CSV is missing."
@@ -40,10 +38,10 @@ export function BoardTable({
         <div>#</div>
         <div>Matchup</div>
         <div className={styles.right}>P(YRFI)</div>
-        <div>Zone / Pick</div>
+        <div>Pick</div>
         <div>NRFI ←→ YRFI</div>
-        <div className={styles.right}>NRFI%</div>
-        <div className={styles.right}>YRFI%</div>
+        <div className={styles.right}>NRFI</div>
+        <div className={styles.right}>YRFI</div>
         <div></div>
       </div>
       <div
