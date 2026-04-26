@@ -207,6 +207,10 @@ def poisson_pmf(lam: float, k: int) -> float:
         return 1.0 if k == 0 else 0.0
     return (lam ** k) * math.exp(-lam) / math.factorial(k)
 
+# Raw Poisson helpers.  prob_over_1_5 is still used by the live predictor
+# for the over/under-1.5 column (no LR model for that yet).  prob_nrfi /
+# prob_yrfi are legacy -- only backtest.py imports them to re-emit the
+# baseline lambda-based predictions stored as raw_* columns in backtest CSVs.
 def prob_nrfi(lam: float)    -> float: return poisson_pmf(lam, 0)
 def prob_yrfi(lam: float)    -> float: return 1.0 - prob_nrfi(lam)
 def prob_over_1_5(lam: float) -> float: return 1.0 - poisson_pmf(lam,0) - poisson_pmf(lam,1)
@@ -654,11 +658,10 @@ def expected_half_inning_runs(
 
 def classify_pick(lam: float, data_pts: int) -> tuple[str, str]:
     """
-    Classify a game based on combined first-inning lambda (projected runs).
-
-    Returns (side, confidence):
-      side:       'NRFI' | 'YRFI' | 'PASS'
-      confidence: 'STRONG' | 'LEAN' | 'NO EDGE' | 'NO DATA'
+    Legacy lambda-threshold classifier. NOT used in production -- the live
+    predictor uses classify_pick_lr() against the calibrated LR-v2 output.
+    Retained because backtest.py imports it to regenerate historical CSVs
+    that include the raw lambda-based pick as a baseline reference column.
     """
     if data_pts == 0:
         return "PASS", "NO DATA"
@@ -675,19 +678,23 @@ def classify_pick(lam: float, data_pts: int) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Logistic-regression model layer (the actual production predictor)
+# LR-v2 + isotonic calibration -- the production predictor
 # ---------------------------------------------------------------------------
-# This is the empirically validated model -- 4 features, beats climatology
-# on both 2024 and 2025 backtests bidirectionally:
-#   1. fi_park_nrfi_rate   -- empirical first-inning NRFI rate per park
-#   2. home_fip            -- home pitcher FIP
-#   3. home_hr9            -- home pitcher HR/9
-#   4. home_bb9            -- home pitcher BB/9
-# Top-quintile NRFI picks win 57-61% (profitable at typical NRFI +140/+160 odds).
+# Bilateral 11-feature logistic regression covering both starting pitchers
+# and both offenses, modulated by the home park's first-inning NRFI rate:
 #
-# When the model + park-factor JSONs are present on disk, the run() pipeline
-# uses LR-based picks.  If either is missing, falls back to the old
-# lambda-threshold classify_pick().
+#   T1 = home pitcher vs away offense:
+#     fi_park_nrfi_rate, home_fip, home_hr9, home_bb9, away_obp, away_slg
+#   B1 = away pitcher vs home offense:
+#     away_fip, away_hr9, away_bb9, home_obp, home_slg
+#
+# Output is then passed through an isotonic calibrator (data/calibration_v2.
+# json) fit on the 2025 holdout so each predicted probability matches the
+# observed NRFI rate at that bin (mean prediction was +3.4pp high without
+# it). Top-quintile NRFI picks win 57.8% on out-of-sample data.
+#
+# Both files are required to run -- the predictor errors out cleanly if
+# either is missing rather than silently falling back to anything else.
 
 _LR_MODEL_PATH      = Path(__file__).parent / "data" / "lr_model.json"
 _LR_CAL_PATH        = Path(__file__).parent / "data" / "calibration_v2.json"
@@ -1048,14 +1055,20 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
     season = int(target_date.split("/")[-1]) if "/" in target_date else date.today().year
     target_iso = _target_iso(target_date)
 
-    if lr_active():
-        cal = _load_lr_calibrator()
-        cal_tag = " + isotonic calibration" if cal is not None else " (uncalibrated)"
-        model_tag = f"LR-v2 (11 features){cal_tag}"
-    else:
-        model_tag = "lambda-v1 (legacy)"
+    if not lr_active():
+        sys.exit(
+            "LR-v2 model not available -- expected data/lr_model.json and "
+            "data/fi_park_factors.json. Refit with lr_baseline.py."
+        )
+    cal = _load_lr_calibrator()
+    if cal is None:
+        sys.exit(
+            "Calibrator not available -- expected data/calibration_v2.json. "
+            "Refit with: python lr_baseline.py --feature-set v2 ... "
+            "--save-calibration data/calibration_v2.json"
+        )
     print(f"\nMLB First Inning Run Predictor  |  {target_date}  (season {season})")
-    print(f"  Model: {model_tag}")
+    print(f"  Model: LR-v2 (11 features) + isotonic calibration")
     print("Fetching schedule and stats...\n")
 
     # Lazy import -- backtest module reuses cache + last-N helpers without
@@ -1135,33 +1148,23 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             home_l5  = pitcher_last_n_first_inning(game["home_pitcher_id"], target_iso, season, n=5)
             home_l10 = pitcher_last_n_first_inning(game["home_pitcher_id"], target_iso, season, n=10)
 
-        # Raw Poisson probabilities (legacy, kept for reference + over/under)
-        raw_nrfi_p = prob_nrfi(total_lam)
-        raw_yrfi_p = prob_yrfi(total_lam)
-        over15p    = prob_over_1_5(total_lam)
-        raw_side, raw_conf = classify_pick(total_lam, data_pts)
+        # Over/under 1.5 still uses raw Poisson on the lambda total --
+        # there's no LR model for that prediction yet.
+        over15p = prob_over_1_5(total_lam)
 
-        # Logistic-regression model takes over for the primary pick when loaded.
-        # Same lambda still drives over/under 1.5 (no LR model for that yet).
-        if lr_active():
-            features = lr_features(home_ab, home_sp, away_sp, home_bat, away_bat)
-            lr_nrfi  = lr_predict_nrfi(features)
-            if lr_nrfi is not None:
-                # Apply isotonic calibration when available -- corrects the
-                # ~3pp systematic over-prediction the raw LR model showed on
-                # 2025 holdout (mean predicted 53% vs actual 50%).
-                cal = _load_lr_calibrator()
-                if cal is not None:
-                    lr_nrfi = cal.predict(lr_nrfi)
-                nrfi_p              = lr_nrfi
-                yrfi_p              = 1.0 - lr_nrfi
-                pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts)
-            else:
-                nrfi_p, yrfi_p       = raw_nrfi_p, raw_yrfi_p
-                pick_side, pick_conf = raw_side, raw_conf
-        else:
-            nrfi_p, yrfi_p       = raw_nrfi_p, raw_yrfi_p
-            pick_side, pick_conf = raw_side, raw_conf
+        # Primary NRFI/YRFI pick is LR-v2 + isotonic calibration. The model
+        # and calibrator are required (run() exits early if either is missing).
+        features = lr_features(home_ab, home_sp, away_sp, home_bat, away_bat)
+        lr_nrfi  = lr_predict_nrfi(features)
+        if lr_nrfi is None:
+            sys.exit(
+                f"LR-v2 forward pass failed for {away_ab} @ {home_ab} -- "
+                f"unexpected; check that data/lr_model.json hasn't been "
+                f"corrupted or replaced with a wrong-shape model."
+            )
+        lr_nrfi = cal.predict(lr_nrfi)
+        nrfi_p, yrfi_p = lr_nrfi, 1.0 - lr_nrfi
+        pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts)
 
         # Starter-pending guard: when either probable pitcher is league-average
         # fallback (TBD or unannounced), there isn't enough information for a
@@ -1239,12 +1242,13 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "lambda_total": total_lam,
         })
 
-    # Sort: best picks first (highest deviation from 0.62 baseline), then PASS
+    # Sort: best picks first (highest deviation from 50/50), then PASS.
+    # Uses the model's calibrated YRFI/NRFI directly (set above), not the
+    # legacy lambda-based prob_yrfi() function.
     def sort_key(g):
-        lam   = g["lambda_total"]
-        yrfi  = prob_yrfi(lam)
-        nrfi  = 1.0 - yrfi
-        edge  = max(abs(yrfi - 0.62), abs(nrfi - 0.38))
+        yrfi = g["yrfi_prob"]
+        nrfi = g["nrfi_prob"]
+        edge = max(abs(yrfi - 0.50), abs(nrfi - 0.50))
         # Data quality bonus so games with real data surface first
         return (-(g["data_points"]), -edge)
 
