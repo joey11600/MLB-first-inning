@@ -87,7 +87,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           </div>
           <div>
             <div className="eyebrow">MODEL</div>
-            <div className={`num ${styles.metaValue}`}>LR-v2 · bilateral</div>
+            <div className={`num ${styles.metaValue}`}>LR-v2 · calibrated</div>
           </div>
         </div>
         <ThemeToggle />

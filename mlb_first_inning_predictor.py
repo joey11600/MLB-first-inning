@@ -690,6 +690,7 @@ def classify_pick(lam: float, data_pts: int) -> tuple[str, str]:
 # lambda-threshold classify_pick().
 
 _LR_MODEL_PATH      = Path(__file__).parent / "data" / "lr_model.json"
+_LR_CAL_PATH        = Path(__file__).parent / "data" / "calibration_v2.json"
 _FI_PARK_PATH       = Path(__file__).parent / "data" / "fi_park_factors.json"
 _FI_PARK_NRFI_DEFAULT = 0.50
 
@@ -702,6 +703,8 @@ _LR_LEAN_YRFI_P   = 0.40
 # Lazy-loaded singletons.  None = "tried to load and failed" (graceful fallback).
 _lr_model = None
 _lr_loaded = False
+_lr_cal = None
+_lr_cal_loaded = False
 _fi_park_rates: dict | None = None
 _fi_park_loaded = False
 
@@ -727,6 +730,22 @@ def _load_lr_model():
     except Exception:
         _lr_model = None
     return _lr_model
+
+
+def _load_lr_calibrator():
+    """Load the ProbCalibrator built from holdout predictions. Returns None if missing."""
+    global _lr_cal, _lr_cal_loaded
+    if _lr_cal_loaded:
+        return _lr_cal
+    _lr_cal_loaded = True
+    if not _LR_CAL_PATH.exists():
+        return None
+    try:
+        from calibration import ProbCalibrator
+        _lr_cal = ProbCalibrator.load(_LR_CAL_PATH)
+    except Exception:
+        _lr_cal = None
+    return _lr_cal
 
 
 def _load_fi_park_rates() -> dict:
@@ -1029,7 +1048,12 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
     season = int(target_date.split("/")[-1]) if "/" in target_date else date.today().year
     target_iso = _target_iso(target_date)
 
-    model_tag = "LR-v1 (4 features)" if lr_active() else "lambda-v1 (legacy)"
+    if lr_active():
+        cal = _load_lr_calibrator()
+        cal_tag = " + isotonic calibration" if cal is not None else " (uncalibrated)"
+        model_tag = f"LR-v2 (11 features){cal_tag}"
+    else:
+        model_tag = "lambda-v1 (legacy)"
     print(f"\nMLB First Inning Run Predictor  |  {target_date}  (season {season})")
     print(f"  Model: {model_tag}")
     print("Fetching schedule and stats...\n")
@@ -1123,6 +1147,12 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             features = lr_features(home_ab, home_sp, away_sp, home_bat, away_bat)
             lr_nrfi  = lr_predict_nrfi(features)
             if lr_nrfi is not None:
+                # Apply isotonic calibration when available -- corrects the
+                # ~3pp systematic over-prediction the raw LR model showed on
+                # 2025 holdout (mean predicted 53% vs actual 50%).
+                cal = _load_lr_calibrator()
+                if cal is not None:
+                    lr_nrfi = cal.predict(lr_nrfi)
                 nrfi_p              = lr_nrfi
                 yrfi_p              = 1.0 - lr_nrfi
                 pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts)

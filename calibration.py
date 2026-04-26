@@ -73,25 +73,27 @@ def classify_pick_calibrated(p_nrfi: float, data_pts: int = 4) -> tuple[str, str
 # Pool-Adjacent-Violators (isotonic regression)
 # ---------------------------------------------------------------------------
 
-def _pav_decreasing(values: list[float], weights: list[int]) -> list[float]:
+def _pav(values: list[float], weights: list[int], increasing: bool) -> list[float]:
     """
-    Pool-Adjacent-Violators for monotonically *decreasing* fit, weighted.
-
-    Use case: lambda goes UP -> P(NRFI) should go DOWN.  When two adjacent
-    bins violate (next bin's NRFI rate > current bin's), pool them via
-    weighted average.  Returns one smoothed value per input bin.
+    Generic Pool-Adjacent-Violators isotonic regression, weighted.
+    `increasing=True`  enforces non-decreasing output (use case: predicted
+                       probability up -> observed rate up).
+    `increasing=False` enforces non-increasing output (use case: lambda up
+                       -> NRFI rate down).
     """
     if not values:
         return []
-    # Each pool tracks (value, weight, original_indices)
     pools: list[tuple[float, int, list[int]]] = [
         (v, w, [i]) for i, (v, w) in enumerate(zip(values, weights))
     ]
+    def violates(v_left: float, v_right: float) -> bool:
+        return (v_right < v_left) if increasing else (v_right > v_left)
+
     i = 0
     while i < len(pools) - 1:
         v1, w1, idx1 = pools[i]
         v2, w2, idx2 = pools[i + 1]
-        if v2 > v1:
+        if violates(v1, v2):
             new_v   = (v1 * w1 + v2 * w2) / (w1 + w2)
             new_w   = w1 + w2
             new_idx = idx1 + idx2
@@ -106,6 +108,11 @@ def _pav_decreasing(values: list[float], weights: list[int]) -> list[float]:
         for j in idx_list:
             out[j] = v
     return out
+
+
+def _pav_decreasing(values: list[float], weights: list[int]) -> list[float]:
+    """Backward-compatible wrapper around _pav for lambda-space calibration."""
+    return _pav(values, weights, increasing=False)
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +221,122 @@ class LambdaCalibrator:
 
     @classmethod
     def load(cls, path: str | Path) -> "LambdaCalibrator":
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+        return cls(
+            bin_centers   = d["centers"],
+            bin_rates     = d["rates"],
+            train_n       = d.get("train_n", 0),
+            train_seasons = d.get("train_seasons", []),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Probability-space calibrator (for the LR-v2 model)
+# ---------------------------------------------------------------------------
+
+class ProbCalibrator:
+    """
+    Isotonic-regression calibration in *probability* space, monotonic
+    increasing: as the model's predicted P(NRFI) goes up, the observed
+    NRFI rate should also go up.
+
+    Use case: V2's raw output systematically over-predicts NRFI by
+    ~3pp at every probability bin.  Fitting this on (V2 prediction,
+    actual_outcome) pairs produces a corrective lookup that pulls
+    each bin toward its observed rate.
+
+    File format (data/calibration_v2.json):
+      {
+        "centers": [...],     # bin midpoint of model predictions, sorted
+        "rates":   [...],     # PAV-smoothed observed NRFI rate per bin
+        "train_n": int,
+        "train_seasons": ["2025"],
+      }
+    """
+
+    def __init__(self, bin_centers: list[float], bin_rates: list[float],
+                 train_n: int = 0, train_seasons: list[str] | None = None):
+        if len(bin_centers) != len(bin_rates):
+            raise ValueError("bin_centers and bin_rates must be same length")
+        order = sorted(range(len(bin_centers)), key=lambda i: bin_centers[i])
+        self.centers = [bin_centers[i] for i in order]
+        self.rates   = [bin_rates[i]   for i in order]
+        self.train_n        = train_n
+        self.train_seasons  = train_seasons or []
+
+    @classmethod
+    def fit(cls, predictions: list[float], actuals: list[int],
+            n_bins: int = 20, train_seasons: list[str] | None = None
+            ) -> "ProbCalibrator":
+        if len(predictions) != len(actuals):
+            raise ValueError("predictions and actuals must be same length")
+        n = len(predictions)
+        if n < n_bins:
+            raise ValueError(f"Need >= {n_bins} samples to fit {n_bins} bins")
+
+        pairs   = sorted(zip(predictions, actuals), key=lambda p: p[0])
+        per_bin = n // n_bins
+
+        centers: list[float] = []
+        rates:   list[float] = []
+        weights: list[int]   = []
+
+        for i in range(n_bins):
+            lo = i * per_bin
+            hi = (i + 1) * per_bin if i < n_bins - 1 else n
+            chunk = pairs[lo:hi]
+            if not chunk:
+                continue
+            center = sum(p[0] for p in chunk) / len(chunk)
+            rate   = sum(p[1] for p in chunk) / len(chunk)
+            centers.append(center)
+            rates.append(rate)
+            weights.append(len(chunk))
+
+        smoothed = _pav(rates, weights, increasing=True)
+        return cls(
+            bin_centers   = centers,
+            bin_rates     = smoothed,
+            train_n       = n,
+            train_seasons = train_seasons,
+        )
+
+    def predict(self, p: float) -> float:
+        """Calibrated P(NRFI) given a raw model prediction."""
+        if not self.centers:
+            return p
+        if p <= self.centers[0]:
+            return self.rates[0]
+        if p >= self.centers[-1]:
+            return self.rates[-1]
+        lo, hi = 0, len(self.centers) - 1
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if self.centers[mid] <= p:
+                lo = mid
+            else:
+                hi = mid
+        c0, c1 = self.centers[lo], self.centers[hi]
+        r0, r1 = self.rates[lo],   self.rates[hi]
+        if c1 == c0:
+            return (r0 + r1) / 2
+        t = (p - c0) / (c1 - c0)
+        return r0 + t * (r1 - r0)
+
+    def save(self, path: str | Path) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({
+                "centers":       self.centers,
+                "rates":         self.rates,
+                "train_n":       self.train_n,
+                "train_seasons": self.train_seasons,
+            }, f, indent=2)
+
+    @classmethod
+    def load(cls, path: str | Path) -> "ProbCalibrator":
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
         return cls(

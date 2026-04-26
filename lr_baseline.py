@@ -506,6 +506,12 @@ def main() -> None:
                         help="Predefined feature set (default: lineup)")
     parser.add_argument("--save", metavar="PATH",
                         help="Save fitted LR model JSON for production use")
+    parser.add_argument("--save-calibration", metavar="PATH",
+                        help="Fit ProbCalibrator on test-set predictions and save to PATH "
+                             "(requires --test). Calibration is applied at inference time "
+                             "to correct systematic over/under-prediction.")
+    parser.add_argument("--cal-bins", type=int, default=20,
+                        help="Quantile bins for the probability calibrator (default: 20)")
     args = parser.parse_args()
 
     train_paths = [Path(p) for p in args.train]
@@ -549,6 +555,31 @@ def main() -> None:
         model.save(args.save)
         print(f"\nSaved model -> {args.save}")
         print(f"  Features ({len(used_feats)}): {used_feats}")
+
+    if args.save_calibration:
+        if test_path is None:
+            sys.exit("--save-calibration requires --test (need OOS predictions to fit on)")
+        from calibration import ProbCalibrator
+        cal = ProbCalibrator.fit(
+            predictions   = p_te.tolist(),
+            actuals       = y_te.tolist(),
+            n_bins        = args.cal_bins,
+            train_seasons = [test_path.stem],
+        )
+        cal.save(args.save_calibration)
+        print(f"\nSaved calibration -> {args.save_calibration}")
+        print(f"  Bins: {len(cal.centers)}, fit on N={cal.train_n}")
+        # Sanity: in-sample Brier on the SAME test set after calibration
+        p_cal = np.array([cal.predict(float(p)) for p in p_te])
+        print(f"  Test Brier  raw -> calibrated:  "
+              f"{brier(p_te, y_te):.4f} -> {brier(p_cal, y_te):.4f}")
+        print(f"  Mean pred   raw -> calibrated:  "
+              f"{p_te.mean()*100:.1f}% -> {p_cal.mean()*100:.1f}%   "
+              f"(actual {y_te.mean()*100:.1f}%)")
+        print(f"  Calibration curve:")
+        print(f"    {'pred bin':>10}    {'observed':>9}")
+        for c, r in zip(cal.centers, cal.rates):
+            print(f"    {c*100:>9.1f}%    {r*100:>8.1f}%")
 
 
 if __name__ == "__main__":
