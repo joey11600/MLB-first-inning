@@ -269,36 +269,10 @@
 .yrfiStrong .pickDot   { background: var(--destructive); box-shadow: 0 0 8px color-mix(in oklab, var(--destructive) 60%, transparent); }
 .yrfiStrong .pickLabel { color: var(--destructive); }
 
-/* Segmented bar — replaces the single zone meter with 10 discrete pills */
 .meterCell {
   display: block;
   min-width: 0;
   padding-right: 4px;
-}
-.segBar {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-.segBarSeg {
-  flex: 1 1 0;
-  height: 18px;
-  border-radius: 4px;
-  background: color-mix(in oklab, var(--muted) 70%, transparent);
-  border: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
-  transition: background 240ms ease, border-color 240ms ease;
-}
-/* Highlighted segments use the row's tone */
-.segBarSegFill { background: var(--muted-foreground); border-color: transparent; }
-.nrfiStrong .segBarSegFill { background: var(--primary);     border-color: color-mix(in oklab, var(--primary) 60%, transparent); }
-.nrfiLean   .segBarSegFill { background: color-mix(in oklab, var(--primary) 75%, var(--muted-foreground)); border-color: transparent; }
-.passTone   .segBarSegFill { background: var(--secondary);   border-color: color-mix(in oklab, var(--secondary) 60%, transparent); }
-.yrfiLean   .segBarSegFill { background: color-mix(in oklab, var(--destructive) 75%, var(--muted-foreground)); border-color: transparent; }
-.yrfiStrong .segBarSegFill { background: var(--destructive); border-color: color-mix(in oklab, var(--destructive) 60%, transparent); }
-/* Marker: the segment that holds the current P(YRFI) position */
-.segBarSegMarker {
-  outline: 1.5px solid var(--foreground);
-  outline-offset: 1px;
 }
 
 /* Right-side percentages */
