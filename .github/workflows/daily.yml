@@ -72,7 +72,11 @@ jobs:
 
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
-        run: python recalibrate_v2.py
+        run: |
+          # Order matters: park factors first (they're the dominant feature)
+          # then refit the calibrator on fresh park factors.
+          python rebuild_park_factors.py
+          python recalibrate_v2.py
 
       - name: Commit data changes (if any)
         env:

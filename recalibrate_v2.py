@@ -100,17 +100,24 @@ def coerce_float(s, default):
         return default
 
 
-def gather_from_backtest(rows):
-    """Backtest CSVs already have fi_park_nrfi_rate as a column."""
+def gather_from_backtest(rows, fi_park_map=None):
+    """Backtest CSVs have fi_park_nrfi_rate as a column, but if a fresh
+    fi_park_map is passed we look up by home team instead -- needed when
+    park factors have just been rebuilt and the column would be stale."""
     X, y = [], []
     skipped = 0
     for r in rows:
         actual = r.get("actual_side") or ""
         if actual not in ("NRFI", "YRFI"):
             skipped += 1; continue
+        if fi_park_map is not None:
+            home = r.get("home", "")
+            fi_park = fi_park_map.get(home, FI_PARK_DEFAULT)
+        else:
+            fi_park = coerce_float(r.get("fi_park_nrfi_rate"), FI_PARK_DEFAULT)
         try:
             vec = [
-                coerce_float(r.get("fi_park_nrfi_rate"), FI_PARK_DEFAULT),
+                fi_park,
                 coerce_float(r.get("home_fip"),  LEAGUE_AVG_ERA),
                 coerce_float(r.get("home_hr9"),  LEAGUE_AVG_HR9),
                 coerce_float(r.get("home_bb9"),  LEAGUE_AVG_BB9),
@@ -176,10 +183,11 @@ def main():
     model = load_lr_model()
     fi_park_map = load_fi_park()
 
-    # 2025 backtest
+    # 2025 backtest -- pass fresh park map so the calibrator sees the same
+    # fi_park_nrfi_rate distribution that the live predictor will use today.
     with open(BT_2025_PATH, encoding="utf-8") as f:
         bt_rows = list(csv.DictReader(f))
-    X25, y25, skip25 = gather_from_backtest(bt_rows)
+    X25, y25, skip25 = gather_from_backtest(bt_rows, fi_park_map)
     p25 = lr_predict_raw(model, X25)
     print(f"\n2025 holdout : N={len(y25)} (skipped {skip25})")
     print(f"  Mean raw pred   : {p25.mean()*100:.2f}%")
