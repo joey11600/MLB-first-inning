@@ -54,6 +54,14 @@ LEAGUE_AVG_OBP = 0.318
 LEAGUE_AVG_SLG = 0.414
 FI_PARK_DEFAULT = 0.50
 
+# Weather defaults used when wx_* cells are blank (which is the signal for
+# domed parks AND for outdoor games where the open-meteo lookup failed).
+# The model effectively learns "no weather signal" for any row at these
+# values, with wx_is_dome=1 marking the indoor case explicitly.
+WX_TEMP_DEFAULT     = 20.0
+WX_WIND_DEFAULT     = 10.0
+WX_HUMIDITY_DEFAULT = 60.0
+
 T1_FEATURES = ["fi_park_nrfi_rate",
                "home_fip", "home_hr9", "home_bb9",
                "away_obp", "away_slg"]
@@ -72,6 +80,23 @@ B1_SLIM_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
 T1_SLIM_K9_FEATURES = ["fi_park_nrfi_rate", "home_fip", "home_k9", "away_obp"]
 B1_SLIM_K9_FEATURES = ["fi_park_nrfi_rate", "away_fip", "away_k9", "home_obp"]
 
+# Slim + Weather variants: park + pitcher quality + opposing OBP +
+# day-of-game environment.  The handpicked test (clean rows only,
+# train 2024+2025, test 2026) showed slim_weather as the only variant
+# that beat slim baseline on Brier (0.2441 vs 0.2446) AND Q5 NRFI
+# (43-26 vs 41-28).  See test_features_vs_two_stage.py.
+#
+# IMPORTANT: For domed parks (ARI, HOU, MIA, MIL, SEA, TB, TEX, TOR),
+# the weather columns in training data are blank (None) -> coerce to
+# league-mean defaults at fit/predict time, with wx_is_dome=1 acting
+# as the "ignore weather" switch for the model.
+T1_SLIM_WEATHER_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp",
+                            "wx_temp_c", "wx_wind_kmh",
+                            "wx_humidity", "wx_is_dome"]
+B1_SLIM_WEATHER_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
+                            "wx_temp_c", "wx_wind_kmh",
+                            "wx_humidity", "wx_is_dome"]
+
 
 def coerce(s, default):
     try:
@@ -82,15 +107,27 @@ def coerce(s, default):
 
 
 def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
-           slim_k9: bool = False) -> dict:
+           slim_k9: bool = False, slim_weather: bool = False,
+           clean_only: bool = False) -> dict:
     """Returns dict of stacked numpy arrays for both halves' features and
-    binary labels (1 if that half had a run)."""
+    binary labels (1 if that half had a run).
+
+    clean_only=True drops rows where pitcher_q == 'avg' on either side
+    (synthetic league-average defaults; ~22% of historical backtests).
+    Training on those rows trains the LR on noise."""
     rows = []
+    n_dropped_avg = 0
     with open(csv_path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             actual = r.get("actual_side") or r.get("actual_result") or ""
             if actual.upper() not in ("NRFI", "YRFI"):
                 continue
+            if clean_only:
+                ap_q = (r.get("away_pitcher_q") or "").lower()
+                hp_q = (r.get("home_pitcher_q") or "").lower()
+                if ap_q == "avg" or hp_q == "avg":
+                    n_dropped_avg += 1
+                    continue
             t1_runs = r.get("fi_away_runs") or r.get("fi_away_runs", "")
             b1_runs = r.get("fi_home_runs") or r.get("fi_home_runs", "")
             if t1_runs == "" or b1_runs == "":
@@ -105,7 +142,24 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                 fi_park = fi_park_map.get(home, FI_PARK_DEFAULT)
             else:
                 fi_park = coerce(r.get("fi_park_nrfi_rate"), FI_PARK_DEFAULT)
-            if slim_k9:
+            if slim_weather:
+                wx = [
+                    coerce(r.get("wx_temp_c"),    WX_TEMP_DEFAULT),
+                    coerce(r.get("wx_wind_kmh"),  WX_WIND_DEFAULT),
+                    coerce(r.get("wx_humidity"),  WX_HUMIDITY_DEFAULT),
+                    coerce(r.get("wx_is_dome"),   0.0),
+                ]
+                t1_x = [
+                    fi_park,
+                    coerce(r.get("home_fip"), LEAGUE_AVG_ERA),
+                    coerce(r.get("away_obp"), LEAGUE_AVG_OBP),
+                ] + wx
+                b1_x = [
+                    fi_park,
+                    coerce(r.get("away_fip"), LEAGUE_AVG_ERA),
+                    coerce(r.get("home_obp"), LEAGUE_AVG_OBP),
+                ] + wx
+            elif slim_k9:
                 t1_x = [
                     fi_park,
                     coerce(r.get("home_fip"), LEAGUE_AVG_ERA),
@@ -147,6 +201,8 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     coerce(r.get("home_slg"), LEAGUE_AVG_SLG),
                 ]
             rows.append((t1_x, t1_y, b1_x, b1_y, actual.upper()))
+    if clean_only and n_dropped_avg:
+        print(f"  [{Path(csv_path).name}] dropped {n_dropped_avg} 'avg'-quality rows")
     if not rows:
         return None
     return {
@@ -196,10 +252,19 @@ def main():
                     help="Use 3-feature slim variant (park + FIP + opp OBP) per half")
     ap.add_argument("--slim-k9", action="store_true",
                     help="Slim + pitcher K/9 (4 features per half)")
+    ap.add_argument("--slim-weather", action="store_true",
+                    help="Slim + weather (7 features per half: temp/wind/humidity/dome)")
+    ap.add_argument("--clean-only", action="store_true",
+                    help="Drop rows where pitcher_q == 'avg' on either side "
+                         "(synthetic league-avg defaults; ~22%% of historical)")
     args = ap.parse_args()
 
     park = load_fi_park()
-    if args.slim_k9:
+    if args.slim_weather:
+        t1_feats = T1_SLIM_WEATHER_FEATURES
+        b1_feats = B1_SLIM_WEATHER_FEATURES
+        variant = "SLIM+WEATHER"
+    elif args.slim_k9:
         t1_feats = T1_SLIM_K9_FEATURES
         b1_feats = B1_SLIM_K9_FEATURES
         variant = "SLIM+K9"
@@ -214,9 +279,12 @@ def main():
 
     # ---------- Train ----------
     print("=" * 70)
-    print(f"  Training two-stage T1 + B1 models  ({variant} variant)")
+    print(f"  Training two-stage T1 + B1 models  ({variant} variant)"
+          f"{'  [CLEAN]' if args.clean_only else ''}")
     print("=" * 70)
-    train_blocks = [gather(Path(p), park, slim=args.slim, slim_k9=args.slim_k9)
+    train_blocks = [gather(Path(p), park, slim=args.slim, slim_k9=args.slim_k9,
+                           slim_weather=args.slim_weather,
+                           clean_only=args.clean_only)
                     for p in args.train]
     train_blocks = [b for b in train_blocks if b is not None]
     if not train_blocks:
@@ -249,7 +317,10 @@ def main():
     print("\n" + "=" * 70)
     print(f"  Testing on {Path(args.test).name}")
     print("=" * 70)
-    te = gather(Path(args.test), park, slim=args.slim, slim_k9=args.slim_k9)
+    # Test set is always evaluated WITHOUT clean_only -- we want full coverage
+    # of the holdout period to mirror what happens in production.
+    te = gather(Path(args.test), park, slim=args.slim, slim_k9=args.slim_k9,
+                slim_weather=args.slim_weather, clean_only=False)
     if not te:
         sys.exit("No test rows.")
 
@@ -322,7 +393,14 @@ def main():
         ("AVERAGE", 4.20, 1.20, 3.20),
         ("TRASH",   6.00, 2.50, 5.00),
     ]:
-        if args.slim:
+        if args.slim_weather:
+            wx_neutral = [WX_TEMP_DEFAULT, WX_WIND_DEFAULT, WX_HUMIDITY_DEFAULT, 0.0]
+            x_t1 = np.asarray([[0.50, 2.50, 0.318] + wx_neutral])
+            x_b1 = np.asarray([[0.50, away_fip, 0.318] + wx_neutral])
+        elif args.slim_k9:
+            x_t1 = np.asarray([[0.50, 2.50, 8.9, 0.318]])
+            x_b1 = np.asarray([[0.50, away_fip, 8.9, 0.318]])
+        elif args.slim:
             x_t1 = np.asarray([[0.50, 2.50, 0.318]])
             x_b1 = np.asarray([[0.50, away_fip, 0.318]])
         else:

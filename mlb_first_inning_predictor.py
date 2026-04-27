@@ -84,6 +84,26 @@ LEAGUE_AVG_HR9  = 1.20  # matches recalibrate_v2.py + regrade_and_rebet.py
 LEAGUE_AVG_OBP  = 0.318
 LEAGUE_AVG_SLG  = 0.414
 
+# Weather defaults -- match the trainer (two_stage_model.py).  Used both
+# for outdoor games where the open-meteo lookup failed and for indoor /
+# retractable-roof parks where outdoor weather is irrelevant.  In the
+# latter case, wx_is_dome=1 acts as the model's "ignore weather" switch.
+WX_TEMP_DEFAULT     = 20.0
+WX_WIND_DEFAULT     = 10.0
+WX_HUMIDITY_DEFAULT = 60.0
+
+# Stadiums where weather doesn't matter (indoor or retractable roof).
+# Mirror of backtest.DOMED_PARKS -- if you change one, change the other.
+#   ARI - Chase Field (retractable)
+#   HOU - Daikin Park (retractable)
+#   MIA - loanDepot park (retractable)
+#   MIL - American Family Field (retractable)
+#   SEA - T-Mobile Park (retractable)
+#   TB  - Tropicana Field (true dome)
+#   TEX - Globe Life Field (retractable)
+#   TOR - Rogers Centre (retractable)
+DOMED_PARKS = {"ARI", "HOU", "MIA", "MIL", "SEA", "TB", "TEX", "TOR"}
+
 # Pitcher multiplier weights -- tuned for first-inning relevance
 # BB/9 weighted highly: leadoff walks directly cause first-inning runs
 # HR/9 weighted highly: solo HR = immediate YRFI
@@ -743,8 +763,15 @@ _fi_park_rates: dict | None = None
 _fi_park_loaded = False
 
 # Expected feature order for each half-inning model.
-_T1_EXPECTED_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp"]
-_B1_EXPECTED_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
+# Updated 2026-04-26: shipped weather features after feature ablation showed
+# slim_weather as the only clean win over slim baseline (Brier 0.2441 vs
+# 0.2446; Q5 NRFI 43-26 vs 41-28).  See test_features_vs_two_stage.py.
+_T1_EXPECTED_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp",
+                         "wx_temp_c", "wx_wind_kmh",
+                         "wx_humidity", "wx_is_dome"]
+_B1_EXPECTED_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
+                         "wx_temp_c", "wx_wind_kmh",
+                         "wx_humidity", "wx_is_dome"]
 
 
 def _load_lr_models() -> tuple[dict | None, dict | None]:
@@ -826,23 +853,141 @@ def _load_fi_park_rates() -> dict:
     return _fi_park_rates
 
 
-def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict) -> list[float]:
-    """T1 (top of 1st) feature vector: home pitcher vs away offense at home park."""
+def _fetch_open_meteo_forecast(lat: float, lon: float, date_iso: str) -> dict | None:
+    """
+    Hit the open-meteo FORECAST endpoint for recent / current dates.
+    Returns {temp_c, wind_kmh, humidity} for the 19:00 local-ish slot
+    on date_iso, or None on failure.
+
+    The archive API only has data through ~5 days ago, so for the live
+    predictor we need the forecast endpoint (which actually returns
+    past + future via past_days/forecast_days params).
+    """
+    import urllib.request
+    import json as _json
+    url = (
+        "https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat}&longitude={lon}"
+        "&hourly=temperature_2m,wind_speed_10m,relative_humidity_2m"
+        "&past_days=92&forecast_days=2"
+        "&timezone=America/New_York"
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=30) as resp:
+            payload = _json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return None
+    hourly = payload.get("hourly", {})
+    times  = hourly.get("time",                 [])
+    temps  = hourly.get("temperature_2m",       [])
+    winds  = hourly.get("wind_speed_10m",       [])
+    hums   = hourly.get("relative_humidity_2m", [])
+    # Pick 19:00 on date_iso, fallback to last available pre-19 hour
+    rec = None
+    for i, ts in enumerate(times):
+        if not ts.startswith(date_iso):
+            continue
+        hh = ts.split("T", 1)[1][:2]
+        if hh == "19":
+            return {
+                "temp_c":   float(temps[i]) if i < len(temps) and temps[i] is not None else None,
+                "wind_kmh": float(winds[i]) if i < len(winds) and winds[i] is not None else None,
+                "humidity": float(hums[i])  if i < len(hums)  and hums[i]  is not None else None,
+            }
+        if int(hh) <= 19:
+            rec = {
+                "temp_c":   float(temps[i]) if i < len(temps) and temps[i] is not None else None,
+                "wind_kmh": float(winds[i]) if i < len(winds) and winds[i] is not None else None,
+                "humidity": float(hums[i])  if i < len(hums)  and hums[i]  is not None else None,
+            }
+    return rec
+
+
+def fetch_game_weather(home_abbr: str, date_iso: str, season: int) -> dict:
+    """
+    Returns the weather dict expected by t1_features/b1_features:
+      {temp_c, wind_kmh, humidity, is_dome}
+
+    For domed / retractable-roof parks (DOMED_PARKS), returns neutral
+    league-mean defaults with is_dome=1 -- the model uses is_dome as the
+    "ignore weather" switch.
+
+    Outdoor parks: tries backtest.game_weather (archive cache, fast for
+    historical dates), then falls back to a live open-meteo forecast
+    fetch for current-year dates the archive doesn't have yet.  If both
+    fail, returns neutral defaults with is_dome=0.
+    """
+    if home_abbr in DOMED_PARKS:
+        return {
+            "temp_c":   WX_TEMP_DEFAULT,
+            "wind_kmh": WX_WIND_DEFAULT,
+            "humidity": WX_HUMIDITY_DEFAULT,
+            "is_dome":  1.0,
+        }
+    wx = {}
+    try:
+        from backtest import game_weather, PARK_COORDS
+        wx = game_weather(home_abbr, date_iso, season, use_cache=True) or {}
+    except Exception:
+        wx = {}
+        PARK_COORDS = {}
+    temp = wx.get("temp_c")
+    wind = wx.get("wind_kmh")
+    hum  = wx.get("humidity")
+    # Archive miss?  Try the forecast endpoint (handles current year).
+    if (temp is None or wind is None or hum is None) and home_abbr in PARK_COORDS:
+        lat, lon = PARK_COORDS[home_abbr]
+        fc = _fetch_open_meteo_forecast(lat, lon, date_iso)
+        if fc is not None:
+            if temp is None: temp = fc.get("temp_c")
+            if wind is None: wind = fc.get("wind_kmh")
+            if hum  is None: hum  = fc.get("humidity")
+    return {
+        "temp_c":   float(temp) if temp is not None else WX_TEMP_DEFAULT,
+        "wind_kmh": float(wind) if wind is not None else WX_WIND_DEFAULT,
+        "humidity": float(hum)  if hum  is not None else WX_HUMIDITY_DEFAULT,
+        "is_dome":  0.0,
+    }
+
+
+def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
+                 wx: dict | None = None) -> list[float]:
+    """T1 (top of 1st) feature vector: home pitcher vs away offense at home park.
+    Order MUST match _T1_EXPECTED_FEATURES."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
+    if wx is None:
+        # Predictor wasn't supplied a weather snapshot -- treat as missing
+        # outdoor data, which lands on the same neutral defaults the model
+        # was trained against.
+        wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
+              "humidity": WX_HUMIDITY_DEFAULT, "is_dome": 0.0}
     return [
         fi_park,
         home_pitcher.get("fip", LEAGUE_AVG_ERA),
         away_offense.get("obp", LEAGUE_AVG_OBP),
+        wx.get("temp_c",   WX_TEMP_DEFAULT),
+        wx.get("wind_kmh", WX_WIND_DEFAULT),
+        wx.get("humidity", WX_HUMIDITY_DEFAULT),
+        wx.get("is_dome",  0.0),
     ]
 
 
-def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict) -> list[float]:
-    """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park."""
+def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
+                 wx: dict | None = None) -> list[float]:
+    """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park.
+    Order MUST match _B1_EXPECTED_FEATURES."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
+    if wx is None:
+        wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
+              "humidity": WX_HUMIDITY_DEFAULT, "is_dome": 0.0}
     return [
         fi_park,
         away_pitcher.get("fip", LEAGUE_AVG_ERA),
         home_offense.get("obp", LEAGUE_AVG_OBP),
+        wx.get("temp_c",   WX_TEMP_DEFAULT),
+        wx.get("wind_kmh", WX_WIND_DEFAULT),
+        wx.get("humidity", WX_HUMIDITY_DEFAULT),
+        wx.get("is_dome",  0.0),
     ]
 
 
@@ -1209,8 +1354,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # Primary NRFI/YRFI pick is LR-v3 two-stage + isotonic calibration.
         # T1 = home pitcher vs away offense; B1 = away pitcher vs home offense.
         # Combined: P(NRFI) = (1 - P(T1 run)) * (1 - P(B1 run)).
-        t1_feats = t1_features(home_ab, home_sp, away_bat)
-        b1_feats = b1_features(home_ab, away_sp, home_bat)
+        # Weather is a real feature in the model -- domed parks get neutral
+        # defaults with is_dome=1 (model learns to ignore weather there).
+        wx = fetch_game_weather(home_ab, target_iso, season)
+        t1_feats = t1_features(home_ab, home_sp, away_bat, wx)
+        b1_feats = b1_features(home_ab, away_sp, home_bat, wx)
         # Compute each half's P(run) so we can persist lambda projections
         # for display (the screenshot-style "expected runs per half").
         m_t1, m_b1 = _load_lr_models()
@@ -1251,6 +1399,14 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "lambda_lr_t1":     lambda_t1,
             "lambda_lr_b1":     lambda_b1,
             "lambda_lr_total":  lambda_lr_total,
+            # Weather inputs persisted so retro re-bets / calibration use the
+            # exact values the live predictor saw at pick time.  Domed parks
+            # use neutral defaults with is_dome=1 (model's "ignore weather"
+            # switch).
+            "wx_temp_c":     wx["temp_c"]   if home_ab not in DOMED_PARKS else "",
+            "wx_wind_kmh":   wx["wind_kmh"] if home_ab not in DOMED_PARKS else "",
+            "wx_humidity":   wx["humidity"] if home_ab not in DOMED_PARKS else "",
+            "wx_is_dome":    1 if home_ab in DOMED_PARKS else 0,
             "pick_side":     pick_side,
             "pick_conf":     pick_conf,
             "away": {

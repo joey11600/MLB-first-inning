@@ -55,6 +55,9 @@ LEAGUE_AVG_BB9 = 3.20
 LEAGUE_AVG_OBP = 0.318
 LEAGUE_AVG_SLG = 0.414
 FI_PARK_DEFAULT = 0.50
+WX_TEMP_DEFAULT     = 20.0
+WX_WIND_DEFAULT     = 10.0
+WX_HUMIDITY_DEFAULT = 60.0
 
 # Calibrated probability thresholds (mirror predictor's classify_pick_lr)
 # Asymmetric thresholds (must match mlb_first_inning_predictor.py).  See
@@ -64,8 +67,14 @@ LR_LEAN_NRFI_P   = 0.53
 LR_PASS_LO_P     = 0.47
 LR_LEAN_YRFI_P   = 0.42
 
-T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp"]
-B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
+# Must match feature_names saved by two_stage_model.py --slim-weather and
+# the predictor's _T1_EXPECTED_FEATURES / _B1_EXPECTED_FEATURES.
+T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp",
+               "wx_temp_c", "wx_wind_kmh",
+               "wx_humidity", "wx_is_dome"]
+B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
+               "wx_temp_c", "wx_wind_kmh",
+               "wx_humidity", "wx_is_dome"]
 
 
 def _load_one(path: Path, expected: list[str]):
@@ -220,16 +229,24 @@ def main() -> None:
         # Build T1 + B1 feature vectors from frozen point-in-time stats
         home_team = r.get("home_team", "")
         fi_park = fi_park_map.get(home_team, FI_PARK_DEFAULT)
+        # Weather features: blank = neutral defaults; the trainer treats the
+        # same way (domed parks have blanks + wx_is_dome=1).
+        wx = [
+            coerce_float(r.get("wx_temp_c"),    WX_TEMP_DEFAULT),
+            coerce_float(r.get("wx_wind_kmh"),  WX_WIND_DEFAULT),
+            coerce_float(r.get("wx_humidity"),  WX_HUMIDITY_DEFAULT),
+            coerce_float(r.get("wx_is_dome"),   0.0),
+        ]
         t1_vec = [
             fi_park,
             coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
             coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
-        ]
+        ] + wx
         b1_vec = [
             fi_park,
             coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
             coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
-        ]
+        ] + wx
         raw_p = lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec)
         cal_p = cal.predict(raw_p)
 

@@ -106,6 +106,19 @@ def build_t1_features(r, park_lookup, variant: str) -> list[float]:
             coerce(r.get("wx_wind_kmh"),  10.0),
             coerce(r.get("wx_is_dome"),   0.0),
         ]
+    elif variant == "slim_top3hand":
+        # Away batters face home pitcher's hand; their OPS vs that hand goes
+        # in the T1 model (T1 = home pitcher pitches against away offense)
+        return base + [
+            coerce(r.get("away_top3_ops_vs_oppHand"), 0.720),  # league avg OPS
+        ]
+    elif variant == "slim_weather_top3hand":
+        return base + [
+            coerce(r.get("away_top3_ops_vs_oppHand"), 0.720),
+            coerce(r.get("wx_temp_c"),    20.0),
+            coerce(r.get("wx_wind_kmh"),  10.0),
+            coerce(r.get("wx_is_dome"),   0.0),
+        ]
     else:
         raise ValueError(variant)
 
@@ -148,6 +161,18 @@ def build_b1_features(r, park_lookup, variant: str) -> list[float]:
             coerce(r.get("home_top3_platoon"),     0.0),
             coerce(r.get("away_arsenal_fb_pct"),   0.55),
             coerce(r.get("away_arsenal_fb_velo"),  93.0),
+            coerce(r.get("wx_temp_c"),    20.0),
+            coerce(r.get("wx_wind_kmh"),  10.0),
+            coerce(r.get("wx_is_dome"),   0.0),
+        ]
+    elif variant == "slim_top3hand":
+        # Home batters face away pitcher's hand
+        return base + [
+            coerce(r.get("home_top3_ops_vs_oppHand"), 0.720),
+        ]
+    elif variant == "slim_weather_top3hand":
+        return base + [
+            coerce(r.get("home_top3_ops_vs_oppHand"), 0.720),
             coerce(r.get("wx_temp_c"),    20.0),
             coerce(r.get("wx_wind_kmh"),  10.0),
             coerce(r.get("wx_is_dome"),   0.0),
@@ -263,6 +288,8 @@ def main():
         "slim_hand",           # + handedness only
         "slim_arsenal",        # + arsenal only
         "slim_weather",        # + weather only
+        "slim_top3hand",       # + top-3 OPS vs opposing pitcher's hand
+        "slim_weather_top3hand",  # + weather + top-3 hand (combined best)
         "slim_all",            # + all three
     ]
 

@@ -58,6 +58,9 @@ FIELDS = [
     "away_obp", "home_obp",
     "away_slg", "home_slg",
     "away_rpg", "home_rpg",
+    # --- weather (open-meteo at park; blanks for archive misses, dome
+    # parks have wx_is_dome=1 with weather cols left blank) ---
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
     # --- result (filled by --grade) ---
     "actual_result",     # NRFI | YRFI | POSTPONED | SUSPENDED
     "graded_result",     # WIN | LOSS | PASS | POSTPONED | SUSPENDED
@@ -263,6 +266,11 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "home_slg": _fmt(hp.get("slg"), 3),
             "away_rpg": _fmt(ap.get("rpg"), 3),
             "home_rpg": _fmt(hp.get("rpg"), 3),
+            # weather (blank for archive misses; the model coerces to defaults)
+            "wx_temp_c":   _fmt(g.get("wx_temp_c"),   2),
+            "wx_wind_kmh": _fmt(g.get("wx_wind_kmh"), 2),
+            "wx_humidity": _fmt(g.get("wx_humidity"), 1),
+            "wx_is_dome":  _fmt(g.get("wx_is_dome"),  0),
             # result fields start empty (preserved if already set)
             "actual_result": "", "graded_result": "",
             "fi_away_runs":  "", "fi_home_runs":  "", "fi_total_runs": "",

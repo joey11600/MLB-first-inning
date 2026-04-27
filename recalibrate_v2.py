@@ -50,10 +50,17 @@ LEAGUE_AVG_BB9 = 3.20
 LEAGUE_AVG_OBP = 0.318
 LEAGUE_AVG_SLG = 0.414
 FI_PARK_DEFAULT = 0.50
+WX_TEMP_DEFAULT     = 20.0
+WX_WIND_DEFAULT     = 10.0
+WX_HUMIDITY_DEFAULT = 60.0
 
-# Match the order of feature_names saved in lr_model.json
-T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp"]
-B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
+# Must match the feature_names saved by two_stage_model.py --slim-weather.
+T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp",
+               "wx_temp_c", "wx_wind_kmh",
+               "wx_humidity", "wx_is_dome"]
+B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
+               "wx_temp_c", "wx_wind_kmh",
+               "wx_humidity", "wx_is_dome"]
 
 
 def _load_one(path: Path, expected: list[str]) -> dict:
@@ -114,6 +121,18 @@ def coerce_float(s, default):
         return default
 
 
+def _weather_block(r) -> list[float]:
+    """Pull wx_* columns out of a row; coerce blanks (incl. all dome rows
+    where the trainer left them empty) to neutral defaults so the
+    calibrator sees exactly what the production predictor produces."""
+    return [
+        coerce_float(r.get("wx_temp_c"),    WX_TEMP_DEFAULT),
+        coerce_float(r.get("wx_wind_kmh"),  WX_WIND_DEFAULT),
+        coerce_float(r.get("wx_humidity"),  WX_HUMIDITY_DEFAULT),
+        coerce_float(r.get("wx_is_dome"),   0.0),
+    ]
+
+
 def gather_from_backtest(rows, fi_park_map=None):
     """Returns (X_t1, X_b1, y_nrfi, skipped). Backtest CSVs use 'home' for
     park abbr and 'actual_side' for outcome.  fi_park_map is the fresh park
@@ -130,16 +149,17 @@ def gather_from_backtest(rows, fi_park_map=None):
         else:
             fi_park = coerce_float(r.get("fi_park_nrfi_rate"), FI_PARK_DEFAULT)
         try:
+            wx = _weather_block(r)
             t1_vec = [
                 fi_park,
                 coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
                 coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
-            ]
+            ] + wx
             b1_vec = [
                 fi_park,
                 coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
                 coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
-            ]
+            ] + wx
         except Exception:
             skipped += 1; continue
         Xt.append(t1_vec); Xb.append(b1_vec)
@@ -162,16 +182,17 @@ def gather_from_picks(rows, fi_park_map):
         home_abbr = r.get("home_team") or ""
         fi_park = fi_park_map.get(home_abbr, FI_PARK_DEFAULT)
         try:
+            wx = _weather_block(r)
             t1_vec = [
                 fi_park,
                 coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
                 coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
-            ]
+            ] + wx
             b1_vec = [
                 fi_park,
                 coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
                 coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
-            ]
+            ] + wx
         except Exception:
             skipped += 1; continue
         Xt.append(t1_vec); Xb.append(b1_vec)
