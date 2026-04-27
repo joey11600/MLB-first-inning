@@ -77,8 +77,8 @@ TEAM_PRIOR_GAMES  = 15.0
 
 # League averages for expanded pitcher stats (2023-2024 MLB starters)
 LEAGUE_AVG_K9   = 8.9
-LEAGUE_AVG_BB9  = 3.0
-LEAGUE_AVG_HR9  = 1.2
+LEAGUE_AVG_BB9  = 3.20  # matches recalibrate_v2.py + regrade_and_rebet.py
+LEAGUE_AVG_HR9  = 1.20  # matches recalibrate_v2.py + regrade_and_rebet.py
 
 # League averages for expanded offense stats
 LEAGUE_AVG_OBP  = 0.318
@@ -717,7 +717,12 @@ _fi_park_loaded = False
 
 
 def _load_lr_model():
-    """Load the LR model + standardization params once. Returns None if unavailable."""
+    """Load the LR model + standardization params once. Returns None if unavailable.
+
+    Validates that the model's feature_names match what lr_features() emits and
+    in the same order -- if they ever drift apart, the standardization step
+    would silently apply the wrong (mean, std, weight) triple to each input.
+    """
     global _lr_model, _lr_loaded
     if _lr_loaded:
         return _lr_model
@@ -727,16 +732,48 @@ def _load_lr_model():
     try:
         with open(_LR_MODEL_PATH, encoding="utf-8") as f:
             d = json.load(f)
+
+        names = d["feature_names"]
+        if names != _EXPECTED_LR_FEATURES:
+            print(
+                f"  [warn] lr_model.json feature order does not match lr_features() output\n"
+                f"         expected: {_EXPECTED_LR_FEATURES}\n"
+                f"         got:      {names}\n"
+                f"         model load aborted to avoid silently misapplying weights.",
+                file=sys.stderr,
+            )
+            _lr_model = None
+            return None
+        if not (len(d["weights"]) == len(d["mean"]) == len(d["std"]) == len(names)):
+            print("  [warn] lr_model.json weight/mean/std/names length mismatch -- aborting load",
+                  file=sys.stderr)
+            _lr_model = None
+            return None
+
         _lr_model = {
             "weights":       d["weights"],
             "bias":          float(d["bias"]),
-            "feature_names": d["feature_names"],
+            "feature_names": names,
             "mean":          d["mean"],
             "std":           d["std"],
         }
     except Exception:
         _lr_model = None
     return _lr_model
+
+
+# Expected feature order — must match lr_features() output below and the
+# feature_names persisted in data/lr_model.json. Single source of truth so
+# adding/removing a feature can't silently misalign training and inference.
+_EXPECTED_LR_FEATURES = [
+    "fi_park_nrfi_rate",
+    # T1: home pitcher vs away offense
+    "home_fip", "home_hr9", "home_bb9",
+    "away_obp", "away_slg",
+    # B1: away pitcher vs home offense
+    "away_fip", "away_hr9", "away_bb9",
+    "home_obp", "home_slg",
+]
 
 
 def _load_lr_calibrator():
