@@ -58,23 +58,38 @@ FI_PARK_DEFAULT = 0.50
 WX_TEMP_DEFAULT     = 20.0
 WX_WIND_DEFAULT     = 10.0
 WX_HUMIDITY_DEFAULT = 60.0
+LEAGUE_NRFI_RATE    = 0.50
+LEAGUE_AVG_XERA     = 4.20
+NEUTRAL_PCT_RANK    = 50
 
-# Calibrated probability thresholds (mirror predictor's classify_pick_lr)
-# Asymmetric thresholds (must match mlb_first_inning_predictor.py).  See
-# the comment there + analyze_zone_asymmetry.py for the 2026-data rationale.
-LR_STRONG_NRFI_P = 0.62
-LR_LEAN_NRFI_P   = 0.53
-LR_PASS_LO_P     = 0.47
+# Calibrated probability thresholds.  Phase E.3 (2026-04-27): tightened
+# STRONG NRFI from 0.62 -> 0.58.  LEAN zones eliminated (LEAN_*_P set
+# equal to STRONG / PASS so the LEAN branches in classify_zone never fire).
+LR_STRONG_NRFI_P = 0.58
+LR_LEAN_NRFI_P   = 0.58
+LR_PASS_LO_P     = 0.42
 LR_LEAN_YRFI_P   = 0.42
 
-# Must match feature_names saved by two_stage_model.py --slim-weather and
-# the predictor's _T1_EXPECTED_FEATURES / _B1_EXPECTED_FEATURES.
-T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp",
-               "wx_temp_c", "wx_wind_kmh",
-               "wx_humidity", "wx_is_dome"]
-B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
-               "wx_temp_c", "wx_wind_kmh",
-               "wx_humidity", "wx_is_dome"]
+# Must match feature_names saved by two_stage_model.py --phase-e3 and
+# the predictor's _T1/_B1_EXPECTED_FEATURES.
+T1_FEATURES = [
+    "fi_park_nrfi_rate", "home_fip", "away_obp",
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    "home_p_last5_pitcher_nrfi",
+    "away_top3c_obp",
+    "home_plate_ump_nrfi_rate",
+    "home_xera",
+    "home_whiff_pct_rank",
+]
+B1_FEATURES = [
+    "fi_park_nrfi_rate", "away_fip", "home_obp",
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    "away_p_last5_pitcher_nrfi",
+    "home_top3c_obp",
+    "home_plate_ump_nrfi_rate",
+    "away_xera",
+    "away_whiff_pct_rank",
+]
 
 
 def _load_one(path: Path, expected: list[str]):
@@ -237,16 +252,30 @@ def main() -> None:
             coerce_float(r.get("wx_humidity"),  WX_HUMIDITY_DEFAULT),
             coerce_float(r.get("wx_is_dome"),   0.0),
         ]
+        ump_rate = coerce_float(r.get("home_plate_ump_nrfi_rate"), LEAGUE_NRFI_RATE)
+        # Phase E.3: 12 features per half
         t1_vec = [
             fi_park,
             coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
             coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
-        ] + wx
+        ] + wx + [
+            coerce_float(r.get("home_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+            coerce_float(r.get("away_top3c_obp"),            LEAGUE_AVG_OBP),
+            ump_rate,
+            coerce_float(r.get("home_xera"),                 LEAGUE_AVG_XERA),
+            coerce_float(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+        ]
         b1_vec = [
             fi_park,
             coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
             coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
-        ] + wx
+        ] + wx + [
+            coerce_float(r.get("away_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+            coerce_float(r.get("home_top3c_obp"),            LEAGUE_AVG_OBP),
+            ump_rate,
+            coerce_float(r.get("away_xera"),                 LEAGUE_AVG_XERA),
+            coerce_float(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+        ]
         raw_p = lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec)
         cal_p = cal.predict(raw_p)
 

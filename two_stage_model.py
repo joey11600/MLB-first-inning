@@ -97,6 +97,39 @@ B1_SLIM_WEATHER_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
                             "wx_temp_c", "wx_wind_kmh",
                             "wx_humidity", "wx_is_dome"]
 
+# Phase E.3 variant -- combines slim_weather with:
+#   Phase D additions: pitcher last-5 NRFI rate, top-3 batters' point-in-time
+#                      OBP, home-plate umpire's career NRFI rate
+#   Phase E.3 additions: pitcher xERA (Statcast quality-of-contact-based
+#                        expected ERA) and whiff_pct_rank (swinging-strike
+#                        rate percentile, the most direct K predictor)
+# 12 features per half.  Threshold 0.58 / 0.42 produces total hit rate
+# 62.2% on 2026 holdout (vs 60.7% baseline) plus +59u/yr cross-year P&L
+# improvement on the xERA signal.  See test_phase_e3.py.
+T1_PHASE_E3_FEATURES = [
+    "fi_park_nrfi_rate", "home_fip", "away_obp",
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    "home_p_last5_pitcher_nrfi",
+    "away_top3c_obp",
+    "home_plate_ump_nrfi_rate",
+    "home_xera",
+    "home_whiff_pct_rank",
+]
+B1_PHASE_E3_FEATURES = [
+    "fi_park_nrfi_rate", "away_fip", "home_obp",
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    "away_p_last5_pitcher_nrfi",
+    "home_top3c_obp",
+    "home_plate_ump_nrfi_rate",
+    "away_xera",
+    "away_whiff_pct_rank",
+]
+
+# Defaults for Phase E.3 features when CSV cell is missing
+LEAGUE_NRFI_RATE     = 0.50
+LEAGUE_AVG_XERA      = 4.20
+NEUTRAL_PCT_RANK     = 50
+
 
 def coerce(s, default):
     try:
@@ -106,8 +139,19 @@ def coerce(s, default):
         return default
 
 
+def _ump_rate_for(r, ump_cache, ump_rates_data):
+    """Look up home-plate umpire's shrunk NRFI rate for a row."""
+    pk = (r.get("game_pk") or "").strip()
+    league = ump_rates_data.get("league_nrfi_rate", LEAGUE_NRFI_RATE)
+    rec = ump_cache.get(pk)
+    if not rec: return league
+    u = ump_rates_data.get("umpires", {}).get(str(rec["hp_id"]))
+    return u["shrunk_nrfi"] if u else league
+
+
 def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
            slim_k9: bool = False, slim_weather: bool = False,
+           phase_e3: bool = False, ump_cache=None, ump_rates_data=None,
            clean_only: bool = False) -> dict:
     """Returns dict of stacked numpy arrays for both halves' features and
     binary labels (1 if that half had a run).
@@ -142,7 +186,44 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                 fi_park = fi_park_map.get(home, FI_PARK_DEFAULT)
             else:
                 fi_park = coerce(r.get("fi_park_nrfi_rate"), FI_PARK_DEFAULT)
-            if slim_weather:
+            if phase_e3:
+                wx = [
+                    coerce(r.get("wx_temp_c"),    WX_TEMP_DEFAULT),
+                    coerce(r.get("wx_wind_kmh"),  WX_WIND_DEFAULT),
+                    coerce(r.get("wx_humidity"),  WX_HUMIDITY_DEFAULT),
+                    coerce(r.get("wx_is_dome"),   0.0),
+                ]
+                # Look up umpire NRFI rate (preferred from CSV cell, fall back to cache)
+                ump_rate_csv = (r.get("home_plate_ump_nrfi_rate") or "").strip()
+                if ump_rate_csv:
+                    ump_rate = float(ump_rate_csv)
+                elif ump_cache is not None and ump_rates_data is not None:
+                    ump_rate = _ump_rate_for(r, ump_cache, ump_rates_data)
+                else:
+                    ump_rate = LEAGUE_NRFI_RATE
+                t1_x = [
+                    fi_park,
+                    coerce(r.get("home_fip"), LEAGUE_AVG_ERA),
+                    coerce(r.get("away_obp"), LEAGUE_AVG_OBP),
+                ] + wx + [
+                    coerce(r.get("home_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+                    coerce(r.get("away_top3c_obp"),            LEAGUE_AVG_OBP),
+                    ump_rate,
+                    coerce(r.get("home_xera"),                 LEAGUE_AVG_XERA),
+                    coerce(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+                ]
+                b1_x = [
+                    fi_park,
+                    coerce(r.get("away_fip"), LEAGUE_AVG_ERA),
+                    coerce(r.get("home_obp"), LEAGUE_AVG_OBP),
+                ] + wx + [
+                    coerce(r.get("away_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+                    coerce(r.get("home_top3c_obp"),            LEAGUE_AVG_OBP),
+                    ump_rate,
+                    coerce(r.get("away_xera"),                 LEAGUE_AVG_XERA),
+                    coerce(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+                ]
+            elif slim_weather:
                 wx = [
                     coerce(r.get("wx_temp_c"),    WX_TEMP_DEFAULT),
                     coerce(r.get("wx_wind_kmh"),  WX_WIND_DEFAULT),
@@ -254,13 +335,33 @@ def main():
                     help="Slim + pitcher K/9 (4 features per half)")
     ap.add_argument("--slim-weather", action="store_true",
                     help="Slim + weather (7 features per half: temp/wind/humidity/dome)")
+    ap.add_argument("--phase-e3", action="store_true",
+                    help="Phase E.3 model: slim_weather + last5 + top3c_obp + ump + xera + whiff_pct_rank "
+                         "(12 features per half).  Production winner.")
     ap.add_argument("--clean-only", action="store_true",
                     help="Drop rows where pitcher_q == 'avg' on either side "
                          "(synthetic league-avg defaults; ~22%% of historical)")
     args = ap.parse_args()
 
     park = load_fi_park()
-    if args.slim_weather:
+    # Load umpire data once for phase-e3 fallback lookups
+    ump_cache = ump_rates_data = None
+    if args.phase_e3:
+        try:
+            ump_cache_path = ROOT / "data" / "umpire_cache.json"
+            ump_rates_path = ROOT / "data" / "umpire_rates.json"
+            if ump_cache_path.exists():
+                ump_cache = json.load(open(ump_cache_path, encoding="utf-8"))
+            if ump_rates_path.exists():
+                ump_rates_data = json.load(open(ump_rates_path, encoding="utf-8"))
+            print(f"  Loaded umpire data: cache={len(ump_cache or {})} games, rates={len((ump_rates_data or {}).get('umpires', {}))} umps")
+        except Exception as e:
+            print(f"  [warn] umpire data not loaded: {e}")
+    if args.phase_e3:
+        t1_feats = T1_PHASE_E3_FEATURES
+        b1_feats = B1_PHASE_E3_FEATURES
+        variant = "PHASE_E3"
+    elif args.slim_weather:
         t1_feats = T1_SLIM_WEATHER_FEATURES
         b1_feats = B1_SLIM_WEATHER_FEATURES
         variant = "SLIM+WEATHER"
@@ -284,6 +385,8 @@ def main():
     print("=" * 70)
     train_blocks = [gather(Path(p), park, slim=args.slim, slim_k9=args.slim_k9,
                            slim_weather=args.slim_weather,
+                           phase_e3=args.phase_e3,
+                           ump_cache=ump_cache, ump_rates_data=ump_rates_data,
                            clean_only=args.clean_only)
                     for p in args.train]
     train_blocks = [b for b in train_blocks if b is not None]
@@ -320,7 +423,9 @@ def main():
     # Test set is always evaluated WITHOUT clean_only -- we want full coverage
     # of the holdout period to mirror what happens in production.
     te = gather(Path(args.test), park, slim=args.slim, slim_k9=args.slim_k9,
-                slim_weather=args.slim_weather, clean_only=False)
+                slim_weather=args.slim_weather, phase_e3=args.phase_e3,
+                ump_cache=ump_cache, ump_rates_data=ump_rates_data,
+                clean_only=False)
     if not te:
         sys.exit("No test rows.")
 
@@ -393,7 +498,15 @@ def main():
         ("AVERAGE", 4.20, 1.20, 3.20),
         ("TRASH",   6.00, 2.50, 5.00),
     ]:
-        if args.slim_weather:
+        if args.phase_e3:
+            wx_neutral = [WX_TEMP_DEFAULT, WX_WIND_DEFAULT, WX_HUMIDITY_DEFAULT, 0.0]
+            extras_t1 = [LEAGUE_NRFI_RATE, LEAGUE_AVG_OBP, LEAGUE_NRFI_RATE,
+                         LEAGUE_AVG_XERA, NEUTRAL_PCT_RANK]
+            extras_b1 = [LEAGUE_NRFI_RATE, LEAGUE_AVG_OBP, LEAGUE_NRFI_RATE,
+                         LEAGUE_AVG_XERA, NEUTRAL_PCT_RANK]
+            x_t1 = np.asarray([[0.50, 2.50, 0.318] + wx_neutral + extras_t1])
+            x_b1 = np.asarray([[0.50, away_fip, 0.318] + wx_neutral + extras_b1])
+        elif args.slim_weather:
             wx_neutral = [WX_TEMP_DEFAULT, WX_WIND_DEFAULT, WX_HUMIDITY_DEFAULT, 0.0]
             x_t1 = np.asarray([[0.50, 2.50, 0.318] + wx_neutral])
             x_b1 = np.asarray([[0.50, away_fip, 0.318] + wx_neutral])

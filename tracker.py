@@ -61,6 +61,14 @@ FIELDS = [
     # --- weather (open-meteo at park; blanks for archive misses, dome
     # parks have wx_is_dome=1 with weather cols left blank) ---
     "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    # --- Phase D features: pitcher recent-form, top-3 batter point-in-time
+    # OBP, home plate umpire's career NRFI rate ---
+    "home_p_last5_pitcher_nrfi", "away_p_last5_pitcher_nrfi",
+    "home_top3c_obp", "away_top3c_obp",
+    "home_plate_ump_id", "home_plate_ump_nrfi_rate",
+    # --- Phase E.3 Statcast features: xERA + whiff_pct_rank per pitcher ---
+    "home_xera", "away_xera",
+    "home_whiff_pct_rank", "away_whiff_pct_rank",
     # --- result (filled by --grade) ---
     "actual_result",     # NRFI | YRFI | POSTPONED | SUSPENDED
     "graded_result",     # WIN | LOSS | PASS | POSTPONED | SUSPENDED
@@ -271,6 +279,17 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "wx_wind_kmh": _fmt(g.get("wx_wind_kmh"), 2),
             "wx_humidity": _fmt(g.get("wx_humidity"), 1),
             "wx_is_dome":  _fmt(g.get("wx_is_dome"),  0),
+            # Phase D + E.3 features
+            "home_p_last5_pitcher_nrfi": _fmt(g.get("home_p_last5_pitcher_nrfi"), 4),
+            "away_p_last5_pitcher_nrfi": _fmt(g.get("away_p_last5_pitcher_nrfi"), 4),
+            "home_top3c_obp":            _fmt(g.get("home_top3c_obp"), 4),
+            "away_top3c_obp":            _fmt(g.get("away_top3c_obp"), 4),
+            "home_plate_ump_id":         g.get("home_plate_ump_id", ""),
+            "home_plate_ump_nrfi_rate":  _fmt(g.get("home_plate_ump_nrfi_rate"), 4),
+            "home_xera":                 _fmt(g.get("home_xera"),                3),
+            "away_xera":                 _fmt(g.get("away_xera"),                3),
+            "home_whiff_pct_rank":       _fmt(g.get("home_whiff_pct_rank"),      0),
+            "away_whiff_pct_rank":       _fmt(g.get("away_whiff_pct_rank"),      0),
             # result fields start empty (preserved if already set)
             "actual_result": "", "graded_result": "",
             "fi_away_runs":  "", "fi_home_runs":  "", "fi_total_runs": "",

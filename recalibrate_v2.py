@@ -53,14 +53,29 @@ FI_PARK_DEFAULT = 0.50
 WX_TEMP_DEFAULT     = 20.0
 WX_WIND_DEFAULT     = 10.0
 WX_HUMIDITY_DEFAULT = 60.0
+LEAGUE_NRFI_RATE    = 0.50
+LEAGUE_AVG_XERA     = 4.20
+NEUTRAL_PCT_RANK    = 50
 
-# Must match the feature_names saved by two_stage_model.py --slim-weather.
-T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp",
-               "wx_temp_c", "wx_wind_kmh",
-               "wx_humidity", "wx_is_dome"]
-B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
-               "wx_temp_c", "wx_wind_kmh",
-               "wx_humidity", "wx_is_dome"]
+# Must match the feature_names saved by two_stage_model.py --phase-e3.
+T1_FEATURES = [
+    "fi_park_nrfi_rate", "home_fip", "away_obp",
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    "home_p_last5_pitcher_nrfi",
+    "away_top3c_obp",
+    "home_plate_ump_nrfi_rate",
+    "home_xera",
+    "home_whiff_pct_rank",
+]
+B1_FEATURES = [
+    "fi_park_nrfi_rate", "away_fip", "home_obp",
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    "away_p_last5_pitcher_nrfi",
+    "home_top3c_obp",
+    "home_plate_ump_nrfi_rate",
+    "away_xera",
+    "away_whiff_pct_rank",
+]
 
 
 def _load_one(path: Path, expected: list[str]) -> dict:
@@ -122,15 +137,41 @@ def coerce_float(s, default):
 
 
 def _weather_block(r) -> list[float]:
-    """Pull wx_* columns out of a row; coerce blanks (incl. all dome rows
-    where the trainer left them empty) to neutral defaults so the
-    calibrator sees exactly what the production predictor produces."""
     return [
         coerce_float(r.get("wx_temp_c"),    WX_TEMP_DEFAULT),
         coerce_float(r.get("wx_wind_kmh"),  WX_WIND_DEFAULT),
         coerce_float(r.get("wx_humidity"),  WX_HUMIDITY_DEFAULT),
         coerce_float(r.get("wx_is_dome"),   0.0),
     ]
+
+
+def _build_t1_b1_phase_e3(r, fi_park):
+    """Build T1 + B1 feature vectors for Phase E.3 schema (12 features each)."""
+    wx = _weather_block(r)
+    ump_rate = coerce_float(r.get("home_plate_ump_nrfi_rate"), LEAGUE_NRFI_RATE)
+    t1_vec = [
+        fi_park,
+        coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
+        coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
+    ] + wx + [
+        coerce_float(r.get("home_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+        coerce_float(r.get("away_top3c_obp"),            LEAGUE_AVG_OBP),
+        ump_rate,
+        coerce_float(r.get("home_xera"),                 LEAGUE_AVG_XERA),
+        coerce_float(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+    ]
+    b1_vec = [
+        fi_park,
+        coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
+        coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
+    ] + wx + [
+        coerce_float(r.get("away_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+        coerce_float(r.get("home_top3c_obp"),            LEAGUE_AVG_OBP),
+        ump_rate,
+        coerce_float(r.get("away_xera"),                 LEAGUE_AVG_XERA),
+        coerce_float(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+    ]
+    return t1_vec, b1_vec
 
 
 def gather_from_backtest(rows, fi_park_map=None):
@@ -149,17 +190,7 @@ def gather_from_backtest(rows, fi_park_map=None):
         else:
             fi_park = coerce_float(r.get("fi_park_nrfi_rate"), FI_PARK_DEFAULT)
         try:
-            wx = _weather_block(r)
-            t1_vec = [
-                fi_park,
-                coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
-                coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
-            ] + wx
-            b1_vec = [
-                fi_park,
-                coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
-                coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
-            ] + wx
+            t1_vec, b1_vec = _build_t1_b1_phase_e3(r, fi_park)
         except Exception:
             skipped += 1; continue
         Xt.append(t1_vec); Xb.append(b1_vec)
@@ -182,17 +213,7 @@ def gather_from_picks(rows, fi_park_map):
         home_abbr = r.get("home_team") or ""
         fi_park = fi_park_map.get(home_abbr, FI_PARK_DEFAULT)
         try:
-            wx = _weather_block(r)
-            t1_vec = [
-                fi_park,
-                coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
-                coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
-            ] + wx
-            b1_vec = [
-                fi_park,
-                coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
-                coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
-            ] + wx
+            t1_vec, b1_vec = _build_t1_b1_phase_e3(r, fi_park)
         except Exception:
             skipped += 1; continue
         Xt.append(t1_vec); Xb.append(b1_vec)

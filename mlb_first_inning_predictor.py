@@ -748,9 +748,15 @@ _FI_PARK_NRFI_DEFAULT = 0.50
 #
 # These are sample-size-cautious adjustments.  Weekly recalibration may
 # tune them further as 2026 graded games accumulate.
-_LR_STRONG_NRFI_P = 0.62
-_LR_LEAN_NRFI_P   = 0.53
-_LR_PASS_LO_P     = 0.47
+# Updated 2026-04-27 (Phase E.3 ship): tightened thresholds based on the
+# new model's probability distribution.  STRONG = 0.58 / 0.42, allowing
+# variable picks per slate.  LEAN zones eliminated -- only STRONG and
+# PASS now (per user direction: in-between zones don't matter).
+# Achieved by collapsing LEAN_NRFI_P <- STRONG_NRFI_P and
+# LEAN_YRFI_P <- PASS_LO_P (= STRONG_YRFI_P).
+_LR_STRONG_NRFI_P = 0.58
+_LR_LEAN_NRFI_P   = 0.58
+_LR_PASS_LO_P     = 0.42
 _LR_LEAN_YRFI_P   = 0.42
 
 # Lazy-loaded singletons.  None = "tried to load and failed" (graceful fallback).
@@ -763,15 +769,33 @@ _fi_park_rates: dict | None = None
 _fi_park_loaded = False
 
 # Expected feature order for each half-inning model.
-# Updated 2026-04-26: shipped weather features after feature ablation showed
-# slim_weather as the only clean win over slim baseline (Brier 0.2441 vs
-# 0.2446; Q5 NRFI 43-26 vs 41-28).  See test_features_vs_two_stage.py.
-_T1_EXPECTED_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp",
-                         "wx_temp_c", "wx_wind_kmh",
-                         "wx_humidity", "wx_is_dome"]
-_B1_EXPECTED_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
-                         "wx_temp_c", "wx_wind_kmh",
-                         "wx_humidity", "wx_is_dome"]
+# Updated 2026-04-27: Phase E.3 -- adds last5_pitcher_nrfi, top3c_obp,
+# umpire NRFI rate, xERA (Statcast), and whiff_pct_rank (Statcast) to
+# slim_weather baseline.  12 features per half.  See test_phase_e3.py.
+# Cross-year P&L improvement: +59u/yr averaged across 3 splits.
+_T1_EXPECTED_FEATURES = [
+    "fi_park_nrfi_rate", "home_fip", "away_obp",
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    "home_p_last5_pitcher_nrfi",
+    "away_top3c_obp",
+    "home_plate_ump_nrfi_rate",
+    "home_xera",
+    "home_whiff_pct_rank",
+]
+_B1_EXPECTED_FEATURES = [
+    "fi_park_nrfi_rate", "away_fip", "home_obp",
+    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
+    "away_p_last5_pitcher_nrfi",
+    "home_top3c_obp",
+    "home_plate_ump_nrfi_rate",
+    "away_xera",
+    "away_whiff_pct_rank",
+]
+
+# Defaults for new features when fetch fails (used in feature builders below)
+_LEAGUE_NRFI_RATE = 0.50
+_LEAGUE_AVG_XERA  = 4.20
+_NEUTRAL_PCT_RANK = 50.0
 
 
 def _load_lr_models() -> tuple[dict | None, dict | None]:
@@ -950,17 +974,121 @@ def fetch_game_weather(home_abbr: str, date_iso: str, season: int) -> dict:
     }
 
 
+# Phase E.3 lookup helpers -- lazy-load caches once
+
+_statcast_cache = None
+_ump_cache = None
+_ump_rates_data = None
+
+
+def _load_statcast_cache() -> dict:
+    global _statcast_cache
+    if _statcast_cache is not None:
+        return _statcast_cache
+    p = Path(__file__).parent / "data" / "statcast_pitcher_cache.json"
+    if not p.exists():
+        _statcast_cache = {}
+        return _statcast_cache
+    try:
+        with open(p, encoding="utf-8") as f:
+            _statcast_cache = json.load(f)
+    except Exception:
+        _statcast_cache = {}
+    return _statcast_cache
+
+
+def _load_ump_data() -> tuple[dict, dict]:
+    """Returns (game_pk -> ump record, ump_id -> rate record)."""
+    global _ump_cache, _ump_rates_data
+    if _ump_cache is not None:
+        return _ump_cache, _ump_rates_data
+    cache_p = Path(__file__).parent / "data" / "umpire_cache.json"
+    rates_p = Path(__file__).parent / "data" / "umpire_rates.json"
+    _ump_cache = {}
+    _ump_rates_data = {}
+    try:
+        if cache_p.exists():
+            with open(cache_p, encoding="utf-8") as f:
+                _ump_cache = json.load(f)
+    except Exception:
+        pass
+    try:
+        if rates_p.exists():
+            with open(rates_p, encoding="utf-8") as f:
+                _ump_rates_data = json.load(f)
+    except Exception:
+        pass
+    return _ump_cache, _ump_rates_data
+
+
+def fetch_pitcher_statcast(player_id: int, season: int) -> dict:
+    """Returns Statcast aggregates for a pitcher: xera + whiff_pct_rank.
+    Falls back to neutral defaults if pitcher not in cache."""
+    cache = _load_statcast_cache()
+    season_cache = cache.get(str(season), {})
+    rec = season_cache.get(str(player_id))
+    if not rec:
+        return {"xera": _LEAGUE_AVG_XERA, "whiff_pct_rank": _NEUTRAL_PCT_RANK}
+    return {
+        "xera":           float(rec["xera"]) if rec.get("xera") is not None else _LEAGUE_AVG_XERA,
+        "whiff_pct_rank": float(rec["whiff_pct_rank"]) if rec.get("whiff_pct_rank") is not None else _NEUTRAL_PCT_RANK,
+    }
+
+
+def fetch_umpire_rate(game_pk: int) -> tuple[str, float]:
+    """Look up home plate umpire's career NRFI rate for a game.
+    Returns (ump_id, rate).  Falls back to league avg if game/ump not in cache.
+
+    Tries the cache first; if miss, fetches via schedule API to populate
+    today's games (cache rebuilds happen separately)."""
+    cache, rates = _load_ump_data()
+    league = rates.get("league_nrfi_rate", _LEAGUE_NRFI_RATE)
+    rec = cache.get(str(game_pk))
+    if not rec:
+        # Try a live API fetch for today's games (not in cache yet)
+        try:
+            data = statsapi.get("schedule", {
+                "sportId": 1, "gamePk": game_pk,
+                "hydrate": "officials",
+                "fields": "dates,games,gamePk,officials,officialType,official,fullName,id",
+            })
+            for d in data.get("dates", []):
+                for g in d.get("games", []):
+                    if int(g.get("gamePk") or 0) != int(game_pk): continue
+                    for o in g.get("officials", []):
+                        if o.get("officialType") == "Home Plate":
+                            ump_id = str(int(o.get("official", {}).get("id") or 0))
+                            if ump_id and ump_id != "0":
+                                u = rates.get("umpires", {}).get(ump_id)
+                                rate = u["shrunk_nrfi"] if u else league
+                                return ump_id, rate
+        except Exception:
+            pass
+        return "", league
+    ump_id = str(rec["hp_id"])
+    u = rates.get("umpires", {}).get(ump_id)
+    return ump_id, (u["shrunk_nrfi"] if u else league)
+
+
 def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
-                 wx: dict | None = None) -> list[float]:
+                 wx: dict | None = None,
+                 home_pitcher_id: int = 0,
+                 home_last5_nrfi: float = _LEAGUE_NRFI_RATE,
+                 away_top3c_obp:  float = LEAGUE_AVG_OBP,
+                 ump_rate:        float = _LEAGUE_NRFI_RATE,
+                 season: int = 2026) -> list[float]:
     """T1 (top of 1st) feature vector: home pitcher vs away offense at home park.
-    Order MUST match _T1_EXPECTED_FEATURES."""
+    Order MUST match _T1_EXPECTED_FEATURES.
+
+    Phase E.3: 12 features per half including pitcher recent form, top-3
+    batter OBP, umpire NRFI rate, and Statcast xera + whiff rank."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     if wx is None:
-        # Predictor wasn't supplied a weather snapshot -- treat as missing
-        # outdoor data, which lands on the same neutral defaults the model
-        # was trained against.
         wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
               "humidity": WX_HUMIDITY_DEFAULT, "is_dome": 0.0}
+    sc = fetch_pitcher_statcast(home_pitcher_id, season) if home_pitcher_id else {
+        "xera": _LEAGUE_AVG_XERA, "whiff_pct_rank": _NEUTRAL_PCT_RANK,
+    }
     return [
         fi_park,
         home_pitcher.get("fip", LEAGUE_AVG_ERA),
@@ -969,17 +1097,30 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
         wx.get("wind_kmh", WX_WIND_DEFAULT),
         wx.get("humidity", WX_HUMIDITY_DEFAULT),
         wx.get("is_dome",  0.0),
+        home_last5_nrfi,
+        away_top3c_obp,
+        ump_rate,
+        sc["xera"],
+        sc["whiff_pct_rank"],
     ]
 
 
 def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
-                 wx: dict | None = None) -> list[float]:
+                 wx: dict | None = None,
+                 away_pitcher_id: int = 0,
+                 away_last5_nrfi: float = _LEAGUE_NRFI_RATE,
+                 home_top3c_obp:  float = LEAGUE_AVG_OBP,
+                 ump_rate:        float = _LEAGUE_NRFI_RATE,
+                 season: int = 2026) -> list[float]:
     """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park.
     Order MUST match _B1_EXPECTED_FEATURES."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     if wx is None:
         wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
               "humidity": WX_HUMIDITY_DEFAULT, "is_dome": 0.0}
+    sc = fetch_pitcher_statcast(away_pitcher_id, season) if away_pitcher_id else {
+        "xera": _LEAGUE_AVG_XERA, "whiff_pct_rank": _NEUTRAL_PCT_RANK,
+    }
     return [
         fi_park,
         away_pitcher.get("fip", LEAGUE_AVG_ERA),
@@ -988,6 +1129,11 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
         wx.get("wind_kmh", WX_WIND_DEFAULT),
         wx.get("humidity", WX_HUMIDITY_DEFAULT),
         wx.get("is_dome",  0.0),
+        away_last5_nrfi,
+        home_top3c_obp,
+        ump_rate,
+        sc["xera"],
+        sc["whiff_pct_rank"],
     ]
 
 
@@ -1351,14 +1497,63 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # there's no LR model for that prediction yet.
         over15p = prob_over_1_5(total_lam)
 
-        # Primary NRFI/YRFI pick is LR-v3 two-stage + isotonic calibration.
-        # T1 = home pitcher vs away offense; B1 = away pitcher vs home offense.
-        # Combined: P(NRFI) = (1 - P(T1 run)) * (1 - P(B1 run)).
-        # Weather is a real feature in the model -- domed parks get neutral
-        # defaults with is_dome=1 (model learns to ignore weather there).
+        # Primary NRFI/YRFI pick is LR-v3 Phase E.3 two-stage + isotonic
+        # calibration.  T1 = home pitcher vs away offense; B1 = away
+        # pitcher vs home offense.  Combined: P(NRFI) = (1 - P(T1)) * (1 - P(B1)).
+        # Weather + Phase D + E.3 features (12 per half).  See
+        # _T1/_B1_EXPECTED_FEATURES for the canonical order.
         wx = fetch_game_weather(home_ab, target_iso, season)
-        t1_feats = t1_features(home_ab, home_sp, away_bat, wx)
-        b1_feats = b1_features(home_ab, away_sp, home_bat, wx)
+
+        # Phase D features
+        away_last5 = _LEAGUE_NRFI_RATE
+        home_last5 = _LEAGUE_NRFI_RATE
+        if recency_available and pitcher_last_n_first_inning is not None:
+            try:
+                d_a = pitcher_last_n_first_inning(game["away_pitcher_id"], target_iso, season, n=5)
+                if d_a and d_a.get("pitcher_nrfi_rate") is not None:
+                    away_last5 = float(d_a["pitcher_nrfi_rate"])
+            except Exception: pass
+            try:
+                d_h = pitcher_last_n_first_inning(game["home_pitcher_id"], target_iso, season, n=5)
+                if d_h and d_h.get("pitcher_nrfi_rate") is not None:
+                    home_last5 = float(d_h["pitcher_nrfi_rate"])
+            except Exception: pass
+
+        # Top-3 current-season-to-date OBP (lineup-aware via fetch_top3_batters)
+        away_top3c_obp = LEAGUE_AVG_OBP
+        home_top3c_obp = LEAGUE_AVG_OBP
+        try:
+            from backtest import fetch_top3_batters, current_season_top3_stats
+            top3 = fetch_top3_batters(int(game["game_pk"]))
+            if top3.get("away_top3"):
+                a_agg = current_season_top3_stats(top3["away_top3"], target_iso, season)
+                if a_agg and a_agg.get("obp") is not None:
+                    away_top3c_obp = float(a_agg["obp"])
+            if top3.get("home_top3"):
+                h_agg = current_season_top3_stats(top3["home_top3"], target_iso, season)
+                if h_agg and h_agg.get("obp") is not None:
+                    home_top3c_obp = float(h_agg["obp"])
+        except Exception: pass
+
+        # Home plate umpire NRFI rate (Phase D)
+        ump_id, ump_rate = fetch_umpire_rate(int(game["game_pk"]))
+
+        t1_feats = t1_features(
+            home_ab, home_sp, away_bat, wx,
+            home_pitcher_id=game["home_pitcher_id"],
+            home_last5_nrfi=home_last5,
+            away_top3c_obp=away_top3c_obp,
+            ump_rate=ump_rate,
+            season=season,
+        )
+        b1_feats = b1_features(
+            home_ab, away_sp, home_bat, wx,
+            away_pitcher_id=game["away_pitcher_id"],
+            away_last5_nrfi=away_last5,
+            home_top3c_obp=home_top3c_obp,
+            ump_rate=ump_rate,
+            season=season,
+        )
         # Compute each half's P(run) so we can persist lambda projections
         # for display (the screenshot-style "expected runs per half").
         m_t1, m_b1 = _load_lr_models()
@@ -1407,6 +1602,19 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "wx_wind_kmh":   wx["wind_kmh"] if home_ab not in DOMED_PARKS else "",
             "wx_humidity":   wx["humidity"] if home_ab not in DOMED_PARKS else "",
             "wx_is_dome":    1 if home_ab in DOMED_PARKS else 0,
+            # Phase D features: pitcher last-5 NRFI rate, top-3 batters'
+            # current-season OBP, home plate umpire's career NRFI rate
+            "home_p_last5_pitcher_nrfi": home_last5,
+            "away_p_last5_pitcher_nrfi": away_last5,
+            "home_top3c_obp":            home_top3c_obp,
+            "away_top3c_obp":            away_top3c_obp,
+            "home_plate_ump_id":         ump_id,
+            "home_plate_ump_nrfi_rate":  ump_rate,
+            # Phase E.3 Statcast features: xera + whiff_pct_rank per pitcher
+            "home_xera":                 t1_feats[10],   # index 10 in T1 vector
+            "home_whiff_pct_rank":       t1_feats[11],
+            "away_xera":                 b1_feats[10],
+            "away_whiff_pct_rank":       b1_feats[11],
             "pick_side":     pick_side,
             "pick_conf":     pick_conf,
             "away": {
