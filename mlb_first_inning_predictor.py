@@ -715,10 +715,23 @@ _FI_PARK_PATH       = Path(__file__).parent / "data" / "fi_park_factors.json"
 _FI_PARK_NRFI_DEFAULT = 0.50
 
 # Calibrated probability thresholds for pick zones (from calibration.py)
-_LR_STRONG_NRFI_P = 0.60
+# Pick-zone thresholds.  Asymmetric per the 2026 retro forensic
+# (analyze_zone_asymmetry.py):
+#
+#   STRONG NRFI threshold tightened 0.60 -> 0.62.  At 0.60 the zone went
+#   9-7 (56.2%, +1.18u).  The 7 picks between 0.60 and 0.62 went 2-5 --
+#   the underperformers.  At 0.62 the zone goes 7-2 (77.8%, +4.36u).
+#
+#   STRONG YRFI threshold loosened 0.40 -> 0.42 (i.e. P(NRFI) <= 0.42).
+#   At 0.40 the zone went 43-23 (65.2%, +16.09u).  The 5 picks between
+#   0.40 and 0.42 went 5-0.  Including them gives 48-23 (67.6%, +20.64u).
+#
+# These are sample-size-cautious adjustments.  Weekly recalibration may
+# tune them further as 2026 graded games accumulate.
+_LR_STRONG_NRFI_P = 0.62
 _LR_LEAN_NRFI_P   = 0.53
 _LR_PASS_LO_P     = 0.47
-_LR_LEAN_YRFI_P   = 0.40
+_LR_LEAN_YRFI_P   = 0.42
 
 # Lazy-loaded singletons.  None = "tried to load and failed" (graceful fallback).
 _lr_t1 = None

@@ -66,6 +66,12 @@ B1_FEATURES = ["fi_park_nrfi_rate",
 T1_SLIM_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp"]
 B1_SLIM_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
 
+# Slim + K9 variants: add the pitcher's K/9, which the WIN/LOSS forensic
+# showed has a Cohen's d = 0.80 effect within LEAN YRFI (highly significant)
+# despite being absent from the slim feature set.
+T1_SLIM_K9_FEATURES = ["fi_park_nrfi_rate", "home_fip", "home_k9", "away_obp"]
+B1_SLIM_K9_FEATURES = ["fi_park_nrfi_rate", "away_fip", "away_k9", "home_obp"]
+
 
 def coerce(s, default):
     try:
@@ -75,7 +81,8 @@ def coerce(s, default):
         return default
 
 
-def gather(csv_path: Path, fi_park_map=None, slim: bool = False) -> dict:
+def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
+           slim_k9: bool = False) -> dict:
     """Returns dict of stacked numpy arrays for both halves' features and
     binary labels (1 if that half had a run)."""
     rows = []
@@ -98,7 +105,20 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False) -> dict:
                 fi_park = fi_park_map.get(home, FI_PARK_DEFAULT)
             else:
                 fi_park = coerce(r.get("fi_park_nrfi_rate"), FI_PARK_DEFAULT)
-            if slim:
+            if slim_k9:
+                t1_x = [
+                    fi_park,
+                    coerce(r.get("home_fip"), LEAGUE_AVG_ERA),
+                    coerce(r.get("home_k9"),  8.9),  # league avg
+                    coerce(r.get("away_obp"), LEAGUE_AVG_OBP),
+                ]
+                b1_x = [
+                    fi_park,
+                    coerce(r.get("away_fip"), LEAGUE_AVG_ERA),
+                    coerce(r.get("away_k9"),  8.9),
+                    coerce(r.get("home_obp"), LEAGUE_AVG_OBP),
+                ]
+            elif slim:
                 t1_x = [
                     fi_park,
                     coerce(r.get("home_fip"), LEAGUE_AVG_ERA),
@@ -174,17 +194,30 @@ def main():
     ap.add_argument("--l2", type=float, default=0.05)
     ap.add_argument("--slim", action="store_true",
                     help="Use 3-feature slim variant (park + FIP + opp OBP) per half")
+    ap.add_argument("--slim-k9", action="store_true",
+                    help="Slim + pitcher K/9 (4 features per half)")
     args = ap.parse_args()
 
     park = load_fi_park()
-    t1_feats = T1_SLIM_FEATURES if args.slim else T1_FEATURES
-    b1_feats = B1_SLIM_FEATURES if args.slim else B1_FEATURES
+    if args.slim_k9:
+        t1_feats = T1_SLIM_K9_FEATURES
+        b1_feats = B1_SLIM_K9_FEATURES
+        variant = "SLIM+K9"
+    elif args.slim:
+        t1_feats = T1_SLIM_FEATURES
+        b1_feats = B1_SLIM_FEATURES
+        variant = "SLIM"
+    else:
+        t1_feats = T1_FEATURES
+        b1_feats = B1_FEATURES
+        variant = "FULL"
 
     # ---------- Train ----------
     print("=" * 70)
-    print(f"  Training two-stage T1 + B1 models  ({'SLIM' if args.slim else 'FULL'} variant)")
+    print(f"  Training two-stage T1 + B1 models  ({variant} variant)")
     print("=" * 70)
-    train_blocks = [gather(Path(p), park, slim=args.slim) for p in args.train]
+    train_blocks = [gather(Path(p), park, slim=args.slim, slim_k9=args.slim_k9)
+                    for p in args.train]
     train_blocks = [b for b in train_blocks if b is not None]
     if not train_blocks:
         sys.exit("No training data found.")
@@ -216,7 +249,7 @@ def main():
     print("\n" + "=" * 70)
     print(f"  Testing on {Path(args.test).name}")
     print("=" * 70)
-    te = gather(Path(args.test), park, slim=args.slim)
+    te = gather(Path(args.test), park, slim=args.slim, slim_k9=args.slim_k9)
     if not te:
         sys.exit("No test rows.")
 

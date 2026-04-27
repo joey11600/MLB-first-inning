@@ -57,10 +57,12 @@ LEAGUE_AVG_SLG = 0.414
 FI_PARK_DEFAULT = 0.50
 
 # Calibrated probability thresholds (mirror predictor's classify_pick_lr)
-LR_STRONG_NRFI_P = 0.60
+# Asymmetric thresholds (must match mlb_first_inning_predictor.py).  See
+# the comment there + analyze_zone_asymmetry.py for the 2026-data rationale.
+LR_STRONG_NRFI_P = 0.62
 LR_LEAN_NRFI_P   = 0.53
 LR_PASS_LO_P     = 0.47
-LR_LEAN_YRFI_P   = 0.40
+LR_LEAN_YRFI_P   = 0.42
 
 T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp"]
 B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
