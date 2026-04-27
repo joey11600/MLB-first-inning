@@ -678,25 +678,38 @@ def classify_pick(lam: float, data_pts: int) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# LR-v2 + isotonic calibration -- the production predictor
+# LR-v3 two-stage + isotonic calibration -- the production predictor
 # ---------------------------------------------------------------------------
-# Bilateral 11-feature logistic regression covering both starting pitchers
-# and both offenses, modulated by the home park's first-inning NRFI rate:
+# A first inning is two physically-separate half-innings, so we model them
+# as two separate logistic regressions and multiply assuming independence:
 #
-#   T1 = home pitcher vs away offense:
-#     fi_park_nrfi_rate, home_fip, home_hr9, home_bb9, away_obp, away_slg
-#   B1 = away pitcher vs home offense:
-#     away_fip, away_hr9, away_bb9, home_obp, home_slg
+#   T1 (top of 1st)  = home pitcher vs away offense  -> P(T1 has run)
+#       features = fi_park_nrfi_rate, home_fip, away_obp
+#   B1 (bot of 1st)  = away pitcher vs home offense  -> P(B1 has run)
+#       features = fi_park_nrfi_rate, away_fip, home_obp
 #
-# Output is then passed through an isotonic calibrator (data/calibration_v2.
-# json) fit on the 2025 holdout so each predicted probability matches the
-# observed NRFI rate at that bin (mean prediction was +3.4pp high without
-# it). Top-quintile NRFI picks win 57.8% on out-of-sample data.
+#   P(NRFI) = (1 - P(T1 run)) * (1 - P(B1 run))
 #
-# Both files are required to run -- the predictor errors out cleanly if
-# either is missing rather than silently falling back to anything else.
+# Why this shape: the V2 single-regression-on-11-features version produced
+# multicollinearity-driven wrong-sign coefficients (5 of 11 features had
+# the wrong sign because correlated pairs split each other's effect). Worse,
+# it effectively ignored the away pitcher -- in a synthetic test, going
+# from elite to trash away pitcher caused P(NRFI) to RISE by 2.4pp instead
+# of fall.  The two-stage architecture forces each pitcher into the
+# half-inning they actually pitch, so the away pitcher cannot be ignored.
+#
+# All weights now have intuitive signs:
+#   T1:  fi_park (-)  home_fip (+)  away_obp (+)
+#   B1:  fi_park (-)  away_fip (+)  home_obp (+)
+#
+# Output is passed through an isotonic calibrator (data/calibration_v2.json).
+#
+# All three files are required to run -- the predictor errors out cleanly
+# if any is missing rather than silently falling back to anything else.
 
-_LR_MODEL_PATH      = Path(__file__).parent / "data" / "lr_model.json"
+_LR_T1_PATH         = Path(__file__).parent / "data" / "lr_t1.json"
+_LR_B1_PATH         = Path(__file__).parent / "data" / "lr_b1.json"
+_LR_MODEL_PATH      = Path(__file__).parent / "data" / "lr_model.json"  # legacy V2 single-LR (kept for autopsy/backtests; unused at inference)
 _LR_CAL_PATH        = Path(__file__).parent / "data" / "calibration_v2.json"
 _FI_PARK_PATH       = Path(__file__).parent / "data" / "fi_park_factors.json"
 _FI_PARK_NRFI_DEFAULT = 0.50
@@ -708,72 +721,63 @@ _LR_PASS_LO_P     = 0.47
 _LR_LEAN_YRFI_P   = 0.40
 
 # Lazy-loaded singletons.  None = "tried to load and failed" (graceful fallback).
-_lr_model = None
+_lr_t1 = None
+_lr_b1 = None
 _lr_loaded = False
 _lr_cal = None
 _lr_cal_loaded = False
 _fi_park_rates: dict | None = None
 _fi_park_loaded = False
 
+# Expected feature order for each half-inning model.
+_T1_EXPECTED_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp"]
+_B1_EXPECTED_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
 
-def _load_lr_model():
-    """Load the LR model + standardization params once. Returns None if unavailable.
 
-    Validates that the model's feature_names match what lr_features() emits and
-    in the same order -- if they ever drift apart, the standardization step
-    would silently apply the wrong (mean, std, weight) triple to each input.
-    """
-    global _lr_model, _lr_loaded
+def _load_lr_models() -> tuple[dict | None, dict | None]:
+    """Load both half-inning LR models. Returns (t1_model, b1_model);
+    either may be None if the corresponding file is missing or malformed.
+    Validates feature_names match expected order to prevent silent
+    weight-vs-input misalignment."""
+    global _lr_t1, _lr_b1, _lr_loaded
     if _lr_loaded:
-        return _lr_model
+        return _lr_t1, _lr_b1
     _lr_loaded = True
-    if not _LR_MODEL_PATH.exists():
-        return None
-    try:
-        with open(_LR_MODEL_PATH, encoding="utf-8") as f:
-            d = json.load(f)
 
-        names = d["feature_names"]
-        if names != _EXPECTED_LR_FEATURES:
-            print(
-                f"  [warn] lr_model.json feature order does not match lr_features() output\n"
-                f"         expected: {_EXPECTED_LR_FEATURES}\n"
-                f"         got:      {names}\n"
-                f"         model load aborted to avoid silently misapplying weights.",
-                file=sys.stderr,
-            )
-            _lr_model = None
+    def _load_one(path: Path, expected: list[str]) -> dict | None:
+        if not path.exists():
             return None
-        if not (len(d["weights"]) == len(d["mean"]) == len(d["std"]) == len(names)):
-            print("  [warn] lr_model.json weight/mean/std/names length mismatch -- aborting load",
-                  file=sys.stderr)
-            _lr_model = None
+        try:
+            with open(path, encoding="utf-8") as f:
+                d = json.load(f)
+            names = d.get("feature_names", [])
+            if names != expected:
+                print(
+                    f"  [warn] {path.name} feature order does not match expected\n"
+                    f"         expected: {expected}\n"
+                    f"         got:      {names}\n"
+                    f"         model load aborted.",
+                    file=sys.stderr,
+                )
+                return None
+            if not (len(d["weights"]) == len(d["mean"]) == len(d["std"]) == len(names)):
+                print(f"  [warn] {path.name} weight/mean/std/names length mismatch",
+                      file=sys.stderr)
+                return None
+            return {
+                "weights":       d["weights"],
+                "bias":          float(d["bias"]),
+                "feature_names": names,
+                "mean":          d["mean"],
+                "std":           d["std"],
+            }
+        except Exception as e:
+            print(f"  [warn] {path.name} load failed: {e}", file=sys.stderr)
             return None
 
-        _lr_model = {
-            "weights":       d["weights"],
-            "bias":          float(d["bias"]),
-            "feature_names": names,
-            "mean":          d["mean"],
-            "std":           d["std"],
-        }
-    except Exception:
-        _lr_model = None
-    return _lr_model
-
-
-# Expected feature order — must match lr_features() output below and the
-# feature_names persisted in data/lr_model.json. Single source of truth so
-# adding/removing a feature can't silently misalign training and inference.
-_EXPECTED_LR_FEATURES = [
-    "fi_park_nrfi_rate",
-    # T1: home pitcher vs away offense
-    "home_fip", "home_hr9", "home_bb9",
-    "away_obp", "away_slg",
-    # B1: away pitcher vs home offense
-    "away_fip", "away_hr9", "away_bb9",
-    "home_obp", "home_slg",
-]
+    _lr_t1 = _load_one(_LR_T1_PATH, _T1_EXPECTED_FEATURES)
+    _lr_b1 = _load_one(_LR_B1_PATH, _B1_EXPECTED_FEATURES)
+    return _lr_t1, _lr_b1
 
 
 def _load_lr_calibrator():
@@ -809,57 +813,56 @@ def _load_fi_park_rates() -> dict:
     return _fi_park_rates
 
 
-def lr_features(
-    home_abbr: str,
-    home_pitcher: dict,
-    away_pitcher: dict,
-    home_offense: dict,
-    away_offense: dict,
-) -> list[float]:
-    """Build the feature vector matching the saved LR model order.
-
-    V2 uses both pitchers + both offenses to model the structure of a
-    first inning: top half = home pitcher vs away offense, bottom half =
-    away pitcher vs home offense, modulated by the home park's FI rate.
-    """
+def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict) -> list[float]:
+    """T1 (top of 1st) feature vector: home pitcher vs away offense at home park."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     return [
         fi_park,
-        # T1: home pitcher vs away offense
-        home_pitcher.get("fip",  LEAGUE_AVG_ERA),
-        home_pitcher.get("hr9",  LEAGUE_AVG_HR9),
-        home_pitcher.get("bb9",  LEAGUE_AVG_BB9),
-        away_offense.get("obp",  LEAGUE_AVG_OBP),
-        away_offense.get("slg",  LEAGUE_AVG_SLG),
-        # B1: away pitcher vs home offense
-        away_pitcher.get("fip",  LEAGUE_AVG_ERA),
-        away_pitcher.get("hr9",  LEAGUE_AVG_HR9),
-        away_pitcher.get("bb9",  LEAGUE_AVG_BB9),
-        home_offense.get("obp",  LEAGUE_AVG_OBP),
-        home_offense.get("slg",  LEAGUE_AVG_SLG),
+        home_pitcher.get("fip", LEAGUE_AVG_ERA),
+        away_offense.get("obp", LEAGUE_AVG_OBP),
     ]
 
 
-def lr_predict_nrfi(features: list[float]) -> float | None:
-    """
-    Apply the standardized-feature logistic regression to get P(NRFI).
-    Returns None when no model is loaded.  Pure-Python implementation so the
-    live predictor doesn't need numpy.
-    """
-    m = _load_lr_model()
-    if m is None:
-        return None
+def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict) -> list[float]:
+    """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park."""
+    fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
+    return [
+        fi_park,
+        away_pitcher.get("fip", LEAGUE_AVG_ERA),
+        home_offense.get("obp", LEAGUE_AVG_OBP),
+    ]
+
+
+def _lr_predict_one(features: list[float], m: dict) -> float:
+    """Apply a single standardized-feature LR forward pass."""
     z = m["bias"]
     for x, mean, std, w in zip(features, m["mean"], m["std"], m["weights"]):
         if std <= 0:
             continue
         z += w * (x - mean) / std
-    # logistic
     if z >= 0:
         ez = math.exp(-z)
         return 1.0 / (1.0 + ez)
     ez = math.exp(z)
     return ez / (1.0 + ez)
+
+
+def lr_predict_nrfi(t1_feats: list[float], b1_feats: list[float]) -> float | None:
+    """
+    Two-stage NRFI prediction.  Returns None when either half-inning model
+    is missing.  Each stage is a logistic regression fit to predict whether
+    that half-inning will have a run; we assume independence and combine:
+
+        P(NRFI) = (1 - P(T1 has run)) * (1 - P(B1 has run))
+
+    Pure-Python forward pass so the live predictor doesn't need numpy.
+    """
+    m_t1, m_b1 = _load_lr_models()
+    if m_t1 is None or m_b1 is None:
+        return None
+    p_t1 = _lr_predict_one(t1_feats, m_t1)
+    p_b1 = _lr_predict_one(b1_feats, m_b1)
+    return (1.0 - p_t1) * (1.0 - p_b1)
 
 
 def classify_pick_lr(p_nrfi: float, data_pts: int) -> tuple[str, str]:
@@ -881,8 +884,9 @@ def classify_pick_lr(p_nrfi: float, data_pts: int) -> tuple[str, str]:
 
 
 def lr_active() -> bool:
-    """True when LR model + park factors are both loaded successfully."""
-    return _load_lr_model() is not None and bool(_load_fi_park_rates())
+    """True when both T1+B1 models AND park factors are loaded successfully."""
+    t1, b1 = _load_lr_models()
+    return t1 is not None and b1 is not None and bool(_load_fi_park_rates())
 
 
 # ---------------------------------------------------------------------------
@@ -1094,18 +1098,18 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
 
     if not lr_active():
         sys.exit(
-            "LR-v2 model not available -- expected data/lr_model.json and "
-            "data/fi_park_factors.json. Refit with lr_baseline.py."
+            "LR two-stage models not available -- expected data/lr_t1.json, "
+            "data/lr_b1.json, and data/fi_park_factors.json. Refit with "
+            "two_stage_model.py."
         )
     cal = _load_lr_calibrator()
     if cal is None:
         sys.exit(
             "Calibrator not available -- expected data/calibration_v2.json. "
-            "Refit with: python lr_baseline.py --feature-set v2 ... "
-            "--save-calibration data/calibration_v2.json"
+            "Refit with: python recalibrate_v2.py"
         )
     print(f"\nMLB First Inning Run Predictor  |  {target_date}  (season {season})")
-    print(f"  Model: LR-v2 (11 features) + isotonic calibration")
+    print(f"  Model: LR-v3 two-stage (T1 + B1) + isotonic calibration")
     print("Fetching schedule and stats...\n")
 
     # Lazy import -- backtest module reuses cache + last-N helpers without
@@ -1189,15 +1193,16 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # there's no LR model for that prediction yet.
         over15p = prob_over_1_5(total_lam)
 
-        # Primary NRFI/YRFI pick is LR-v2 + isotonic calibration. The model
-        # and calibrator are required (run() exits early if either is missing).
-        features = lr_features(home_ab, home_sp, away_sp, home_bat, away_bat)
-        lr_nrfi  = lr_predict_nrfi(features)
+        # Primary NRFI/YRFI pick is LR-v3 two-stage + isotonic calibration.
+        # T1 = home pitcher vs away offense; B1 = away pitcher vs home offense.
+        # Combined: P(NRFI) = (1 - P(T1 run)) * (1 - P(B1 run)).
+        t1_feats = t1_features(home_ab, home_sp, away_bat)
+        b1_feats = b1_features(home_ab, away_sp, home_bat)
+        lr_nrfi  = lr_predict_nrfi(t1_feats, b1_feats)
         if lr_nrfi is None:
             sys.exit(
-                f"LR-v2 forward pass failed for {away_ab} @ {home_ab} -- "
-                f"unexpected; check that data/lr_model.json hasn't been "
-                f"corrupted or replaced with a wrong-shape model."
+                f"LR two-stage forward pass failed for {away_ab} @ {home_ab} -- "
+                f"unexpected; check data/lr_t1.json and data/lr_b1.json."
             )
         lr_nrfi = cal.predict(lr_nrfi)
         nrfi_p, yrfi_p = lr_nrfi, 1.0 - lr_nrfi

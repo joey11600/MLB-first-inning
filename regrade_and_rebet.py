@@ -43,7 +43,8 @@ except ImportError:
     sys.exit("Missing numpy. Run: pip install numpy")
 
 ROOT = Path(__file__).parent
-LR_MODEL_PATH = ROOT / "data" / "lr_model.json"
+LR_T1_PATH    = ROOT / "data" / "lr_t1.json"
+LR_B1_PATH    = ROOT / "data" / "lr_b1.json"
 LR_CAL_PATH   = ROOT / "data" / "calibration_v2.json"
 FI_PARK_PATH  = ROOT / "data" / "fi_park_factors.json"
 PICKS_PATH    = ROOT / "data" / "picks_2026.csv"
@@ -61,26 +62,25 @@ LR_LEAN_NRFI_P   = 0.53
 LR_PASS_LO_P     = 0.47
 LR_LEAN_YRFI_P   = 0.40
 
-FEATURE_ORDER = [
-    "fi_park_nrfi_rate",
-    "home_fip", "home_hr9", "home_bb9",
-    "away_obp", "away_slg",
-    "away_fip", "away_hr9", "away_bb9",
-    "home_obp", "home_slg",
-]
+T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp"]
+B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
 
 
-def load_lr_model():
-    with open(LR_MODEL_PATH, encoding="utf-8") as f:
+def _load_one(path: Path, expected: list[str]):
+    with open(path, encoding="utf-8") as f:
         d = json.load(f)
-    if d["feature_names"] != FEATURE_ORDER:
-        sys.exit("LR model feature order doesn't match expectations.")
+    if d["feature_names"] != expected:
+        sys.exit(f"{path.name} feature order mismatch.")
     return {
         "weights": np.asarray(d["weights"], dtype=float),
         "bias":    float(d["bias"]),
         "mean":    np.asarray(d["mean"],    dtype=float),
         "std":     np.asarray(d["std"],     dtype=float),
     }
+
+
+def load_lr_models():
+    return _load_one(LR_T1_PATH, T1_FEATURES), _load_one(LR_B1_PATH, B1_FEATURES)
 
 
 def load_calibrator():
@@ -108,6 +108,12 @@ def lr_predict_one(model, x_vec):
     xn = (x - model["mean"]) / model["std"]
     z = float(xn @ model["weights"] + model["bias"])
     return 1.0 / (1.0 + math.exp(-z))
+
+
+def lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec):
+    p_t1 = lr_predict_one(t1_model, t1_vec)
+    p_b1 = lr_predict_one(b1_model, b1_vec)
+    return (1.0 - p_t1) * (1.0 - p_b1)
 
 
 def classify_zone(p_nrfi: float, data_pts: int) -> tuple[str, str]:
@@ -192,7 +198,7 @@ def main() -> None:
     # ------- Step 2: rebet using current model + calibrator -------
     print(f"\n[2/2] Rebetting {len(rows)} rows using current LR-v2 + calibration...")
 
-    model = load_lr_model()
+    t1_model, b1_model = load_lr_models()
     cal   = load_calibrator()
     fi_park_map = load_fi_park()
 
@@ -209,23 +215,20 @@ def main() -> None:
         zone_before[old_zone]   = zone_before.get(old_zone, 0) + 1
         grade_before[old_grade] = grade_before.get(old_grade, 0) + 1
 
-        # Build feature vector from frozen point-in-time stats in the row
+        # Build T1 + B1 feature vectors from frozen point-in-time stats
         home_team = r.get("home_team", "")
         fi_park = fi_park_map.get(home_team, FI_PARK_DEFAULT)
-        x = [
+        t1_vec = [
             fi_park,
-            coerce_float(r.get("home_fip"),  LEAGUE_AVG_ERA),
-            coerce_float(r.get("home_hr9"),  LEAGUE_AVG_HR9),
-            coerce_float(r.get("home_bb9"),  LEAGUE_AVG_BB9),
-            coerce_float(r.get("away_obp"),  LEAGUE_AVG_OBP),
-            coerce_float(r.get("away_slg"),  LEAGUE_AVG_SLG),
-            coerce_float(r.get("away_fip"),  LEAGUE_AVG_ERA),
-            coerce_float(r.get("away_hr9"),  LEAGUE_AVG_HR9),
-            coerce_float(r.get("away_bb9"),  LEAGUE_AVG_BB9),
-            coerce_float(r.get("home_obp"),  LEAGUE_AVG_OBP),
-            coerce_float(r.get("home_slg"),  LEAGUE_AVG_SLG),
+            coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
+            coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
         ]
-        raw_p = lr_predict_one(model, x)
+        b1_vec = [
+            fi_park,
+            coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
+            coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
+        ]
+        raw_p = lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec)
         cal_p = cal.predict(raw_p)
 
         # data_pts mirrors predictor: count of non-avg quality inputs out of 4

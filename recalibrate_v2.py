@@ -37,7 +37,8 @@ except ImportError:
 from calibration import ProbCalibrator
 
 ROOT          = Path(__file__).parent
-LR_MODEL_PATH = ROOT / "data" / "lr_model.json"
+LR_T1_PATH    = ROOT / "data" / "lr_t1.json"
+LR_B1_PATH    = ROOT / "data" / "lr_b1.json"
 FI_PARK_PATH  = ROOT / "data" / "fi_park_factors.json"
 BT_2025_PATH  = ROOT / "data" / "backtests" / "backtest_2025-04-01_to_2025-09-30.csv"
 PICKS_2026    = ROOT / "data" / "picks_2026.csv"
@@ -51,31 +52,37 @@ LEAGUE_AVG_SLG = 0.414
 FI_PARK_DEFAULT = 0.50
 
 # Match the order of feature_names saved in lr_model.json
-FEATURE_ORDER = [
-    "fi_park_nrfi_rate",
-    "home_fip", "home_hr9", "home_bb9",
-    "away_obp", "away_slg",
-    "away_fip", "away_hr9", "away_bb9",
-    "home_obp", "home_slg",
-]
+T1_FEATURES = ["fi_park_nrfi_rate", "home_fip", "away_obp"]
+B1_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp"]
 
 
-def load_lr_model():
-    with open(LR_MODEL_PATH, encoding="utf-8") as f:
+def _load_one(path: Path, expected: list[str]) -> dict:
+    with open(path, encoding="utf-8") as f:
         d = json.load(f)
-    if d["feature_names"] != FEATURE_ORDER:
-        sys.exit(
-            "LR model feature order doesn't match recalibrate_v2.py "
-            "expectations.\n"
-            f"  expected: {FEATURE_ORDER}\n"
-            f"  actual:   {d['feature_names']}"
-        )
+    if d["feature_names"] != expected:
+        sys.exit(f"{path.name} feature order mismatch.\n"
+                 f"  expected: {expected}\n"
+                 f"  actual:   {d['feature_names']}")
     return {
         "weights": np.asarray(d["weights"], dtype=float),
         "bias":    float(d["bias"]),
         "mean":    np.asarray(d["mean"],    dtype=float),
         "std":     np.asarray(d["std"],     dtype=float),
     }
+
+
+def load_lr_models():
+    """Returns (t1_model, b1_model) tuple matching the two-stage architecture."""
+    return _load_one(LR_T1_PATH, T1_FEATURES), _load_one(LR_B1_PATH, B1_FEATURES)
+
+
+# Backward-compat shim for any caller that still imports load_lr_model().
+def load_lr_model():
+    sys.exit(
+        "recalibrate_v2.load_lr_model() is deprecated -- the production "
+        "model is now two-stage.  Call load_lr_models() and use "
+        "lr_predict_two_stage() instead."
+    )
 
 
 def load_fi_park():
@@ -92,6 +99,13 @@ def lr_predict_raw(model, X):
     return 1.0 / (1.0 + np.exp(-z))
 
 
+def lr_predict_two_stage(t1_model, b1_model, X_t1, X_b1):
+    """Combined P(NRFI) = (1 - P(T1 run)) * (1 - P(B1 run))."""
+    p_t1 = lr_predict_raw(t1_model, X_t1)
+    p_b1 = lr_predict_raw(b1_model, X_b1)
+    return (1.0 - p_t1) * (1.0 - p_b1)
+
+
 def coerce_float(s, default):
     try:
         f = float(s)
@@ -101,10 +115,10 @@ def coerce_float(s, default):
 
 
 def gather_from_backtest(rows, fi_park_map=None):
-    """Backtest CSVs have fi_park_nrfi_rate as a column, but if a fresh
-    fi_park_map is passed we look up by home team instead -- needed when
-    park factors have just been rebuilt and the column would be stale."""
-    X, y = [], []
+    """Returns (X_t1, X_b1, y_nrfi, skipped). Backtest CSVs use 'home' for
+    park abbr and 'actual_side' for outcome.  fi_park_map is the fresh park
+    lookup so calibration sees the same distribution the live predictor uses."""
+    Xt, Xb, y = [], [], []
     skipped = 0
     for r in rows:
         actual = r.get("actual_side") or ""
@@ -116,30 +130,30 @@ def gather_from_backtest(rows, fi_park_map=None):
         else:
             fi_park = coerce_float(r.get("fi_park_nrfi_rate"), FI_PARK_DEFAULT)
         try:
-            vec = [
+            t1_vec = [
                 fi_park,
-                coerce_float(r.get("home_fip"),  LEAGUE_AVG_ERA),
-                coerce_float(r.get("home_hr9"),  LEAGUE_AVG_HR9),
-                coerce_float(r.get("home_bb9"),  LEAGUE_AVG_BB9),
-                coerce_float(r.get("away_obp"),  LEAGUE_AVG_OBP),
-                coerce_float(r.get("away_slg"),  LEAGUE_AVG_SLG),
-                coerce_float(r.get("away_fip"),  LEAGUE_AVG_ERA),
-                coerce_float(r.get("away_hr9"),  LEAGUE_AVG_HR9),
-                coerce_float(r.get("away_bb9"),  LEAGUE_AVG_BB9),
-                coerce_float(r.get("home_obp"),  LEAGUE_AVG_OBP),
-                coerce_float(r.get("home_slg"),  LEAGUE_AVG_SLG),
+                coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
+                coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
+            ]
+            b1_vec = [
+                fi_park,
+                coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
+                coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
             ]
         except Exception:
             skipped += 1; continue
-        X.append(vec)
+        Xt.append(t1_vec); Xb.append(b1_vec)
         y.append(1 if actual == "NRFI" else 0)
-    return np.asarray(X, dtype=float), np.asarray(y, dtype=int), skipped
+    return (np.asarray(Xt, dtype=float),
+            np.asarray(Xb, dtype=float),
+            np.asarray(y, dtype=int),
+            skipped)
 
 
 def gather_from_picks(rows, fi_park_map):
-    """picks_2026.csv has actual_result instead of actual_side; fi_park_nrfi_rate
-    must be looked up per home team from fi_park_factors.json."""
-    X, y = [], []
+    """picks_2026.csv: 'home_team' and 'actual_result' instead of backtest's
+    'home' and 'actual_side'. Returns (X_t1, X_b1, y_nrfi, skipped)."""
+    Xt, Xb, y = [], [], []
     skipped = 0
     for r in rows:
         actual = (r.get("actual_result") or "").upper()
@@ -148,24 +162,24 @@ def gather_from_picks(rows, fi_park_map):
         home_abbr = r.get("home_team") or ""
         fi_park = fi_park_map.get(home_abbr, FI_PARK_DEFAULT)
         try:
-            vec = [
+            t1_vec = [
                 fi_park,
-                coerce_float(r.get("home_fip"),  LEAGUE_AVG_ERA),
-                coerce_float(r.get("home_hr9"),  LEAGUE_AVG_HR9),
-                coerce_float(r.get("home_bb9"),  LEAGUE_AVG_BB9),
-                coerce_float(r.get("away_obp"),  LEAGUE_AVG_OBP),
-                coerce_float(r.get("away_slg"),  LEAGUE_AVG_SLG),
-                coerce_float(r.get("away_fip"),  LEAGUE_AVG_ERA),
-                coerce_float(r.get("away_hr9"),  LEAGUE_AVG_HR9),
-                coerce_float(r.get("away_bb9"),  LEAGUE_AVG_BB9),
-                coerce_float(r.get("home_obp"),  LEAGUE_AVG_OBP),
-                coerce_float(r.get("home_slg"),  LEAGUE_AVG_SLG),
+                coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
+                coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
+            ]
+            b1_vec = [
+                fi_park,
+                coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
+                coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
             ]
         except Exception:
             skipped += 1; continue
-        X.append(vec)
+        Xt.append(t1_vec); Xb.append(b1_vec)
         y.append(1 if actual == "NRFI" else 0)
-    return np.asarray(X, dtype=float), np.asarray(y, dtype=int), skipped
+    return (np.asarray(Xt, dtype=float),
+            np.asarray(Xb, dtype=float),
+            np.asarray(y, dtype=int),
+            skipped)
 
 
 def brier(p, y):
@@ -174,21 +188,20 @@ def brier(p, y):
 
 def main():
     print("=" * 64)
-    print("  Recalibrating LR-v2 isotonic mapping on 2025 + 2026 combined")
+    print("  Recalibrating two-stage LR isotonic mapping on 2025 + 2026 combined")
     print("=" * 64)
 
-    if not LR_MODEL_PATH.exists():
-        sys.exit(f"Missing model: {LR_MODEL_PATH}. Run lr_baseline.py first.")
+    if not LR_T1_PATH.exists() or not LR_B1_PATH.exists():
+        sys.exit("Missing two-stage models. Run two_stage_model.py first.")
 
-    model = load_lr_model()
+    t1_model, b1_model = load_lr_models()
     fi_park_map = load_fi_park()
 
-    # 2025 backtest -- pass fresh park map so the calibrator sees the same
-    # fi_park_nrfi_rate distribution that the live predictor will use today.
+    # 2025 backtest
     with open(BT_2025_PATH, encoding="utf-8") as f:
         bt_rows = list(csv.DictReader(f))
-    X25, y25, skip25 = gather_from_backtest(bt_rows, fi_park_map)
-    p25 = lr_predict_raw(model, X25)
+    X25_t1, X25_b1, y25, skip25 = gather_from_backtest(bt_rows, fi_park_map)
+    p25 = lr_predict_two_stage(t1_model, b1_model, X25_t1, X25_b1)
     print(f"\n2025 holdout : N={len(y25)} (skipped {skip25})")
     print(f"  Mean raw pred   : {p25.mean()*100:.2f}%")
     print(f"  Actual NRFI rate: {y25.mean()*100:.2f}%")
@@ -197,8 +210,8 @@ def main():
     # 2026 graded so far
     with open(PICKS_2026, encoding="utf-8") as f:
         pk_rows = list(csv.DictReader(f))
-    X26, y26, skip26 = gather_from_picks(pk_rows, fi_park_map)
-    p26 = lr_predict_raw(model, X26)
+    X26_t1, X26_b1, y26, skip26 = gather_from_picks(pk_rows, fi_park_map)
+    p26 = lr_predict_two_stage(t1_model, b1_model, X26_t1, X26_b1)
     print(f"\n2026 graded  : N={len(y26)} (skipped {skip26})")
     print(f"  Mean raw pred   : {p26.mean()*100:.2f}%")
     print(f"  Actual NRFI rate: {y26.mean()*100:.2f}%")
