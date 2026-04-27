@@ -37,6 +37,8 @@ FIELDS = [
     "away_batting_q", "home_batting_q",
     "park_factor",
     "away_proj_runs", "home_proj_runs", "combined_lambda",
+    # LR-v3 two-stage expected runs per half (for Slate Projections display)
+    "lambda_lr_t1", "lambda_lr_b1", "lambda_lr_total",
     "nrfi_prob", "yrfi_prob", "over_1_5_prob", "under_1_5_prob",
     "pick_side", "pick_strength", "pick_label",
     "blended_inputs",
@@ -222,6 +224,9 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "away_proj_runs": _fmt(ap["lambda"], 4),
             "home_proj_runs": _fmt(hp["lambda"], 4),
             "combined_lambda":_fmt(lam, 4),
+            "lambda_lr_t1":   _fmt(g.get("lambda_lr_t1"),    4),
+            "lambda_lr_b1":   _fmt(g.get("lambda_lr_b1"),    4),
+            "lambda_lr_total":_fmt(g.get("lambda_lr_total"), 4),
             "nrfi_prob":      _fmt(g["nrfi_prob"], 4),
             "yrfi_prob":      _fmt(g["yrfi_prob"], 4),
             "over_1_5_prob":  _fmt(g["over_1_5_prob"], 4),

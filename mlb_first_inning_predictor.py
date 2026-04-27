@@ -1198,12 +1198,18 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # Combined: P(NRFI) = (1 - P(T1 run)) * (1 - P(B1 run)).
         t1_feats = t1_features(home_ab, home_sp, away_bat)
         b1_feats = b1_features(home_ab, away_sp, home_bat)
-        lr_nrfi  = lr_predict_nrfi(t1_feats, b1_feats)
-        if lr_nrfi is None:
-            sys.exit(
-                f"LR two-stage forward pass failed for {away_ab} @ {home_ab} -- "
-                f"unexpected; check data/lr_t1.json and data/lr_b1.json."
-            )
+        # Compute each half's P(run) so we can persist lambda projections
+        # for display (the screenshot-style "expected runs per half").
+        m_t1, m_b1 = _load_lr_models()
+        p_t1_run = _lr_predict_one(t1_feats, m_t1)
+        p_b1_run = _lr_predict_one(b1_feats, m_b1)
+        lr_nrfi  = (1.0 - p_t1_run) * (1.0 - p_b1_run)
+        # Convert each half's run-probability into expected runs (Poisson lambda)
+        # so the dashboard can show projections in the same units the user is
+        # used to:  P(>=1 run) = 1 - e^-lambda  =>  lambda = -ln(1 - P(>=1 run))
+        lambda_t1 = -math.log(max(1e-9, 1.0 - p_t1_run))
+        lambda_b1 = -math.log(max(1e-9, 1.0 - p_b1_run))
+        lambda_lr_total = lambda_t1 + lambda_b1
         lr_nrfi = cal.predict(lr_nrfi)
         nrfi_p, yrfi_p = lr_nrfi, 1.0 - lr_nrfi
         pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts)
@@ -1227,6 +1233,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "yrfi_prob":     yrfi_p,
             "over_1_5_prob": over15p,
             "under_1_5_prob":1.0 - over15p,
+            # LR-derived expected runs per half-inning (for "Slate Projections"
+            # display where 0.5 total = strong NRFI, 1.0 total = strong YRFI)
+            "lambda_lr_t1":     lambda_t1,
+            "lambda_lr_b1":     lambda_b1,
+            "lambda_lr_total":  lambda_lr_total,
             "pick_side":     pick_side,
             "pick_conf":     pick_conf,
             "away": {

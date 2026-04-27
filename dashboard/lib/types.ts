@@ -56,6 +56,10 @@ export interface GameDetail {
   awayProj: number | null;
   homeProj: number | null;
   combinedLambda: number | null;
+  // LR-v3 derived expected-runs-per-half for the "Slate Projections" view
+  lambdaLrT1: number | null;     // home pitcher's half (T1)
+  lambdaLrB1: number | null;     // away pitcher's half (B1)
+  lambdaLrTotal: number | null;  // sum, for the screenshot's "Projected Runs 1st Inning" col
   overProb: number | null;
   underProb: number | null;
   blendedInputs: number | null;

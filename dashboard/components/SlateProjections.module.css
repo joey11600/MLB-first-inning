@@ -1,0 +1,206 @@
+.wrap {
+  padding: 22px 0 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+.title {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--foreground);
+}
+.legend {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legendKey {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.legendKey[data-tone="nrfi"] {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 40%, var(--border));
+}
+.legendKey[data-tone="yrfi"] {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 18%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 40%, var(--border));
+}
+.legendDot { color: var(--border); margin: 0 4px; }
+
+/* ---- Table ---- */
+.tableWrap {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+
+.thead, .row {
+  display: grid;
+  grid-template-columns:
+    minmax(140px, 1.1fr)   /* matchup */
+    minmax(120px, 0.9fr)   /* total */
+    minmax(170px, 1.3fr)   /* home pitcher name */
+    minmax(110px, 0.85fr)  /* home half */
+    minmax(170px, 1.3fr)   /* away pitcher name */
+    minmax(110px, 0.85fr); /* away half */
+  align-items: center;
+  gap: 12px;
+}
+
+.thead {
+  padding: 12px 18px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+.thsub { letter-spacing: 0.10em; opacity: 0.7; }
+
+.row {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  transition: background 160ms ease;
+}
+.row:last-child { border-bottom: 0; }
+.row:hover { background: color-mix(in oklab, var(--background) 50%, var(--card)); }
+
+.right { text-align: right; justify-self: end; font-variant-numeric: tabular-nums; }
+
+.col_match {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.team {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--foreground);
+  font-size: 14px;
+}
+.at {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.dhTag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  padding: 1px 8px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+}
+
+.col_total {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.col_pname {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col_phalf {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Color tones (continuous green->red gradient feel) ---- */
+.tone_nrfi_strong {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 16%, transparent);
+}
+.tone_nrfi_lean {
+  color: color-mix(in oklab, var(--primary) 90%, var(--foreground));
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+}
+.tone_neutral {
+  color: var(--foreground);
+}
+.tone_yrfi_lean {
+  color: color-mix(in oklab, var(--destructive) 90%, var(--foreground));
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+}
+.tone_yrfi_strong {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 16%, transparent);
+}
+
+/* On hover row, keep the colored cells distinct */
+.row:hover .tone_nrfi_strong  { background: color-mix(in oklab, var(--primary) 22%, transparent); }
+.row:hover .tone_nrfi_lean    { background: color-mix(in oklab, var(--primary) 14%, transparent); }
+.row:hover .tone_yrfi_lean    { background: color-mix(in oklab, var(--destructive) 14%, transparent); }
+.row:hover .tone_yrfi_strong  { background: color-mix(in oklab, var(--destructive) 22%, transparent); }
+
+@media (max-width: 980px) {
+  .thead, .row {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+  }
+  .col_pname, .col_phalf, .col_match, .col_total {
+    grid-column: span 1;
+  }
+  .thead { display: none; }
+  .col_pname::before, .col_phalf::before { content: attr(data-label); }
+}

@@ -5,6 +5,7 @@ import type { BoardResponse, BoardRow } from "@/lib/types";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
 import { RoiPanel } from "./RoiPanel";
+import { SlateProjections } from "./SlateProjections";
 import { BoardTable } from "./BoardTable";
 import { Ticker } from "./Ticker";
 import { StatusLine } from "./StatusLine";
@@ -106,6 +107,8 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         onFiltersChange={setFilters}
         loading={loading}
       />
+
+      <SlateProjections rows={displayed} details={data.details} />
 
       <section className={styles.board}>
         <BoardTable
