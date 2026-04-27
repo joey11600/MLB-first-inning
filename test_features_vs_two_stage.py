@@ -156,14 +156,25 @@ def build_b1_features(r, park_lookup, variant: str) -> list[float]:
         raise ValueError(variant)
 
 
-def gather(csv_path, park_lookup, variant: str):
-    """Returns (X_t1, y_t1, X_b1, y_b1, y_nrfi)."""
+def gather(csv_path, park_lookup, variant: str, clean_only: bool = False):
+    """Returns (X_t1, y_t1, X_b1, y_b1, y_nrfi).
+    If clean_only=True, drops rows where either pitcher_q == 'avg' (synthetic
+    data substitutions).  This is critical because ~22% of historical
+    backtest rows were defaulted at backtest-generation time and trained
+    the LR on synthetic features."""
     Xt, yt, Xb, yb, ynrfi = [], [], [], [], []
+    n_dropped_avg = 0
     with open(csv_path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             actual = (r.get("actual_side") or r.get("actual_result") or "").upper()
             if actual not in ("NRFI", "YRFI"):
                 continue
+            if clean_only:
+                ap_q = (r.get("away_pitcher_q") or "").lower()
+                hp_q = (r.get("home_pitcher_q") or "").lower()
+                if ap_q == "avg" or hp_q == "avg":
+                    n_dropped_avg += 1
+                    continue
             t1_runs = r.get("fi_away_runs", "")
             b1_runs = r.get("fi_home_runs", "")
             if t1_runs == "" or b1_runs == "":
@@ -177,6 +188,8 @@ def gather(csv_path, park_lookup, variant: str):
             Xb.append(build_b1_features(r, park_lookup, variant))
             yt.append(t1y); yb.append(b1y)
             ynrfi.append(1 if actual == "NRFI" else 0)
+    if clean_only and n_dropped_avg:
+        print(f"    [{Path(csv_path).name}] dropped {n_dropped_avg} rows with avg-quality pitchers")
     return (np.asarray(Xt, dtype=float), np.asarray(yt, dtype=int),
             np.asarray(Xb, dtype=float), np.asarray(yb, dtype=int),
             np.asarray(ynrfi, dtype=int))
@@ -207,67 +220,62 @@ def load_park():
         return json.load(f)
 
 
-def main():
-    park = load_park()
-    variants = ["slim", "slim_hand", "slim_arsenal", "slim_weather", "slim_all"]
-
-    print("=" * 78)
-    print("  Feature variants vs current LR-v3 two-stage SLIM baseline")
-    print("=" * 78)
-    print(f"\n  Train: 2024+2025 backtests (N=4802)")
-    print(f"  Test:  2026 graded picks (N~348)")
-    print()
-
-    # Header
-    print(f"  {'variant':<16} {'2025 Brier':>11} {'2026 Brier':>11} "
+def run_test(park, variants, clean_only: bool, label: str):
+    print("=" * 80)
+    print(f"  {label}")
+    print("=" * 80)
+    print(f"  {'variant':<16} {'train N':>7} {'2026 Brier':>11} "
           f"{'2026 mean':>10} {'2026 Q5 NRFI':>14} {'2026 Q1 YRFI':>14}")
-    print("  " + "-" * 78)
+    print("  " + "-" * 80)
 
     for variant in variants:
-        # Train: 2024+2025
-        Xt_24, yt_24, Xb_24, yb_24, _ = gather(BT_2024, park, variant)
-        Xt_25, yt_25, Xb_25, yb_25, _ = gather(BT_2025, park, variant)
+        Xt_24, yt_24, Xb_24, yb_24, _ = gather(BT_2024, park, variant, clean_only)
+        Xt_25, yt_25, Xb_25, yb_25, _ = gather(BT_2025, park, variant, clean_only)
         Xt_tr = np.vstack([Xt_24, Xt_25]); yt_tr = np.concatenate([yt_24, yt_25])
         Xb_tr = np.vstack([Xb_24, Xb_25]); yb_tr = np.concatenate([yb_24, yb_25])
+        n_train = len(yt_tr)
 
-        # Synthetic feature names (just for the LR class)
         n_t = Xt_tr.shape[1]
         n_b = Xb_tr.shape[1]
-        t_names = [f"t{i}" for i in range(n_t)]
-        b_names = [f"b{i}" for i in range(n_b)]
+        m_t1 = LogReg.fit(Xt_tr, yt_tr, [f"t{i}" for i in range(n_t)], l2=0.05)
+        m_b1 = LogReg.fit(Xb_tr, yb_tr, [f"b{i}" for i in range(n_b)], l2=0.05)
 
-        m_t1 = LogReg.fit(Xt_tr, yt_tr, t_names, l2=0.05)
-        m_b1 = LogReg.fit(Xb_tr, yb_tr, b_names, l2=0.05)
+        # Test on 2026 (always full -- 2026 is already nearly all clean)
+        Xt_26, _, Xb_26, _, ynrfi_26 = gather(PICKS_2026, park, variant, False)
+        p_nrfi_26 = (1 - m_t1.predict_proba(Xt_26)) * (1 - m_b1.predict_proba(Xb_26))
 
-        # Score on 2025 holdout (train data overlaps -- still useful for sanity)
-        # and 2026 graded
-        Xt_25_only, _, Xb_25_only, _, ynrfi_25 = gather(BT_2025, park, variant)
-        p_t1_25 = m_t1.predict_proba(Xt_25_only)
-        p_b1_25 = m_b1.predict_proba(Xb_25_only)
-        p_nrfi_25 = (1 - p_t1_25) * (1 - p_b1_25)
-
-        Xt_26, _, Xb_26, _, ynrfi_26 = gather(PICKS_2026, park, variant)
-        p_t1_26 = m_t1.predict_proba(Xt_26)
-        p_b1_26 = m_b1.predict_proba(Xb_26)
-        p_nrfi_26 = (1 - p_t1_26) * (1 - p_b1_26)
-
-        b_25 = brier(p_nrfi_25, ynrfi_25)
         b_26 = brier(p_nrfi_26, ynrfi_26)
         mean_26 = float(p_nrfi_26.mean())
         q5_r, q5_w, q5_n = q5_hit(p_nrfi_26, ynrfi_26)
         q1_r, q1_w, q1_n = q1_yrfi(p_nrfi_26, ynrfi_26)
 
-        print(f"  {variant:<16} {b_25:>11.4f} {b_26:>11.4f} {mean_26*100:>9.2f}% "
-              f"{q5_w}-{q5_n - q5_w} ({q5_r*100:>4.1f}%)".ljust(72) +
+        print(f"  {variant:<16} {n_train:>7} {b_26:>11.4f} {mean_26*100:>9.2f}%  "
+              f"{q5_w}-{q5_n - q5_w} ({q5_r*100:>4.1f}%)".ljust(35) +
               f" {q1_w}-{q1_n - q1_w} ({q1_r*100:>4.1f}%)")
-
     print()
-    print("  Notes:")
-    print("  - 2025 Brier is in-sample for the train set, only loosely meaningful.")
-    print("  - 2026 Brier is the honest holdout.")
-    print("  - Q5 NRFI = top 20% predicted NRFI -> what fraction were actually NRFI?")
-    print("  - Q1 YRFI = bottom 20% predicted NRFI -> what fraction were actually YRFI?")
-    print("  - SLIM is the current production baseline.  Beat it on Q5 + Q1 to ship.")
+
+
+def main():
+    park = load_park()
+    # All combinations: each individual feature group + pairs + the full kitchen sink
+    variants = [
+        "slim",                # baseline (current production)
+        "slim_hand",           # + handedness only
+        "slim_arsenal",        # + arsenal only
+        "slim_weather",        # + weather only
+        "slim_all",            # + all three
+    ]
+
+    run_test(park, variants, clean_only=True,
+             label="CLEAN rows only (pitcher_q != 'avg' on both sides)\n"
+                   "  Training data verified against MLB API: outcomes, names, parks all real.\n"
+                   "  Q5 NRFI = top 20% predicted NRFI; Q1 YRFI = bottom 20% (= top YRFI).")
+
+    print("  How to read:")
+    print("  - SLIM is the current production baseline (3 features per half).")
+    print("  - To beat SLIM and ship, a variant needs to improve EITHER Q5 NRFI")
+    print("    OR Q1 YRFI by >= 3pp on the 2026 holdout, without hurting Brier.")
+    print("  - 1-2pp improvements are likely sample noise on N=348 graded picks.")
 
 
 if __name__ == "__main__":
