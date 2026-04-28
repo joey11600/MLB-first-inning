@@ -64,11 +64,29 @@ jobs:
 
       - name: Run predictor (predict)
         if: steps.action.outputs.what == 'predict'
-        run: python mlb_first_inning_predictor.py
+        # Belt-and-suspenders: grade yesterday FIRST (in case the nightly
+        # grade cron missed it due to GitHub Actions cron lag), then
+        # predict today.  Both ops are idempotent.
+        run: |
+          YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)
+          echo "Catch-up grading $YDAY (yesterday) before predicting today..."
+          python mlb_first_inning_predictor.py --date "$YDAY" --grade || true
+          python mlb_first_inning_predictor.py
 
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'
-        run: python mlb_first_inning_predictor.py --date "${{ steps.action.outputs.slate }}" --grade
+        # Grade today AND yesterday (in ET).  GitHub Actions cron can fire
+        # hours late; the scheduled 11:30pm ET grade has been observed
+        # firing as late as 2-3am ET the next day, at which point
+        # `TZ=America/New_York date` returns the WRONG date and the
+        # original slate goes ungraded.  Grading both dates is idempotent
+        # (already-graded games stay graded, new ones get filled in).
+        run: |
+          TODAY=$(TZ='America/New_York' date +%m/%d/%Y)
+          YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)
+          echo "Grading $YDAY (yesterday) and $TODAY (today)"
+          python mlb_first_inning_predictor.py --date "$YDAY"  --grade || true
+          python mlb_first_inning_predictor.py --date "$TODAY" --grade || true
 
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
