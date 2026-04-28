@@ -4,24 +4,19 @@ import type { BoardRow, GameDetail } from "@/lib/types";
 import styles from "./SlateProjections.module.css";
 
 /**
- * Slate Projections panel — expected first-inning runs per half + the
- * combined total, in a Bloomberg-terminal-style read-out.
+ * Slate Projections — card-row layout inspired by modern dashboard tables
+ * (each row = elevated card, status gradient, CPU-style bars, badge pills).
  *
- * Row anatomy (left -> right):
- *   [zone stripe] | matchup | HEADLINE total | home pitcher | T1 input | away pitcher | B1 input
+ * Per-row anatomy:
+ *   [Rank]  [Matchup]  [Home pitcher]  [Away pitcher]  [Time]
+ *   [Projected runs bars + number]  [STRONG / PASS badge]
  *
- * The headline is the 28px mono number colored by zone (no pill).
- * The half-inning inputs are smaller mono digits colored by tier (no pill).
- * Pitcher names are 15px Geist Sans 600 -- co-dominant with the headline.
- * STRONG NRFI (left edge: phosphor green) and STRONG YRFI (signal red)
- * stripe the row visually; PASS rows get no stripe.
- *
- * Reading guide:
- *   total <= 0.55  ->  STRONG NRFI candidate
- *   total >= 1.05  ->  STRONG YRFI candidate
+ * Each row is its own card with a status-tinted right-edge gradient,
+ * staggered fade-in on mount, and a subtle hover lift.
  */
 
 type Zone = "NRFI_STRONG" | "PASS" | "YRFI_STRONG";
+type ZoneColor = "green" | "red" | "muted";
 
 export function SlateProjections({
   rows,
@@ -39,8 +34,6 @@ export function SlateProjections({
     return la - lb;
   });
 
-  // Pre-compute zone for each visible row so we can insert group separators
-  // when the zone changes between adjacent rows.
   const visible = sorted
     .map((row) => {
       const key = row.gamePk || `${row.away}@${row.home}`;
@@ -50,114 +43,125 @@ export function SlateProjections({
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
+  const nStrong = visible.filter((v) => v.zone !== "PASS").length;
+  const nPass = visible.length - nStrong;
+
   return (
     <section className={styles.wrap}>
+      {/* Header: pulse dot + title + summary count, like the reference */}
       <header className={styles.head}>
-        <span className={styles.eyebrow}>Slate Projections</span>
-        <span className={styles.title}>Expected first-inning runs</span>
-        <span className={styles.legend}>
+        <div className={styles.headLeft}>
+          <span className={styles.pulse} aria-hidden="true" />
+          <h2 className={styles.title}>Slate Projections</h2>
+          <span className={styles.subtitle}>
+            {nStrong} strong &middot; {nPass} pass &middot; {visible.length} games
+          </span>
+        </div>
+        <div className={styles.legend}>
           <span className={styles.legendKey} data-tone="nrfi">
-            ≤ 0.55
+            ≤ 0.55 NRFI
           </span>
-          <span className={styles.legendLabel}>strong NRFI</span>
-          <span className={styles.legendDot}>·</span>
           <span className={styles.legendKey} data-tone="yrfi">
-            ≥ 1.05
+            ≥ 1.05 YRFI
           </span>
-          <span className={styles.legendLabel}>strong YRFI</span>
-        </span>
+        </div>
       </header>
 
-      <div className={styles.tableWrap}>
-        {/* Spectrum thread: a 1px gradient at the top of the card that
-            represents the NRFI -> YRFI axis at a single glance.  This is
-            the panel's identity; legend is built into the chrome. */}
-        <div className={styles.spectrum} aria-hidden="true" />
+      {/* Column headers — uppercase tracked-out, muted */}
+      <div className={styles.headerRow}>
+        <div className={styles.col_rank}>No</div>
+        <div className={styles.col_match}>Matchup</div>
+        <div className={styles.col_pname}>Home pitcher</div>
+        <div className={styles.col_pname}>Away pitcher</div>
+        <div className={styles.col_time}>1st Pitch</div>
+        <div className={styles.col_runs}>Proj. 1st-inn runs</div>
+        <div className={styles.col_zone}>Zone</div>
+      </div>
 
-        <div className={styles.thead}>
-          <div className={styles.col_match}>Matchup</div>
-          <div className={`${styles.col_total} ${styles.right}`}>Projected runs</div>
-          <div className={styles.col_pname}>Home pitcher</div>
-          <div className={`${styles.col_phalf} ${styles.right}`}>Top 1st proj</div>
-          <div className={styles.col_pname}>Away pitcher</div>
-          <div className={`${styles.col_phalf} ${styles.right}`}>Bot 1st proj</div>
-        </div>
-
+      {/* Rows */}
+      <div className={styles.rows}>
         {visible.map((item, i) => {
-          const prev = i > 0 ? visible[i - 1].zone : null;
-          const startsNewZone = prev !== null && prev !== item.zone;
-
+          const rank = String(i + 1).padStart(2, "0");
           const { row, key, d, zone } = item;
-          const total    = d.lambdaLrTotal;
-          const t1       = d.lambdaLrT1;
-          const b1       = d.lambdaLrB1;
+          const total = d.lambdaLrTotal;
+          const t1 = d.lambdaLrT1;
+          const b1 = d.lambdaLrB1;
           const homeName = d.home?.pitcher?.name?.trim() || "TBD";
           const awayName = d.away?.pitcher?.name?.trim() || "TBD";
-          const homeTbd  = isTbd(homeName);
-          const awayTbd  = isTbd(awayName);
+          const homeTbd = isTbd(homeName);
+          const awayTbd = isTbd(awayName);
+          const color = zoneColor(zone);
 
           return (
             <div
               key={key}
-              className={[
-                styles.row,
-                styles[`row_${zone}`],
-                startsNewZone ? styles.row_zoneBreak : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
+              className={styles.row}
+              data-zone={color}
+              style={{ animationDelay: `${i * 60}ms` }}
             >
-              {/* Left zone stripe — colored only on STRONG rows */}
-              <span className={styles.stripe} aria-hidden="true" />
+              {/* Soft status gradient on the right edge */}
+              <div className={styles.statusGradient} aria-hidden="true" />
 
+              {/* Rank */}
+              <div className={styles.col_rank}>
+                <span className={styles.rankNum}>{rank}</span>
+              </div>
+
+              {/* Matchup with team chips */}
               <div className={styles.col_match}>
-                <span className={styles.team}>{row.away}</span>
+                <span className={styles.teamChip}>{row.away}</span>
                 <span className={styles.at}>@</span>
-                <span className={styles.team}>{row.home}</span>
+                <span className={styles.teamChip} data-home="true">
+                  {row.home}
+                </span>
                 {row.doubleHeader && row.doubleHeader !== "N" && (
                   <span className={styles.dhTag}>DH-{row.gameNumber}</span>
                 )}
               </div>
 
-              <div
-                className={`${styles.col_total} ${styles.right} ${styles[totalTone(total)]}`}
-                title={
-                  total !== null
-                    ? `top ${(t1 ?? 0).toFixed(2)} + bot ${(b1 ?? 0).toFixed(2)}`
-                    : ""
-                }
-              >
-                {fmt(total)}
-              </div>
-
+              {/* Home pitcher */}
               <div className={styles.col_pname}>
+                <span className={styles.pitcherIcon} aria-hidden="true">
+                  H
+                </span>
                 {homeTbd ? (
                   <span className={styles.tbd}>TBD</span>
                 ) : (
-                  <span className={styles.pname}>{homeName}</span>
+                  <span className={styles.pname}>
+                    {homeName}
+                    <span className={styles.pmeta}>{fmt(t1)} top 1st</span>
+                  </span>
                 )}
               </div>
-              <div
-                className={`${styles.col_phalf} ${styles.right} ${
-                  homeTbd ? styles.tone_dim : styles[halfTone(t1)]
-                }`}
-              >
-                {fmt(t1)}
-              </div>
 
+              {/* Away pitcher */}
               <div className={styles.col_pname}>
+                <span className={styles.pitcherIcon} data-away="true" aria-hidden="true">
+                  A
+                </span>
                 {awayTbd ? (
                   <span className={styles.tbd}>TBD</span>
                 ) : (
-                  <span className={styles.pname}>{awayName}</span>
+                  <span className={styles.pname}>
+                    {awayName}
+                    <span className={styles.pmeta}>{fmt(b1)} bot 1st</span>
+                  </span>
                 )}
               </div>
-              <div
-                className={`${styles.col_phalf} ${styles.right} ${
-                  awayTbd ? styles.tone_dim : styles[halfTone(b1)]
-                }`}
-              >
-                {fmt(b1)}
+
+              {/* Game time */}
+              <div className={styles.col_time}>
+                <span className={styles.timeText}>{row.gameTimeEt || "—"}</span>
+              </div>
+
+              {/* Projected runs visualization (bars + number, CPU-style) */}
+              <div className={styles.col_runs}>
+                <RunBars total={total} color={color} />
+              </div>
+
+              {/* Zone badge */}
+              <div className={styles.col_zone}>
+                <ZoneBadge zone={zone} />
               </div>
             </div>
           );
@@ -167,9 +171,62 @@ export function SlateProjections({
   );
 }
 
-/* ---------- formatting + tone helpers ---------- */
+/* ---------- sub-components ---------- */
 
-/** Two-decimal projection.  "—" for null/NaN so the grid stays aligned. */
+/** 10-bar visualization of projected first-inning runs.
+ *  Each bar = 0.1 expected runs.  10 bars = 1.0 (the YRFI threshold area). */
+function RunBars({
+  total,
+  color,
+}: {
+  total: number | null;
+  color: ZoneColor;
+}) {
+  const value = total ?? 0;
+  // Scale: 0.0 -> 0 bars, 1.0 -> 10 bars. Cap at 12 for the over-1.0 case.
+  const filled = Math.max(0, Math.min(10, Math.round(value * 10)));
+
+  return (
+    <div className={styles.bars}>
+      <div className={styles.barTrack}>
+        {Array.from({ length: 10 }).map((_, idx) => (
+          <span
+            key={idx}
+            className={styles.bar}
+            data-filled={idx < filled ? "true" : "false"}
+            data-tone={color}
+          />
+        ))}
+      </div>
+      <span className={styles.barNum}>{fmt(total)}</span>
+    </div>
+  );
+}
+
+function ZoneBadge({ zone }: { zone: Zone }) {
+  if (zone === "NRFI_STRONG") {
+    return (
+      <span className={styles.badge} data-tone="green">
+        STRONG NRFI
+      </span>
+    );
+  }
+  if (zone === "YRFI_STRONG") {
+    return (
+      <span className={styles.badge} data-tone="red">
+        STRONG YRFI
+      </span>
+    );
+  }
+  return (
+    <span className={styles.badge} data-tone="muted">
+      Pass
+    </span>
+  );
+}
+
+/* ---------- helpers ---------- */
+
 function fmt(n: number | null): string {
   if (n == null || Number.isNaN(n)) return "—";
   return n.toFixed(2);
@@ -179,33 +236,14 @@ function isTbd(name: string): boolean {
   return !name || name.toUpperCase() === "TBD";
 }
 
-/**
- * Row's pick zone for the left stripe + group separator.  Driven by the
- * predictor's pickSide + pickStrength on BoardRow (set by classify_pick_lr
- * in mlb_first_inning_predictor.py with thresholds 0.58 / 0.42).
- */
 function rowZone(row: BoardRow): Zone {
   if (row.pickSide === "NRFI" && row.pickStrength === "STRONG") return "NRFI_STRONG";
   if (row.pickSide === "YRFI" && row.pickStrength === "STRONG") return "YRFI_STRONG";
   return "PASS";
 }
 
-/** Color bucket for the combined first-inning lambda (the headline). */
-function totalTone(n: number | null): string {
-  if (n == null) return "tone_neutral";
-  if (n <= 0.55) return "tone_nrfi_strong";
-  if (n <= 0.75) return "tone_nrfi_lean";
-  if (n <  0.95) return "tone_neutral";
-  if (n <  1.05) return "tone_yrfi_lean";
-  return "tone_yrfi_strong";
-}
-
-/** Color bucket for one half-inning's projected runs. */
-function halfTone(n: number | null): string {
-  if (n == null) return "tone_neutral";
-  if (n <= 0.30) return "tone_nrfi_strong";
-  if (n <= 0.40) return "tone_nrfi_lean";
-  if (n <  0.50) return "tone_neutral";
-  if (n <  0.60) return "tone_yrfi_lean";
-  return "tone_yrfi_strong";
+function zoneColor(zone: Zone): ZoneColor {
+  if (zone === "NRFI_STRONG") return "green";
+  if (zone === "YRFI_STRONG") return "red";
+  return "muted";
 }
