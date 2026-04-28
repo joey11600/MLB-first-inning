@@ -1,3 +1,26 @@
+/* ============================================================
+   Slate Projections — Bloomberg Diamond Terminal table.
+
+   Anatomy (left -> right per row):
+     [zone stripe] [matchup] [HEADLINE total] [home name] [t1] [away name] [b1]
+
+   Visual hierarchy:
+     - Headline total  ........  28px Geist Mono 700, color-only (no pill)
+     - Pitcher names   ........  15px Geist Sans 600, foreground
+     - Half-inning inputs .....  14px Geist Mono 500, color on text
+     - Matchup  ...............  14px Geist Mono 600, slight tracking
+
+   Zone identity:
+     - 3px left edge stripe — phosphor green (NRFI strong) or signal red
+       (YRFI strong); transparent for PASS.
+     - 14px gap between zone groups (no extra dividers — gap is the divider).
+     - Subtle ATM-glow text-shadow on STRONG-tier headlines.
+
+   Card chrome:
+     - A 1px gradient thread at the top of the card (NRFI green -> mid ->
+       YRFI red) puts the legend into the structure of the panel itself.
+   ============================================================ */
+
 .wrap {
   padding: 22px 0 6px;
   display: flex;
@@ -5,6 +28,7 @@
   gap: 14px;
 }
 
+/* ---- Header ---- */
 .head {
   display: flex;
   align-items: baseline;
@@ -26,6 +50,9 @@
   letter-spacing: 0.04em;
   color: var(--foreground);
 }
+
+/* Legend tucked next to the title — reads as a single phrase, not a
+   floating widget. */
 .legend {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -39,25 +66,35 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 4px;
   border: 1px solid var(--border);
   font-weight: 600;
   letter-spacing: 0.06em;
+  font-size: 10.5px;
 }
 .legendKey[data-tone="nrfi"] {
   color: var(--primary);
-  background: color-mix(in oklab, var(--primary) 18%, transparent);
-  border-color: color-mix(in oklab, var(--primary) 40%, var(--border));
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
 }
 .legendKey[data-tone="yrfi"] {
   color: var(--destructive);
-  background: color-mix(in oklab, var(--destructive) 18%, transparent);
-  border-color: color-mix(in oklab, var(--destructive) 40%, var(--border));
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 50%, var(--border));
 }
-.legendDot { color: var(--border); margin: 0 4px; }
+.legendLabel {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+.legendDot {
+  color: var(--border);
+  margin: 0 4px;
+}
 
-/* ---- Table ---- */
+/* ---- Card + spectrum thread ---- */
 .tableWrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
@@ -67,44 +104,93 @@
   overflow: hidden;
 }
 
-.thead, .row {
+/* The 1px NRFI->YRFI spectrum at the top of the card.  This is the
+   panel's identity: green-to-red is the axis everything else encodes. */
+.spectrum {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--primary) 80%, transparent) 0%,
+    color-mix(in oklab, var(--primary) 35%, transparent) 25%,
+    color-mix(in oklab, var(--border) 100%, transparent) 50%,
+    color-mix(in oklab, var(--destructive) 35%, transparent) 75%,
+    color-mix(in oklab, var(--destructive) 80%, transparent) 100%
+  );
+}
+
+/* ---- Grid (header + rows share template) ---- */
+.thead,
+.row {
   display: grid;
   grid-template-columns:
-    minmax(140px, 1.1fr)   /* matchup */
-    minmax(120px, 0.9fr)   /* total */
-    minmax(170px, 1.3fr)   /* home pitcher name */
-    minmax(110px, 0.85fr)  /* home half */
-    minmax(170px, 1.3fr)   /* away pitcher name */
-    minmax(110px, 0.85fr); /* away half */
+    minmax(140px, 1.1fr)   /* matchup       */
+    minmax(120px, 0.95fr)  /* HEADLINE total */
+    minmax(170px, 1.3fr)   /* home pitcher  */
+    minmax(100px, 0.8fr)   /* T1 input      */
+    minmax(170px, 1.3fr)   /* away pitcher  */
+    minmax(100px, 0.8fr);  /* B1 input      */
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  position: relative;
 }
 
 .thead {
-  padding: 12px 18px;
+  padding: 11px 18px 11px 21px;
   font-family: var(--font-sans);
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted-foreground);
   background: var(--muted);
   border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
-.thsub { letter-spacing: 0.10em; opacity: 0.7; }
 
 .row {
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--border);
+  padding: 14px 18px 14px 21px;   /* extra left padding for the stripe */
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
   font-family: var(--font-mono);
   font-size: 14px;
   transition: background 160ms ease;
 }
 .row:last-child { border-bottom: 0; }
-.row:hover { background: color-mix(in oklab, var(--background) 50%, var(--card)); }
+.row:hover {
+  background: color-mix(in oklab, var(--background) 55%, var(--card));
+}
 
-.right { text-align: right; justify-self: end; font-variant-numeric: tabular-nums; }
+/* ---- Zone stripe (left edge) ----
+   Sits in the row's left padding; absolutely positioned so it doesn't
+   eat into grid columns.  Color depends on .row_NRFI_STRONG / YRFI_STRONG. */
+.stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: width 160ms ease, background 160ms ease;
+}
+.row_NRFI_STRONG .stripe {
+  background: var(--primary);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--primary) 60%, transparent);
+}
+.row_YRFI_STRONG .stripe {
+  background: var(--destructive);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--destructive) 60%, transparent);
+}
+.row:hover .stripe {
+  width: 4px;
+}
 
+/* Group separator: extra top margin when a row begins a new zone group.
+   The gap is the divider — no extra line clutter. */
+.row_zoneBreak {
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+/* ---- Matchup column ---- */
 .col_match {
   display: inline-flex;
   align-items: center;
@@ -139,68 +225,112 @@
   color: var(--muted-foreground);
 }
 
+/* ---- Headline total (the row's anchor) ---- */
 .col_total {
   font-family: var(--font-mono);
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.right {
+  text-align: right;
+  justify-self: end;
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Pitcher name (Geist Sans, co-dominant with headline) ---- */
 .col_pname {
   font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--foreground);
   letter-spacing: 0.005em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.pname { color: var(--foreground); }
 
+/* TBD chip: same DNA as the DH tag — uppercase pill in muted tones. */
+.tbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, var(--muted-foreground));
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  color: var(--muted-foreground);
+}
+
+/* ---- Half-inning inputs (small mono, color on digits, no pill) ---- */
 .col_phalf {
   font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
 }
 
-/* ---- Color tones (continuous green->red gradient feel) ---- */
+/* ---- Tone scale: color the digits, no background pills ---- */
 .tone_nrfi_strong {
   color: var(--primary);
-  background: color-mix(in oklab, var(--primary) 16%, transparent);
 }
 .tone_nrfi_lean {
-  color: color-mix(in oklab, var(--primary) 90%, var(--foreground));
-  background: color-mix(in oklab, var(--primary) 8%, transparent);
+  color: color-mix(in oklab, var(--primary) 65%, var(--muted-foreground));
 }
 .tone_neutral {
   color: var(--foreground);
 }
 .tone_yrfi_lean {
-  color: color-mix(in oklab, var(--destructive) 90%, var(--foreground));
-  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+  color: color-mix(in oklab, var(--destructive) 65%, var(--muted-foreground));
 }
 .tone_yrfi_strong {
   color: var(--destructive);
-  background: color-mix(in oklab, var(--destructive) 16%, transparent);
+}
+.tone_dim {
+  color: var(--muted-foreground);
+  opacity: 0.45;
 }
 
-/* On hover row, keep the colored cells distinct */
-.row:hover .tone_nrfi_strong  { background: color-mix(in oklab, var(--primary) 22%, transparent); }
-.row:hover .tone_nrfi_lean    { background: color-mix(in oklab, var(--primary) 14%, transparent); }
-.row:hover .tone_yrfi_lean    { background: color-mix(in oklab, var(--destructive) 14%, transparent); }
-.row:hover .tone_yrfi_strong  { background: color-mix(in oklab, var(--destructive) 22%, transparent); }
+/* ATM-screen glow on STRONG-tier HEADLINE only — barely there but enough
+   to make the number feel "active" rather than printed.  Inputs stay flat. */
+.col_total.tone_nrfi_strong {
+  text-shadow:
+    0 0 12px color-mix(in oklab, var(--primary) 35%, transparent),
+    0 0 4px  color-mix(in oklab, var(--primary) 60%, transparent);
+}
+.col_total.tone_yrfi_strong {
+  text-shadow:
+    0 0 12px color-mix(in oklab, var(--destructive) 35%, transparent),
+    0 0 4px  color-mix(in oklab, var(--destructive) 60%, transparent);
+}
 
+/* ---- Responsive ---- */
 @media (max-width: 980px) {
-  .thead, .row {
+  .thead,
+  .row {
     grid-template-columns: 1fr 1fr;
-    gap: 4px 12px;
+    gap: 6px 12px;
   }
-  .col_pname, .col_phalf, .col_match, .col_total {
+  .col_pname,
+  .col_phalf,
+  .col_match,
+  .col_total {
     grid-column: span 1;
   }
+  .col_total {
+    font-size: 24px;
+  }
   .thead { display: none; }
-  .col_pname::before, .col_phalf::before { content: attr(data-label); }
+  .row {
+    padding: 14px 18px 14px 21px;
+  }
 }
