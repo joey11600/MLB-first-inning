@@ -56,6 +56,19 @@ export function ControlPanel({
   const prevDate = currentIdx >= 0 && currentIdx < dates.length - 1 ? dates[currentIdx + 1] : null;
   const nextDate = currentIdx > 0 ? dates[currentIdx - 1] : null;
 
+  // "Today" in Eastern Time -- the predictor's authoritative timezone.
+  // Used to flag past slates with a "PAST" chip and live slates with "LIVE".
+  const todayET = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const dateState: "live" | "past" | "future" =
+    !date ? "live" :
+    date === todayET ? "live" :
+    date < todayET ? "past" : "future";
+
   return (
     <section className={styles.panel} aria-label="Control panel">
       <div className={styles.row}>
@@ -63,39 +76,64 @@ export function ControlPanel({
           <label className="eyebrow" htmlFor="dateSelect">
             Slate date
           </label>
-          <div className={styles.dateCluster}>
-            <button
-              type="button"
-              className={styles.navBtn}
-              onClick={() => prevDate && onDateChange(prevDate)}
-              disabled={!prevDate || loading}
-              aria-label="Previous date"
-            >
-              ◂
-            </button>
-            <select
-              id="dateSelect"
-              className={styles.select}
-              value={date}
-              onChange={(e) => onDateChange(e.target.value)}
-              disabled={loading || dates.length === 0}
-            >
-              {dates.length === 0 && <option value="">No boards</option>}
-              {dates.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className={styles.navBtn}
-              onClick={() => nextDate && onDateChange(nextDate)}
-              disabled={!nextDate || loading}
-              aria-label="Next date"
-            >
-              ▸
-            </button>
+          <div className={styles.dateRow}>
+            <div className={styles.dateCluster}>
+              <button
+                type="button"
+                className={styles.navBtn}
+                onClick={() => prevDate && onDateChange(prevDate)}
+                disabled={!prevDate || loading}
+                aria-label="Previous date"
+              >
+                ◂
+              </button>
+              <select
+                id="dateSelect"
+                className={styles.select}
+                value={date}
+                onChange={(e) => onDateChange(e.target.value)}
+                disabled={loading || dates.length === 0}
+              >
+                {dates.length === 0 && <option value="">No boards</option>}
+                {dates.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className={styles.navBtn}
+                onClick={() => nextDate && onDateChange(nextDate)}
+                disabled={!nextDate || loading}
+                aria-label="Next date"
+              >
+                ▸
+              </button>
+            </div>
+            {dateState === "live" && (
+              <span className={styles.dateBadge} data-tone="live" aria-label="Viewing today's slate">
+                <span className={styles.dateBadgeDot} aria-hidden />
+                LIVE
+              </span>
+            )}
+            {dateState === "past" && (
+              <button
+                type="button"
+                className={styles.dateBadgeBtn}
+                data-tone="past"
+                onClick={() => dates.includes(todayET) && onDateChange(todayET)}
+                disabled={!dates.includes(todayET) || loading}
+                title={dates.includes(todayET) ? "Jump to today's slate" : "No live slate available"}
+              >
+                PAST · {pastDelta(date, todayET)}
+              </button>
+            )}
+            {dateState === "future" && (
+              <span className={styles.dateBadge} data-tone="future" aria-label="Future slate">
+                SCHEDULED
+              </span>
+            )}
           </div>
         </div>
 
@@ -205,6 +243,19 @@ export function ControlPanel({
       </div>
     </section>
   );
+}
+
+/** "1 day ago" / "5 days ago" / "3 weeks ago" -- compact past-delta. */
+function pastDelta(dateIso: string, todayIso: string): string {
+  if (!dateIso || !todayIso) return "";
+  const a = new Date(dateIso + "T12:00:00Z").getTime();
+  const b = new Date(todayIso + "T12:00:00Z").getTime();
+  const diffDays = Math.max(0, Math.round((b - a) / (1000 * 60 * 60 * 24)));
+  if (diffDays === 0) return "today";
+  if (diffDays === 1) return "1d ago";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.round(diffDays / 7)}w ago`;
+  return `${Math.round(diffDays / 30)}mo ago`;
 }
 
 type RunStatus = "idle" | "running" | "ok" | "error";

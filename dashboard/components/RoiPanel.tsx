@@ -48,9 +48,16 @@ export function RoiPanel({ initialDate }: { initialDate: string }) {
                 <>
                   {" · "}
                   <span className={styles.rangeStrong}>
-                    {data.totalPicks} picks
+                    {data.gradedPicks} graded picks
                   </span>{" "}
-                  across {data.daysIncluded} {data.daysIncluded === 1 ? "day" : "days"}
+                  across {data.daysIncluded}{" "}
+                  {data.daysIncluded === 1 ? "day" : "days"}
+                  {data.totalPicks > data.gradedPicks && (
+                    <span className={styles.rangePending}>
+                      {" "}
+                      ({data.totalPicks - data.gradedPicks} pending)
+                    </span>
+                  )}
                 </>
               )}
             </span>

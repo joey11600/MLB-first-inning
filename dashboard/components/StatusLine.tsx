@@ -38,7 +38,7 @@ export function StatusLine({
         {parts.map((p) => (
           <span key={p.k} className={styles.cell}>
             <span className={styles.k}>{p.k}</span>
-            <span className={`${styles.v} ${p.tone === "accent" ? styles.vAccent : ""}`}>{p.v}</span>
+            <span className={styles.v}>{p.v}</span>
           </span>
         ))}
       </div>

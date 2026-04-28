@@ -34,6 +34,12 @@
 }
 
 /* Date cluster */
+.dateRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .dateCluster {
   display: flex;
   align-items: stretch;
@@ -42,6 +48,72 @@
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--background);
+}
+
+/* Live / Past / Scheduled badge sitting next to the date cluster.  Past
+   variant is also a button (clickable to jump back to today). */
+.dateBadge,
+.dateBadgeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  user-select: none;
+  height: 28px;
+}
+.dateBadge[data-tone="live"] {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+}
+.dateBadge[data-tone="future"] {
+  color: var(--secondary-foreground);
+  background: color-mix(in oklab, var(--secondary) 18%, transparent);
+  border-color: color-mix(in oklab, var(--secondary) 35%, var(--border));
+}
+.dateBadgeBtn[data-tone="past"] {
+  color: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground));
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 28%, var(--border));
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.dateBadgeBtn[data-tone="past"]:hover:not(:disabled) {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 16%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 50%, var(--border));
+}
+.dateBadgeBtn[data-tone="past"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dateBadgeDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent);
+  animation: liveDotPulse 2s ease-in-out infinite;
+}
+@keyframes liveDotPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 0%, transparent);
+  }
 }
 
 .navBtn {

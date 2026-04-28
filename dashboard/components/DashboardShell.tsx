@@ -78,12 +78,13 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
             <div className="eyebrow">GENERATED</div>
             <div className={`num ${styles.metaValue}`}>
               {data.generatedAt
-                ? new Date(data.generatedAt).toLocaleString("en-US", {
+                ? `${new Date(data.generatedAt).toLocaleString("en-US", {
                     hour: "2-digit",
                     minute: "2-digit",
                     month: "short",
                     day: "2-digit",
-                  })
+                    timeZone: "America/New_York",
+                  })} ET`
                 : "—"}
             </div>
           </div>

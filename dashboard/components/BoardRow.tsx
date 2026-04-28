@@ -107,8 +107,13 @@ export function BoardRowItem({
           {row.yrfiPct.toFixed(1)}
         </span>
 
-        <span className={styles.caret} aria-hidden>
-          ⌄
+        <span className={styles.expander} aria-hidden>
+          <span className={styles.expanderLabel}>
+            {expanded ? "Hide" : "Details"}
+          </span>
+          <span className={`${styles.caret} ${expanded ? styles.caretOpen : ""}`}>
+            ⌄
+          </span>
         </span>
       </button>
 

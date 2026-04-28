@@ -47,6 +47,10 @@
   color: var(--foreground);
   font-weight: 600;
 }
+.rangePending {
+  color: color-mix(in oklab, var(--muted-foreground) 80%, transparent);
+  font-style: italic;
+}
 
 /* ---- Window toggle ---- */
 .windowToggle {

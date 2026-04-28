@@ -345,18 +345,67 @@
 .inlineBar.nrfi .inlineBarFill { background: var(--primary); }
 .inlineBar.yrfi .inlineBarFill { background: var(--destructive); }
 
+/* Expand affordance: "Details" / "Hide" label + chevron, all on the right
+   end of the row.  Label fades in on row hover so the row stays uncluttered
+   when idle but the click target reads clearly when the user reaches for it. */
+.expander {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  color: var(--muted-foreground);
+  transition: color 180ms ease,
+              background 180ms ease,
+              border-color 180ms ease;
+  width: max-content;
+  justify-self: end;
+}
+.row:hover .expander,
+.row.open .expander {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  border-color: color-mix(in oklab, var(--border) 100%, var(--foreground) 6%);
+}
+.row.open .expander {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+}
+
+.expanderLabel {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  /* Tucked away on idle, fades in on hover/open */
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  transition: opacity 180ms ease,
+              max-width 220ms ease;
+}
+.row:hover .expanderLabel,
+.row.open .expanderLabel {
+  opacity: 1;
+  max-width: 60px;
+}
+
 .caret {
   font-family: var(--font-mono);
-  color: var(--muted-foreground);
+  color: inherit;
   font-size: 16px;
   text-align: center;
-  transition: color 180ms ease, transform 220ms ease;
-  width: 24px;
+  width: 14px;
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.row.open .caret {
-  color: var(--primary);
+.caretOpen {
   transform: rotate(180deg);
 }
+/* Keep the legacy direct selector working for any cached row class */
+.row.open .caret { transform: rotate(180deg); }
 
 .detailsWrap {
   padding: 0 0 18px 0;
@@ -374,7 +423,7 @@
 
 @media (max-width: 1180px) {
   .clickable {
-    grid-template-columns: 76px 1fr auto 70px 28px;
+    grid-template-columns: 76px 1fr auto 70px 36px;
     grid-template-areas:
       "rank matchup result lambda caret"
       ".    pick    pick   pick   pick"
@@ -386,7 +435,9 @@
   .matchup { grid-area: matchup; }
   .resultCell { grid-area: result; justify-self: start; }
   .lambdaVal { grid-area: lambda; }
-  .caret { grid-area: caret; justify-self: end; }
+  /* On mobile, drop the "Details" label -- only the caret remains. */
+  .expander { grid-area: caret; justify-self: end; padding: 4px; }
+  .expanderLabel { display: none; }
   .pickCell { grid-area: pick; }
   .pct { display: none; }
   .meterCell { grid-area: meter; }
