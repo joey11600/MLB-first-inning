@@ -4,6 +4,9 @@ import { useState } from "react";
 import styles from "./ControlPanel.module.css";
 
 export type SideFilter = "ALL" | "NRFI" | "YRFI" | "PASS";
+// LEAN tier was removed when thresholds collapsed to STRONG-only --
+// keep "ALL" and "STRONG" only.  "LEAN+" type kept for backward compat
+// with stored filter state (treated as "ALL" if encountered).
 export type StrengthFilter = "ALL" | "STRONG" | "LEAN+";
 export type SortKey = "lambda-desc" | "lambda-asc" | "nrfi-desc" | "yrfi-desc" | "rank";
 
@@ -22,9 +25,8 @@ const SIDE_OPTIONS: { key: SideFilter; label: string; tone?: string }[] = [
 ];
 
 const STRENGTH_OPTIONS: { key: StrengthFilter; label: string }[] = [
-  { key: "ALL", label: "All" },
-  { key: "LEAN+", label: "Lean+" },
-  { key: "STRONG", label: "Strong" },
+  { key: "ALL",    label: "All" },
+  { key: "STRONG", label: "Strong only" },
 ];
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [

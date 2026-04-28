@@ -10,6 +10,10 @@ interface Bucket {
   test: (r: BoardRow) => boolean;
 }
 
+// Only three zones now -- LEAN tier was eliminated when we collapsed
+// thresholds (LEAN_*_P = STRONG_*_P) per the user's "STRONG plays only"
+// direction.  Keep the bucket array short so the distribution UI shows
+// 3 meaningful slices instead of 5 with two always-zero columns.
 const BUCKETS: Bucket[] = [
   {
     key: "strong-nrfi",
@@ -18,24 +22,12 @@ const BUCKETS: Bucket[] = [
     test: (r) => r.pickSide === "NRFI" && r.pickStrength === "STRONG",
   },
   {
-    key: "lean-nrfi",
-    label: "Lean NRFI",
-    className: "leanNrfi",
-    test: (r) => r.pickSide === "NRFI" && r.pickStrength === "LEAN",
-  },
-  {
     key: "pass",
     label: "Pass",
     className: "pass",
     test: (r) =>
       r.pickSide === "PASS" ||
       (r.pickStrength !== "STRONG" && r.pickStrength !== "LEAN"),
-  },
-  {
-    key: "lean-yrfi",
-    label: "Lean YRFI",
-    className: "leanYrfi",
-    test: (r) => r.pickSide === "YRFI" && r.pickStrength === "LEAN",
   },
   {
     key: "strong-yrfi",

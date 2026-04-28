@@ -14,13 +14,18 @@ export function StatusLine({
   filters: Filters;
   date: string;
 }) {
+  // Pretty-print the strength filter so "LEAN+" leftovers in stored
+  // state don't show up as "LEAN+" -- LEAN tier was removed.
+  const strLabel =
+    filters.strength === "LEAN+"  ? "ALL" :
+    filters.strength === "STRONG" ? "STRONG" : "ALL";
+
   const parts = [
-    { k: "SRC", v: "board.csv", tone: "accent" },
-    { k: "DATE", v: date || "—" },
-    { k: "ROWS", v: `${count}/${total}` },
-    { k: "SIDE", v: filters.side },
-    { k: "STR", v: filters.strength },
-    { k: "SORT", v: filters.sort.toUpperCase() },
+    { k: "DATE",     v: date || "—" },
+    { k: "GAMES",    v: `${count}/${total}` },
+    { k: "SIDE",     v: filters.side },
+    { k: "STRENGTH", v: strLabel },
+    { k: "SORT",     v: filters.sort.replace("-", " ").toUpperCase() },
   ];
 
   return (
