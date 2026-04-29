@@ -1,6 +1,6 @@
 "use client";
 
-import type { BoardRow, DataQuality, GameDetail, OffenseStats, PitcherStats } from "@/lib/types";
+import type { BoardRow, DataQuality, GameDetail, OffenseStats, PitcherStats, PickSide, PickStrength } from "@/lib/types";
 import { LambdaMeter } from "./LambdaMeter";
 import styles from "./GameDetails.module.css";
 
@@ -11,12 +11,7 @@ export function GameDetails({ row, detail }: { row: BoardRow; detail: GameDetail
     <div className={styles.wrap}>
       <div className={styles.topGrid}>
         <div className={styles.projCol}>
-          <div className="eyebrow">Projection</div>
-          <div className={styles.projTable}>
-            <ProjRow label="AWAY bats (top 1st)" value={detail?.awayProj ?? null} />
-            <ProjRow label="HOME bats (bot 1st)" value={detail?.homeProj ?? null} />
-            <ProjRow label="Combined λ" value={detail?.combinedLambda ?? row.lambda} highlight />
-          </div>
+          <ProjectionPanel row={row} detail={detail} />
           <div className={styles.meterBig}>
             <LambdaMeter yrfiProb={row.yrfiPct / 100} />
           </div>
@@ -223,6 +218,105 @@ function ProjRow({
       <span className={`num ${styles.projVal}`}>{value !== null ? value.toFixed(3) : "—"}</span>
     </div>
   );
+}
+
+/**
+ * Slate-projections-style headline panel, embedded inside the row dropdown.
+ * Replaces the previous standalone "SLATE PROJECTIONS" section.
+ *
+ * Shows the model's LR-v3 derived expected first-inning runs:
+ *   - Combined total (big, color-coded by zone)
+ *   - 10-bar visualization (each bar = 0.1 expected runs)
+ *   - Zone badge (STRONG NRFI / PASS / STRONG YRFI)
+ *   - Top-1st (home pitcher's half) + Bot-1st (away pitcher's half) breakdown
+ */
+function ProjectionPanel({
+  row,
+  detail,
+}: {
+  row: BoardRow;
+  detail: GameDetail | undefined;
+}) {
+  const total =
+    detail?.lambdaLrTotal ?? detail?.combinedLambda ?? row.lambda ?? null;
+  const t1 = detail?.lambdaLrT1 ?? detail?.homeProj ?? null;
+  const b1 = detail?.lambdaLrB1 ?? detail?.awayProj ?? null;
+  const zone = rowZone(row.pickSide, row.pickStrength);
+  const tone = totalTone(total);
+  const filled = total != null ? Math.max(0, Math.min(10, Math.round(total * 10))) : 0;
+
+  return (
+    <div className={styles.projHero} data-zone={zone}>
+      <div className={styles.projHeroHead}>
+        <span className="eyebrow">First-inning projection</span>
+        <ZoneBadge zone={zone} />
+      </div>
+
+      <div className={styles.projHeroBody}>
+        <div className={styles.projHeroNum} data-tone={tone}>
+          {fmtProj(total)}
+          <span className={styles.projHeroNumUnit}>exp. runs</span>
+        </div>
+        <div className={styles.projBars} aria-hidden="true">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <span
+              key={i}
+              className={styles.projBar}
+              data-filled={i < filled ? "true" : "false"}
+              data-tone={tone}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.projSplit}>
+        <div className={styles.projSplitCell}>
+          <span className={styles.projSplitKey}>
+            <span className={styles.projSplitDot} data-half="t1" /> Top 1st
+          </span>
+          <span className={`num ${styles.projSplitVal}`}>{fmtProj(t1)}</span>
+          <span className={styles.projSplitMeta}>{detail?.home?.pitcher?.name?.trim() || "TBD"}</span>
+        </div>
+        <div className={styles.projSplitCell}>
+          <span className={styles.projSplitKey}>
+            <span className={styles.projSplitDot} data-half="b1" /> Bot 1st
+          </span>
+          <span className={`num ${styles.projSplitVal}`}>{fmtProj(b1)}</span>
+          <span className={styles.projSplitMeta}>{detail?.away?.pitcher?.name?.trim() || "TBD"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ZoneBadge({ zone }: { zone: "NRFI_STRONG" | "PASS" | "YRFI_STRONG" }) {
+  if (zone === "NRFI_STRONG") {
+    return <span className={styles.projZoneBadge} data-tone="green">Strong NRFI</span>;
+  }
+  if (zone === "YRFI_STRONG") {
+    return <span className={styles.projZoneBadge} data-tone="red">Strong YRFI</span>;
+  }
+  return <span className={styles.projZoneBadge} data-tone="muted">Pass</span>;
+}
+
+function rowZone(side: PickSide, strength: PickStrength): "NRFI_STRONG" | "PASS" | "YRFI_STRONG" {
+  if (side === "NRFI" && strength === "STRONG") return "NRFI_STRONG";
+  if (side === "YRFI" && strength === "STRONG") return "YRFI_STRONG";
+  return "PASS";
+}
+
+function totalTone(n: number | null): "green" | "lean_green" | "muted" | "lean_red" | "red" {
+  if (n == null) return "muted";
+  if (n <= 0.55) return "green";
+  if (n <= 0.75) return "lean_green";
+  if (n <  0.95) return "muted";
+  if (n <  1.05) return "lean_red";
+  return "red";
+}
+
+function fmtProj(n: number | null): string {
+  if (n == null || Number.isNaN(n)) return "—";
+  return n.toFixed(2);
 }
 
 function ProbBar({

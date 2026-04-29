@@ -70,6 +70,219 @@
 
 .meterBig { margin-top: 10px; }
 
+/* ============================================================
+   ProjectionPanel — embedded (replaces standalone SLATE PROJECTIONS).
+   Visual anchor of the dropdown.  One big mono digit, 10-bar viz,
+   zone badge, then per-half breakdown.
+   ============================================================ */
+
+.projHero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--card) 92%, var(--background));
+  position: relative;
+  overflow: hidden;
+}
+/* Zone-tinted left edge accent + soft right-side wash */
+.projHero[data-zone="NRFI_STRONG"] {
+  border-left: 1px solid color-mix(in oklab, var(--primary) 60%, var(--border));
+  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--primary) 80%, transparent);
+}
+.projHero[data-zone="YRFI_STRONG"] {
+  border-left: 1px solid color-mix(in oklab, var(--destructive) 60%, var(--border));
+  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--destructive) 80%, transparent);
+}
+.projHero[data-zone="NRFI_STRONG"]::after,
+.projHero[data-zone="YRFI_STRONG"]::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 38%;
+  pointer-events: none;
+}
+.projHero[data-zone="NRFI_STRONG"]::after {
+  background: linear-gradient(to left,
+    color-mix(in oklab, var(--primary) 12%, transparent),
+    transparent);
+}
+.projHero[data-zone="YRFI_STRONG"]::after {
+  background: linear-gradient(to left,
+    color-mix(in oklab, var(--destructive) 12%, transparent),
+    transparent);
+}
+
+.projHeroHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.projZoneBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.projZoneBadge[data-tone="green"] {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+}
+.projZoneBadge[data-tone="red"] {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 35%, var(--border));
+}
+
+.projHeroBody {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.projHeroNum {
+  font-family: var(--font-mono);
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.projHeroNum[data-tone="green"]     { color: var(--primary); }
+.projHeroNum[data-tone="lean_green"] { color: color-mix(in oklab, var(--primary) 75%, var(--foreground)); }
+.projHeroNum[data-tone="muted"]      { color: var(--foreground); }
+.projHeroNum[data-tone="lean_red"]   { color: color-mix(in oklab, var(--destructive) 75%, var(--foreground)); }
+.projHeroNum[data-tone="red"]        { color: var(--destructive); }
+.projHeroNum[data-tone="green"],
+.projHeroNum[data-tone="red"] {
+  text-shadow:
+    0 0 14px color-mix(in oklab, currentColor 30%, transparent),
+    0 0 4px  color-mix(in oklab, currentColor 50%, transparent);
+}
+.projHeroNumUnit {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  text-shadow: none;
+}
+
+.projBars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.projBar {
+  display: inline-block;
+  width: 6px;
+  height: 24px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+.projBar[data-filled="true"][data-tone="green"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--primary) 35%, transparent);
+}
+.projBar[data-filled="true"][data-tone="lean_green"] {
+  background: color-mix(in oklab, var(--primary) 70%, var(--muted-foreground));
+  border-color: color-mix(in oklab, var(--primary) 70%, var(--muted-foreground));
+}
+.projBar[data-filled="true"][data-tone="muted"] {
+  background: color-mix(in oklab, var(--foreground) 65%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 65%, transparent);
+}
+.projBar[data-filled="true"][data-tone="lean_red"] {
+  background: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground));
+  border-color: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground));
+}
+.projBar[data-filled="true"][data-tone="red"] {
+  background: var(--destructive);
+  border-color: var(--destructive);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--destructive) 35%, transparent);
+}
+
+/* Per-half breakdown: Top 1st (home pitcher) and Bot 1st (away pitcher) */
+.projSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+.projSplitCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--background) 50%, transparent);
+}
+.projSplitKey {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.projSplitDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+.projSplitDot[data-half="b1"] {
+  background: var(--destructive);
+}
+.projSplitVal {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+.projSplitMeta {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .probRow {
   display: flex;
   flex-direction: column;
