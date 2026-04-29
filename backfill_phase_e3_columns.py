@@ -119,6 +119,7 @@ def backfill_picks_2026(caches: dict):
 
     new_cols = [
         "home_p_last5_pitcher_nrfi", "away_p_last5_pitcher_nrfi",
+        "home_p_last10_pitcher_nrfi", "away_p_last10_pitcher_nrfi",  # Phase F
         "home_top3c_obp", "away_top3c_obp",
         "home_top3c_slg", "away_top3c_slg",   # new: power signal
         "home_top3c_iso", "away_top3c_iso",   # new: isolated power
@@ -178,12 +179,23 @@ def backfill_picks_2026(caches: dict):
         date_iso = (r.get("date") or "").strip()
         pk = (r.get("game_pk") or "").strip()
         if not date_iso or not pk: continue
-        # Pitcher_id cache is only needed for last5_nrfi.  top3c columns
-        # need only the game_pk + date (lineup is fetched directly), so
-        # don't gate the whole row on pid availability.
+        # Pitcher IDs: prefer pid_cache, fall back to the row's own
+        # away_pitcher_id / home_pitcher_id columns (the predictor stores
+        # them there from 2026 onwards).  top3c columns only need game_pk
+        # so don't gate the whole row on pid availability.
         pids = caches["pid_cache"].get(pk)
         a_pid = pids[0] if pids else 0
         h_pid = pids[1] if pids else 0
+        if not a_pid:
+            v = (r.get("away_pitcher_id") or "").strip()
+            if v and v != "0":
+                try: a_pid = int(v)
+                except (TypeError, ValueError): pass
+        if not h_pid:
+            v = (r.get("home_pitcher_id") or "").strip()
+            if v and v != "0":
+                try: h_pid = int(v)
+                except (TypeError, ValueError): pass
 
         # Pitcher last-5 NRFI
         if not r.get("home_p_last5_pitcher_nrfi", "").strip() and h_pid:
@@ -199,6 +211,24 @@ def backfill_picks_2026(caches: dict):
                 d = pitcher_last_n_first_inning(a_pid, date_iso, season, n=5)
                 if d and d.get("pitcher_nrfi_rate") is not None:
                     r["away_p_last5_pitcher_nrfi"] = f"{d['pitcher_nrfi_rate']:.4f}"
+                    n_last5 += 1
+            except Exception:
+                pass
+
+        # Pitcher last-10 NRFI (Phase F)
+        if not r.get("home_p_last10_pitcher_nrfi", "").strip() and h_pid:
+            try:
+                d = pitcher_last_n_first_inning(h_pid, date_iso, season, n=10)
+                if d and d.get("pitcher_nrfi_rate") is not None:
+                    r["home_p_last10_pitcher_nrfi"] = f"{d['pitcher_nrfi_rate']:.4f}"
+                    n_last5 += 1
+            except Exception:
+                pass
+        if not r.get("away_p_last10_pitcher_nrfi", "").strip() and a_pid:
+            try:
+                d = pitcher_last_n_first_inning(a_pid, date_iso, season, n=10)
+                if d and d.get("pitcher_nrfi_rate") is not None:
+                    r["away_p_last10_pitcher_nrfi"] = f"{d['pitcher_nrfi_rate']:.4f}"
                     n_last5 += 1
             except Exception:
                 pass

@@ -1681,17 +1681,25 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "wx_is_dome":    1 if home_ab in DOMED_PARKS else 0,
             # Phase D features: pitcher last-5 NRFI rate, top-3 batters'
             # current-season OBP, home plate umpire's career NRFI rate
-            "home_p_last5_pitcher_nrfi": home_last5,
-            "away_p_last5_pitcher_nrfi": away_last5,
-            "home_top3c_obp":            home_top3c_obp,
-            "away_top3c_obp":            away_top3c_obp,
-            "home_plate_ump_id":         ump_id,
-            "home_plate_ump_nrfi_rate":  ump_rate,
+            "home_p_last5_pitcher_nrfi":  home_last5,
+            "away_p_last5_pitcher_nrfi":  away_last5,
+            # Phase F: pitcher last-10 NRFI rate (longer recency window)
+            "home_p_last10_pitcher_nrfi": home_last10,
+            "away_p_last10_pitcher_nrfi": away_last10,
+            "home_top3c_obp":             home_top3c_obp,
+            "away_top3c_obp":             away_top3c_obp,
+            # Power signal: top-3 SLG + ISO (added 2026-04-29)
+            "home_top3c_slg":             home_top3c_slg,
+            "away_top3c_slg":             away_top3c_slg,
+            "home_top3c_iso":             home_top3c_iso,
+            "away_top3c_iso":             away_top3c_iso,
+            "home_plate_ump_id":          ump_id,
+            "home_plate_ump_nrfi_rate":   ump_rate,
             # Phase E.3 Statcast features: xera + whiff_pct_rank per pitcher
-            "home_xera":                 t1_feats[10],   # index 10 in T1 vector
-            "home_whiff_pct_rank":       t1_feats[11],
-            "away_xera":                 b1_feats[10],
-            "away_whiff_pct_rank":       b1_feats[11],
+            "home_xera":                  t1_feats[10],   # index 10 in T1 vector
+            "home_whiff_pct_rank":        t1_feats[11],
+            "away_xera":                  b1_feats[10],
+            "away_whiff_pct_rank":        b1_feats[11],
             "pick_side":     pick_side,
             "pick_conf":     pick_conf,
             "away": {

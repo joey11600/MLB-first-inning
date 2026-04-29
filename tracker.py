@@ -64,7 +64,11 @@ FIELDS = [
     # --- Phase D features: pitcher recent-form, top-3 batter point-in-time
     # OBP, home plate umpire's career NRFI rate ---
     "home_p_last5_pitcher_nrfi", "away_p_last5_pitcher_nrfi",
+    "home_p_last10_pitcher_nrfi", "away_p_last10_pitcher_nrfi",
     "home_top3c_obp", "away_top3c_obp",
+    # Power signal (added 2026-04-29): top-3 SLG + ISO
+    "home_top3c_slg", "away_top3c_slg",
+    "home_top3c_iso", "away_top3c_iso",
     "home_plate_ump_id", "home_plate_ump_nrfi_rate",
     # --- Phase E.3 Statcast features: xERA + whiff_pct_rank per pitcher ---
     "home_xera", "away_xera",
@@ -280,16 +284,23 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "wx_humidity": _fmt(g.get("wx_humidity"), 1),
             "wx_is_dome":  _fmt(g.get("wx_is_dome"),  0),
             # Phase D + E.3 features
-            "home_p_last5_pitcher_nrfi": _fmt(g.get("home_p_last5_pitcher_nrfi"), 4),
-            "away_p_last5_pitcher_nrfi": _fmt(g.get("away_p_last5_pitcher_nrfi"), 4),
-            "home_top3c_obp":            _fmt(g.get("home_top3c_obp"), 4),
-            "away_top3c_obp":            _fmt(g.get("away_top3c_obp"), 4),
-            "home_plate_ump_id":         g.get("home_plate_ump_id", ""),
-            "home_plate_ump_nrfi_rate":  _fmt(g.get("home_plate_ump_nrfi_rate"), 4),
-            "home_xera":                 _fmt(g.get("home_xera"),                3),
-            "away_xera":                 _fmt(g.get("away_xera"),                3),
-            "home_whiff_pct_rank":       _fmt(g.get("home_whiff_pct_rank"),      0),
-            "away_whiff_pct_rank":       _fmt(g.get("away_whiff_pct_rank"),      0),
+            "home_p_last5_pitcher_nrfi":  _fmt(g.get("home_p_last5_pitcher_nrfi"), 4),
+            "away_p_last5_pitcher_nrfi":  _fmt(g.get("away_p_last5_pitcher_nrfi"), 4),
+            # Phase F (last10) + power-signal (top3c SLG/ISO) -- added 2026-04-29
+            "home_p_last10_pitcher_nrfi": _fmt(g.get("home_p_last10_pitcher_nrfi"), 4),
+            "away_p_last10_pitcher_nrfi": _fmt(g.get("away_p_last10_pitcher_nrfi"), 4),
+            "home_top3c_obp":             _fmt(g.get("home_top3c_obp"), 4),
+            "away_top3c_obp":             _fmt(g.get("away_top3c_obp"), 4),
+            "home_top3c_slg":             _fmt(g.get("home_top3c_slg"), 4),
+            "away_top3c_slg":             _fmt(g.get("away_top3c_slg"), 4),
+            "home_top3c_iso":             _fmt(g.get("home_top3c_iso"), 4),
+            "away_top3c_iso":             _fmt(g.get("away_top3c_iso"), 4),
+            "home_plate_ump_id":          g.get("home_plate_ump_id", ""),
+            "home_plate_ump_nrfi_rate":   _fmt(g.get("home_plate_ump_nrfi_rate"), 4),
+            "home_xera":                  _fmt(g.get("home_xera"),                3),
+            "away_xera":                  _fmt(g.get("away_xera"),                3),
+            "home_whiff_pct_rank":        _fmt(g.get("home_whiff_pct_rank"),      0),
+            "away_whiff_pct_rank":        _fmt(g.get("away_whiff_pct_rank"),      0),
             # result fields start empty (preserved if already set)
             "actual_result": "", "graded_result": "",
             "fi_away_runs":  "", "fi_home_runs":  "", "fi_total_runs": "",
