@@ -748,16 +748,17 @@ _FI_PARK_NRFI_DEFAULT = 0.50
 #
 # These are sample-size-cautious adjustments.  Weekly recalibration may
 # tune them further as 2026 graded games accumulate.
-# Updated 2026-04-27 (Phase E.3 ship): tightened thresholds based on the
-# new model's probability distribution.  STRONG = 0.58 / 0.42, allowing
-# variable picks per slate.  LEAN zones eliminated -- only STRONG and
-# PASS now (per user direction: in-between zones don't matter).
-# Achieved by collapsing LEAN_NRFI_P <- STRONG_NRFI_P and
-# LEAN_YRFI_P <- PASS_LO_P (= STRONG_YRFI_P).
-_LR_STRONG_NRFI_P = 0.58
-_LR_LEAN_NRFI_P   = 0.58
-_LR_PASS_LO_P     = 0.42
-_LR_LEAN_YRFI_P   = 0.42
+# Updated 2026-04-29 (last10_nrfi calibration shift): the +last10_nrfi
+# addition shifted the calibrated probability distribution slightly --
+# many borderline YRFI picks landed at ~0.43 instead of <0.42 under the
+# new calibrator, leaving 70+ profitable YRFI picks classified PASS.
+# Loosening to 0.56 / 0.44 recaptures those (live rebet: +27.7u, best
+# of season vs +17.7u at 0.58/0.42 and +23.82u for the prior model).
+# LEAN zones still collapsed -- only STRONG and PASS exist.
+_LR_STRONG_NRFI_P = 0.56
+_LR_LEAN_NRFI_P   = 0.56
+_LR_PASS_LO_P     = 0.44
+_LR_LEAN_YRFI_P   = 0.44
 
 # Lazy-loaded singletons.  None = "tried to load and failed" (graceful fallback).
 _lr_t1 = None

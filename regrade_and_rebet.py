@@ -62,13 +62,14 @@ LEAGUE_NRFI_RATE    = 0.50
 LEAGUE_AVG_XERA     = 4.20
 NEUTRAL_PCT_RANK    = 50
 
-# Calibrated probability thresholds.  Phase E.3 (2026-04-27): tightened
-# STRONG NRFI from 0.62 -> 0.58.  LEAN zones eliminated (LEAN_*_P set
-# equal to STRONG / PASS so the LEAN branches in classify_zone never fire).
-LR_STRONG_NRFI_P = 0.58
-LR_LEAN_NRFI_P   = 0.58
-LR_PASS_LO_P     = 0.42
-LR_LEAN_YRFI_P   = 0.42
+# Calibrated probability thresholds.  Updated 2026-04-29: loosened to
+# 0.56 / 0.44 after +last10_nrfi shifted the calibrated probability
+# distribution.  Live rebet shows +27.7u at this setting (vs +17.7u at
+# 0.58/0.42).  See mlb_first_inning_predictor.py header comment.
+LR_STRONG_NRFI_P = 0.56
+LR_LEAN_NRFI_P   = 0.56
+LR_PASS_LO_P     = 0.44
+LR_LEAN_YRFI_P   = 0.44
 
 # Must match feature_names saved by two_stage_model.py --phase-e3 and
 # the predictor's _T1/_B1_EXPECTED_FEATURES.
