@@ -57,18 +57,19 @@
   display: grid;
   width: 100%;
   grid-template-columns:
-    88px                   /* game time */
-    minmax(160px, 0.9fr)   /* matchup */
-    84px                   /* result */
-    62px                   /* P(YRFI) */
-    minmax(252px, 1.4fr)   /* pick pill + odds chip (the wide one) */
-    minmax(120px, 0.65fr)  /* meter (slimmed) */
-    66px                   /* NRFI % */
-    66px                   /* YRFI % */
-    56px;                  /* caret + Details label */
+    82px                   /* game time */
+    minmax(150px, 0.85fr)  /* matchup */
+    78px                   /* result */
+    58px                   /* P(YRFI) */
+    minmax(220px, 1.25fr)  /* pick pill + odds chip */
+    62px                   /* edge % (NEW) */
+    minmax(112px, 0.6fr)   /* meter */
+    60px                   /* NRFI % */
+    60px                   /* YRFI % */
+    52px;                  /* caret + Details label */
   align-items: center;
-  gap: 14px;
-  padding: 18px 24px;
+  gap: 12px;
+  padding: 18px 22px;
   text-align: left;
   color: var(--foreground);
   position: relative;
@@ -302,15 +303,15 @@
 }
 
 /* ============================================================
-   Live odds chip — the DraftKings price for the picked side and
-   the model's edge over implied probability.  Sits beside the
-   pick pill, deliberately one weight-step softer so the pill
-   stays the primary signal and the chip reads as supporting data.
+   Live odds chip — DraftKings price for the picked side ONLY.
+   Edge (model_prob - implied_prob) lives in its own dedicated
+   column to the right of the pick cell, so this chip stays
+   compact and the edge is easy to scan/sort.
 
    Visual rhythm:
-     [BOOK] [-135] · [+6.3%]
-      micro   mono     mono
-      tracked, tabular-nums everywhere
+     [BOOK] [-135]
+      micro   mono
+      tracked, tabular-nums
    ============================================================ */
 .oddsChip {
   display: inline-flex;
@@ -403,13 +404,31 @@
 .yrfiStrong .pickDot   { background: var(--destructive); box-shadow: 0 0 8px color-mix(in oklab, var(--destructive) 60%, transparent); }
 .yrfiStrong .pickLabel { color: var(--destructive); }
 
+/* Dedicated EDGE column (between PICK and METER).  Right-aligned mono
+   number with a sign-aware color tint.  Empty cell when no odds yet
+   (gracefully falls back to em-dash).  PASS picks always show "—" since
+   there's no side to price an edge against. */
+.edgeCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  text-align: right;
+}
+.edgePos { color: var(--primary); }
+.edgeNeg { color: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground)); }
+.edgeNone { color: color-mix(in oklab, var(--muted-foreground) 60%, transparent); font-weight: 400; }
+
 .meterCell {
   display: block;
   min-width: 0;
-  /* Push the meter slightly off the right edge so the percentage cluster
-     reads as a separate visual group.  The track itself is uncluttered
-     so a few px of negative space here doubles as the visual separator. */
-  padding-right: 8px;
+  padding-right: 6px;
 }
 
 /* Right-side percentages.  The bar+number pair is a single semantic unit
@@ -530,7 +549,7 @@
    row (time/matchup/result/lambda/caret) plus full-width sub-rows for
    the pick (with chip) and the meter.  Sync the header break in
    BoardTable.module.css to the same width. */
-@media (max-width: 1240px) {
+@media (max-width: 1280px) {
   .clickable {
     grid-template-columns: 76px 1fr auto 70px 40px;
     grid-template-areas:
@@ -548,6 +567,7 @@
   .expander { grid-area: caret; justify-self: end; padding: 4px; }
   .expanderLabel { display: none; }
   .pickCell { grid-area: pick; flex-wrap: wrap; row-gap: 6px; }
+  .edgeCell { display: none; }   /* edge re-folds into the OddsChip on mobile */
   .pct { display: none; }
   .meterCell { grid-area: meter; }
 }

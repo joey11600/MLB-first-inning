@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { BoardRow, GameDetail } from "@/lib/types";
 import { BoardRowItem } from "./BoardRow";
 import styles from "./BoardTable.module.css";
+
+type SortKey = "default" | "edge";
 
 export function BoardTable({
   rows,
@@ -17,6 +19,24 @@ export function BoardTable({
   loading: boolean;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Sort state: "default" = original lambda-ranked order; "edge" = highest
+  // edge first (puts the most-betable plays at the top regardless of game time).
+  const [sortKey, setSortKey] = useState<SortKey>("default");
+
+  // Memoized sort: avoid recomputing on every keystroke / unrelated re-render.
+  const sortedRows = useMemo(() => {
+    if (sortKey !== "edge") return rows;
+    // Sort descending by edge.  Rows without odds (or PASS picks) sink to bottom.
+    return [...rows].sort((a, b) => {
+      const aKey = a.gamePk || `${a.away}@${a.home}`;
+      const bKey = b.gamePk || `${b.away}@${b.home}`;
+      const aEdge = details[aKey]?.edgeOnPick;
+      const bEdge = details[bKey]?.edgeOnPick;
+      const aVal = aEdge != null && a.pickSide !== "PASS" ? aEdge : -Infinity;
+      const bVal = bEdge != null && b.pickSide !== "PASS" ? bEdge : -Infinity;
+      return bVal - aVal;
+    });
+  }, [rows, sortKey, details]);
 
   if (rows.length === 0) {
     return (
@@ -32,6 +52,8 @@ export function BoardTable({
     );
   }
 
+  const toggleEdgeSort = () => setSortKey((k) => (k === "edge" ? "default" : "edge"));
+
   return (
     <div className={styles.wrap}>
       <div className={styles.headRow} role="row">
@@ -40,6 +62,17 @@ export function BoardTable({
         <div>Result</div>
         <div className={styles.right}>P(YRFI)</div>
         <div>Pick</div>
+        <button
+          type="button"
+          onClick={toggleEdgeSort}
+          className={`${styles.sortable} ${styles.right} ${
+            sortKey === "edge" ? styles.sortableActive : ""
+          }`}
+          aria-pressed={sortKey === "edge"}
+          title={sortKey === "edge" ? "Sorted by edge (click to reset)" : "Sort by edge (highest first)"}
+        >
+          Edge {sortKey === "edge" ? "▾" : ""}
+        </button>
         <div>NRFI ←→ YRFI</div>
         <div className={styles.right}>NRFI</div>
         <div className={styles.right}>YRFI</div>
@@ -48,9 +81,7 @@ export function BoardTable({
       <div
         className={`${styles.body} stagger ${loading ? styles.dim : ""}`}
       >
-        {rows.map((row) => {
-          // gamePk is the unique row key (handles doubleheaders correctly).
-          // Fall back to away@home#rank for old board CSVs missing gamePk.
+        {sortedRows.map((row) => {
           const key       = row.gamePk || `${row.away}@${row.home}#${row.rank}`;
           const detailKey = row.gamePk || `${row.away}@${row.home}`;
           const detail    = details[detailKey];

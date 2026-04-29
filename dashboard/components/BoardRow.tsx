@@ -114,6 +114,8 @@ export function BoardRowItem({
           <OddsChip row={row} detail={detail} />
         </span>
 
+        <EdgeCell row={row} detail={detail} />
+
         <span className={styles.meterCell}>
           <LambdaMeter yrfiProb={row.yrfiPct / 100} compact />
         </span>
@@ -147,30 +149,20 @@ export function BoardRowItem({
   );
 }
 
-/** Live-odds chip: shows the sportsbook + price + edge for the picked side.
- *  Hidden entirely when no odds have been imported for the row.  Coloring:
- *   - bet=Y: green tint (positive edge above threshold)
- *   - bet=N: muted (negative edge or below threshold; we skipped the bet)
- *   - "" (no odds yet): renders nothing
- *  PASS picks always render nothing -- there's no side to price. */
+/** Live-odds chip: sportsbook + price for the picked side.  Edge is shown
+ *  in its own dedicated column to the right (see EdgeCell).  Hidden when
+ *  no odds yet; PASS picks always render nothing. */
 function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefined }) {
   if (!detail) return null;
   if (row.pickSide === "PASS") return null;
-
   const price = oddsForPick(row.pickSide, detail.marketNrfiOdds, detail.marketYrfiOdds);
   if (!price) return null;
 
-  const edgePct = detail.edgeOnPick != null ? detail.edgeOnPick * 100 : null;
-  const edgeStr =
-    edgePct == null
-      ? ""
-      : edgePct >= 0
-        ? `+${edgePct.toFixed(1)}%`
-        : `${edgePct.toFixed(1)}%`;
-
-  const bet = detail.betPlaced;
-  const cls = bet === "Y" ? styles.oddsBet : bet === "N" ? styles.oddsSkip : "";
+  const bet  = detail.betPlaced;
+  const cls  = bet === "Y" ? styles.oddsBet : bet === "N" ? styles.oddsSkip : "";
   const book = shortBook(detail.sportsbook);
+  const edgePct = detail.edgeOnPick != null ? detail.edgeOnPick * 100 : null;
+  const edgeStr = edgePct == null ? "" : (edgePct >= 0 ? `+${edgePct.toFixed(1)}%` : `${edgePct.toFixed(1)}%`);
 
   return (
     <span
@@ -185,12 +177,29 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
     >
       {book && <span className={styles.oddsBook}>{book}</span>}
       <span className={styles.oddsPrice}>{price}</span>
-      {edgeStr && (
-        <>
-          <span className={styles.oddsSep}>·</span>
-          <span className={styles.oddsEdge}>{edgeStr}</span>
-        </>
-      )}
+    </span>
+  );
+}
+
+
+/** Dedicated EDGE column.  Right-aligned percentage with sign-aware tint:
+ *   positive (good bet) → warm-brown (--primary)
+ *   negative (skip)     → muted-red
+ *   no odds / PASS pick → em-dash, low contrast */
+function EdgeCell({ row, detail }: { row: BoardRow; detail: GameDetail | undefined }) {
+  // PASS picks: no side to price an edge against.
+  if (row.pickSide === "PASS" || !detail || detail.edgeOnPick == null) {
+    return <span className={`${styles.edgeCell} ${styles.edgeNone}`}>—</span>;
+  }
+  const pct = detail.edgeOnPick * 100;
+  const cls = pct > 0 ? styles.edgePos : pct < 0 ? styles.edgeNeg : "";
+  const sign = pct >= 0 ? "+" : "";
+  return (
+    <span
+      className={`${styles.edgeCell} ${cls}`}
+      title={`Model edge over implied prob: ${sign}${pct.toFixed(2)}%`}
+    >
+      {sign}{pct.toFixed(1)}%
     </span>
   );
 }

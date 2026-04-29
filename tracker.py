@@ -371,6 +371,23 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "bet_placed", "units_risked", "profit_loss_units",
             ]
 
+            # Detect pick change BEFORE we apply the lock-preserve logic.
+            # We only care about pre-lockout flips (game not yet started)
+            # since locked rows preserve the pick by design.
+            old_label = (existing.get("pick_label") or "").strip()
+            new_label = new_row["pick_label"]
+            if not _pick_is_locked(existing, iso_date) and old_label and old_label != new_label:
+                _record_pick_change(
+                    iso_date    = iso_date,
+                    game_pk     = str(g["game_pk"]),
+                    away_team   = ap["abbr"],
+                    home_team   = hp["abbr"],
+                    game_time   = g["time"],
+                    old_label   = old_label,
+                    new_label   = new_label,
+                    captured_at = now,
+                )
+
             # If the game has already started (live or final), preserve
             # EVERYTHING the predictor would normally overwrite -- the
             # snapshot the user actually bet against has to stay frozen
@@ -402,6 +419,63 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
 
     _write_rows(path, rows)
     return written
+
+
+# ---------------------------------------------------------------------------
+# Pick-change journal -- appended to whenever an intraday refresh flips a
+# pre-game pick (e.g. STARTER PENDING -> STRONG YRFI as lineups post,
+# or STRONG YRFI -> PASS as the lambda floor demotes a borderline call).
+#
+# Schema:
+#   captured_at_utc, date, game_pk, away_team, home_team, game_time_et,
+#   old_pick_label, new_pick_label
+#
+# Stored as a CSV next to picks_<season>.csv so it shows up in the
+# repo, gets deployed alongside, and can be eyeballed easily.  Pruned
+# implicitly by the dashboard (only "today" entries surface).
+# ---------------------------------------------------------------------------
+
+CHANGE_LOG_FIELDS = [
+    "captured_at_utc", "date", "game_pk",
+    "away_team", "home_team", "game_time_et",
+    "old_pick_label", "new_pick_label",
+]
+
+
+def _change_log_path() -> Path:
+    DATA_DIR.mkdir(exist_ok=True)
+    return DATA_DIR / "pick_changes.csv"
+
+
+def _record_pick_change(*, iso_date: str, game_pk: str,
+                        away_team: str, home_team: str, game_time: str,
+                        old_label: str, new_label: str,
+                        captured_at: str) -> None:
+    """Append a single change row to data/pick_changes.csv.  Idempotent
+    only at the (date, game_pk, captured_at) tuple level -- multiple
+    flips within the same minute would dedupe but separate refresh
+    cycles each get their own entry, so the dashboard can show the full
+    history of how a pick evolved through the day."""
+    path = _change_log_path()
+    is_new = not path.exists()
+    try:
+        with open(path, "a", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=CHANGE_LOG_FIELDS)
+            if is_new:
+                w.writeheader()
+            w.writerow({
+                "captured_at_utc": captured_at,
+                "date":             iso_date,
+                "game_pk":          game_pk,
+                "away_team":        away_team,
+                "home_team":        home_team,
+                "game_time_et":     game_time or "",
+                "old_pick_label":   old_label,
+                "new_pick_label":   new_label,
+            })
+    except Exception:
+        # Don't let a logging failure break the predictor run.
+        pass
 
 # ---------------------------------------------------------------------------
 # 2. Grade picks

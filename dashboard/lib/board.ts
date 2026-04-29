@@ -5,6 +5,7 @@ import type {
   BoardResponse,
   BoardRow,
   GameDetail,
+  PickChange,
   PickSide,
   PickStrength,
   DataQuality,
@@ -221,6 +222,7 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     rows: [],
     details: {},
     generatedAt: null,
+    pickChanges: [],
   };
 
   if (!iso) return empty;
@@ -256,6 +258,7 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
   }
 
   const details = await loadDetails(iso);
+  const pickChanges = await loadPickChanges(iso);
 
   return {
     date: iso,
@@ -263,5 +266,38 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     rows: parsed,
     details,
     generatedAt,
+    pickChanges,
   };
+}
+
+
+/* -------------------------------------------------------------------------
+   Pick-change journal (data/pick_changes.csv)
+
+   The predictor's tracker.log_picks() appends a row every time an intraday
+   refresh flips a pre-game pick (e.g. STARTER PENDING -> STRONG YRFI as
+   lineups post, or STRONG YRFI -> PASS as the new lambda floor demotes a
+   borderline call).  Surfaced on the dashboard above the board so the
+   user knows when something they were watching has changed.
+   ------------------------------------------------------------------------- */
+
+async function loadPickChanges(iso: string): Promise<PickChange[]> {
+  const p = path.join(dataDir(), "pick_changes.csv");
+  const raw = await safeRead(p);
+  if (!raw) return [];
+  const all = parseCsv(raw);
+  // Keep only changes for the displayed slate date, newest first.
+  return all
+    .filter((r) => (r.date ?? "").slice(0, 10) === iso)
+    .map((r) => ({
+      capturedAtUtc: (r.captured_at_utc ?? "").trim(),
+      date:          (r.date ?? "").slice(0, 10),
+      gamePk:        (r.game_pk ?? "").trim(),
+      awayTeam:      (r.away_team ?? "").trim(),
+      homeTeam:      (r.home_team ?? "").trim(),
+      gameTimeEt:    (r.game_time_et ?? "").trim(),
+      oldPickLabel:  (r.old_pick_label ?? "").trim(),
+      newPickLabel:  (r.new_pick_label ?? "").trim(),
+    }))
+    .sort((a, b) => b.capturedAtUtc.localeCompare(a.capturedAtUtc));
 }

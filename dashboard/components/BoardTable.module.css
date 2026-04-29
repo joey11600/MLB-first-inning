@@ -5,28 +5,51 @@
 .headRow {
   display: grid;
   grid-template-columns:
-    88px
-    minmax(160px, 0.9fr)
-    84px
-    62px
-    minmax(252px, 1.4fr)
-    minmax(120px, 0.65fr)
-    66px
-    66px
-    56px;
+    82px
+    minmax(150px, 0.85fr)
+    78px
+    58px
+    minmax(220px, 1.25fr)
+    62px                  /* edge */
+    minmax(112px, 0.6fr)
+    60px
+    60px
+    52px;
   align-items: center;
-  padding: 10px 24px 8px;
+  padding: 10px 22px 8px;
   font-family: var(--font-sans);
   font-size: 11px;
   line-height: 1rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted-foreground);
-  gap: 14px;
+  gap: 12px;
   font-weight: 600;
 }
 
 .right { text-align: right; }
+
+/* Sortable header cell -- styled like a button but visually mirrors the
+   plain headers around it.  Active state uses a soft warm-brown chip. */
+.sortable {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: right;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+.sortable:hover { color: var(--foreground); }
+.sortable:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 3px; }
+.sortableActive {
+  color: var(--primary);
+  font-weight: 700;
+}
 
 .body {
   display: block;
@@ -67,6 +90,6 @@
 
 /* Hide the desktop header when the row layout collapses (sync with the
    .clickable breakpoint in BoardRow.module.css). */
-@media (max-width: 1240px) {
+@media (max-width: 1280px) {
   .headRow { display: none; }
 }

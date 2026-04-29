@@ -90,10 +90,28 @@ export interface GameDetail {
   };
 }
 
+/** A single intraday pick flip surfaced from data/pick_changes.csv.
+ *  Logged by tracker.log_picks() whenever a pre-game pick label changes
+ *  (e.g. STARTER PENDING -> STRONG YRFI as the lineup posts and the
+ *  model can finally see top-3 OBP). */
+export interface PickChange {
+  capturedAtUtc: string;     // ISO timestamp the change was recorded
+  date:          string;     // slate date (YYYY-MM-DD)
+  gamePk:        string;
+  awayTeam:      string;
+  homeTeam:      string;
+  gameTimeEt:    string;     // "7:10 PM ET"
+  oldPickLabel:  string;     // e.g. "PASS - Starter pending"
+  newPickLabel:  string;     // e.g. "STRONG YRFI"
+}
+
 export interface BoardResponse {
   date: string;              // YYYY-MM-DD
   availableDates: string[];  // sorted desc
   rows: BoardRow[];
   details: Record<string, GameDetail>;  // keyed by "AWAY@HOME"
   generatedAt: string | null;
+  /** Today's pre-game pick flips, newest first.  Empty when no changes
+   *  yet today (most common case at slate generation). */
+  pickChanges: PickChange[];
 }
