@@ -69,6 +69,15 @@ export interface GameDetail {
   fiAwayRuns:    number | null;
   fiHomeRuns:    number | null;
   fiTotalRuns:   number | null;
+  // Live market odds + edge (populated by --import-odds; null when no odds yet)
+  marketNrfiOdds: string;        // American format, e.g. "+115"
+  marketYrfiOdds: string;
+  sportsbook:     string;        // e.g. "DraftKings"
+  oddsCapturedAt: string;        // ISO timestamp; empty when no odds
+  edgeOnPick:     number | null; // model NRFI/YRFI prob - implied prob for picked side
+  betPlaced:      "" | "Y" | "N";// Y = edge >= min_edge; N = below threshold; "" = no odds
+  unitsRisked:    number | null;
+  profitLossUnits: number | null;
   away: {
     team: string;
     pitcher: PitcherStats;

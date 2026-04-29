@@ -292,6 +292,65 @@
   50%      { opacity: 1; }
 }
 
+/* ============================================================
+   Live odds chip -- shows the DraftKings price for the picked
+   side and the edge (model_prob - implied_prob).  Sits next to
+   the pick pill so the user can see at a glance "we picked this
+   STRONG YRFI and DK is paying -135 with +6.3% edge".
+   ============================================================ */
+.oddsChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.oddsBook {
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.oddsPrice {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.oddsSep {
+  opacity: 0.35;
+  font-size: 10px;
+}
+.oddsEdge {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+/* Bet=Y: positive edge, green-tinted (NRFI primary tone) */
+.oddsBet .oddsEdge {
+  color: color-mix(in oklab, #16a34a 70%, var(--foreground));
+}
+.oddsBet {
+  background: color-mix(in oklab, #16a34a 8%, var(--muted));
+  border-color: color-mix(in oklab, #16a34a 25%, var(--border));
+}
+/* Bet=N: below threshold or negative edge, muted */
+.oddsSkip .oddsEdge {
+  color: var(--muted-foreground);
+}
+.oddsSkip {
+  opacity: 0.7;
+}
+
 .yrfiLean .pickPill {
   background: color-mix(in oklab, var(--destructive) 8%, transparent);
   border-color: color-mix(in oklab, var(--destructive) 28%, var(--border));

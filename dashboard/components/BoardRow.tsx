@@ -23,6 +23,26 @@ function formatGameTime(s: string): string {
   return s.replace(/\s*ET\s*$/, "").trim();
 }
 
+// Short sportsbook name for the live-odds chip ("DraftKings" -> "DK")
+function shortBook(name: string): string {
+  if (!name) return "";
+  const n = name.trim().toLowerCase();
+  if (n.startsWith("draftking"))   return "DK";
+  if (n.startsWith("fanduel"))     return "FD";
+  if (n.startsWith("betmgm"))      return "MGM";
+  if (n.startsWith("caesars"))     return "CAE";
+  if (n.startsWith("pinnacle"))    return "PIN";
+  return name.slice(0, 3).toUpperCase();
+}
+
+// Pick the right odds (NRFI vs YRFI) for the picked side, normalize sign.
+function oddsForPick(side: PickSide, nrfi: string, yrfi: string): string {
+  const raw = (side === "NRFI" ? nrfi : side === "YRFI" ? yrfi : "").trim();
+  if (!raw) return "";
+  // Already has +/- prefix?  Otherwise prepend +.
+  return /^[+\-]/.test(raw) ? raw : (Number.parseFloat(raw) > 0 ? `+${raw}` : raw);
+}
+
 export function BoardRowItem({
   row,
   detail,
@@ -91,6 +111,7 @@ export function BoardRowItem({
               {pickLabelText(row.pickSide, row.pickStrength)}
             </span>
           </span>
+          <OddsChip row={row} detail={detail} />
         </span>
 
         <span className={styles.meterCell}>
@@ -125,6 +146,55 @@ export function BoardRowItem({
     </div>
   );
 }
+
+/** Live-odds chip: shows the sportsbook + price + edge for the picked side.
+ *  Hidden entirely when no odds have been imported for the row.  Coloring:
+ *   - bet=Y: green tint (positive edge above threshold)
+ *   - bet=N: muted (negative edge or below threshold; we skipped the bet)
+ *   - "" (no odds yet): renders nothing
+ *  PASS picks always render nothing -- there's no side to price. */
+function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefined }) {
+  if (!detail) return null;
+  if (row.pickSide === "PASS") return null;
+
+  const price = oddsForPick(row.pickSide, detail.marketNrfiOdds, detail.marketYrfiOdds);
+  if (!price) return null;
+
+  const edgePct = detail.edgeOnPick != null ? detail.edgeOnPick * 100 : null;
+  const edgeStr =
+    edgePct == null
+      ? ""
+      : edgePct >= 0
+        ? `+${edgePct.toFixed(1)}%`
+        : `${edgePct.toFixed(1)}%`;
+
+  const bet = detail.betPlaced;
+  const cls = bet === "Y" ? styles.oddsBet : bet === "N" ? styles.oddsSkip : "";
+  const book = shortBook(detail.sportsbook);
+
+  return (
+    <span
+      className={`${styles.oddsChip} ${cls}`}
+      title={
+        bet === "Y"
+          ? `Bet placed: ${row.pickSide} @ ${price} (edge ${edgeStr})`
+          : bet === "N"
+            ? `Skipped: edge ${edgeStr || "below threshold"} on ${row.pickSide} @ ${price}`
+            : `${row.pickSide} @ ${price}${edgeStr ? ` (edge ${edgeStr})` : ""}`
+      }
+    >
+      {book && <span className={styles.oddsBook}>{book}</span>}
+      <span className={styles.oddsPrice}>{price}</span>
+      {edgeStr && (
+        <>
+          <span className={styles.oddsSep}>·</span>
+          <span className={styles.oddsEdge}>{edgeStr}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
 
 function Bar({ pct, tone }: { pct: number; tone: "nrfi" | "yrfi" }) {
   const p = Math.max(0, Math.min(100, pct));

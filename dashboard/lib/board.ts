@@ -165,6 +165,17 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
           quality: normalizeQuality(r.away_batting_q),
         },
       },
+      // Live odds + edge (populated by tracker.import_odds; blank when no odds yet)
+      marketNrfiOdds: r.market_nrfi_odds ?? "",
+      marketYrfiOdds: r.market_yrfi_odds ?? "",
+      sportsbook:     r.sportsbook ?? "",
+      oddsCapturedAt: r.odds_captured_at ?? "",
+      edgeOnPick:     toNumber(r.edge_on_pick),
+      betPlaced:      ((r.bet_placed ?? "").trim().toUpperCase() === "Y" ? "Y"
+                      : (r.bet_placed ?? "").trim().toUpperCase() === "N" ? "N"
+                      : "") as "" | "Y" | "N",
+      unitsRisked:    toNumber(r.units_risked),
+      profitLossUnits: toNumber(r.profit_loss_units),
       home: {
         team: r.home_team,
         pitcher: {

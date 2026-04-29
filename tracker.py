@@ -359,7 +359,8 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
         if key in index:
             existing = rows[index[key]]
 
-            # Always preserve grading and odds fields
+            # Always preserve grading and odds fields (these are populated
+            # by --grade and --import-odds, NOT by the predictor itself).
             preserve = [
                 "actual_result", "graded_result",
                 "fi_away_runs", "fi_home_runs", "fi_total_runs", "graded_at",
@@ -370,21 +371,27 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "bet_placed", "units_risked", "profit_loss_units",
             ]
 
-            # If the game has already started (live or final), the user has
-            # already placed (or chosen not to place) the bet -- preserve the
-            # ORIGINAL pick so intraday refreshes don't rewrite history.
-            # _game_already_started checks both graded_result and the slate
-            # time vs current time so live games (in-progress, ungraded) are
-            # also locked in.
+            # If the game has already started (live or final), preserve
+            # EVERYTHING the predictor would normally overwrite -- the
+            # snapshot the user actually bet against has to stay frozen
+            # for accurate post-mortem analysis.  Without this, an
+            # intraday refresh that runs after first pitch would update
+            # pitcher_q / weather / xera / etc. while keeping the locked
+            # pick, producing an inconsistent display ("STARTER PENDING"
+            # next to fully-known pitcher data, etc).  The grading and
+            # odds-import flows handle their own fields outside this path.
             if _pick_is_locked(existing, iso_date):
-                preserve += ["pick_side", "pick_strength", "pick_label",
-                             "nrfi_prob", "yrfi_prob",
-                             "over_1_5_prob", "under_1_5_prob",
-                             "lambda_lr_t1", "lambda_lr_b1", "lambda_lr_total",
-                             "combined_lambda", "away_proj_runs", "home_proj_runs"]
-
-            for fld in preserve:
-                new_row[fld] = existing.get(fld, "")
+                # Allowed to refresh post-lockout: only timestamp metadata.
+                # Every other field gets restored from the locked snapshot.
+                allow_update = {"created_at"}
+                for fld in FIELDS:
+                    if fld not in allow_update:
+                        new_row[fld] = existing.get(fld, "")
+            else:
+                # Pre-game: full refresh except for the always-preserve list
+                # (grading + odds, which the predictor doesn't generate).
+                for fld in preserve:
+                    new_row[fld] = existing.get(fld, "")
 
             rows[index[key]] = new_row
         else:
