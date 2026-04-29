@@ -52,6 +52,7 @@ LEAGUE_AVG_HR9 = 1.20
 LEAGUE_AVG_BB9 = 3.20
 LEAGUE_AVG_OBP = 0.318
 LEAGUE_AVG_SLG = 0.414
+LEAGUE_AVG_ISO = 0.169
 FI_PARK_DEFAULT = 0.50
 
 # Weather defaults used when wx_* cells are blank (which is the signal for
@@ -124,6 +125,8 @@ T1_PHASE_E3_FEATURES = [
     "home_whiff_pct_rank",
     "era_gap_t1",                  # = home_era - away_era
     "home_p_last10_pitcher_nrfi",  # 10-start recent-form window
+    "away_top3c_slg",              # power signal: top-3 batters' SLG
+    "away_top3c_iso",              # isolated power: SLG - AVG
 ]
 B1_PHASE_E3_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -135,6 +138,8 @@ B1_PHASE_E3_FEATURES = [
     "away_whiff_pct_rank",
     "era_gap_b1",                  # = away_era - home_era
     "away_p_last10_pitcher_nrfi",
+    "home_top3c_slg",
+    "home_top3c_iso",
 ]
 
 # Defaults for Phase E.3 features when CSV cell is missing
@@ -233,6 +238,8 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     coerce(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
                     era_gap_t1,
                     coerce(r.get("home_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+                    coerce(r.get("away_top3c_slg"),            LEAGUE_AVG_SLG),
+                    coerce(r.get("away_top3c_iso"),            LEAGUE_AVG_ISO),
                 ]
                 b1_x = [
                     fi_park,
@@ -246,6 +253,8 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     coerce(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
                     era_gap_b1,
                     coerce(r.get("away_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+                    coerce(r.get("home_top3c_slg"),            LEAGUE_AVG_SLG),
+                    coerce(r.get("home_top3c_iso"),            LEAGUE_AVG_ISO),
                 ]
             elif slim_weather:
                 wx = [

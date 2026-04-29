@@ -54,6 +54,7 @@ LEAGUE_AVG_HR9 = 1.20
 LEAGUE_AVG_BB9 = 3.20
 LEAGUE_AVG_OBP = 0.318
 LEAGUE_AVG_SLG = 0.414
+LEAGUE_AVG_ISO = 0.169
 FI_PARK_DEFAULT = 0.50
 WX_TEMP_DEFAULT     = 20.0
 WX_WIND_DEFAULT     = 10.0
@@ -83,6 +84,8 @@ T1_FEATURES = [
     "home_whiff_pct_rank",
     "era_gap_t1",
     "home_p_last10_pitcher_nrfi",
+    "away_top3c_slg",
+    "away_top3c_iso",
 ]
 B1_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -94,6 +97,8 @@ B1_FEATURES = [
     "away_whiff_pct_rank",
     "era_gap_b1",
     "away_p_last10_pitcher_nrfi",
+    "home_top3c_slg",
+    "home_top3c_iso",
 ]
 
 
@@ -273,6 +278,8 @@ def main() -> None:
             coerce_float(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
             h_era - a_era,
             coerce_float(r.get("home_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+            coerce_float(r.get("away_top3c_slg"),            LEAGUE_AVG_SLG),
+            coerce_float(r.get("away_top3c_iso"),            LEAGUE_AVG_ISO),
         ]
         b1_vec = [
             fi_park,
@@ -286,6 +293,8 @@ def main() -> None:
             coerce_float(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
             a_era - h_era,
             coerce_float(r.get("away_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
+            coerce_float(r.get("home_top3c_slg"),            LEAGUE_AVG_SLG),
+            coerce_float(r.get("home_top3c_iso"),            LEAGUE_AVG_ISO),
         ]
         raw_p = lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec)
         cal_p = cal.predict(raw_p)

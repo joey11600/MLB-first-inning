@@ -120,6 +120,8 @@ def backfill_picks_2026(caches: dict):
     new_cols = [
         "home_p_last5_pitcher_nrfi", "away_p_last5_pitcher_nrfi",
         "home_top3c_obp", "away_top3c_obp",
+        "home_top3c_slg", "away_top3c_slg",   # new: power signal
+        "home_top3c_iso", "away_top3c_iso",   # new: isolated power
         "home_plate_ump_id", "home_plate_ump_nrfi_rate",
         "home_xera", "away_xera",
         "home_whiff_pct_rank", "away_whiff_pct_rank",
@@ -176,9 +178,12 @@ def backfill_picks_2026(caches: dict):
         date_iso = (r.get("date") or "").strip()
         pk = (r.get("game_pk") or "").strip()
         if not date_iso or not pk: continue
+        # Pitcher_id cache is only needed for last5_nrfi.  top3c columns
+        # need only the game_pk + date (lineup is fetched directly), so
+        # don't gate the whole row on pid availability.
         pids = caches["pid_cache"].get(pk)
-        if not pids: continue
-        a_pid, h_pid = pids[0], pids[1]
+        a_pid = pids[0] if pids else 0
+        h_pid = pids[1] if pids else 0
 
         # Pitcher last-5 NRFI
         if not r.get("home_p_last5_pitcher_nrfi", "").strip() and h_pid:
@@ -198,24 +203,38 @@ def backfill_picks_2026(caches: dict):
             except Exception:
                 pass
 
-        # Top-3 batters' current-season OBP -- fetch via game's top-3 lineup
-        need_h_top = not r.get("home_top3c_obp", "").strip()
-        need_a_top = not r.get("away_top3c_obp", "").strip()
-        if need_h_top or need_a_top:
+        # Top-3 batters' current-season OBP/SLG/ISO -- fetch via game's top-3 lineup.
+        # A game where we already have top3c_obp may still be missing SLG/ISO (the
+        # earlier backfill only wrote OBP); detect that case and refill.
+        need_h_obp = not r.get("home_top3c_obp", "").strip() or r.get("home_top3c_obp", "").startswith("0.318")
+        need_a_obp = not r.get("away_top3c_obp", "").strip() or r.get("away_top3c_obp", "").startswith("0.318")
+        need_h_slg = not r.get("home_top3c_slg", "").strip()
+        need_a_slg = not r.get("away_top3c_slg", "").strip()
+        need_h_iso = not r.get("home_top3c_iso", "").strip()
+        need_a_iso = not r.get("away_top3c_iso", "").strip()
+        if need_h_obp or need_a_obp or need_h_slg or need_a_slg or need_h_iso or need_a_iso:
             try:
                 top3 = fetch_top3_batters(int(pk))
                 home_top3 = top3.get("home_top3", [])
                 away_top3 = top3.get("away_top3", [])
-                if need_h_top and home_top3:
+                if home_top3 and (need_h_obp or need_h_slg or need_h_iso):
                     h_agg = current_season_top3_stats(home_top3, date_iso, season)
-                    if h_agg and h_agg.get("obp") is not None:
-                        r["home_top3c_obp"] = f"{h_agg['obp']:.4f}"
-                        n_top3c += 1
-                if need_a_top and away_top3:
+                    if h_agg:
+                        if need_h_obp and h_agg.get("obp") is not None:
+                            r["home_top3c_obp"] = f"{h_agg['obp']:.4f}"; n_top3c += 1
+                        if need_h_slg and h_agg.get("slg") is not None:
+                            r["home_top3c_slg"] = f"{h_agg['slg']:.4f}"; n_top3c += 1
+                        if need_h_iso and h_agg.get("iso") is not None:
+                            r["home_top3c_iso"] = f"{h_agg['iso']:.4f}"; n_top3c += 1
+                if away_top3 and (need_a_obp or need_a_slg or need_a_iso):
                     a_agg = current_season_top3_stats(away_top3, date_iso, season)
-                    if a_agg and a_agg.get("obp") is not None:
-                        r["away_top3c_obp"] = f"{a_agg['obp']:.4f}"
-                        n_top3c += 1
+                    if a_agg:
+                        if need_a_obp and a_agg.get("obp") is not None:
+                            r["away_top3c_obp"] = f"{a_agg['obp']:.4f}"; n_top3c += 1
+                        if need_a_slg and a_agg.get("slg") is not None:
+                            r["away_top3c_slg"] = f"{a_agg['slg']:.4f}"; n_top3c += 1
+                        if need_a_iso and a_agg.get("iso") is not None:
+                            r["away_top3c_iso"] = f"{a_agg['iso']:.4f}"; n_top3c += 1
             except Exception:
                 pass
 

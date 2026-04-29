@@ -788,7 +788,9 @@ _T1_EXPECTED_FEATURES = [
     "home_xera",
     "home_whiff_pct_rank",
     "era_gap_t1",
-    "home_p_last10_pitcher_nrfi",   # 10-start recent-form window
+    "home_p_last10_pitcher_nrfi",
+    "away_top3c_slg",   # power signal: top-3 batters' slugging
+    "away_top3c_iso",   # isolated power: SLG - AVG
 ]
 _B1_EXPECTED_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -800,6 +802,8 @@ _B1_EXPECTED_FEATURES = [
     "away_whiff_pct_rank",
     "era_gap_b1",
     "away_p_last10_pitcher_nrfi",
+    "home_top3c_slg",
+    "home_top3c_iso",
 ]
 
 # Defaults for new features when fetch fails (used in feature builders below)
@@ -1087,6 +1091,8 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
                  home_last5_nrfi: float = _LEAGUE_NRFI_RATE,
                  home_last10_nrfi: float = _LEAGUE_NRFI_RATE,
                  away_top3c_obp:  float = LEAGUE_AVG_OBP,
+                 away_top3c_slg:  float = LEAGUE_AVG_SLG,
+                 away_top3c_iso:  float = 0.169,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  season: int = 2026) -> list[float]:
     """T1 (top of 1st) feature vector: home pitcher vs away offense at home park.
@@ -1119,6 +1125,8 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
         sc["whiff_pct_rank"],
         era_gap_t1,
         home_last10_nrfi,
+        away_top3c_slg,
+        away_top3c_iso,
     ]
 
 
@@ -1129,6 +1137,8 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
                  away_last5_nrfi: float = _LEAGUE_NRFI_RATE,
                  away_last10_nrfi: float = _LEAGUE_NRFI_RATE,
                  home_top3c_obp:  float = LEAGUE_AVG_OBP,
+                 home_top3c_slg:  float = LEAGUE_AVG_SLG,
+                 home_top3c_iso:  float = 0.169,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  season: int = 2026) -> list[float]:
     """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park.
@@ -1158,6 +1168,8 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
         sc["whiff_pct_rank"],
         era_gap_b1,
         away_last10_nrfi,
+        home_top3c_slg,
+        home_top3c_iso,
     ]
 
 
@@ -1555,20 +1567,41 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                     home_last10 = float(d_h10["pitcher_nrfi_rate"])
             except Exception: pass
 
-        # Top-3 current-season-to-date OBP (lineup-aware via fetch_top3_batters)
-        away_top3c_obp = LEAGUE_AVG_OBP
-        home_top3c_obp = LEAGUE_AVG_OBP
+        # Top-3 current-season-to-date OBP / SLG / ISO (lineup-aware via
+        # fetch_top3_batters).  When the lineup hasn't posted yet (typical
+        # at 9am ET predict time), fall back to the team's full-season
+        # batting stats -- much closer to actual top-3 stats than league
+        # average defaults.
+        away_top3c_obp = away_bat.get("obp", LEAGUE_AVG_OBP)
+        home_top3c_obp = home_bat.get("obp", LEAGUE_AVG_OBP)
+        away_top3c_slg = away_bat.get("slg", LEAGUE_AVG_SLG)
+        home_top3c_slg = home_bat.get("slg", LEAGUE_AVG_SLG)
+        # ISO = SLG - AVG; team_batting doesn't expose AVG directly so
+        # approximate with league-average ISO when team data missing.
+        # (When lineup is posted, current_season_top3_stats provides real ISO.)
+        away_top3c_iso = 0.169
+        home_top3c_iso = 0.169
         try:
             from backtest import fetch_top3_batters, current_season_top3_stats
             top3 = fetch_top3_batters(int(game["game_pk"]))
             if top3.get("away_top3"):
                 a_agg = current_season_top3_stats(top3["away_top3"], target_iso, season)
-                if a_agg and a_agg.get("obp") is not None:
-                    away_top3c_obp = float(a_agg["obp"])
+                if a_agg:
+                    if a_agg.get("obp") is not None:
+                        away_top3c_obp = float(a_agg["obp"])
+                    if a_agg.get("slg") is not None:
+                        away_top3c_slg = float(a_agg["slg"])
+                    if a_agg.get("iso") is not None:
+                        away_top3c_iso = float(a_agg["iso"])
             if top3.get("home_top3"):
                 h_agg = current_season_top3_stats(top3["home_top3"], target_iso, season)
-                if h_agg and h_agg.get("obp") is not None:
-                    home_top3c_obp = float(h_agg["obp"])
+                if h_agg:
+                    if h_agg.get("obp") is not None:
+                        home_top3c_obp = float(h_agg["obp"])
+                    if h_agg.get("slg") is not None:
+                        home_top3c_slg = float(h_agg["slg"])
+                    if h_agg.get("iso") is not None:
+                        home_top3c_iso = float(h_agg["iso"])
         except Exception: pass
 
         # Home plate umpire NRFI rate (Phase D)
@@ -1579,8 +1612,10 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             home_pitcher_id=game["home_pitcher_id"],
             away_pitcher=away_sp,                  # for era_gap_t1
             home_last5_nrfi=home_last5,
-            home_last10_nrfi=home_last10,          # 10-start window
+            home_last10_nrfi=home_last10,
             away_top3c_obp=away_top3c_obp,
+            away_top3c_slg=away_top3c_slg,         # power signal
+            away_top3c_iso=away_top3c_iso,
             ump_rate=ump_rate,
             season=season,
         )
@@ -1591,6 +1626,8 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             away_last5_nrfi=away_last5,
             away_last10_nrfi=away_last10,
             home_top3c_obp=home_top3c_obp,
+            home_top3c_slg=home_top3c_slg,
+            home_top3c_iso=home_top3c_iso,
             ump_rate=ump_rate,
             season=season,
         )
