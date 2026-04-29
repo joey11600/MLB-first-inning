@@ -69,6 +69,9 @@ FIELDS = [
     # --- Phase E.3 Statcast features: xERA + whiff_pct_rank per pitcher ---
     "home_xera", "away_xera",
     "home_whiff_pct_rank", "away_whiff_pct_rank",
+    # --- Phase F: pitcher-vs-team familiarity + opener detection ---
+    "home_pvt_nrfi_rate", "away_pvt_nrfi_rate",
+    "home_avg_ip_per_start", "away_avg_ip_per_start",
     # --- result (filled by --grade) ---
     "actual_result",     # NRFI | YRFI | POSTPONED | SUSPENDED
     "graded_result",     # WIN | LOSS | PASS | POSTPONED | SUSPENDED
@@ -335,6 +338,11 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "away_xera":                  _fmt(g.get("away_xera"),                3),
             "home_whiff_pct_rank":        _fmt(g.get("home_whiff_pct_rank"),      0),
             "away_whiff_pct_rank":        _fmt(g.get("away_whiff_pct_rank"),      0),
+            # Phase F (added 2026-04-29): pitcher-vs-team familiarity + opener detection
+            "home_pvt_nrfi_rate":         _fmt(g.get("home_pvt_nrfi_rate"),       4),
+            "away_pvt_nrfi_rate":         _fmt(g.get("away_pvt_nrfi_rate"),       4),
+            "home_avg_ip_per_start":      _fmt(g.get("home_avg_ip_per_start"),    2),
+            "away_avg_ip_per_start":      _fmt(g.get("away_avg_ip_per_start"),    2),
             # result fields start empty (preserved if already set)
             "actual_result": "", "graded_result": "",
             "fi_away_runs":  "", "fi_home_runs":  "", "fi_total_runs": "",

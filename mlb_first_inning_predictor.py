@@ -791,6 +791,9 @@ _T1_EXPECTED_FEATURES = [
     "home_p_last10_pitcher_nrfi",
     "away_top3c_slg",   # power signal: top-3 batters' slugging
     "away_top3c_iso",   # isolated power: SLG - AVG
+    # Phase F: pitcher-vs-team familiarity + opener detection
+    "home_pvt_nrfi_rate",      # career NRFI rate vs this opposing team (Bayesian-shrunk)
+    "home_avg_ip_per_start",   # last-5 avg IP; <3 IP suggests opener
 ]
 _B1_EXPECTED_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -804,6 +807,9 @@ _B1_EXPECTED_FEATURES = [
     "away_p_last10_pitcher_nrfi",
     "home_top3c_slg",
     "home_top3c_iso",
+    # Phase F: pitcher-vs-team familiarity + opener detection
+    "away_pvt_nrfi_rate",
+    "away_avg_ip_per_start",
 ]
 
 # Defaults for new features when fetch fails (used in feature builders below)
@@ -1094,12 +1100,14 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
                  away_top3c_slg:  float = LEAGUE_AVG_SLG,
                  away_top3c_iso:  float = 0.169,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
+                 home_pvt_nrfi:   float = _LEAGUE_NRFI_RATE,
+                 home_avg_ip_per_start: float = 5.0,
                  season: int = 2026) -> list[float]:
     """T1 (top of 1st) feature vector: home pitcher vs away offense at home park.
     Order MUST match _T1_EXPECTED_FEATURES.
 
-    Phase E.3 + era_gap: 13 features per half.  era_gap_t1 = home_era -
-    away_era (positive => home pitcher is worse, P(T1 run) should rise)."""
+    Phase F: 18 features per half (added pvt_nrfi familiarity + opener
+    detection via avg IP per start)."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     if wx is None:
         wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
@@ -1127,6 +1135,8 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
         home_last10_nrfi,
         away_top3c_slg,
         away_top3c_iso,
+        home_pvt_nrfi,                # Phase F: pitcher vs this team familiarity
+        home_avg_ip_per_start,        # Phase F: opener detection (low IP -> opener)
     ]
 
 
@@ -1140,9 +1150,11 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
                  home_top3c_slg:  float = LEAGUE_AVG_SLG,
                  home_top3c_iso:  float = 0.169,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
+                 away_pvt_nrfi:   float = _LEAGUE_NRFI_RATE,
+                 away_avg_ip_per_start: float = 5.0,
                  season: int = 2026) -> list[float]:
     """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park.
-    Order MUST match _B1_EXPECTED_FEATURES.  era_gap_b1 = away_era - home_era."""
+    Order MUST match _B1_EXPECTED_FEATURES.  Phase F: 18 features."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     if wx is None:
         wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
@@ -1170,6 +1182,8 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
         away_last10_nrfi,
         home_top3c_slg,
         home_top3c_iso,
+        away_pvt_nrfi,                # Phase F: pitcher vs this team familiarity
+        away_avg_ip_per_start,        # Phase F: opener detection
     ]
 
 
@@ -1607,6 +1621,24 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # Home plate umpire NRFI rate (Phase D)
         ump_id, ump_rate = fetch_umpire_rate(int(game["game_pk"]))
 
+        # Phase F features: pitcher-vs-team familiarity + opener detection
+        home_pvt_nrfi = away_pvt_nrfi = _LEAGUE_NRFI_RATE
+        home_avg_ip = away_avg_ip = 5.0
+        try:
+            from backtest import pitcher_vs_team_nrfi_rate, pitcher_role_features
+            home_pvt_nrfi = pitcher_vs_team_nrfi_rate(
+                game["home_pitcher_id"], game.get("away_team_id"), target_iso,
+            )
+            away_pvt_nrfi = pitcher_vs_team_nrfi_rate(
+                game["away_pitcher_id"], game.get("home_team_id"), target_iso,
+            )
+            h_role = pitcher_role_features(game["home_pitcher_id"], target_iso, season)
+            a_role = pitcher_role_features(game["away_pitcher_id"], target_iso, season)
+            if h_role: home_avg_ip = h_role["avg_ip_per_start"]
+            if a_role: away_avg_ip = a_role["avg_ip_per_start"]
+        except Exception:
+            pass
+
         t1_feats = t1_features(
             home_ab, home_sp, away_bat, wx,
             home_pitcher_id=game["home_pitcher_id"],
@@ -1617,6 +1649,8 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             away_top3c_slg=away_top3c_slg,         # power signal
             away_top3c_iso=away_top3c_iso,
             ump_rate=ump_rate,
+            home_pvt_nrfi=home_pvt_nrfi,           # Phase F: familiarity
+            home_avg_ip_per_start=home_avg_ip,     # Phase F: opener detection
             season=season,
         )
         b1_feats = b1_features(
@@ -1629,6 +1663,8 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             home_top3c_slg=home_top3c_slg,
             home_top3c_iso=home_top3c_iso,
             ump_rate=ump_rate,
+            away_pvt_nrfi=away_pvt_nrfi,
+            away_avg_ip_per_start=away_avg_ip,
             season=season,
         )
         # Compute each half's P(run) so we can persist lambda projections
@@ -1700,6 +1736,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "home_whiff_pct_rank":        t1_feats[11],
             "away_xera":                  b1_feats[10],
             "away_whiff_pct_rank":        b1_feats[11],
+            # Phase F: pitcher-vs-team familiarity + opener detection
+            "home_pvt_nrfi_rate":         home_pvt_nrfi,
+            "away_pvt_nrfi_rate":         away_pvt_nrfi,
+            "home_avg_ip_per_start":      home_avg_ip,
+            "away_avg_ip_per_start":      away_avg_ip,
             "pick_side":     pick_side,
             "pick_conf":     pick_conf,
             "away": {

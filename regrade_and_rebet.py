@@ -86,6 +86,8 @@ T1_FEATURES = [
     "home_p_last10_pitcher_nrfi",
     "away_top3c_slg",
     "away_top3c_iso",
+    "home_pvt_nrfi_rate",
+    "home_avg_ip_per_start",
 ]
 B1_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -99,6 +101,8 @@ B1_FEATURES = [
     "away_p_last10_pitcher_nrfi",
     "home_top3c_slg",
     "home_top3c_iso",
+    "away_pvt_nrfi_rate",
+    "away_avg_ip_per_start",
 ]
 
 
@@ -286,6 +290,9 @@ def main() -> None:
             coerce_float(r.get("away_top3c_iso"),
                          max(0.0, coerce_float(r.get("away_slg"), LEAGUE_AVG_SLG)
                                   - 0.245)),  # team ISO = team SLG - league AVG
+            # Phase F:
+            coerce_float(r.get("home_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
+            coerce_float(r.get("home_avg_ip_per_start"),     5.0),
         ]
         b1_vec = [
             fi_park,
@@ -305,6 +312,9 @@ def main() -> None:
             coerce_float(r.get("home_top3c_iso"),
                          max(0.0, coerce_float(r.get("home_slg"), LEAGUE_AVG_SLG)
                                   - 0.245)),
+            # Phase F:
+            coerce_float(r.get("away_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
+            coerce_float(r.get("away_avg_ip_per_start"),     5.0),
         ]
         raw_p = lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec)
         cal_p = cal.predict(raw_p)

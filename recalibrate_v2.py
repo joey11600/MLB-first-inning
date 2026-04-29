@@ -71,6 +71,8 @@ T1_FEATURES = [
     "home_p_last10_pitcher_nrfi",
     "away_top3c_slg",
     "away_top3c_iso",
+    "home_pvt_nrfi_rate",
+    "home_avg_ip_per_start",
 ]
 B1_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -84,6 +86,8 @@ B1_FEATURES = [
     "away_p_last10_pitcher_nrfi",
     "home_top3c_slg",
     "home_top3c_iso",
+    "away_pvt_nrfi_rate",
+    "away_avg_ip_per_start",
 ]
 
 
@@ -174,6 +178,9 @@ def _build_t1_b1_phase_e3(r, fi_park):
         coerce_float(r.get("home_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
         coerce_float(r.get("away_top3c_slg"),            LEAGUE_AVG_SLG),
         coerce_float(r.get("away_top3c_iso"),            LEAGUE_AVG_ISO),
+        # Phase F:
+        coerce_float(r.get("home_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
+        coerce_float(r.get("home_avg_ip_per_start"),     5.0),
     ]
     b1_vec = [
         fi_park,
@@ -189,6 +196,9 @@ def _build_t1_b1_phase_e3(r, fi_park):
         coerce_float(r.get("away_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
         coerce_float(r.get("home_top3c_slg"),            LEAGUE_AVG_SLG),
         coerce_float(r.get("home_top3c_iso"),            LEAGUE_AVG_ISO),
+        # Phase F:
+        coerce_float(r.get("away_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
+        coerce_float(r.get("away_avg_ip_per_start"),     5.0),
     ]
     return t1_vec, b1_vec
 

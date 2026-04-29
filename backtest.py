@@ -446,6 +446,101 @@ def pitcher_last_n_first_inning(
 # Pitcher stats -- prior-season only (no leakage)
 # ---------------------------------------------------------------------------
 
+_PVT_CACHE: dict | None = None
+_PVT_PATH = Path(__file__).parent / "data" / "pitcher_vs_team.json"
+
+
+def _load_pvt_cache() -> dict:
+    """Lazy-load the pitcher-vs-team cache.  Empty dict if file missing."""
+    global _PVT_CACHE
+    if _PVT_CACHE is None:
+        if _PVT_PATH.exists():
+            try:
+                _PVT_CACHE = json.load(open(_PVT_PATH, encoding="utf-8"))
+            except Exception:
+                _PVT_CACHE = {}
+        else:
+            _PVT_CACHE = {}
+    return _PVT_CACHE
+
+
+def pitcher_vs_team_nrfi_rate(
+    player_id:        int | None,
+    opp_team_id:      int | None,
+    target_date_iso:  str,
+) -> float:
+    """Bayesian-shrunk NRFI rate for this pitcher vs this specific opposing
+    team, using starts STRICTLY BEFORE target_date_iso (no leakage).
+
+    Returns league NRFI rate (~0.52) when sample is empty.  With K=20 a
+    pitcher with 5 prior starts vs the team only weights real data 20%,
+    so small samples regress hard to the league average -- which is the
+    point: "deGrom faced the Yankees only 3 times" should NOT swing the
+    model based on those 3 outcomes alone."""
+    cache = _load_pvt_cache()
+    meta = cache.get("_meta", {})
+    league = float(meta.get("league_nrfi_rate", 0.5183))
+    K = int(meta.get("shrink_K", 20))
+
+    if not player_id or not opp_team_id:
+        return league
+
+    pid_records = cache.get(str(player_id), {})
+    opp_records = pid_records.get(str(opp_team_id), [])
+    relevant = [s for s in opp_records if s.get("date", "") < target_date_iso]
+    n = len(relevant)
+    if n == 0:
+        return league
+    nrfi = sum(1 for s in relevant if not s.get("gave_up_run", True))
+    raw = nrfi / n
+    return (n * raw + K * league) / (n + K)
+
+
+def pitcher_role_features(
+    player_id:        int | None,
+    target_date_iso:  str,
+    target_season:    int,
+    n:                int = 5,
+    use_cache:        bool = True,
+) -> dict | None:
+    """Compute "starter role" features for a pitcher's last-N starts before
+    target_date.  Used to detect openers / bulk pitchers / spot starters.
+
+    Returns:
+      n:                       count of starts considered
+      avg_ip_per_start:        mean innings pitched
+      max_ip:                  longest start in the window
+      short_start_fraction:    fraction of starts <= 3 IP
+                               (>= 0.4 strongly suggests opener)
+
+    Returns None when the pitcher has zero prior starts (rookie debut).
+
+    Combines current + prior season game logs and filters to dates STRICTLY
+    BEFORE target_date_iso (no leakage).
+    """
+    if not player_id:
+        return None
+    current = fetch_pitcher_gamelog(player_id, target_season,     use_cache)
+    prior   = fetch_pitcher_gamelog(player_id, target_season - 1, use_cache)
+    pool    = list(current) + list(prior)
+    pool    = [g for g in pool if g.get("date", "") < target_date_iso and g.get("ip", 0) > 0]
+    pool.sort(key=lambda g: g["date"], reverse=True)
+
+    starts = pool[:n]
+    if not starts:
+        return None
+
+    ips = [float(s["ip"]) for s in starts]
+    n_short = sum(1 for x in ips if x <= 3.0)
+
+    return {
+        "n":                    len(starts),
+        "avg_ip_per_start":     sum(ips) / len(ips),
+        "max_ip":               max(ips),
+        "short_start_fraction": n_short / len(starts),
+    }
+
+
 def fetch_pitcher_yearbyyear(player_id: int, use_cache: bool = True) -> dict:
     """
     Cache the parsed yearByYear pitcher stats keyed by player_id.

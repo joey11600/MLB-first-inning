@@ -127,6 +127,9 @@ T1_PHASE_E3_FEATURES = [
     "home_p_last10_pitcher_nrfi",  # 10-start recent-form window
     "away_top3c_slg",              # power signal: top-3 batters' SLG
     "away_top3c_iso",              # isolated power: SLG - AVG
+    # Phase F: pitcher-vs-team familiarity + opener detection
+    "home_pvt_nrfi_rate",          # career NRFI rate vs this team (Bayesian-shrunk)
+    "home_avg_ip_per_start",       # last-5 avg IP; <3 IP suggests opener
 ]
 B1_PHASE_E3_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -140,6 +143,9 @@ B1_PHASE_E3_FEATURES = [
     "away_p_last10_pitcher_nrfi",
     "home_top3c_slg",
     "home_top3c_iso",
+    # Phase F: pitcher-vs-team familiarity + opener detection
+    "away_pvt_nrfi_rate",
+    "away_avg_ip_per_start",
 ]
 
 # Defaults for Phase E.3 features when CSV cell is missing
@@ -240,6 +246,9 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     coerce(r.get("home_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
                     coerce(r.get("away_top3c_slg"),            LEAGUE_AVG_SLG),
                     coerce(r.get("away_top3c_iso"),            LEAGUE_AVG_ISO),
+                    # Phase F:
+                    coerce(r.get("home_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
+                    coerce(r.get("home_avg_ip_per_start"),     5.0),
                 ]
                 b1_x = [
                     fi_park,
@@ -255,6 +264,9 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     coerce(r.get("away_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
                     coerce(r.get("home_top3c_slg"),            LEAGUE_AVG_SLG),
                     coerce(r.get("home_top3c_iso"),            LEAGUE_AVG_ISO),
+                    # Phase F:
+                    coerce(r.get("away_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
+                    coerce(r.get("away_avg_ip_per_start"),     5.0),
                 ]
             elif slim_weather:
                 wx = [
