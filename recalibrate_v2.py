@@ -67,6 +67,7 @@ T1_FEATURES = [
     "home_xera",
     "home_whiff_pct_rank",
     "era_gap_t1",
+    "home_p_last10_pitcher_nrfi",
 ]
 B1_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -77,6 +78,7 @@ B1_FEATURES = [
     "away_xera",
     "away_whiff_pct_rank",
     "era_gap_b1",
+    "away_p_last10_pitcher_nrfi",
 ]
 
 
@@ -164,6 +166,7 @@ def _build_t1_b1_phase_e3(r, fi_park):
         coerce_float(r.get("home_xera"),                 LEAGUE_AVG_XERA),
         coerce_float(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
         h_era - a_era,    # era_gap_t1
+        coerce_float(r.get("home_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
     ]
     b1_vec = [
         fi_park,
@@ -176,6 +179,7 @@ def _build_t1_b1_phase_e3(r, fi_park):
         coerce_float(r.get("away_xera"),                 LEAGUE_AVG_XERA),
         coerce_float(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
         a_era - h_era,    # era_gap_b1
+        coerce_float(r.get("away_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
     ]
     return t1_vec, b1_vec
 

@@ -787,6 +787,7 @@ _T1_EXPECTED_FEATURES = [
     "home_xera",
     "home_whiff_pct_rank",
     "era_gap_t1",
+    "home_p_last10_pitcher_nrfi",   # 10-start recent-form window
 ]
 _B1_EXPECTED_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -797,6 +798,7 @@ _B1_EXPECTED_FEATURES = [
     "away_xera",
     "away_whiff_pct_rank",
     "era_gap_b1",
+    "away_p_last10_pitcher_nrfi",
 ]
 
 # Defaults for new features when fetch fails (used in feature builders below)
@@ -1082,6 +1084,7 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
                  home_pitcher_id: int = 0,
                  away_pitcher: dict | None = None,
                  home_last5_nrfi: float = _LEAGUE_NRFI_RATE,
+                 home_last10_nrfi: float = _LEAGUE_NRFI_RATE,
                  away_top3c_obp:  float = LEAGUE_AVG_OBP,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  season: int = 2026) -> list[float]:
@@ -1114,6 +1117,7 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
         sc["xera"],
         sc["whiff_pct_rank"],
         era_gap_t1,
+        home_last10_nrfi,
     ]
 
 
@@ -1122,6 +1126,7 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
                  away_pitcher_id: int = 0,
                  home_pitcher: dict | None = None,
                  away_last5_nrfi: float = _LEAGUE_NRFI_RATE,
+                 away_last10_nrfi: float = _LEAGUE_NRFI_RATE,
                  home_top3c_obp:  float = LEAGUE_AVG_OBP,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  season: int = 2026) -> list[float]:
@@ -1151,6 +1156,7 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
         sc["xera"],
         sc["whiff_pct_rank"],
         era_gap_b1,
+        away_last10_nrfi,
     ]
 
 
@@ -1521,9 +1527,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # _T1/_B1_EXPECTED_FEATURES for the canonical order.
         wx = fetch_game_weather(home_ab, target_iso, season)
 
-        # Phase D features
+        # Phase D features (last5) + Phase F features (last10)
         away_last5 = _LEAGUE_NRFI_RATE
         home_last5 = _LEAGUE_NRFI_RATE
+        away_last10 = _LEAGUE_NRFI_RATE
+        home_last10 = _LEAGUE_NRFI_RATE
         if recency_available and pitcher_last_n_first_inning is not None:
             try:
                 d_a = pitcher_last_n_first_inning(game["away_pitcher_id"], target_iso, season, n=5)
@@ -1534,6 +1542,16 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 d_h = pitcher_last_n_first_inning(game["home_pitcher_id"], target_iso, season, n=5)
                 if d_h and d_h.get("pitcher_nrfi_rate") is not None:
                     home_last5 = float(d_h["pitcher_nrfi_rate"])
+            except Exception: pass
+            try:
+                d_a10 = pitcher_last_n_first_inning(game["away_pitcher_id"], target_iso, season, n=10)
+                if d_a10 and d_a10.get("pitcher_nrfi_rate") is not None:
+                    away_last10 = float(d_a10["pitcher_nrfi_rate"])
+            except Exception: pass
+            try:
+                d_h10 = pitcher_last_n_first_inning(game["home_pitcher_id"], target_iso, season, n=10)
+                if d_h10 and d_h10.get("pitcher_nrfi_rate") is not None:
+                    home_last10 = float(d_h10["pitcher_nrfi_rate"])
             except Exception: pass
 
         # Top-3 current-season-to-date OBP (lineup-aware via fetch_top3_batters)
@@ -1560,6 +1578,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             home_pitcher_id=game["home_pitcher_id"],
             away_pitcher=away_sp,                  # for era_gap_t1
             home_last5_nrfi=home_last5,
+            home_last10_nrfi=home_last10,          # 10-start window
             away_top3c_obp=away_top3c_obp,
             ump_rate=ump_rate,
             season=season,
@@ -1569,6 +1588,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             away_pitcher_id=game["away_pitcher_id"],
             home_pitcher=home_sp,                  # for era_gap_b1
             away_last5_nrfi=away_last5,
+            away_last10_nrfi=away_last10,
             home_top3c_obp=home_top3c_obp,
             ump_rate=ump_rate,
             season=season,
