@@ -66,6 +66,7 @@ T1_FEATURES = [
     "home_plate_ump_nrfi_rate",
     "home_xera",
     "home_whiff_pct_rank",
+    "era_gap_t1",
 ]
 B1_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -75,6 +76,7 @@ B1_FEATURES = [
     "home_plate_ump_nrfi_rate",
     "away_xera",
     "away_whiff_pct_rank",
+    "era_gap_b1",
 ]
 
 
@@ -146,9 +148,11 @@ def _weather_block(r) -> list[float]:
 
 
 def _build_t1_b1_phase_e3(r, fi_park):
-    """Build T1 + B1 feature vectors for Phase E.3 schema (12 features each)."""
+    """Build T1 + B1 feature vectors for Phase E.3 + era_gap schema (13 each)."""
     wx = _weather_block(r)
     ump_rate = coerce_float(r.get("home_plate_ump_nrfi_rate"), LEAGUE_NRFI_RATE)
+    h_era = coerce_float(r.get("home_era"), LEAGUE_AVG_ERA)
+    a_era = coerce_float(r.get("away_era"), LEAGUE_AVG_ERA)
     t1_vec = [
         fi_park,
         coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
@@ -159,6 +163,7 @@ def _build_t1_b1_phase_e3(r, fi_park):
         ump_rate,
         coerce_float(r.get("home_xera"),                 LEAGUE_AVG_XERA),
         coerce_float(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+        h_era - a_era,    # era_gap_t1
     ]
     b1_vec = [
         fi_park,
@@ -170,6 +175,7 @@ def _build_t1_b1_phase_e3(r, fi_park):
         ump_rate,
         coerce_float(r.get("away_xera"),                 LEAGUE_AVG_XERA),
         coerce_float(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+        a_era - h_era,    # era_gap_b1
     ]
     return t1_vec, b1_vec
 

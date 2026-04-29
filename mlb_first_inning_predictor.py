@@ -769,10 +769,15 @@ _fi_park_rates: dict | None = None
 _fi_park_loaded = False
 
 # Expected feature order for each half-inning model.
-# Updated 2026-04-27: Phase E.3 -- adds last5_pitcher_nrfi, top3c_obp,
-# umpire NRFI rate, xERA (Statcast), and whiff_pct_rank (Statcast) to
-# slim_weather baseline.  12 features per half.  See test_phase_e3.py.
-# Cross-year P&L improvement: +59u/yr averaged across 3 splits.
+# Updated 2026-04-29: added SIGNED ERA GAP between starters as the 13th
+# feature per half.  Encodes the user's "worse pitcher gives up the run"
+# intuition LR cannot synthesize on its own.  test_era_gap.py shows
+# +22u 3-split P&L improvement over Phase E.3 baseline.
+#
+# Convention: positive era_gap means THIS half's pitcher is worse than
+# the opposing half's pitcher.
+#   T1 (home pitcher pitches): home_era - away_era
+#   B1 (away pitcher pitches): away_era - home_era
 _T1_EXPECTED_FEATURES = [
     "fi_park_nrfi_rate", "home_fip", "away_obp",
     "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
@@ -781,6 +786,7 @@ _T1_EXPECTED_FEATURES = [
     "home_plate_ump_nrfi_rate",
     "home_xera",
     "home_whiff_pct_rank",
+    "era_gap_t1",
 ]
 _B1_EXPECTED_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -790,6 +796,7 @@ _B1_EXPECTED_FEATURES = [
     "home_plate_ump_nrfi_rate",
     "away_xera",
     "away_whiff_pct_rank",
+    "era_gap_b1",
 ]
 
 # Defaults for new features when fetch fails (used in feature builders below)
@@ -1073,6 +1080,7 @@ def fetch_umpire_rate(game_pk: int) -> tuple[str, float]:
 def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
                  wx: dict | None = None,
                  home_pitcher_id: int = 0,
+                 away_pitcher: dict | None = None,
                  home_last5_nrfi: float = _LEAGUE_NRFI_RATE,
                  away_top3c_obp:  float = LEAGUE_AVG_OBP,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
@@ -1080,8 +1088,8 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
     """T1 (top of 1st) feature vector: home pitcher vs away offense at home park.
     Order MUST match _T1_EXPECTED_FEATURES.
 
-    Phase E.3: 12 features per half including pitcher recent form, top-3
-    batter OBP, umpire NRFI rate, and Statcast xera + whiff rank."""
+    Phase E.3 + era_gap: 13 features per half.  era_gap_t1 = home_era -
+    away_era (positive => home pitcher is worse, P(T1 run) should rise)."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     if wx is None:
         wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
@@ -1089,6 +1097,9 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
     sc = fetch_pitcher_statcast(home_pitcher_id, season) if home_pitcher_id else {
         "xera": _LEAGUE_AVG_XERA, "whiff_pct_rank": _NEUTRAL_PCT_RANK,
     }
+    h_era = home_pitcher.get("era", LEAGUE_AVG_ERA)
+    a_era = (away_pitcher or {}).get("era", LEAGUE_AVG_ERA)
+    era_gap_t1 = h_era - a_era
     return [
         fi_park,
         home_pitcher.get("fip", LEAGUE_AVG_ERA),
@@ -1102,18 +1113,20 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
         ump_rate,
         sc["xera"],
         sc["whiff_pct_rank"],
+        era_gap_t1,
     ]
 
 
 def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
                  wx: dict | None = None,
                  away_pitcher_id: int = 0,
+                 home_pitcher: dict | None = None,
                  away_last5_nrfi: float = _LEAGUE_NRFI_RATE,
                  home_top3c_obp:  float = LEAGUE_AVG_OBP,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  season: int = 2026) -> list[float]:
     """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park.
-    Order MUST match _B1_EXPECTED_FEATURES."""
+    Order MUST match _B1_EXPECTED_FEATURES.  era_gap_b1 = away_era - home_era."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     if wx is None:
         wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
@@ -1121,6 +1134,9 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
     sc = fetch_pitcher_statcast(away_pitcher_id, season) if away_pitcher_id else {
         "xera": _LEAGUE_AVG_XERA, "whiff_pct_rank": _NEUTRAL_PCT_RANK,
     }
+    a_era = away_pitcher.get("era", LEAGUE_AVG_ERA)
+    h_era = (home_pitcher or {}).get("era", LEAGUE_AVG_ERA)
+    era_gap_b1 = a_era - h_era
     return [
         fi_park,
         away_pitcher.get("fip", LEAGUE_AVG_ERA),
@@ -1134,6 +1150,7 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
         ump_rate,
         sc["xera"],
         sc["whiff_pct_rank"],
+        era_gap_b1,
     ]
 
 
@@ -1541,6 +1558,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         t1_feats = t1_features(
             home_ab, home_sp, away_bat, wx,
             home_pitcher_id=game["home_pitcher_id"],
+            away_pitcher=away_sp,                  # for era_gap_t1
             home_last5_nrfi=home_last5,
             away_top3c_obp=away_top3c_obp,
             ump_rate=ump_rate,
@@ -1549,6 +1567,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         b1_feats = b1_features(
             home_ab, away_sp, home_bat, wx,
             away_pitcher_id=game["away_pitcher_id"],
+            home_pitcher=home_sp,                  # for era_gap_b1
             away_last5_nrfi=away_last5,
             home_top3c_obp=home_top3c_obp,
             ump_rate=ump_rate,

@@ -80,6 +80,7 @@ T1_FEATURES = [
     "home_plate_ump_nrfi_rate",
     "home_xera",
     "home_whiff_pct_rank",
+    "era_gap_t1",
 ]
 B1_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -89,6 +90,7 @@ B1_FEATURES = [
     "home_plate_ump_nrfi_rate",
     "away_xera",
     "away_whiff_pct_rank",
+    "era_gap_b1",
 ]
 
 
@@ -253,7 +255,9 @@ def main() -> None:
             coerce_float(r.get("wx_is_dome"),   0.0),
         ]
         ump_rate = coerce_float(r.get("home_plate_ump_nrfi_rate"), LEAGUE_NRFI_RATE)
-        # Phase E.3: 12 features per half
+        h_era = coerce_float(r.get("home_era"), LEAGUE_AVG_ERA)
+        a_era = coerce_float(r.get("away_era"), LEAGUE_AVG_ERA)
+        # Phase E.3 + era_gap: 13 features per half
         t1_vec = [
             fi_park,
             coerce_float(r.get("home_fip"), LEAGUE_AVG_ERA),
@@ -264,6 +268,7 @@ def main() -> None:
             ump_rate,
             coerce_float(r.get("home_xera"),                 LEAGUE_AVG_XERA),
             coerce_float(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+            h_era - a_era,
         ]
         b1_vec = [
             fi_park,
@@ -275,6 +280,7 @@ def main() -> None:
             ump_rate,
             coerce_float(r.get("away_xera"),                 LEAGUE_AVG_XERA),
             coerce_float(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+            a_era - h_era,
         ]
         raw_p = lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec)
         cal_p = cal.predict(raw_p)

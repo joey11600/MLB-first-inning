@@ -101,11 +101,19 @@ B1_SLIM_WEATHER_FEATURES = ["fi_park_nrfi_rate", "away_fip", "home_obp",
 #   Phase D additions: pitcher last-5 NRFI rate, top-3 batters' point-in-time
 #                      OBP, home-plate umpire's career NRFI rate
 #   Phase E.3 additions: pitcher xERA (Statcast quality-of-contact-based
-#                        expected ERA) and whiff_pct_rank (swinging-strike
-#                        rate percentile, the most direct K predictor)
-# 12 features per half.  Threshold 0.58 / 0.42 produces total hit rate
-# 62.2% on 2026 holdout (vs 60.7% baseline) plus +59u/yr cross-year P&L
-# improvement on the xERA signal.  See test_phase_e3.py.
+#                        expected ERA), whiff_pct_rank (swinging-strike
+#                        rate percentile, the most direct K predictor),
+#                        and SIGNED ERA GAP (the user's "worse pitcher
+#                        gives up the run" intuition encoded directly).
+# 13 features per half.  Threshold 0.58 / 0.42 produces total hit rate
+# 62.1% on 2026 holdout, +90.4u 3-split P&L (vs +68.1u baseline = +22u
+# improvement).  See test_era_gap.py.
+#
+# era_gap_signed convention: positive value means the pitcher in THIS
+# half is worse than the OTHER half's pitcher.
+#   T1 (home pitcher pitches): home_era - away_era.  Higher = home is
+#                              worse than away → P(T1 run) higher.
+#   B1 (away pitcher pitches): away_era - home_era.
 T1_PHASE_E3_FEATURES = [
     "fi_park_nrfi_rate", "home_fip", "away_obp",
     "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
@@ -114,6 +122,7 @@ T1_PHASE_E3_FEATURES = [
     "home_plate_ump_nrfi_rate",
     "home_xera",
     "home_whiff_pct_rank",
+    "era_gap_t1",   # = home_era - away_era
 ]
 B1_PHASE_E3_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -123,6 +132,7 @@ B1_PHASE_E3_FEATURES = [
     "home_plate_ump_nrfi_rate",
     "away_xera",
     "away_whiff_pct_rank",
+    "era_gap_b1",   # = away_era - home_era
 ]
 
 # Defaults for Phase E.3 features when CSV cell is missing
@@ -201,6 +211,14 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     ump_rate = _ump_rate_for(r, ump_cache, ump_rates_data)
                 else:
                     ump_rate = LEAGUE_NRFI_RATE
+                # Signed ERA gap: positive value means THIS half's pitcher
+                # is worse than the other half's pitcher.  Encodes the "worse
+                # pitcher gives up the run" intuition LR can't synthesize on
+                # its own.
+                h_era = coerce(r.get("home_era"), LEAGUE_AVG_ERA)
+                a_era = coerce(r.get("away_era"), LEAGUE_AVG_ERA)
+                era_gap_t1 = h_era - a_era
+                era_gap_b1 = a_era - h_era
                 t1_x = [
                     fi_park,
                     coerce(r.get("home_fip"), LEAGUE_AVG_ERA),
@@ -211,6 +229,7 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     ump_rate,
                     coerce(r.get("home_xera"),                 LEAGUE_AVG_XERA),
                     coerce(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+                    era_gap_t1,
                 ]
                 b1_x = [
                     fi_park,
@@ -222,6 +241,7 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     ump_rate,
                     coerce(r.get("away_xera"),                 LEAGUE_AVG_XERA),
                     coerce(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
+                    era_gap_b1,
                 ]
             elif slim_weather:
                 wx = [
@@ -500,10 +520,13 @@ def main():
     ]:
         if args.phase_e3:
             wx_neutral = [WX_TEMP_DEFAULT, WX_WIND_DEFAULT, WX_HUMIDITY_DEFAULT, 0.0]
+            # T1: home pitcher elite (era 2.50), gap = 2.50 - matching scenario away ERA
+            era_t1 = 2.50 - {"ELITE": 2.50, "AVERAGE": 4.20, "TRASH": 6.00}[label]
+            era_b1 = -era_t1
             extras_t1 = [LEAGUE_NRFI_RATE, LEAGUE_AVG_OBP, LEAGUE_NRFI_RATE,
-                         LEAGUE_AVG_XERA, NEUTRAL_PCT_RANK]
+                         LEAGUE_AVG_XERA, NEUTRAL_PCT_RANK, era_t1]
             extras_b1 = [LEAGUE_NRFI_RATE, LEAGUE_AVG_OBP, LEAGUE_NRFI_RATE,
-                         LEAGUE_AVG_XERA, NEUTRAL_PCT_RANK]
+                         LEAGUE_AVG_XERA, NEUTRAL_PCT_RANK, era_b1]
             x_t1 = np.asarray([[0.50, 2.50, 0.318] + wx_neutral + extras_t1])
             x_b1 = np.asarray([[0.50, away_fip, 0.318] + wx_neutral + extras_b1])
         elif args.slim_weather:
