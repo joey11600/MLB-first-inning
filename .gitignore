@@ -9,3 +9,5 @@ __pycache__/
 # StatsAPI response cache (large + transient; rebuilds on demand)
 data/cache/
 data/backtests/logs/
+# Odds templates are generated per-day, no need to commit
+data/odds/template_*.csv

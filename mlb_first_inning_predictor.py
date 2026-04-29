@@ -2001,13 +2001,17 @@ Examples:
     parser.add_argument("--debug",                action="store_true", help="Print raw IDs and blended stat values")
     parser.add_argument("--grade",                action="store_true", help="Grade logged picks against actual results")
     parser.add_argument("--summary",              action="store_true", help="Show performance summary from CSV")
-    # odds system temporarily disabled -- flags kept so old shell scripts don't break
-    parser.add_argument("--import-odds",          metavar="FILE",      help=argparse.SUPPRESS)
-    parser.add_argument("--export-odds-template", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--min-edge",             type=float, default=0.00, metavar="FRAC", help=argparse.SUPPRESS)
-    parser.add_argument("--units-lean",           type=float, default=0.5,  metavar="U",    help=argparse.SUPPRESS)
-    parser.add_argument("--units-strong",         type=float, default=1.0,  metavar="U",    help=argparse.SUPPRESS)
-    parser.add_argument("--output",               metavar="FILE",      help=argparse.SUPPRESS)
+    # Odds capture (re-enabled 2026-04-29 -- import real -110-style sportsbook
+    # odds so P&L reflects actual prices instead of flat -110)
+    parser.add_argument("--import-odds",          metavar="FILE",
+                        help="Import market odds from a CSV (date,game_pk,away,home,nrfi_odds,yrfi_odds[,sportsbook])")
+    parser.add_argument("--export-odds-template", action="store_true",
+                        help="Write an odds-entry template for today's slate to data/odds/template_<date>.csv")
+    parser.add_argument("--min-edge",             type=float, default=0.00, metavar="FRAC",
+                        help="Minimum model edge to consider a bet (default 0.00 = bet whenever pick is STRONG/LEAN)")
+    parser.add_argument("--units-lean",           type=float, default=0.5,  metavar="U", help="LEAN bet size (units)")
+    parser.add_argument("--units-strong",         type=float, default=1.0,  metavar="U", help="STRONG bet size (units)")
+    parser.add_argument("--output",               metavar="FILE", help=argparse.SUPPRESS)
     parser.add_argument("--audit-csv",            action="store_true", help="Audit picks CSV for data integrity issues")
     parser.add_argument("--repair-csv",           action="store_true", help="Auto-repair recoverable corrupted rows in picks CSV")
     parser.add_argument("--dry-run",              action="store_true", help="With --repair-csv: show what would change without writing")
@@ -2033,12 +2037,22 @@ Examples:
         )
 
     elif args.import_odds:
-        # odds system temporarily disabled
-        print("Odds functionality is currently disabled.")
+        from tracker import import_odds
+        import_odds(
+            odds_path    = args.import_odds,
+            season       = season,
+            min_edge     = args.min_edge,
+            units_lean   = args.units_lean,
+            units_strong = args.units_strong,
+        )
 
     elif args.export_odds_template:
-        # odds system temporarily disabled
-        print("Odds functionality is currently disabled.")
+        from tracker import export_odds_template
+        export_odds_template(
+            date_str    = args.date,
+            season      = season,
+            output_path = args.output,
+        )
 
     elif args.audit_csv:
         from tracker import audit_csv

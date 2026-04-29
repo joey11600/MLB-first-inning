@@ -129,11 +129,15 @@ function emptyZone(label: string, side: PickSide, strength: PickStrength): ZoneR
   };
 }
 
-function finalize(z: ZoneRoi): ZoneRoi {
+function finalize(z: ZoneRoi, plOverride?: number): ZoneRoi {
   const bets = z.wins + z.losses;
   const hitRate = bets > 0 ? z.wins / bets : NaN;
+  // Prefer the explicit P&L sum (which tracks actual realized prices via
+  // profit_loss_units).  Fall back to flat-odds estimate when not provided.
   const unitsPL =
-    z.wins * DEFAULT_WIN_PROFIT_UNITS + z.losses * DEFAULT_LOSS_UNITS;
+    plOverride !== undefined
+      ? plOverride
+      : z.wins * DEFAULT_WIN_PROFIT_UNITS + z.losses * DEFAULT_LOSS_UNITS;
   return {
     ...z,
     bets,
@@ -194,6 +198,8 @@ export async function loadRoi(
   const buckets = new Map<string, ZoneRoi>();
   // Per-day P&L list (only counts wins/losses on bet zones)
   const dayPL = new Map<string, number>();
+  // Per-zone realized P&L (uses actual prices when profit_loss_units column populated)
+  const zonePL = new Map<string, number>();
   // Aggregate counters across the whole window (regardless of zone)
   let totalPicks  = 0;
   let gradedPicks = 0;
@@ -231,14 +237,29 @@ export async function loadRoi(
     if (graded === "WIN" || graded === "LOSS" || graded === "PASS") {
       gradedPicks += 1;
     }
-    if (graded === "WIN") {
-      z.wins += 1;
+    if (graded === "WIN" || graded === "LOSS") {
+      if (graded === "WIN") z.wins += 1;
+      else                  z.losses += 1;
+
+      // Prefer the realized profit_loss_units column (populated by
+      // tracker._calc_pnl using actual market odds when imported, or
+      // flat -110 as fallback).  Recompute from graded_result only when
+      // the column is blank (legacy rows or pre-odds-system data).
+      const plRaw = (r.profit_loss_units ?? "").trim();
+      let pl = NaN;
+      if (plRaw) {
+        const parsed = Number.parseFloat(plRaw);
+        if (Number.isFinite(parsed)) pl = parsed;
+      }
+      if (!Number.isFinite(pl)) {
+        pl = graded === "WIN" ? DEFAULT_WIN_PROFIT_UNITS : DEFAULT_LOSS_UNITS;
+      }
+
+      // Track realized P&L at both zone (for breakdown) and day (for chart) level.
+      const zKey = `${side}|${strength}`;
+      zonePL.set(zKey, (zonePL.get(zKey) ?? 0) + pl);
       const prev = dayPL.get(date) ?? 0;
-      dayPL.set(date, prev + DEFAULT_WIN_PROFIT_UNITS);
-    } else if (graded === "LOSS") {
-      z.losses += 1;
-      const prev = dayPL.get(date) ?? 0;
-      dayPL.set(date, prev + DEFAULT_LOSS_UNITS);
+      dayPL.set(date, prev + pl);
     } else if (graded === "POSTPONED" || graded === "SUSPENDED") {
       z.postponed += 1;
     } else if (graded === "PASS") {
@@ -261,27 +282,30 @@ export async function loadRoi(
   const finalized: ZoneRoi[] = [];
   for (const k of order) {
     const z = buckets.get(k);
-    if (z) finalized.push(finalize(z));
+    if (z) finalized.push(finalize(z, zonePL.get(k)));
   }
   // Append any remaining buckets in iteration order (defensive)
   for (const [k, z] of buckets.entries()) {
-    if (!order.includes(k)) finalized.push(finalize(z));
+    if (!order.includes(k)) finalized.push(finalize(z, zonePL.get(k)));
   }
 
   const betZones  = finalized.filter((z) => z.side !== "PASS");
   const passZones = finalized.filter((z) => z.side === "PASS");
 
-  // Total = aggregate of all bet zones
+  // Total = aggregate of all bet zones (sum realized P&L from each zone so
+  // it matches the per-zone breakdown when actual odds are imported)
   const total = emptyZone("TOTAL", "NRFI", "STRONG");
   total.label = "TOTAL";
+  let totalPL = 0;
   for (const z of betZones) {
     total.picks     += z.picks;
     total.wins      += z.wins;
     total.losses    += z.losses;
     total.postponed += z.postponed;
     total.ungraded  += z.ungraded;
+    totalPL         += z.unitsPL;
   }
-  const totalFinal = finalize(total);
+  const totalFinal = finalize(total, totalPL);
 
   // Cumulative P&L sorted by date
   const dates = Array.from(dayPL.keys()).sort();

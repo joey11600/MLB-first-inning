@@ -602,11 +602,14 @@ def _calc_pnl(row: dict) -> str:
     Compute profit/loss in units for one already-graded row.
 
     If market odds are populated, computes the actual payout.  If they're
-    not (odds-import system disabled), falls back to flat -110 with 1u
-    bet on STRONG / 0.5u on LEAN -- matching the dashboard's on-the-fly
-    P&L calculation so the column reflects realized P&L of every bet.
+    not (no real odds imported yet), falls back to flat -110 with 1u
+    on STRONG / 0.5u on LEAN.
 
-    Returns a formatted string or "" if the row was a PASS / not bet.
+    bet_placed="N" overrides everything: that means odds were imported
+    but the edge was below threshold (or negative), so no bet was placed
+    and the row contributes 0 to P&L.
+
+    Returns a formatted string or "" if the row was a PASS / not graded.
     """
     graded = row.get("graded_result", "")
     if graded not in ("WIN", "LOSS"):
@@ -615,6 +618,11 @@ def _calc_pnl(row: dict) -> str:
     pick_side = (row.get("pick_side") or "").strip().upper()
     if pick_side not in ("NRFI", "YRFI"):
         return ""  # PASS rows aren't bets
+
+    # Explicit "no bet" decision from the odds-import flow (negative edge
+    # below min_edge threshold) -- contribute 0 P&L.
+    if (row.get("bet_placed") or "").strip().upper() == "N":
+        return _fmt(0.0, 3)
 
     # Determine bet size: prefer explicit units_risked, otherwise use
     # strength-based default (matches what the dashboard displays).
