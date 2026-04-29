@@ -272,14 +272,20 @@ def main() -> None:
             coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP),
         ] + wx + [
             coerce_float(r.get("home_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
-            coerce_float(r.get("away_top3c_obp"),            LEAGUE_AVG_OBP),
+            # top3c fallback chain (matches predictor production behavior):
+            # actual top-3 lineup -> team OBP/SLG/ISO -> league average
+            coerce_float(r.get("away_top3c_obp"),
+                         coerce_float(r.get("away_obp"), LEAGUE_AVG_OBP)),
             ump_rate,
             coerce_float(r.get("home_xera"),                 LEAGUE_AVG_XERA),
             coerce_float(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
             h_era - a_era,
             coerce_float(r.get("home_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
-            coerce_float(r.get("away_top3c_slg"),            LEAGUE_AVG_SLG),
-            coerce_float(r.get("away_top3c_iso"),            LEAGUE_AVG_ISO),
+            coerce_float(r.get("away_top3c_slg"),
+                         coerce_float(r.get("away_slg"), LEAGUE_AVG_SLG)),
+            coerce_float(r.get("away_top3c_iso"),
+                         max(0.0, coerce_float(r.get("away_slg"), LEAGUE_AVG_SLG)
+                                  - 0.245)),  # team ISO = team SLG - league AVG
         ]
         b1_vec = [
             fi_park,
@@ -287,14 +293,18 @@ def main() -> None:
             coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP),
         ] + wx + [
             coerce_float(r.get("away_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
-            coerce_float(r.get("home_top3c_obp"),            LEAGUE_AVG_OBP),
+            coerce_float(r.get("home_top3c_obp"),
+                         coerce_float(r.get("home_obp"), LEAGUE_AVG_OBP)),
             ump_rate,
             coerce_float(r.get("away_xera"),                 LEAGUE_AVG_XERA),
             coerce_float(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
             a_era - h_era,
             coerce_float(r.get("away_p_last10_pitcher_nrfi"), LEAGUE_NRFI_RATE),
-            coerce_float(r.get("home_top3c_slg"),            LEAGUE_AVG_SLG),
-            coerce_float(r.get("home_top3c_iso"),            LEAGUE_AVG_ISO),
+            coerce_float(r.get("home_top3c_slg"),
+                         coerce_float(r.get("home_slg"), LEAGUE_AVG_SLG)),
+            coerce_float(r.get("home_top3c_iso"),
+                         max(0.0, coerce_float(r.get("home_slg"), LEAGUE_AVG_SLG)
+                                  - 0.245)),
         ]
         raw_p = lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec)
         cal_p = cal.predict(raw_p)

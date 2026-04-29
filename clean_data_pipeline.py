@@ -110,13 +110,24 @@ def get_pids_for_row(r: dict, pid_cache: dict) -> tuple[int, int]:
     return a_pid, h_pid
 
 
-def get_statcast_with_fallback(pid: str, season: str, statcast: dict) -> dict | None:
+def get_statcast_with_fallback(pid: str, season: str, statcast: dict,
+                               historical: bool = False) -> dict | None:
     """Return statcast row for pid; fall back to prior season if current missing.
-    Useful for early-season pitchers without enough IP for current-year qualifying."""
-    rec = statcast.get(season, {}).get(str(pid))
-    if rec and rec.get("xera") is not None:
-        return rec
-    # Prior-season fallback
+
+    When `historical=True` the current-season cache is SKIPPED entirely
+    and only the prior-season value is returned.  This eliminates leakage
+    when backfilling rows whose game date is older than the cache build
+    timestamp (current-season Statcast leaderboards are a "today" snapshot
+    and don't expose historical as-of-date values).
+
+    Useful for early-season pitchers without enough IP for current-year
+    qualifying (prior-season fallback) and for historical-game backfill
+    (no future leakage)."""
+    if not historical:
+        rec = statcast.get(season, {}).get(str(pid))
+        if rec and rec.get("xera") is not None:
+            return rec
+    # Prior-season fallback (always safe, never leaks)
     try:
         prior_season = str(int(season) - 1)
     except (TypeError, ValueError):
@@ -283,6 +294,12 @@ def clean_picks_2026(caches: dict):
                 n_ump_filled += 1
 
         # ---- Statcast (xera, whiff_pct_rank) ----
+        # For graded games (historical), force prior-season Statcast only --
+        # the current-season cache is a "today" snapshot and using it for
+        # past games leaks future data into historical evaluation.  For
+        # ungraded (today's slate, postponed), use current-season since
+        # that matches what predict-time would have seen.
+        is_graded = (r.get("graded_result") or "").strip().upper() in ("WIN", "LOSS", "PASS")
         for col_xera, col_whiff, pid in [
             ("home_xera", "home_whiff_pct_rank", h_pid),
             ("away_xera", "away_whiff_pct_rank", a_pid),
@@ -290,7 +307,9 @@ def clean_picks_2026(caches: dict):
             need_xera = is_blank(r.get(col_xera)) or is_default(r.get(col_xera), LEAGUE_AVG_ERA)
             need_whiff = is_blank(r.get(col_whiff)) or is_default(r.get(col_whiff), 50.0)
             if (need_xera or need_whiff) and pid:
-                sc = get_statcast_with_fallback(str(pid), season_str, caches["statcast"])
+                sc = get_statcast_with_fallback(
+                    str(pid), season_str, caches["statcast"], historical=is_graded,
+                )
                 if sc:
                     if need_xera and sc.get("xera") is not None:
                         r[col_xera] = f"{sc['xera']:.3f}"

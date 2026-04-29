@@ -50,10 +50,6 @@ FIELDS = [
     "away_bb9", "home_bb9",
     "away_hr9", "home_hr9",
     "away_k9",  "home_k9",
-    # --- first-inning pitcher splits (blank if unavailable) ---
-    "away_fi_era", "home_fi_era",
-    "away_fi_whip", "home_fi_whip",
-    "away_fi_ip",  "home_fi_ip",
     # --- offense model inputs ---
     "away_obp", "home_obp",
     "away_slg", "home_slg",
@@ -264,13 +260,6 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "home_hr9":  _fmt(hp.get("hr9"),  2),
             "away_k9":   _fmt(ap.get("k9"),   2),
             "home_k9":   _fmt(hp.get("k9"),   2),
-            # first-inning pitcher splits
-            "away_fi_era":  _fmt(ap.get("fi_era")),
-            "home_fi_era":  _fmt(hp.get("fi_era")),
-            "away_fi_whip": _fmt(ap.get("fi_whip")),
-            "home_fi_whip": _fmt(hp.get("fi_whip")),
-            "away_fi_ip":   _fmt(ap.get("fi_ip"), 1),
-            "home_fi_ip":   _fmt(hp.get("fi_ip"), 1),
             # offense model inputs
             "away_obp": _fmt(ap.get("obp"), 3),
             "home_obp": _fmt(hp.get("obp"), 3),
@@ -551,35 +540,42 @@ def payout_per_unit(odds_str: str) -> float | None:
 def _calc_pnl(row: dict) -> str:
     """
     Compute profit/loss in units for one already-graded row.
-    Returns a formatted string or "" if data is incomplete.
+
+    If market odds are populated, computes the actual payout.  If they're
+    not (odds-import system disabled), falls back to flat -110 with 1u
+    bet on STRONG / 0.5u on LEAN -- matching the dashboard's on-the-fly
+    P&L calculation so the column reflects realized P&L of every bet.
+
+    Returns a formatted string or "" if the row was a PASS / not bet.
     """
     graded = row.get("graded_result", "")
     if graded not in ("WIN", "LOSS"):
         return ""
 
-    units_str = row.get("units_risked", "")
-    if not units_str:
-        return ""
-    try:
-        units = float(units_str)
-    except ValueError:
-        return ""
+    pick_side = (row.get("pick_side") or "").strip().upper()
+    if pick_side not in ("NRFI", "YRFI"):
+        return ""  # PASS rows aren't bets
+
+    # Determine bet size: prefer explicit units_risked, otherwise use
+    # strength-based default (matches what the dashboard displays).
+    units_str = (row.get("units_risked") or "").strip()
+    if units_str:
+        try: units = float(units_str)
+        except ValueError: return ""
+    else:
+        strength = (row.get("pick_strength") or "").strip().upper()
+        units = 1.0 if strength == "STRONG" else 0.5 if strength == "LEAN" else 0.0
+        if units <= 0:
+            return ""
 
     if graded == "LOSS":
         return _fmt(-units, 3)
 
-    # WIN -- need the odds for the picked side to compute payout
-    pick = row.get("pick_side", "")
-    if pick == "NRFI":
-        odds_str = row.get("market_nrfi_odds", "")
-    elif pick == "YRFI":
-        odds_str = row.get("market_yrfi_odds", "")
-    else:
-        return ""
-
-    ppu = payout_per_unit(odds_str)
+    # WIN -- prefer the actual market odds, otherwise default to flat -110
+    odds_col = "market_nrfi_odds" if pick_side == "NRFI" else "market_yrfi_odds"
+    ppu = payout_per_unit(row.get(odds_col, ""))
     if ppu is None:
-        return ""
+        ppu = 100.0 / 110.0   # flat -110 fallback (= 0.9091)
     return _fmt(units * ppu, 3)
 
 
