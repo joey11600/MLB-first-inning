@@ -5,17 +5,17 @@
 .headRow {
   display: grid;
   grid-template-columns:
-    92px
-    minmax(180px, 1.1fr)
-    86px
-    72px
-    minmax(140px, 0.85fr)
-    minmax(170px, 1fr)
+    88px
+    minmax(160px, 0.9fr)
+    84px
+    62px
+    minmax(252px, 1.4fr)
+    minmax(120px, 0.65fr)
     66px
     66px
-    32px;
+    56px;
   align-items: center;
-  padding: 10px 22px 8px;
+  padding: 10px 24px 8px;
   font-family: var(--font-sans);
   font-size: 11px;
   line-height: 1rem;
@@ -65,6 +65,8 @@
   color: var(--muted-foreground);
 }
 
-@media (max-width: 1100px) {
+/* Hide the desktop header when the row layout collapses (sync with the
+   .clickable breakpoint in BoardRow.module.css). */
+@media (max-width: 1240px) {
   .headRow { display: none; }
 }

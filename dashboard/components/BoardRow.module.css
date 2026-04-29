@@ -57,18 +57,18 @@
   display: grid;
   width: 100%;
   grid-template-columns:
-    92px                  /* game time */
-    minmax(180px, 1.1fr)  /* matchup */
-    86px                  /* result */
-    72px                  /* P(YRFI) */
-    minmax(140px, 0.85fr) /* pick pill */
-    minmax(170px, 1fr)    /* meter */
-    66px                  /* NRFI % */
-    66px                  /* YRFI % */
-    32px;                 /* caret */
+    88px                   /* game time */
+    minmax(160px, 0.9fr)   /* matchup */
+    84px                   /* result */
+    62px                   /* P(YRFI) */
+    minmax(252px, 1.4fr)   /* pick pill + odds chip (the wide one) */
+    minmax(120px, 0.65fr)  /* meter (slimmed) */
+    66px                   /* NRFI % */
+    66px                   /* YRFI % */
+    56px;                  /* caret + Details label */
   align-items: center;
   gap: 14px;
-  padding: 18px 22px;
+  padding: 18px 24px;
   text-align: left;
   color: var(--foreground);
   position: relative;
@@ -99,27 +99,30 @@
 .nrfiStrong .rank { color: var(--primary); }
 .yrfiStrong .rank { color: var(--destructive); }
 
-/* Matchup — primary identity */
+/* Matchup — primary identity.  In the new layout the matchup column is
+   slightly narrower (more space went to PICK), so type tracking is
+   tightened a hair to keep "AWAY at HOME + DH-2" on a single line. */
 .matchup {
   display: inline-flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 9px;
   font-family: var(--font-mono);
   font-size: 16px;
   font-weight: 500;
   line-height: 1.5rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: var(--foreground);
   flex-wrap: wrap;
+  min-width: 0;
 }
 .team {
   font-family: var(--font-mono);
   font-size: 16px;
   font-weight: 600;
   line-height: 1.5rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   display: inline-block;
-  min-width: 38px;
+  min-width: 36px;
   color: var(--foreground);
 }
 .at {
@@ -215,11 +218,17 @@
   letter-spacing: -0.005em;
 }
 
-/* Pick pill — the rounded badge on the right of each row */
+/* Pick pill + odds chip live side-by-side in the same grid cell.
+   The pill is the primary signal; the odds chip is supporting data.
+   gap: 10px gives them visual separation without a literal divider. */
 .pickCell {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
   min-width: 0;
+  /* Allow the chip to overflow gracefully if the cell is briefly tight
+     during a window resize -- prevents jarring text clipping. */
+  flex-wrap: nowrap;
 }
 .pickPill {
   display: inline-flex;
@@ -293,62 +302,91 @@
 }
 
 /* ============================================================
-   Live odds chip -- shows the DraftKings price for the picked
-   side and the edge (model_prob - implied_prob).  Sits next to
-   the pick pill so the user can see at a glance "we picked this
-   STRONG YRFI and DK is paying -135 with +6.3% edge".
+   Live odds chip — the DraftKings price for the picked side and
+   the model's edge over implied probability.  Sits beside the
+   pick pill, deliberately one weight-step softer so the pill
+   stays the primary signal and the chip reads as supporting data.
+
+   Visual rhythm:
+     [BOOK] [-135] · [+6.3%]
+      micro   mono     mono
+      tracked, tabular-nums everywhere
    ============================================================ */
 .oddsChip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-left: 8px;
-  padding: 4px 9px;
+  gap: 7px;
+  padding: 4px 10px 4px 9px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: var(--muted);
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   white-space: nowrap;
+  flex: 0 0 auto;
+  transition: background 200ms ease, border-color 200ms ease;
 }
 .oddsBook {
-  font-weight: 600;
-  font-size: 10px;
-  letter-spacing: 0.10em;
+  font-weight: 700;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.65;
+  color: var(--muted-foreground);
+  /* The book code is identifying metadata, not data.  Tracked tightly,
+     half-opacity, sits as a quiet "stamp" before the price. */
 }
 .oddsPrice {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+  font-size: 11.5px;
   color: var(--foreground);
 }
 .oddsSep {
-  opacity: 0.35;
-  font-size: 10px;
+  opacity: 0.30;
+  font-size: 9px;
+  /* The dot separator is purely visual rhythm; nudge baseline so it
+     centers between two number tokens instead of sitting low. */
+  position: relative;
+  top: -1px;
 }
 .oddsEdge {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+  font-size: 11px;
 }
-/* Bet=Y: positive edge, green-tinted (NRFI primary tone) */
-.oddsBet .oddsEdge {
-  color: color-mix(in oklab, #16a34a 70%, var(--foreground));
-}
+
+/* Bet=Y: positive edge above min_edge threshold.  Uses the warm-brown
+   --primary tone so the chip harmonizes with the rest of the warm
+   palette instead of crashing in with off-key surgical green.  A subtle
+   border + faint background tint signal "this is actionable". */
 .oddsBet {
-  background: color-mix(in oklab, #16a34a 8%, var(--muted));
-  border-color: color-mix(in oklab, #16a34a 25%, var(--border));
+  background: color-mix(in oklab, var(--primary) 10%, var(--muted));
+  border-color: color-mix(in oklab, var(--primary) 32%, var(--border));
 }
-/* Bet=N: below threshold or negative edge, muted */
+.oddsBet .oddsEdge {
+  color: var(--primary);
+}
+.oddsBet .oddsBook {
+  color: color-mix(in oklab, var(--primary) 70%, var(--muted-foreground));
+  opacity: 0.85;
+}
+
+/* Bet=N: below threshold (or negative edge); we skipped the bet.  Same
+   neutral chip but desaturated so the eye glides past it on scan. */
+.oddsSkip {
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--border) 100%, transparent);
+}
 .oddsSkip .oddsEdge {
   color: var(--muted-foreground);
 }
-.oddsSkip {
-  opacity: 0.7;
+.oddsSkip .oddsPrice {
+  color: color-mix(in oklab, var(--foreground) 60%, var(--muted-foreground));
 }
 
 .yrfiLean .pickPill {
@@ -368,14 +406,18 @@
 .meterCell {
   display: block;
   min-width: 0;
-  padding-right: 4px;
+  /* Push the meter slightly off the right edge so the percentage cluster
+     reads as a separate visual group.  The track itself is uncluttered
+     so a few px of negative space here doubles as the visual separator. */
+  padding-right: 8px;
 }
 
-/* Right-side percentages */
+/* Right-side percentages.  The bar+number pair is a single semantic unit
+   so the gap here (6px) is intentionally tighter than the row's gap (14px). */
 .pct {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   font-size: 13px;
   line-height: 1.25rem;
   color: var(--foreground);
@@ -383,17 +425,19 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
+  letter-spacing: -0.005em;
 }
 
 .inlineBar {
   position: relative;
   display: inline-block;
-  width: 36px;
+  width: 28px;       /* slimmed from 36px to free up column space */
   height: 4px;
   background: var(--muted);
   border-radius: 2px;
   overflow: hidden;
   vertical-align: middle;
+  flex: 0 0 auto;
 }
 .inlineBarFill {
   position: absolute;
@@ -404,15 +448,16 @@
 .inlineBar.nrfi .inlineBarFill { background: var(--primary); }
 .inlineBar.yrfi .inlineBarFill { background: var(--destructive); }
 
-/* Expand affordance: "Details" / "Hide" label + chevron, all on the right
-   end of the row.  Label fades in on row hover so the row stays uncluttered
-   when idle but the click target reads clearly when the user reaches for it. */
+/* Expand affordance: "Details" / "Hide" label + chevron at the right
+   edge.  Label fades in on hover so the idle row stays uncluttered.
+   Now in a 56px-wide column, the affordance has room to breathe and the
+   open state can use a real bordered chip without crowding YRFI%. */
 .expander {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 7px;
   border: 1px solid transparent;
   color: var(--muted-foreground);
   transition: color 180ms ease,
@@ -435,9 +480,9 @@
 
 .expanderLabel {
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   /* Tucked away on idle, fades in on hover/open */
   opacity: 0;
@@ -455,9 +500,9 @@
 .caret {
   font-family: var(--font-mono);
   color: inherit;
-  font-size: 16px;
+  font-size: 14px;
   text-align: center;
-  width: 14px;
+  width: 12px;
   transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .caretOpen {
@@ -480,9 +525,14 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 1180px) {
+/* Below ~1240px the desktop 9-col grid runs out of slack for the pick +
+   odds chip combo, so we stack into a 5-col mobile-style layout: header
+   row (time/matchup/result/lambda/caret) plus full-width sub-rows for
+   the pick (with chip) and the meter.  Sync the header break in
+   BoardTable.module.css to the same width. */
+@media (max-width: 1240px) {
   .clickable {
-    grid-template-columns: 76px 1fr auto 70px 36px;
+    grid-template-columns: 76px 1fr auto 70px 40px;
     grid-template-areas:
       "rank matchup result lambda caret"
       ".    pick    pick   pick   pick"
@@ -497,7 +547,7 @@
   /* On mobile, drop the "Details" label -- only the caret remains. */
   .expander { grid-area: caret; justify-self: end; padding: 4px; }
   .expanderLabel { display: none; }
-  .pickCell { grid-area: pick; }
+  .pickCell { grid-area: pick; flex-wrap: wrap; row-gap: 6px; }
   .pct { display: none; }
   .meterCell { grid-area: meter; }
 }
