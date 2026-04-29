@@ -67,10 +67,13 @@ export async function POST(req: Request) {
   });
 
   if (ghResp.status === 204) {
+    // Capture the dispatch moment in epoch-ms so the status endpoint can
+    // find OUR run (filter recent workflow_dispatch runs to created >= this).
     return NextResponse.json({
       ok: true,
       action,
-      message: `Workflow dispatched. Check ${actionsUrl()} -- typically completes in 1-2 min.`,
+      dispatchedAt: Date.now(),
+      message: `Workflow dispatched. Polling for progress...`,
       runsUrl: actionsUrl(),
     });
   }

@@ -306,6 +306,33 @@
 .runMsgOk:hover { text-decoration: underline; text-underline-offset: 3px; }
 .runMsgErr { color: var(--destructive); }
 
+/* In-progress message: shown while a workflow_dispatch run is underway.
+   Uses a subtle pulse + spinner so the user knows progress is being polled
+   even when the step name doesn't change for 10-15s at a time. */
+.runMsgProgress {
+  color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: runProgressPulse 2.4s ease-in-out infinite;
+}
+@keyframes runProgressPulse {
+  0%, 100% { opacity: 0.65; }
+  50%      { opacity: 1; }
+}
+.runSpinner {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in oklab, var(--muted-foreground) 50%, transparent);
+  border-top-color: var(--primary);
+  animation: runSpin 0.9s linear infinite;
+}
+@keyframes runSpin {
+  to { transform: rotate(360deg); }
+}
+
 .loadingWrap {
   height: 38px;
   display: flex;
