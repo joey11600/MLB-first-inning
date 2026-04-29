@@ -1,0 +1,397 @@
+/* ============================================================
+   Bankroll history page.  Same Bloomberg Diamond Terminal palette
+   as the main slate (phosphor green / signal red on dark).
+   ============================================================ */
+
+.shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---- Header ---- */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.headLeft {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  background: var(--card);
+  text-decoration: none;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.backLink:hover {
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
+  background: color-mix(in oklab, var(--primary) 8%, var(--card));
+}
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.title {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.windowToggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  padding: 3px;
+  gap: 0;
+}
+.windowBtn {
+  padding: 6px 14px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+.windowBtn:hover:not(:disabled) {
+  color: var(--foreground);
+}
+.windowBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.windowBtnActive {
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in oklab, var(--primary) 35%, var(--border));
+  margin: -1px;
+}
+
+/* ---- Summary tiles ---- */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.tile {
+  position: relative;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tileTonePos {
+  border-left: 1px solid color-mix(in oklab, var(--primary) 60%, var(--border));
+  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--primary) 80%, transparent);
+}
+.tileToneNeg {
+  border-left: 1px solid color-mix(in oklab, var(--destructive) 60%, var(--border));
+  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--destructive) 80%, transparent);
+}
+.tileLabel {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.tileBig {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.tileTonePos .tileBig { color: var(--primary); }
+.tileToneNeg .tileBig { color: var(--destructive); }
+.tileSub {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+.numWin   { color: var(--primary); }
+.numLoss  { color: var(--destructive); }
+.numFlat  { color: var(--muted-foreground); }
+.numSep   {
+  color: var(--border);
+  margin: 0 4px;
+  font-weight: 400;
+}
+
+/* ---- Chart card ---- */
+.chartCard,
+.tableCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.chartHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.chartTitle {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--foreground);
+}
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+.legendDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.legendDot[data-tone="win"]  { background: var(--primary); }
+.legendDot[data-tone="loss"] { background: var(--destructive); }
+.legendLine {
+  display: inline-block;
+  width: 18px;
+  height: 2px;
+  background: var(--foreground);
+  border-radius: 2px;
+}
+
+.chartScroll {
+  overflow-x: auto;
+}
+.chartSvg {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+}
+.chartEmpty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.gridLine {
+  stroke: color-mix(in oklab, var(--border) 70%, transparent);
+  stroke-width: 1;
+}
+.gridZero {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.axisText {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--muted-foreground);
+  letter-spacing: 0.04em;
+}
+.barWin  {
+  fill: color-mix(in oklab, var(--primary) 75%, transparent);
+}
+.barLoss {
+  fill: color-mix(in oklab, var(--destructive) 75%, transparent);
+}
+.cumLine {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--foreground) 30%, transparent));
+}
+.cumDot {
+  fill: var(--foreground);
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+
+/* ---- Table ---- */
+.tableWrap {
+  display: flex;
+  flex-direction: column;
+}
+.theadRow,
+.row {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.1fr)
+                         minmax(110px, 1fr)
+                         minmax(110px, 1fr)
+                         minmax(220px, 2.4fr);
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+.theadRow {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--muted) 30%, transparent);
+  border-radius: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.row {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  transition: background 160ms ease;
+}
+.row:last-child { border-bottom: 0; }
+.row:hover {
+  background: color-mix(in oklab, var(--muted) 30%, transparent);
+}
+
+.right {
+  text-align: right;
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dateCell {
+  display: inline-flex;
+  flex-direction: column;
+}
+.dateMain {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  letter-spacing: 0.01em;
+}
+
+.barCell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.distBar {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  background: color-mix(in oklab, var(--muted) 50%, transparent);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.distMid {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: color-mix(in oklab, var(--foreground) 25%, transparent);
+}
+.distFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+}
+.distFillWin {
+  background: color-mix(in oklab, var(--primary) 80%, transparent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+.distFillLoss {
+  background: color-mix(in oklab, var(--destructive) 80%, transparent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--destructive) 30%, transparent);
+}
+
+.empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 980px) {
+  .shell { padding: 18px 16px 48px; }
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+  .tileBig { font-size: 22px; }
+  .theadRow,
+  .row {
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: auto;
+    row-gap: 6px;
+  }
+  .theadRow > div:last-child,
+  .row > .barCell {
+    grid-column: 1 / span 2;
+  }
+}

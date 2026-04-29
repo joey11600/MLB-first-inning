@@ -127,6 +127,40 @@
   height: 18px;
 }
 
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-end;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  text-decoration: none;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.navLink:hover {
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
+  background: color-mix(in oklab, var(--primary) 8%, var(--card));
+}
+.navLinkIcon {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
 .board {
   padding: 0;
 }
@@ -145,5 +179,6 @@
   .meta > div { min-width: 0; padding: 0 10px; }
   .meta > div:first-child { padding-left: 0; }
   .themeToggle { grid-column: 2; grid-row: 2; align-self: end; }
+  .headerActions { grid-column: 2; grid-row: 2; align-self: end; }
   .brandTitle { font-size: 22px; }
 }

@@ -92,7 +92,13 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
             <div className={`num ${styles.metaValue}`}>LR-v2 · calibrated</div>
           </div>
         </div>
-        <ThemeToggle />
+        <div className={styles.headerActions}>
+          <a href="/history" className={styles.navLink} title="Bankroll history">
+            <span className={styles.navLinkIcon} aria-hidden>▤</span>
+            History
+          </a>
+          <ThemeToggle />
+        </div>
       </header>
 
       <SummaryStrip rows={data.rows} />
