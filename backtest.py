@@ -72,12 +72,53 @@ API_SLEEP = 0.10
 
 # ---------------------------------------------------------------------------
 # Cache layer (filesystem JSON, one file per object)
+#
+# Per-category TTL (in seconds).  Categories not listed are cached forever
+# (suitable for immutable historical data like finalized linescores).
+#
+# Live-data categories (team_batting, pitcher_gamelog, batter_gamelog) get a
+# 12-hour TTL so the predictor automatically pulls fresh data each morning
+# without losing cache benefits within a run.
 # ---------------------------------------------------------------------------
+
+import time as _time
+
+CACHE_TTL_SECONDS: dict[str, int] = {
+    "team_batting":          12 * 3600,    # 12h: changes after every game
+    "pitcher_gamelog_v2":    12 * 3600,    # 12h: new starts add to gamelog
+    "batter_gamelog":        12 * 3600,    # 12h: new at-bats every game
+    "pitcher_yearbyyear":    12 * 3600,    # 12h: stats refresh as season advances
+    "batter_yearbyyear":     12 * 3600,    # 12h
+    "pitcher_fi":            12 * 3600,    # 12h: 1st-inning splits update with starts
+    # Long-TTL caches (relatively static / immutable):
+    "schedule":               6 * 3600,    # 6h: probable pitchers can change pre-game
+    "boxscore_top3":          6 * 3600,    # 6h: lineup posts close to game time
+    "lineup":                 6 * 3600,    # 6h
+    # Effectively immutable -- no TTL (cache forever):
+    "linescore":              0,           # 0 = never expire (final games are fixed)
+    "handedness":             0,
+    "weather_season":         0,           # historical archive doesn't change
+    "batter_splits":          0,
+    "pitch_arsenal":          0,
+}
+
 
 def _cache_path(category: str, key: str) -> Path:
     p = CACHE_ROOT / category
     p.mkdir(parents=True, exist_ok=True)
     return p / f"{key}.json"
+
+def _cache_is_fresh(category: str, path: Path) -> bool:
+    """Return True if the cached file is younger than the category's TTL.
+    Categories not in CACHE_TTL_SECONDS or with TTL=0 never expire."""
+    ttl = CACHE_TTL_SECONDS.get(category, 0)
+    if ttl <= 0:
+        return True
+    try:
+        age = _time.time() - path.stat().st_mtime
+        return age < ttl
+    except OSError:
+        return True
 
 def _cache_get(category: str, key: str, use_cache: bool) -> dict | list | None:
     if not use_cache:
@@ -85,6 +126,8 @@ def _cache_get(category: str, key: str, use_cache: bool) -> dict | list | None:
     path = _cache_path(category, key)
     if not path.exists():
         return None
+    if not _cache_is_fresh(category, path):
+        return None  # stale -- forces a refresh
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
