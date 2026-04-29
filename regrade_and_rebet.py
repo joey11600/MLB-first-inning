@@ -72,6 +72,12 @@ LR_LEAN_NRFI_P   = 0.56
 LR_PASS_LO_P     = 0.44
 LR_LEAN_YRFI_P   = 0.44
 
+# Lambda floor on STRONG/LEAN YRFI (added 2026-04-29).  Backtest on the
+# 132 graded 2026 STRONG YRFI picks shows the lambda 0.74-0.78 bucket
+# went 4W-5L (44%) and lifted +1.36u when filtered out.  Above 0.78 the
+# next bucket goes 15W-9L (62.5%) so we hold the cut-off here.
+LR_LAMBDA_YRFI_FLOOR = 0.78
+
 # Must match feature_names saved by two_stage_model.py --phase-e3 and
 # the predictor's _T1/_B1_EXPECTED_FEATURES.
 T1_FEATURES = [
@@ -156,12 +162,19 @@ def lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec):
     return (1.0 - p_t1) * (1.0 - p_b1)
 
 
-def classify_zone(p_nrfi: float, data_pts: int) -> tuple[str, str]:
+def classify_zone(p_nrfi: float, data_pts: int,
+                  lambda_total: float | None = None) -> tuple[str, str]:
+    """Mirror of mlb_first_inning_predictor.classify_pick_lr.  Adds the
+    YRFI lambda-floor: when calibrated NRFI prob clears the 0.44 line
+    but the model's raw expected runs is below LR_LAMBDA_YRFI_FLOOR,
+    demote to PASS instead of STRONG/LEAN YRFI."""
     if data_pts == 0:
         return "PASS", "NO DATA"
     if p_nrfi >= LR_STRONG_NRFI_P: return "NRFI", "STRONG"
     if p_nrfi >= LR_LEAN_NRFI_P:   return "NRFI", "LEAN"
     if p_nrfi >= LR_PASS_LO_P:     return "PASS", "NO EDGE"
+    if lambda_total is not None and lambda_total < LR_LAMBDA_YRFI_FLOOR:
+        return "PASS", "NO EDGE"
     if p_nrfi >= LR_LEAN_YRFI_P:   return "YRFI", "LEAN"
     return "YRFI", "STRONG"
 
@@ -318,6 +331,11 @@ def main() -> None:
         ]
         raw_p = lr_predict_two_stage_one(t1_model, b1_model, t1_vec, b1_vec)
         cal_p = cal.predict(raw_p)
+        # Reconstruct lambda for the YRFI floor gate.  raw_p = (1-pT1)*(1-pB1)
+        # implies lambda_total = -ln(raw_p), since each half's run-prob is
+        # 1 - exp(-lambda_half) and the total expected runs is just the
+        # negative log of the joint NRFI probability.
+        lambda_total = -math.log(max(1e-9, raw_p))
 
         # data_pts mirrors predictor: count of non-avg quality inputs out of 4
         qualities = [
@@ -328,7 +346,7 @@ def main() -> None:
         ]
         data_pts = sum(1 for q in qualities if (q or "avg") != "avg")
 
-        side, strength = classify_zone(cal_p, data_pts)
+        side, strength = classify_zone(cal_p, data_pts, lambda_total)
 
         # Starter-pending guard (mirror predictor): if either pitcher quality
         # is "avg", force PASS / STARTER PENDING

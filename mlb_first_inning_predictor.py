@@ -760,6 +760,21 @@ _LR_LEAN_NRFI_P   = 0.56
 _LR_PASS_LO_P     = 0.44
 _LR_LEAN_YRFI_P   = 0.44
 
+# Lambda floor for STRONG YRFI: minimum expected 1st-inning runs the
+# model must project before we'll fire a STRONG YRFI bet, even when
+# the calibrated NRFI prob clears the 0.44 threshold.
+#
+# Why: at lambda 0.74-0.78 the calibrator squashes raw NRFI prob hard
+# enough to cross 0.44, but those games sit in a soft-edge zone where
+# the historical hit rate falls to ~44%.  Backtest on the 132 graded
+# 2026 STRONG YRFI picks shows that filtering out the lambda 0.74-0.78
+# bucket (9 picks: 4W-5L) lifts the season +1.36u with no downside.
+# Going higher than 0.78 starts cutting profitable bets.
+#
+# NRFI does NOT need a ceiling: all 39 graded STRONG NRFI picks have
+# lambda <= 0.54, well below average, no bad zone to clip.
+_LR_LAMBDA_YRFI_FLOOR = 0.78
+
 # Lazy-loaded singletons.  None = "tried to load and failed" (graceful fallback).
 _lr_t1 = None
 _lr_b1 = None
@@ -1219,10 +1234,20 @@ def lr_predict_nrfi(t1_feats: list[float], b1_feats: list[float]) -> float | Non
     return (1.0 - p_t1) * (1.0 - p_b1)
 
 
-def classify_pick_lr(p_nrfi: float, data_pts: int) -> tuple[str, str]:
+def classify_pick_lr(p_nrfi: float, data_pts: int,
+                     lambda_total: float | None = None) -> tuple[str, str]:
     """
-    Pick zone based on calibrated NRFI probability rather than raw lambda.
-    Mirrors classify_pick() shape so call sites can drop in.
+    Pick zone based on calibrated NRFI probability + a lambda floor on
+    the YRFI side.
+
+    `lambda_total` is the model's raw expected 1st-inning runs (lambda_t1
+    + lambda_b1).  Optional for backwards-compat: if not provided, the
+    lambda gate is skipped (legacy behavior).
+
+    YRFI demotion rule: if a game would otherwise classify as STRONG/LEAN
+    YRFI but its lambda is below _LR_LAMBDA_YRFI_FLOOR, demote to PASS.
+    Catches the calibrator over-squashing borderline games where the
+    raw model isn't confident enough that a run is actually coming.
     """
     if data_pts == 0:
         return "PASS", "NO DATA"
@@ -1231,6 +1256,11 @@ def classify_pick_lr(p_nrfi: float, data_pts: int) -> tuple[str, str]:
     if p_nrfi >= _LR_LEAN_NRFI_P:
         return "NRFI", "LEAN"
     if p_nrfi >= _LR_PASS_LO_P:
+        return "PASS", "NO EDGE"
+    # Below the PASS_LO threshold we'd normally fire a YRFI pick.  Apply
+    # the lambda floor first -- if the model's raw expected runs is below
+    # the floor, the YRFI signal isn't strong enough to bet on.
+    if lambda_total is not None and lambda_total < _LR_LAMBDA_YRFI_FLOOR:
         return "PASS", "NO EDGE"
     if p_nrfi >= _LR_LEAN_YRFI_P:
         return "YRFI", "LEAN"
@@ -1681,7 +1711,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         lambda_lr_total = lambda_t1 + lambda_b1
         lr_nrfi = cal.predict(lr_nrfi)
         nrfi_p, yrfi_p = lr_nrfi, 1.0 - lr_nrfi
-        pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts)
+        pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts, lambda_lr_total)
 
         # Starter-pending guard: when either probable pitcher is league-average
         # fallback (TBD or unannounced), there isn't enough information for a
