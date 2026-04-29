@@ -90,10 +90,10 @@ CACHE_TTL_SECONDS: dict[str, int] = {
     "pitcher_yearbyyear":    12 * 3600,    # 12h: stats refresh as season advances
     "batter_yearbyyear":     12 * 3600,    # 12h
     "pitcher_fi":            12 * 3600,    # 12h: 1st-inning splits update with starts
-    # Long-TTL caches (relatively static / immutable):
-    "schedule":               6 * 3600,    # 6h: probable pitchers can change pre-game
-    "boxscore_top3":          6 * 3600,    # 6h: lineup posts close to game time
-    "lineup":                 6 * 3600,    # 6h
+    # Short-TTL caches (refreshed during hourly intraday runs):
+    "schedule":              30 * 60,     # 30m: probable pitchers + game times can change
+    "boxscore_top3":         30 * 60,     # 30m: lineup posts in the 1-3 hours pre-game
+    "lineup":                30 * 60,     # 30m: same
     # Effectively immutable -- no TTL (cache forever):
     "linescore":              0,           # 0 = never expire (final games are fixed)
     "handedness":             0,

@@ -173,6 +173,51 @@ def _fmt(v, decimals: int = 3) -> str:
         return str(v)
 
 
+def _pick_is_locked(existing: dict, iso_date: str) -> bool:
+    """Decide whether the existing pick should be preserved across an
+    intraday refresh.
+
+    A pick is "locked" once:
+      - The game has been graded (final or postponed), or
+      - The game's start time has passed (live in-progress, no W/L yet)
+
+    Picks that haven't started yet are NOT locked, so the predictor can
+    refresh them throughout the day as new info (lineups, weather, last-
+    minute starter changes) becomes available.
+    """
+    graded = (existing.get("graded_result") or "").strip().upper()
+    if graded in ("WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"):
+        return True
+
+    # Compare game start time to "now" in ET
+    time_et = (existing.get("game_time_et") or "").strip()
+    if not time_et:
+        return False
+    try:
+        from zoneinfo import ZoneInfo
+        et = ZoneInfo("America/New_York")
+        now_et = datetime.now(et)
+        # game_time_et looks like "7:05 PM ET"
+        cleaned = time_et.replace("ET", "").strip()
+        # Try a couple of common formats
+        for fmt in ("%I:%M %p", "%I:%M%p", "%H:%M"):
+            try:
+                t = datetime.strptime(cleaned, fmt)
+                game_dt = datetime.fromisoformat(iso_date).replace(
+                    hour=t.hour, minute=t.minute, tzinfo=et,
+                )
+                # 5-minute buffer so a refresh that lands right at first
+                # pitch still locks the pick (typical workflow: bet a few
+                # minutes before)
+                from datetime import timedelta
+                return now_et >= (game_dt - timedelta(minutes=5))
+            except ValueError:
+                continue
+    except Exception:
+        pass
+    return False
+
+
 def log_picks(date_str: str, season: int, results: list[dict]) -> int:
     """
     Write every game in `results` to data/picks_{season}.csv.
@@ -317,11 +362,18 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "bet_placed", "units_risked", "profit_loss_units",
             ]
 
-            # If already graded, also preserve the original pick decision so
-            # re-running the predictor after a model change doesn't corrupt
-            # the W/L record. (The original bet was on the original pick.)
-            if existing.get("graded_result", "") not in ("", "UNGRADED"):
-                preserve += ["pick_side", "pick_strength", "pick_label"]
+            # If the game has already started (live or final), the user has
+            # already placed (or chosen not to place) the bet -- preserve the
+            # ORIGINAL pick so intraday refreshes don't rewrite history.
+            # _game_already_started checks both graded_result and the slate
+            # time vs current time so live games (in-progress, ungraded) are
+            # also locked in.
+            if _pick_is_locked(existing, iso_date):
+                preserve += ["pick_side", "pick_strength", "pick_label",
+                             "nrfi_prob", "yrfi_prob",
+                             "over_1_5_prob", "under_1_5_prob",
+                             "lambda_lr_t1", "lambda_lr_b1", "lambda_lr_total",
+                             "combined_lambda", "away_proj_runs", "home_proj_runs"]
 
             for fld in preserve:
                 new_row[fld] = existing.get(fld, "")
