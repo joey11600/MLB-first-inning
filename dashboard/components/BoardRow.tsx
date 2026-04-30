@@ -24,6 +24,18 @@ function formatGameTime(s: string): string {
   return s.replace(/\s*ET\s*$/, "").trim();
 }
 
+/** True for non-numeric time placeholders the predictor emits when MLB
+ *  hasn't published a real start time yet -- e.g. "After Game 1" for the
+ *  back end of a traditional doubleheader.  These get a chip treatment
+ *  (dashed muted pill, parallel to STARTER/LINEUP PENDING) instead of
+ *  the regular mono time, so they (a) read as tentative not as a real
+ *  time, and (b) fit in the narrow 82px time column without overflowing
+ *  into the matchup cell. */
+function isPlaceholderTime(s: string): boolean {
+  if (!s || s === "—") return false;
+  return !s.includes(":");
+}
+
 // Short sportsbook name for the live-odds chip ("DraftKings" -> "DK")
 function shortBook(name: string): string {
   if (!name) return "";
@@ -68,9 +80,7 @@ export function BoardRowItem({
       >
         <span className={styles.spine} aria-hidden />
 
-        <span className={`num ${styles.rank}`}>
-          {formatGameTime(row.gameTimeEt || detail?.gameTimeEt || "")}
-        </span>
+        <TimeCell value={formatGameTime(row.gameTimeEt || detail?.gameTimeEt || "")} />
 
         <span className={styles.matchup}>
           <span className={styles.team}>{row.away}</span>
@@ -134,10 +144,11 @@ export function BoardRowItem({
           {row.yrfiPct.toFixed(1)}
         </span>
 
-        <span className={styles.expander} aria-hidden>
-          <span className={styles.expanderLabel}>
-            {expanded ? "Hide" : "Details"}
-          </span>
+        <span
+          className={styles.expander}
+          aria-hidden
+          title={expanded ? "Hide details" : "Show details"}
+        >
           <span className={`${styles.caret} ${expanded ? styles.caretOpen : ""}`}>
             ⌄
           </span>
@@ -206,6 +217,28 @@ function EdgeCell({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
       {sign}{pct.toFixed(1)}%
     </span>
   );
+}
+
+
+/** Time column renderer.  Real wall-clock times ("12:35 PM") use the
+ *  monospace .rank treatment for a tabular feel down the column.  When
+ *  MLB hasn't published a real start (DH-Y game-2 placeholder, TBD,
+ *  etc.) the predictor emits a non-numeric string -- we render that as
+ *  a small dashed chip so the column rhythm isn't broken AND the chip
+ *  visually telegraphs "this is a tentative state, not a real time". */
+function TimeCell({ value }: { value: string }) {
+  if (isPlaceholderTime(value)) {
+    return (
+      <span
+        className={styles.rankTag}
+        title="Start time pending — game begins after Game 1 finishes"
+      >
+        <span className={styles.rankTagDot} aria-hidden />
+        {value}
+      </span>
+    );
+  }
+  return <span className={`num ${styles.rank}`}>{value}</span>;
 }
 
 

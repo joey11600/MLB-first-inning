@@ -100,6 +100,49 @@
 .nrfiStrong .rank { color: var(--primary); }
 .yrfiStrong .rank { color: var(--destructive); }
 
+/* Time-column chip used when the predictor returns a non-time placeholder
+   ("After Game 1" for DH-Y game 2 before game 1 finishes; "TBD"; etc.).
+   Visual vocabulary mirrors .pickPillPending: dashed border, muted body,
+   pulsing dot — so the user reads it as "tentative state, real value
+   coming" rather than mistaking it for a real wall-clock time.
+
+   Sized to fit inside the 82px time column with breathing room and
+   gracefully ellipses if a longer placeholder ever lands.  No grid
+   change required — the header row stays aligned. */
+.rankTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in oklab, var(--muted-foreground) 35%, var(--border));
+  background: color-mix(in oklab, var(--muted) 65%, transparent);
+  color: var(--muted-foreground);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rankTagDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  flex: 0 0 auto;
+  animation: rankTagPulse 2.4s ease-in-out infinite;
+}
+@keyframes rankTagPulse {
+  0%, 100% { opacity: 0.30; }
+  50%      { opacity: 0.85; }
+}
+
 /* Matchup — primary identity.  In the new layout the matchup column is
    slightly narrower (more space went to PICK), so type tracking is
    tightened a hair to keep "AWAY at HOME + DH-2" on a single line. */
@@ -467,26 +510,30 @@
 .inlineBar.nrfi .inlineBarFill { background: var(--primary); }
 .inlineBar.yrfi .inlineBarFill { background: var(--destructive); }
 
-/* Expand affordance: "Details" / "Hide" label + chevron at the right
-   edge.  Label fades in on hover so the idle row stays uncluttered.
-   Now in a 56px-wide column, the affordance has room to breathe and the
-   open state can use a real bordered chip without crowding YRFI%. */
+/* Expand affordance — fixed-width caret-only chip.  The "Details" /
+   "Hide" text label was previously fading in on hover but its
+   width: max-content rule grew the cell beyond the 52px grid column
+   and bled the label over the YRFI% number.  Drop the label entirely
+   (the row is fully clickable, the caret rotation telegraphs the
+   open/close transition, and the button has a title= for hover hint),
+   pin the chip to a fixed 36×32 box so it stays inside its column
+   under any state. */
 .expander {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  border-radius: 7px;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
   border: 1px solid transparent;
   color: var(--muted-foreground);
   transition: color 180ms ease,
               background 180ms ease,
               border-color 180ms ease;
-  width: max-content;
   justify-self: end;
 }
-.row:hover .expander,
-.row.open .expander {
+.row:hover .expander {
   color: var(--foreground);
   background: color-mix(in oklab, var(--muted) 60%, transparent);
   border-color: color-mix(in oklab, var(--border) 100%, var(--foreground) 6%);
@@ -495,25 +542,6 @@
   color: var(--primary);
   background: color-mix(in oklab, var(--primary) 10%, transparent);
   border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
-}
-
-.expanderLabel {
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  /* Tucked away on idle, fades in on hover/open */
-  opacity: 0;
-  max-width: 0;
-  overflow: hidden;
-  transition: opacity 180ms ease,
-              max-width 220ms ease;
-}
-.row:hover .expanderLabel,
-.row.open .expanderLabel {
-  opacity: 1;
-  max-width: 60px;
 }
 
 .caret {
@@ -563,9 +591,16 @@
   .matchup { grid-area: matchup; }
   .resultCell { grid-area: result; justify-self: start; }
   .lambdaVal { grid-area: lambda; }
-  /* On mobile, drop the "Details" label -- only the caret remains. */
-  .expander { grid-area: caret; justify-self: end; padding: 4px; }
-  .expanderLabel { display: none; }
+  /* On mobile the desktop's 36x32 caret chip is unnecessarily large for
+     a tighter row -- shrink to a flush 28x28 so it sits cleanly next to
+     the matchup column.  (The "Details" text label was already removed
+     for desktop in the rewrite above; nothing more to drop here.) */
+  .expander {
+    grid-area: caret;
+    width: 28px;
+    height: 28px;
+    justify-self: end;
+  }
   .pickCell { grid-area: pick; flex-wrap: wrap; row-gap: 6px; }
   .edgeCell { display: none; }   /* edge re-folds into the OddsChip on mobile */
   .pct { display: none; }
