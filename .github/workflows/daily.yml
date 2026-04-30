@@ -91,12 +91,23 @@ jobs:
         if: steps.action.outputs.what == 'predict'
         # Belt-and-suspenders: grade yesterday FIRST (in case the nightly
         # grade cron missed it due to GitHub Actions cron lag), then
-        # predict today.  Both ops are idempotent.
+        # predict today, then pull DraftKings odds + import for edge calc.
+        # All ops are idempotent.
         run: |
           YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)
+          TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
           echo "Catch-up grading $YDAY (yesterday) before predicting today..."
           python mlb_first_inning_predictor.py --date "$YDAY" --grade || true
           python mlb_first_inning_predictor.py
+          echo "Scraping DraftKings 1st-inning runs market for $TODAY_ISO..."
+          python scrape_dk_odds.py || true
+          ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
+          if [ -s "$ODDS_CSV" ]; then
+            echo "Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
+            python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 || true
+          else
+            echo "No DK odds CSV for $TODAY_ISO -- skipping import (DK may have pulled all markets)."
+          fi
 
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'
