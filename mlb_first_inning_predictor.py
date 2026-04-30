@@ -313,6 +313,35 @@ def fetch_schedule(date_str: str) -> list[dict]:
                 "home_pitcher_id":   home_probable.get("id"),
                 "home_pitcher_name": home_probable.get("fullName", "TBD"),
             })
+
+    # Doubleheader placeholder cleanup --------------------------------------
+    # For traditional ("Y") doubleheaders MLB returns a placeholder gameDate
+    # for game 2 until game 1 finishes -- typically game-1's start time + 5
+    # minutes (e.g. game 1 at 12:35 PM ET, game 2 also at "12:40 PM ET").
+    # The real start is "after game 1 ends" and isn't known yet.  Detect
+    # the placeholder via the gap and flag it so format_game_time renders
+    # "After Game 1" instead of a misleading wall-clock time.
+    by_matchup: dict[tuple, list[dict]] = {}
+    for g in games:
+        if g.get("double_header") == "Y":
+            key = (g["away_team_id"], g["home_team_id"])
+            by_matchup.setdefault(key, []).append(g)
+    for matchup_games in by_matchup.values():
+        if len(matchup_games) < 2:
+            continue
+        matchup_games.sort(key=lambda x: x.get("game_number", 1))
+        g1, g2 = matchup_games[0], matchup_games[1]
+        # Compare start times.  Anything closer than 90 minutes can't be
+        # the real game-2 start (real DH-Y splits run ~3-4 hours apart) --
+        # treat it as a not-yet-known placeholder.
+        try:
+            t1 = datetime.fromisoformat(g1["game_date"].replace("Z", "+00:00"))
+            t2 = datetime.fromisoformat(g2["game_date"].replace("Z", "+00:00"))
+            if abs((t2 - t1).total_seconds()) < 90 * 60:
+                g2["game_time_placeholder"] = True
+        except Exception:
+            pass
+
     return games
 
 # ---------------------------------------------------------------------------
@@ -1299,12 +1328,19 @@ def data_tag(quality: str) -> str:
     col = colors.get(quality, "RED")
     return _c(col, quality) if HAS_COLOR else quality
 
-def format_game_time(iso_str: str) -> str:
+def format_game_time(iso_str: str, placeholder: bool = False) -> str:
     """
     MLB API returns UTC ISO timestamps (e.g. '2026-04-25T23:10:00Z').
     Convert to US Eastern wall-clock time and format as '07:10 PM ET'.
     Auto-handles EDT vs EST via the zoneinfo db.
+
+    When `placeholder=True` (DH-Y game 2 before game 1 ends, MLB still
+    reports the same time as game 1), return "After Game 1" instead of
+    the misleading wall-clock time so the dashboard doesn't pretend it
+    knows the start.
     """
+    if placeholder:
+        return "After Game 1"
     try:
         dt_utc = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
         dt_et  = dt_utc.astimezone(_ET)
@@ -1770,7 +1806,8 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "game_pk":       game["game_pk"],
             "game_number":   game["game_number"],
             "double_header": game["double_header"],
-            "time":          format_game_time(game["game_date"]),
+            "time":          format_game_time(game["game_date"],
+                                                placeholder=bool(game.get("game_time_placeholder"))),
             "park_factor":   pf,
             "data_points":   data_pts,
             # pre-computed probabilities and pick (used by tracker and display)

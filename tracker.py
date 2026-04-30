@@ -423,8 +423,16 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 #   - lineup JSON (purely informational; the dashboard uses
                 #     this to show WHO the pitcher faced.  Doesn't affect
                 #     the pick or any model inputs the user bet against.)
+                #   - game_time_et (DH-Y game-2 placeholder cleanup: MLB's
+                #     API initially reports game-2 at game-1 time + 5 min,
+                #     then updates after game 1 ends.  We re-fetch the time
+                #     so the dashboard isn't stuck showing a wrong time.)
                 # Every other field gets restored from the locked snapshot.
-                allow_update = {"created_at", "home_lineup_json", "away_lineup_json"}
+                allow_update = {
+                    "created_at",
+                    "home_lineup_json", "away_lineup_json",
+                    "game_time_et",
+                }
                 for fld in FIELDS:
                     if fld not in allow_update:
                         new_row[fld] = existing.get(fld, "")
