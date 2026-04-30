@@ -2,12 +2,29 @@ name: Daily NRFI predict + grade + weekly recalibrate
 
 # Cron times are UTC.  EDT (Apr-Oct) = UTC-4, EST (Nov-Mar) = UTC-5.
 # Schedules below are EDT-aligned; bump each cron forward 1 hour after DST.
-#   0  13 * * *   =  9:00 AM ET  -- predict today's slate
+#   0  13 * * *   =  9:00 AM ET  -- initial predict (most games still LINEUP PENDING)
+#   0  15 * * *   = 11:00 AM ET  -- refresh predict (day-game lineups posting)
+#   0  17 * * *   =  1:00 PM ET  -- refresh predict
+#   0  19 * * *   =  3:00 PM ET  -- refresh predict
+#   0  21 * * *   =  5:00 PM ET  -- refresh predict (most night-game lineups posted)
+#   0  23 * * *   =  7:00 PM ET  -- refresh predict (final pre-game pass)
 #   30  3 * * *   = 11:30 PM ET  -- grade today's slate
 #   45  4 * * 1   = 12:45 AM ET Mon (= late Sunday) -- recalibrate after grade
+#
+# Why so many predict cycles?  Lineups post 2-4 hours before first pitch
+# and drive the strongest offense features (top3c_obp/slg/iso).  Without
+# intra-day refreshes, every game would sit at PASS - LINEUP PENDING all
+# day until manually re-run.  Each refresh is idempotent + lock-aware:
+# locked picks (game already started) are preserved; only pre-game picks
+# can flip, with each flip logged to data/pick_changes.csv.
 on:
   schedule:
     - cron: "0 13 * * *"
+    - cron: "0 15 * * *"
+    - cron: "0 17 * * *"
+    - cron: "0 19 * * *"
+    - cron: "0 21 * * *"
+    - cron: "0 23 * * *"
     - cron: "30 3 * * *"
     - cron: "45 4 * * 1"
   workflow_dispatch:
@@ -50,15 +67,23 @@ jobs:
           SCHEDULE: ${{ github.event.schedule }}
           MANUAL:   ${{ github.event.inputs.action }}
         run: |
-          if [ "$SCHEDULE" = "0 13 * * *" ]; then
-            echo "what=predict" >> "$GITHUB_OUTPUT"
-          elif [ "$SCHEDULE" = "30 3 * * *" ]; then
-            echo "what=grade" >> "$GITHUB_OUTPUT"
-          elif [ "$SCHEDULE" = "45 4 * * 1" ]; then
-            echo "what=recalibrate" >> "$GITHUB_OUTPUT"
-          else
-            echo "what=${MANUAL:-predict}" >> "$GITHUB_OUTPUT"
-          fi
+          # All 9am-7pm ET predict cycles map to "predict" (refreshes pull
+          # in newly-posted lineups + flip PASS - LINEUP PENDING -> real
+          # verdict where applicable).  Grade + recalibrate are unique.
+          case "$SCHEDULE" in
+            "0 13 * * *"|"0 15 * * *"|"0 17 * * *"|"0 19 * * *"|"0 21 * * *"|"0 23 * * *")
+              echo "what=predict" >> "$GITHUB_OUTPUT"
+              ;;
+            "30 3 * * *")
+              echo "what=grade" >> "$GITHUB_OUTPUT"
+              ;;
+            "45 4 * * 1")
+              echo "what=recalibrate" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "what=${MANUAL:-predict}" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
           echo "today=$(TZ=America/New_York date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
           echo "slate=$(TZ=America/New_York date +%m/%d/%Y)" >> "$GITHUB_OUTPUT"
 
