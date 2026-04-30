@@ -112,22 +112,25 @@
 .rankTag {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
+  gap: 4px;
+  padding: 3px 7px;
   font-family: var(--font-sans);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
   line-height: 1rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
   border-radius: 999px;
   border: 1px dashed color-mix(in oklab, var(--muted-foreground) 35%, var(--border));
   background: color-mix(in oklab, var(--muted) 65%, transparent);
   color: var(--muted-foreground);
+  /* Lock to the time column so longer placeholders never overflow into
+     the matchup cell.  min-width: 0 lets the flex container shrink
+     properly inside its grid track. */
+  min-width: 0;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 0 1 auto;
 }
 .rankTagDot {
   width: 4px;

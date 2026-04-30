@@ -228,13 +228,17 @@ function EdgeCell({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
  *  visually telegraphs "this is a tentative state, not a real time". */
 function TimeCell({ value }: { value: string }) {
   if (isPlaceholderTime(value)) {
+    // Display abbreviation: "After Game 1" -> "After G1" so the chip fits
+    // inside the 82px time column at its uppercase 9.5px sans tracking.
+    // The full phrase stays in the tooltip for clarity.
+    const display = value.replace(/\bGame\s+(\d+)\b/i, "G$1");
     return (
       <span
         className={styles.rankTag}
-        title="Start time pending — game begins after Game 1 finishes"
+        title={`${value} — start time pending until prior game finishes`}
       >
         <span className={styles.rankTagDot} aria-hidden />
-        {value}
+        {display}
       </span>
     );
   }
