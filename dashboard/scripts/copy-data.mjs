@@ -1,6 +1,11 @@
 // Bundle ../data into ./data before `next build` so the CSVs ship with the
 // Vercel deploy (the upload tarball starts at `dashboard/`, so sibling dirs
 // are otherwise invisible to the build).
+//
+// IMPORTANT: only the dashboard-readable artifacts get copied -- copying the
+// full `data/` tree blew past Vercel's 10MB upload limit once the cache
+// directory crossed ~50MB.  The dashboard only reads boards/, picks_*.csv,
+// and pick_changes.csv, so we whitelist those instead of mirroring the lot.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +20,34 @@ if (!fs.existsSync(src)) {
   process.exit(0);
 }
 
+// Wipe stale snapshot first so removed boards / pick changes don't linger.
 fs.rmSync(dest, { recursive: true, force: true });
-fs.cpSync(src, dest, { recursive: true });
-console.log(`[copy-data] copied ${src} → ${dest}`);
+fs.mkdirSync(dest, { recursive: true });
+
+let copied = 0;
+
+// 1. Whole boards directory (small, every CSV is needed for the date picker).
+const boardsSrc = path.join(src, "boards");
+if (fs.existsSync(boardsSrc)) {
+  const boardsDest = path.join(dest, "boards");
+  fs.cpSync(boardsSrc, boardsDest, { recursive: true });
+  copied += fs.readdirSync(boardsDest).length;
+}
+
+// 2. picks_<year>.csv -- season ledger, the biggest single file the dashboard
+// reads.  Copy any picks_*.csv so future seasons just work.
+for (const f of fs.readdirSync(src)) {
+  if (/^picks_\d{4}\.csv$/.test(f)) {
+    fs.copyFileSync(path.join(src, f), path.join(dest, f));
+    copied += 1;
+  }
+}
+
+// 3. pick_changes.csv -- intraday pick-flip journal for the ChangeBanner.
+const changes = path.join(src, "pick_changes.csv");
+if (fs.existsSync(changes)) {
+  fs.copyFileSync(changes, path.join(dest, "pick_changes.csv"));
+  copied += 1;
+}
+
+console.log(`[copy-data] copied ${copied} files from ${src} → ${dest}`);
