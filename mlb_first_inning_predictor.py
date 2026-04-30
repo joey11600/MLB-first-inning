@@ -296,6 +296,7 @@ def fetch_schedule(date_str: str) -> list[dict]:
             away_id = away_team.get("id", 0)
             home_id = home_team.get("id", 0)
 
+            status_obj = game.get("status") or {}
             games.append({
                 "game_pk":         game["gamePk"],
                 "game_date":       game.get("gameDate", ""),
@@ -312,15 +313,27 @@ def fetch_schedule(date_str: str) -> list[dict]:
                 "away_pitcher_name": away_probable.get("fullName", "TBD"),
                 "home_pitcher_id":   home_probable.get("id"),
                 "home_pitcher_name": home_probable.get("fullName", "TBD"),
+                # Status flags (used by DH-Y placeholder resolution)
+                "start_time_tbd":  bool(status_obj.get("startTimeTBD", False)),
+                "abstract_state":  status_obj.get("abstractGameState", ""),
+                "detailed_state":  status_obj.get("detailedState", ""),
             })
 
-    # Doubleheader placeholder cleanup --------------------------------------
+    # Doubleheader placeholder resolution -----------------------------------
     # For traditional ("Y") doubleheaders MLB returns a placeholder gameDate
-    # for game 2 until game 1 finishes -- typically game-1's start time + 5
-    # minutes (e.g. game 1 at 12:35 PM ET, game 2 also at "12:40 PM ET").
-    # The real start is "after game 1 ends" and isn't known yet.  Detect
-    # the placeholder via the gap and flag it so format_game_time renders
-    # "After Game 1" instead of a misleading wall-clock time.
+    # for game 2 until game 1 ends -- the schedule endpoint reports
+    # game-1's time + 5 minutes with status.startTimeTBD = true.  Once
+    # game 1 actually plays, the schedule endpoint LAGS the real game-2
+    # start: MLB.com may show the actual time (e.g. 3:55 PM) hours
+    # before the API catches up.  We resolve in this priority order:
+    #   1. start_time_tbd is FALSE -> trust gameDate as-is.
+    #   2. start_time_tbd is TRUE + game 2 has plays -> use first play's
+    #      startTime as the actual first pitch (most accurate signal).
+    #   3. start_time_tbd is TRUE + game 1 has finished -> estimate
+    #      game 2 start = game-1 endTime + 30 min (standard DH-Y
+    #      intermission).  Better than the placeholder time.
+    #   4. start_time_tbd is TRUE + game 1 still in progress -> fall
+    #      back to the "After Game 1" chip so the user knows it's TBD.
     by_matchup: dict[tuple, list[dict]] = {}
     for g in games:
         if g.get("double_header") == "Y":
@@ -331,18 +344,78 @@ def fetch_schedule(date_str: str) -> list[dict]:
             continue
         matchup_games.sort(key=lambda x: x.get("game_number", 1))
         g1, g2 = matchup_games[0], matchup_games[1]
-        # Compare start times.  Anything closer than 90 minutes can't be
-        # the real game-2 start (real DH-Y splits run ~3-4 hours apart) --
-        # treat it as a not-yet-known placeholder.
-        try:
-            t1 = datetime.fromisoformat(g1["game_date"].replace("Z", "+00:00"))
-            t2 = datetime.fromisoformat(g2["game_date"].replace("Z", "+00:00"))
-            if abs((t2 - t1).total_seconds()) < 90 * 60:
-                g2["game_time_placeholder"] = True
-        except Exception:
-            pass
+
+        # Belt-and-suspenders placeholder detection: prefer the explicit
+        # start_time_tbd flag, fall back to the gap heuristic in case MLB
+        # is lying about the flag (rare but observed).
+        is_placeholder = bool(g2.get("start_time_tbd"))
+        if not is_placeholder:
+            try:
+                t1 = datetime.fromisoformat(g1["game_date"].replace("Z", "+00:00"))
+                t2 = datetime.fromisoformat(g2["game_date"].replace("Z", "+00:00"))
+                if abs((t2 - t1).total_seconds()) < 90 * 60:
+                    is_placeholder = True
+            except Exception:
+                pass
+        if not is_placeholder:
+            continue
+
+        # Try to resolve the real start time from live game data.
+        resolved = _resolve_dh_g2_start(g1["game_pk"], g2["game_pk"])
+        if resolved:
+            g2["game_date"]              = resolved
+            g2["game_time_placeholder"]  = False
+        else:
+            g2["game_time_placeholder"]  = True
 
     return games
+
+
+def _resolve_dh_g2_start(g1_pk: int, g2_pk: int) -> str | None:
+    """
+    Best-known real start time for DH-Y game 2 when MLB hasn't updated
+    the schedule's gameDate yet.  Tries two signals in priority order:
+
+      1. game 2's first play startTime  -- if any plays exist, the game
+         has actually begun and this IS the real first-pitch timestamp.
+      2. game 1's last play endTime + 30 min  -- standard DH-Y
+         intermission, used when game 2 hasn't started yet.
+
+    Returns an ISO-Z timestamp string the format_game_time() helper can
+    parse, or None when neither signal is available (game 1 still in
+    progress, or both API calls failed).
+    """
+    import statsapi as _statsapi
+    from datetime import timedelta as _td
+    # 1. game 2 first play startTime
+    try:
+        d2 = _statsapi.get("game", {
+            "gamePk": g2_pk,
+            "fields": "liveData,plays,allPlays,about,startTime",
+        })
+        plays2 = (d2.get("liveData") or {}).get("plays", {}).get("allPlays", [])
+        if plays2:
+            t = plays2[0].get("about", {}).get("startTime")
+            if t:
+                return t
+    except Exception:
+        pass
+    # 2. game 1 last play endTime + 30 min
+    try:
+        d1 = _statsapi.get("game", {
+            "gamePk": g1_pk,
+            "fields": "liveData,plays,allPlays,about,endTime",
+        })
+        plays1 = (d1.get("liveData") or {}).get("plays", {}).get("allPlays", [])
+        if plays1:
+            t_end = plays1[-1].get("about", {}).get("endTime")
+            if t_end:
+                end_dt = datetime.fromisoformat(t_end.replace("Z", "+00:00"))
+                est    = end_dt + _td(minutes=30)
+                return est.isoformat().replace("+00:00", "Z")
+    except Exception:
+        pass
+    return None
 
 # ---------------------------------------------------------------------------
 # Pitcher stat fetching
