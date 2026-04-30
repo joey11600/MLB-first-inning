@@ -65,6 +65,10 @@ FIELDS = [
     # Power signal (added 2026-04-29): top-3 SLG + ISO
     "home_top3c_slg", "away_top3c_slg",
     "home_top3c_iso", "away_top3c_iso",
+    # Data-source provenance (added 2026-04-29): "lineup" | "team_fallback"
+    # | "league_default".  Drives the PASS - LINEUP PENDING guard so morning
+    # picks built on imputed top-3 stats don't show false confidence.
+    "home_top3c_source", "away_top3c_source",
     "home_plate_ump_id", "home_plate_ump_nrfi_rate",
     # --- Phase E.3 Statcast features: xERA + whiff_pct_rank per pitcher ---
     "home_xera", "away_xera",
@@ -258,6 +262,8 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 label = "PASS - No data"
             elif conf == "STARTER PENDING":
                 label = "PASS - Starter pending"
+            elif conf == "LINEUP PENDING":
+                label = "PASS - Lineup pending"
             else:
                 label = "PASS - No edge"
         else:
@@ -332,6 +338,11 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "away_top3c_slg":             _fmt(g.get("away_top3c_slg"), 4),
             "home_top3c_iso":             _fmt(g.get("home_top3c_iso"), 4),
             "away_top3c_iso":             _fmt(g.get("away_top3c_iso"), 4),
+            # Source provenance for the top3c aggregate (lineup-aware vs
+            # team-fallback).  Predictor sets this; CSV reader/dashboard
+            # use it to flag PASS - LINEUP PENDING rows.
+            "home_top3c_source":          g.get("home_top3c_source", "team_fallback"),
+            "away_top3c_source":          g.get("away_top3c_source", "team_fallback"),
             "home_plate_ump_id":          g.get("home_plate_ump_id", ""),
             "home_plate_ump_nrfi_rate":   _fmt(g.get("home_plate_ump_nrfi_rate"), 4),
             "home_xera":                  _fmt(g.get("home_xera"),                3),

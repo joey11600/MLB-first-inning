@@ -4,7 +4,8 @@ export type PickStrength =
   | "LEAN"
   | "NO EDGE"
   | "NO DATA"
-  | "STARTER PENDING";
+  | "STARTER PENDING"
+  | "LINEUP PENDING";
 export type DataQuality = "live" | "ltd" | "sm" | "avg" | "";
 
 export interface BoardRow {

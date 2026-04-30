@@ -13,6 +13,7 @@ function toneClass(side: PickSide, strength: PickStrength): string {
 
 function pickLabelText(side: PickSide, strength: PickStrength): string {
   if (strength === "STARTER PENDING") return "STARTER PENDING";
+  if (strength === "LINEUP PENDING")  return "LINEUP PENDING";
   if (side === "PASS") return strength === "NO DATA" ? "NO DATA" : "PASS";
   return `${strength} ${side}`;
 }
@@ -103,7 +104,10 @@ export function BoardRowItem({
         <span className={styles.pickCell}>
           <span
             className={`${styles.pickPill} ${
-              row.pickStrength === "STARTER PENDING" ? styles.pickPillPending : ""
+              (row.pickStrength === "STARTER PENDING"
+                || row.pickStrength === "LINEUP PENDING")
+                ? styles.pickPillPending
+                : ""
             }`}
           >
             <span className={styles.pickDot} aria-hidden />

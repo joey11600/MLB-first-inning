@@ -1615,7 +1615,14 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # fetch_top3_batters).  When the lineup hasn't posted yet (typical
         # at 9am ET predict time), fall back to the team's full-season
         # batting stats -- much closer to actual top-3 stats than league
-        # average defaults.
+        # average defaults.  We track the data source per side so a pick
+        # built on fallback data is forced to PASS - LINEUP PENDING below
+        # (parallel to STARTER PENDING for missing pitcher info).
+        #   "lineup"         = real top-3 aggregate from posted lineup
+        #   "team_fallback"  = team-level OBP/SLG used as a proxy
+        #   "league_default" = LEAGUE_AVG used (team data also missing)
+        away_top3c_source = "team_fallback" if away_bat.get("obp") is not None else "league_default"
+        home_top3c_source = "team_fallback" if home_bat.get("obp") is not None else "league_default"
         away_top3c_obp = away_bat.get("obp", LEAGUE_AVG_OBP)
         home_top3c_obp = home_bat.get("obp", LEAGUE_AVG_OBP)
         away_top3c_slg = away_bat.get("slg", LEAGUE_AVG_SLG)
@@ -1631,21 +1638,27 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             if top3.get("away_top3"):
                 a_agg = current_season_top3_stats(top3["away_top3"], target_iso, season)
                 if a_agg:
+                    a_real = False
                     if a_agg.get("obp") is not None:
-                        away_top3c_obp = float(a_agg["obp"])
+                        away_top3c_obp = float(a_agg["obp"]); a_real = True
                     if a_agg.get("slg") is not None:
-                        away_top3c_slg = float(a_agg["slg"])
+                        away_top3c_slg = float(a_agg["slg"]); a_real = True
                     if a_agg.get("iso") is not None:
-                        away_top3c_iso = float(a_agg["iso"])
+                        away_top3c_iso = float(a_agg["iso"]); a_real = True
+                    if a_real:
+                        away_top3c_source = "lineup"
             if top3.get("home_top3"):
                 h_agg = current_season_top3_stats(top3["home_top3"], target_iso, season)
                 if h_agg:
+                    h_real = False
                     if h_agg.get("obp") is not None:
-                        home_top3c_obp = float(h_agg["obp"])
+                        home_top3c_obp = float(h_agg["obp"]); h_real = True
                     if h_agg.get("slg") is not None:
-                        home_top3c_slg = float(h_agg["slg"])
+                        home_top3c_slg = float(h_agg["slg"]); h_real = True
                     if h_agg.get("iso") is not None:
-                        home_top3c_iso = float(h_agg["iso"])
+                        home_top3c_iso = float(h_agg["iso"]); h_real = True
+                    if h_real:
+                        home_top3c_source = "lineup"
         except Exception: pass
 
         # Home plate umpire NRFI rate (Phase D)
@@ -1713,10 +1726,25 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         nrfi_p, yrfi_p = lr_nrfi, 1.0 - lr_nrfi
         pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts, lambda_lr_total)
 
+        # Lineup-pending guard: lineup data drives top3c_obp / top3c_slg /
+        # top3c_iso (the strongest offense features).  When lineups haven't
+        # posted yet we substitute team-level full-season averages, which
+        # produce false-confidence picks that flip when the real top-3
+        # aggregate arrives a few hours later (e.g. DET @ ATL on 2026-04-30:
+        # PASS - No edge -> STRONG NRFI on a 2.26pp probability shift).
+        # Force PASS - LINEUP PENDING so the user knows the verdict is
+        # tentative until the lineup is in.  Parallel to STARTER PENDING.
+        # Don't downgrade a NO DATA verdict (data_pts==0) -- that's a
+        # strictly more severe missing-data condition than LINEUP PENDING.
+        if (pick_conf != "NO DATA"
+                and (away_top3c_source != "lineup" or home_top3c_source != "lineup")):
+            pick_side, pick_conf = "PASS", "LINEUP PENDING"
+
         # Starter-pending guard: when either probable pitcher is league-average
         # fallback (TBD or unannounced), there isn't enough information for a
         # real bet recommendation -- force PASS regardless of what the model
         # spits out.  Probability stays visible as informational only.
+        # Takes priority over LINEUP PENDING (more fundamental missing input).
         if away_sp_q == "avg" or home_sp_q == "avg":
             pick_side, pick_conf = "PASS", "STARTER PENDING"
 
@@ -1759,6 +1787,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "away_top3c_slg":             away_top3c_slg,
             "home_top3c_iso":             home_top3c_iso,
             "away_top3c_iso":             away_top3c_iso,
+            # Data-source provenance so the LINEUP PENDING guard above and
+            # downstream transparency know whether top3c was real or imputed
+            # ("lineup" vs "team_fallback" vs "league_default").
+            "home_top3c_source":          home_top3c_source,
+            "away_top3c_source":          away_top3c_source,
             "home_plate_ump_id":          ump_id,
             "home_plate_ump_nrfi_rate":   ump_rate,
             # Phase E.3 Statcast features: xera + whiff_pct_rank per pitcher
@@ -1887,6 +1920,8 @@ _BOARD_ZONE: dict[tuple[str, str], tuple[str, str, str]] = {
     ("NRFI", "LEAN"):   ("[GREEN]", "GREEN",  "*  LEAN NRFI  "),
     ("PASS", "NO EDGE"):("[GRAY] ", "WHITE",  "--  PASS       "),
     ("PASS", "NO DATA"):("[GRAY] ", "WHITE",  "--  NO DATA    "),
+    ("PASS", "STARTER PENDING"): ("[GRAY] ", "WHITE", "--  STARTER PEND."),
+    ("PASS", "LINEUP PENDING"):  ("[GRAY] ", "WHITE", "--  LINEUP PEND. "),
     ("YRFI", "LEAN"):   ("[RED]  ", "RED",    "*  LEAN YRFI  "),
     ("YRFI", "STRONG"): ("[RED]  ", "RED",    "** STRONG YRFI"),
 }
