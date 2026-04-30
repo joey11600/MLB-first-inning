@@ -1,6 +1,15 @@
 "use client";
 
-import type { BoardRow, DataQuality, GameDetail, OffenseStats, PitcherStats, PickSide, PickStrength } from "@/lib/types";
+import type {
+  BatterLine,
+  BoardRow,
+  DataQuality,
+  GameDetail,
+  OffenseStats,
+  PitcherStats,
+  PickSide,
+  PickStrength,
+} from "@/lib/types";
 import { LambdaMeter } from "./LambdaMeter";
 import styles from "./GameDetails.module.css";
 
@@ -71,8 +80,12 @@ export function GameDetails({ row, detail }: { row: BoardRow; detail: GameDetail
         <TeamCard
           side="AWAY"
           team={row.away}
+          oppTeam={row.home}
           pitcher={detail?.away.pitcher}
           offense={detail?.away.offense}
+          /* Away pitcher works the bottom of the 1st against the home lineup */
+          oppLineup={detail?.home.lineup}
+          oppLineupQuality={detail?.home.offense.quality}
         />
         <div className={styles.vsCol}>
           <span className={styles.vs}>VS</span>
@@ -81,8 +94,12 @@ export function GameDetails({ row, detail }: { row: BoardRow; detail: GameDetail
         <TeamCard
           side="HOME"
           team={row.home}
+          oppTeam={row.away}
           pitcher={detail?.home.pitcher}
           offense={detail?.home.offense}
+          /* Home pitcher works the top of the 1st against the away lineup */
+          oppLineup={detail?.away.lineup}
+          oppLineupQuality={detail?.away.offense.quality}
         />
       </div>
     </div>
@@ -356,13 +373,23 @@ function KV({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
 function TeamCard({
   side,
   team,
+  oppTeam,
   pitcher,
   offense,
+  oppLineup,
+  oppLineupQuality,
 }: {
   side: "AWAY" | "HOME";
   team: string;
+  /** Opposing team's three-letter code -- shown as "Vs {oppTeam} top of order" */
+  oppTeam: string;
   pitcher: PitcherStats | undefined;
   offense: OffenseStats | undefined;
+  /** The lineup that THIS team's pitcher will face (i.e. the OPPOSING team's
+   *  top-3 batters).  Empty array when the lineup hasn't posted yet. */
+  oppLineup: BatterLine[] | undefined;
+  /** Data-quality tag for the opposing batting stats (live/ltd/sm/avg). */
+  oppLineupQuality: DataQuality | undefined;
 }) {
   return (
     <div className={styles.teamCard}>
@@ -411,8 +438,10 @@ function TeamCard({
         </>
       )}
 
+      <LineupPanel oppTeam={oppTeam} lineup={oppLineup} quality={oppLineupQuality} />
+
       <section className={styles.subHead}>
-        <span className="eyebrow">Offense</span>
+        <span className="eyebrow">Offense ({team})</span>
         <QualityTag q={offense?.quality} />
       </section>
       <StatGrid
@@ -423,6 +452,76 @@ function TeamCard({
         ]}
       />
     </div>
+  );
+}
+
+
+/**
+ * Top-of-order matchup card -- shows the 3 batters this side's pitcher
+ * will face in the half-inning we're projecting.  When MLB hasn't published
+ * the lineup yet, render a muted "Lineup pending" placeholder so the user
+ * knows the slot exists but is waiting on data (mirrors the PASS - LINEUP
+ * PENDING pick state on the row).
+ */
+function LineupPanel({
+  oppTeam,
+  lineup,
+  quality,
+}: {
+  oppTeam: string;
+  lineup: BatterLine[] | undefined;
+  quality: DataQuality | undefined;
+}) {
+  const has = Array.isArray(lineup) && lineup.length > 0;
+  return (
+    <>
+      <section className={styles.subHead}>
+        <span className="eyebrow">Vs {oppTeam} top of order</span>
+        <QualityTag q={quality} />
+      </section>
+      {has ? (
+        <ol className={styles.lineupList}>
+          {lineup!.map((b, i) => (
+            <BatterRow key={b.id || i} order={i + 1} batter={b} />
+          ))}
+        </ol>
+      ) : (
+        <div className={styles.lineupPending}>
+          <span className={styles.lineupPendingDot} aria-hidden />
+          Lineup pending — published 2–4 hours before first pitch
+        </div>
+      )}
+    </>
+  );
+}
+
+
+function BatterRow({ order, batter }: { order: number; batter: BatterLine }) {
+  const obp = batter.obp != null ? batter.obp.toFixed(3) : "—";
+  const slg = batter.slg != null ? batter.slg.toFixed(3) : "—";
+  const iso = batter.iso != null ? batter.iso.toFixed(3) : "—";
+  const ab  = batter.ab  != null ? `${batter.ab} AB` : "—";
+  const handTag = batter.bats === "L" ? "LHB"
+                : batter.bats === "R" ? "RHB"
+                : batter.bats === "S" ? "SHB"
+                : "";
+
+  return (
+    <li className={styles.lineupRow}>
+      <span className={styles.lineupOrder}>{order}</span>
+      <span className={styles.lineupName}>
+        {batter.name || "—"}
+        {handTag && (
+          <span className={styles.lineupHand} data-hand={batter.bats}>{handTag}</span>
+        )}
+      </span>
+      <span className={styles.lineupStats}>
+        <span className={`num ${styles.lineupStat}`} title="OBP"><em>OBP</em>{obp}</span>
+        <span className={`num ${styles.lineupStat}`} title="SLG"><em>SLG</em>{slg}</span>
+        <span className={`num ${styles.lineupStat}`} title="ISO"><em>ISO</em>{iso}</span>
+      </span>
+      <span className={styles.lineupAb} title="AB this season">{ab}</span>
+    </li>
   );
 }
 

@@ -11,6 +11,7 @@ import type {
   DataQuality,
   ActualSide,
   GradedResult,
+  BatterLine,
 } from "./types";
 
 /**
@@ -107,6 +108,38 @@ function nullableNumber(s: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Parse a JSON-encoded list of top-3 batters out of a CSV cell.
+ *  Returns [] for blank/invalid cells (e.g. older rows without the column,
+ *  or pre-lineup snapshots).  Each entry is normalized so optional stat
+ *  fields read consistently as `null` instead of `undefined`. */
+function parseLineupJson(s: string | undefined): BatterLine[] {
+  const txt = (s ?? "").trim();
+  if (!txt || txt === "[]") return [];
+  try {
+    const parsed = JSON.parse(txt) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((row): row is Record<string, unknown> => typeof row === "object" && row !== null)
+      .slice(0, 3)
+      .map((row) => {
+        const bats = String(row.bats ?? "");
+        const safeBats: BatterLine["bats"] =
+          bats === "L" || bats === "R" || bats === "S" ? bats : "";
+        return {
+          id:   Number(row.id) || 0,
+          name: typeof row.name === "string" ? row.name : "",
+          bats: safeBats,
+          obp:  typeof row.obp === "number" && Number.isFinite(row.obp) ? row.obp : null,
+          slg:  typeof row.slg === "number" && Number.isFinite(row.slg) ? row.slg : null,
+          iso:  typeof row.iso === "number" && Number.isFinite(row.iso) ? row.iso : null,
+          ab:   typeof row.ab  === "number" && Number.isFinite(row.ab)  ? row.ab  : null,
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Build detail map from the season picks CSV for a given date.
  * The picks CSV has the same schema as tracker.FIELDS.
@@ -166,6 +199,9 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
           rpg: toNumber(r.away_rpg),
           quality: normalizeQuality(r.away_batting_q),
         },
+        // Top-3 of the away team's batting order (the lineup the HOME
+        // pitcher faces in T1).  Empty array when lineup hasn't posted.
+        lineup: parseLineupJson(r.away_lineup_json),
       },
       // Live odds + edge (populated by tracker.import_odds; blank when no odds yet)
       marketNrfiOdds: r.market_nrfi_odds ?? "",
@@ -200,6 +236,9 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
           rpg: toNumber(r.home_rpg),
           quality: normalizeQuality(r.home_batting_q),
         },
+        // Top-3 of the home team's batting order (the lineup the AWAY
+        // pitcher faces in B1).  Empty array when lineup hasn't posted.
+        lineup: parseLineupJson(r.home_lineup_json),
       },
     };
     // Primary key: game_pk (uniquely identifies even doubleheader splits)

@@ -786,6 +786,37 @@ def fetch_first_inning_result(game_pk: int, use_cache: bool = True) -> dict:
 # Player handedness (bat side / throw hand) -- platoon-advantage signal
 # ---------------------------------------------------------------------------
 
+def fetch_player_info(player_id: int, use_cache: bool = True) -> dict:
+    """
+    Returns {'name': str, 'bats': 'L'|'R'|'S', 'throws': 'L'|'R'} for a player.
+    Empty string for unknown fields.  Cached per-player.
+
+    Separate from fetch_player_handedness() so the existing handedness cache
+    (which doesn't include name) keeps working without invalidation.  Used
+    by the predictor to render top-3 batter lineups on the dashboard.
+    """
+    if not player_id:
+        return {"name": "", "bats": "", "throws": ""}
+    cache_key = str(player_id)
+    cached = _cache_get("player_info", cache_key, use_cache)
+    if cached is not None:
+        return cached
+    try:
+        data = _api_get("person", {"personId": player_id})
+    except Exception:
+        out = {"name": "", "bats": "", "throws": ""}
+        _cache_put("player_info", cache_key, out)
+        return out
+    person = (data.get("people") or [{}])[0]
+    out = {
+        "name":   person.get("fullName", ""),
+        "bats":   (person.get("batSide", {})   or {}).get("code", ""),
+        "throws": (person.get("pitchHand", {}) or {}).get("code", ""),
+    }
+    _cache_put("player_info", cache_key, out)
+    return out
+
+
 def fetch_player_handedness(player_id: int, use_cache: bool = True) -> dict:
     """
     Returns {'bats': 'L'|'R'|'S', 'throws': 'L'|'R'} for a player.
@@ -1176,6 +1207,46 @@ def current_season_top3_stats(
         "n_with_data": n_with_data,
         "source":      "current",
     }
+
+
+def current_season_top3_per_batter(
+    player_ids:      list[int],
+    target_date_iso: str,
+    target_season:   int,
+    use_cache:       bool = True,
+) -> list[dict]:
+    """
+    Per-batter (not aggregate) current-season-to-date stats for the top-3
+    batters in the lineup.  Used by the dashboard to render the actual
+    matchup card (pitcher vs each top batter) instead of a single
+    PA-weighted aggregate.
+
+    Returns a list of up to 3 dicts:
+        {"id": int, "name": str, "bats": "L"|"R"|"S"|"",
+         "obp": float|None, "slg": float|None, "iso": float|None,
+         "ab": int|None}
+
+    `obp/slg/iso/ab` are None when the batter has no current-season log
+    yet (early-April callup, etc.).  The aggregate falls back to prior-
+    year in that case; the per-batter card just shows the name with em-
+    dash stats so the user knows the lineup is set but the data is thin.
+    """
+    out: list[dict] = []
+    for pid in player_ids[:3]:
+        if not pid:
+            continue
+        info = fetch_player_info(pid, use_cache)
+        s    = current_season_to_date_batter(pid, target_date_iso, target_season, use_cache)
+        out.append({
+            "id":   pid,
+            "name": info.get("name", "") or "",
+            "bats": info.get("bats", "") or "",
+            "obp":  float(s["obp"]) if s and s.get("obp") is not None else None,
+            "slg":  float(s["slg"]) if s and s.get("slg") is not None else None,
+            "iso":  float(s["iso"]) if s and s.get("iso") is not None else None,
+            "ab":   int(s["ab"])    if s and s.get("ab")  is not None else None,
+        })
+    return out
 
 
 # ---------------------------------------------------------------------------

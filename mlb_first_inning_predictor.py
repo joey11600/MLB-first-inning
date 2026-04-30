@@ -1632,8 +1632,17 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # (When lineup is posted, current_season_top3_stats provides real ISO.)
         away_top3c_iso = 0.169
         home_top3c_iso = 0.169
+        # Per-batter lineup detail surfaced to the dashboard so the user can
+        # see WHO the pitcher is facing (name + per-batter OBP/SLG/ISO),
+        # not just the aggregate.  Empty list when lineup hasn't posted.
+        away_lineup: list[dict] = []
+        home_lineup: list[dict] = []
         try:
-            from backtest import fetch_top3_batters, current_season_top3_stats
+            from backtest import (
+                fetch_top3_batters,
+                current_season_top3_stats,
+                current_season_top3_per_batter,
+            )
             top3 = fetch_top3_batters(int(game["game_pk"]))
             if top3.get("away_top3"):
                 a_agg = current_season_top3_stats(top3["away_top3"], target_iso, season)
@@ -1647,6 +1656,12 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                         away_top3c_iso = float(a_agg["iso"]); a_real = True
                     if a_real:
                         away_top3c_source = "lineup"
+                # Always populate the per-batter list when the lineup is in
+                # (regardless of cold-start fallback) -- the dashboard wants
+                # names even when stats are thin.
+                away_lineup = current_season_top3_per_batter(
+                    top3["away_top3"], target_iso, season,
+                )
             if top3.get("home_top3"):
                 h_agg = current_season_top3_stats(top3["home_top3"], target_iso, season)
                 if h_agg:
@@ -1659,6 +1674,9 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                         home_top3c_iso = float(h_agg["iso"]); h_real = True
                     if h_real:
                         home_top3c_source = "lineup"
+                home_lineup = current_season_top3_per_batter(
+                    top3["home_top3"], target_iso, season,
+                )
         except Exception: pass
 
         # Home plate umpire NRFI rate (Phase D)
@@ -1792,6 +1810,13 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             # ("lineup" vs "team_fallback" vs "league_default").
             "home_top3c_source":          home_top3c_source,
             "away_top3c_source":          away_top3c_source,
+            # Per-batter top-3 lineups (JSON-encoded list of dicts with
+            # name, mlbId, bats hand, OBP, SLG, ISO, AB).  Empty array
+            # when lineup hasn't posted yet.  The dashboard renders this
+            # under each pitcher card as "Vs <opp> top of order" so the
+            # user can see WHO the pitcher will face.
+            "away_lineup_json":           json.dumps(away_lineup),
+            "home_lineup_json":           json.dumps(home_lineup),
             "home_plate_ump_id":          ump_id,
             "home_plate_ump_nrfi_rate":   ump_rate,
             # Phase E.3 Statcast features: xera + whiff_pct_rank per pitcher

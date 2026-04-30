@@ -47,6 +47,19 @@ export interface OffenseStats {
   quality: DataQuality;
 }
 
+/** A single batter in the top-3 of the lineup that the opposing pitcher will face.
+ *  Source: backtest.current_season_top3_per_batter (lineup-aware, season-to-date stats).
+ *  All stat fields are nullable since callups / early-April players may have no log yet. */
+export interface BatterLine {
+  id:   number;
+  name: string;
+  bats: "L" | "R" | "S" | "";
+  obp:  number | null;
+  slg:  number | null;
+  iso:  number | null;
+  ab:   number | null;
+}
+
 export type GradedResult = "WIN" | "LOSS" | "PASS" | "POSTPONED" | "SUSPENDED" | null;
 export type ActualSide   = "NRFI" | "YRFI" | "POSTPONED" | "SUSPENDED" | null;
 
@@ -83,11 +96,18 @@ export interface GameDetail {
     team: string;
     pitcher: PitcherStats;
     offense: OffenseStats;
+    /** Top-3 of the away team's batting order this game.  This is the
+     *  lineup the HOME pitcher faces in T1 (top of the 1st).  Empty when
+     *  MLB hasn't published the lineup yet (typical pre-game state). */
+    lineup:  BatterLine[];
   };
   home: {
     team: string;
     pitcher: PitcherStats;
     offense: OffenseStats;
+    /** Top-3 of the home team's batting order this game.  This is the
+     *  lineup the AWAY pitcher faces in B1 (bottom of the 1st). */
+    lineup:  BatterLine[];
   };
 }
 

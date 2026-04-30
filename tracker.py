@@ -69,6 +69,10 @@ FIELDS = [
     # | "league_default".  Drives the PASS - LINEUP PENDING guard so morning
     # picks built on imputed top-3 stats don't show false confidence.
     "home_top3c_source", "away_top3c_source",
+    # Per-batter top-3 lineup, JSON-encoded list of dicts with
+    # {id, name, bats, obp, slg, iso, ab}.  CSV writer auto-quotes the
+    # commas inside.  Empty "[]" when lineup hasn't posted yet.
+    "home_lineup_json", "away_lineup_json",
     "home_plate_ump_id", "home_plate_ump_nrfi_rate",
     # --- Phase E.3 Statcast features: xERA + whiff_pct_rank per pitcher ---
     "home_xera", "away_xera",
@@ -343,6 +347,10 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             # use it to flag PASS - LINEUP PENDING rows.
             "home_top3c_source":          g.get("home_top3c_source", "team_fallback"),
             "away_top3c_source":          g.get("away_top3c_source", "team_fallback"),
+            # Per-batter top-3 lineup as JSON.  Default "[]" so the column
+            # always parses cleanly (empty array means lineup not posted).
+            "home_lineup_json":           g.get("home_lineup_json", "[]"),
+            "away_lineup_json":           g.get("away_lineup_json", "[]"),
             "home_plate_ump_id":          g.get("home_plate_ump_id", ""),
             "home_plate_ump_nrfi_rate":   _fmt(g.get("home_plate_ump_nrfi_rate"), 4),
             "home_xera":                  _fmt(g.get("home_xera"),                3),
@@ -409,9 +417,14 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             # next to fully-known pitcher data, etc).  The grading and
             # odds-import flows handle their own fields outside this path.
             if _pick_is_locked(existing, iso_date):
-                # Allowed to refresh post-lockout: only timestamp metadata.
+                # Allowed to refresh post-lockout:
+                #   - created_at timestamp (so the user can see "this row
+                #     was last touched at..." even after lock)
+                #   - lineup JSON (purely informational; the dashboard uses
+                #     this to show WHO the pitcher faced.  Doesn't affect
+                #     the pick or any model inputs the user bet against.)
                 # Every other field gets restored from the locked snapshot.
-                allow_update = {"created_at"}
+                allow_update = {"created_at", "home_lineup_json", "away_lineup_json"}
                 for fld in FIELDS:
                     if fld not in allow_update:
                         new_row[fld] = existing.get(fld, "")
