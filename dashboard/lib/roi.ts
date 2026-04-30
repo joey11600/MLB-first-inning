@@ -266,6 +266,13 @@ export async function loadRoi(
       z.postponed += 1;
     } else if (graded === "PASS") {
       z.passes += 1;
+      // All-PASS days (every pick on the slate was "no edge" / pending)
+      // were silently dropping out of cumulativePL because dayPL only
+      // tracked dates with a WIN or LOSS.  Seed the date with a 0 delta
+      // so it still appears as a flat point on the bankroll chart --
+      // otherwise the user sees a gap on days the model chose to sit
+      // out.  Only seed; never overwrite an actual P&L.
+      if (!dayPL.has(date)) dayPL.set(date, 0);
     } else {
       z.ungraded += 1;
     }

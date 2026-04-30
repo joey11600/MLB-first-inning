@@ -1997,6 +1997,49 @@ _BOARD_CSV_FIELDS = [
 ]
 
 
+def _load_locked_picks(iso_date: str) -> dict[str, dict[str, str]]:
+    """
+    Pull the locked (pre-game-frozen) pick label for every game on the
+    given slate from data/picks_<season>.csv, so the board CSV writer
+    can use it instead of the latest model verdict for games that have
+    already started.
+
+    Returns {game_pk: {"pick_side", "pick_strength", "pick_label"}} for
+    each locked row.  Empty dict on any error (the caller falls back
+    to the live model output, which is the pre-fix behavior).
+    """
+    import csv as _csv
+    from pathlib import Path
+    season = iso_date[:4]
+    p = Path(__file__).parent / "data" / f"picks_{season}.csv"
+    if not p.exists():
+        return {}
+    out: dict[str, dict[str, str]] = {}
+    try:
+        # Late import to avoid a hard dep when tracker isn't on the path.
+        from tracker import _pick_is_locked
+    except Exception:
+        return {}
+    try:
+        with open(p, encoding="utf-8") as f:
+            for row in _csv.DictReader(f):
+                if (row.get("date") or "").strip() != iso_date:
+                    continue
+                if not _pick_is_locked(row, iso_date):
+                    continue
+                pk = (row.get("game_pk") or "").strip()
+                if not pk:
+                    continue
+                out[pk] = {
+                    "pick_side":     row.get("pick_side")     or "",
+                    "pick_strength": row.get("pick_strength") or "",
+                    "pick_label":    row.get("pick_label")    or "",
+                }
+    except Exception:
+        return {}
+    return out
+
+
 def print_board(results: list[dict], target_date: str) -> None:
     """
     Print a ranking board sorted by combined lambda (highest first) and
@@ -2026,11 +2069,26 @@ def print_board(results: list[dict], target_date: str) -> None:
     print(f"  {'#':<3}  {'Matchup':<11}  {'  lambda':>5}  {'Zone':<8}  {'Pick':<16}  {'NRFI%':>6}  {'YRFI%':>6}")
     print(sep2)
 
+    # Lock-aware overrides: log_picks() preserves the original pre-game pick
+    # for any row whose game has already started (so the bet snapshot stays
+    # frozen).  Without the same override here, the board CSV would write
+    # the LATEST model verdict for those games, then the dashboard would
+    # show e.g. "PASS" next to a "WIN" badge graded against the locked
+    # STRONG NRFI from picks_2026.csv -- visually it looks like a random
+    # mis-grade.  Pull the locked snapshot back out of picks_2026 and use
+    # those (pick_side, pick_strength) for any locked row instead.
+    locked_picks = _load_locked_picks(iso_date)
+
     csv_rows = []
     for rank, g in enumerate(board, 1):
         lam      = g["lambda_total"]
-        side     = g["pick_side"]
-        conf     = g["pick_conf"]
+        gpk_str  = str(g.get("game_pk", ""))
+        if gpk_str in locked_picks:
+            side = locked_picks[gpk_str]["pick_side"]
+            conf = locked_picks[gpk_str]["pick_strength"]
+        else:
+            side = g["pick_side"]
+            conf = g["pick_conf"]
         nrfi_pct = g["nrfi_prob"] * 100
         yrfi_pct = g["yrfi_prob"] * 100
         away     = g["away"]["abbr"]
