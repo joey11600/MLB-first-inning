@@ -490,12 +490,20 @@ def _fetch_first_inning(game_pk: int) -> dict:
       detail       - detailed state string (e.g. "Postponed")
       away_runs    - int or None
       home_runs    - int or None
+
+    NOTE: MLB's `game` endpoint sometimes lags on postponements -- it can
+    keep returning "Scheduled" for hours after MLB has officially called
+    a rainout, while the `schedule` endpoint correctly shows "Postponed"
+    immediately.  When we get an inconsistent "Scheduled / no innings
+    played" response, we double-check via the schedule endpoint and
+    promote the postponement signal if we find one there.
     """
     try:
         data = statsapi.get("game", {
             "gamePk": game_pk,
             "fields": (
                 "gameData,status,abstractGameState,detailedState,"
+                "datetime,officialDate,"
                 "liveData,linescore,innings,num,home,away,runs"
             ),
         })
@@ -517,6 +525,32 @@ def _fetch_first_inning(game_pk: int) -> dict:
         inn1   = innings[0]
         away_r = inn1.get("away", {}).get("runs")
         home_r = inn1.get("home", {}).get("runs")
+
+    # Postpone-detection fallback: when the game endpoint says "Scheduled"
+    # / "Preview" with no innings played, ask the schedule endpoint --
+    # which updates faster on postponements.  The game endpoint's
+    # officialDate flips to the RESCHEDULED date once a makeup is set,
+    # so we query by gamePk directly (returns the game on every date it
+    # appears -- original + makeup) and look for ANY postpone signal.
+    if detail == "Scheduled" and away_r is None and home_r is None:
+        try:
+            sched = statsapi.get("schedule", {
+                "sportId": 1, "gamePk": game_pk,
+                "fields": "dates,games,gamePk,status,detailedState,reason",
+            })
+            for sd in sched.get("dates", []):
+                for sg in sd.get("games", []):
+                    if int(sg.get("gamePk") or 0) != int(game_pk):
+                        continue
+                    sched_detail = sg.get("status", {}).get("detailedState", "")
+                    if sched_detail in ("Postponed", "Suspended", "Cancelled"):
+                        detail = sched_detail
+                        state  = "Final"  # treat as terminal so the grader records it
+                        break
+                if detail != "Scheduled":
+                    break
+        except Exception:
+            pass  # fallback failure is non-fatal; we just keep the original state
 
     return {"state": state, "detail": detail, "away_runs": away_r, "home_runs": home_r}
 
