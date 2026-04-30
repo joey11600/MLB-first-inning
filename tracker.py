@@ -268,6 +268,8 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 label = "PASS - Starter pending"
             elif conf == "LINEUP PENDING":
                 label = "PASS - Lineup pending"
+            elif conf == "LOW LAMBDA":
+                label = "PASS - Low lambda"
             else:
                 label = "PASS - No edge"
         else:
@@ -427,12 +429,24 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 #     API initially reports game-2 at game-1 time + 5 min,
                 #     then updates after game 1 ends.  We re-fetch the time
                 #     so the dashboard isn't stuck showing a wrong time.)
-                # Every other field gets restored from the locked snapshot.
+                # PASS-only label refresh: when both the locked AND the new
+                # pick are side="PASS" (no real bet placed), the user has
+                # no money at stake, so refreshing the strength label is
+                # purely informational -- e.g. "PASS - No edge" can flip
+                # to "PASS - Low lambda" once the classifier learns to
+                # distinguish the demotion reason.  Real bets (NRFI/YRFI)
+                # still freeze hard since money is on the line.
                 allow_update = {
                     "created_at",
                     "home_lineup_json", "away_lineup_json",
                     "game_time_et",
                 }
+                pass_label_refresh = (
+                    (existing.get("pick_side") or "").upper() == "PASS"
+                    and new_row.get("pick_side") == "PASS"
+                )
+                if pass_label_refresh:
+                    allow_update |= {"pick_side", "pick_strength", "pick_label"}
                 for fld in FIELDS:
                     if fld not in allow_update:
                         new_row[fld] = existing.get(fld, "")

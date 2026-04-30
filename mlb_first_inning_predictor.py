@@ -1288,9 +1288,12 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
         return "PASS", "NO EDGE"
     # Below the PASS_LO threshold we'd normally fire a YRFI pick.  Apply
     # the lambda floor first -- if the model's raw expected runs is below
-    # the floor, the YRFI signal isn't strong enough to bet on.
+    # the floor, the YRFI signal isn't strong enough to bet on.  Tag with
+    # "LOW LAMBDA" instead of reusing "NO EDGE" so the demotion is visible
+    # on the dashboard (without this distinction, two games with identical
+    # YRFI% can read as "PASS - No edge" for entirely different reasons).
     if lambda_total is not None and lambda_total < _LR_LAMBDA_YRFI_FLOOR:
-        return "PASS", "NO EDGE"
+        return "PASS", "LOW LAMBDA"
     if p_nrfi >= _LR_LEAN_YRFI_P:
         return "YRFI", "LEAN"
     return "YRFI", "STRONG"
@@ -1984,6 +1987,7 @@ _BOARD_ZONE: dict[tuple[str, str], tuple[str, str, str]] = {
     ("PASS", "NO DATA"):("[GRAY] ", "WHITE",  "--  NO DATA    "),
     ("PASS", "STARTER PENDING"): ("[GRAY] ", "WHITE", "--  STARTER PEND."),
     ("PASS", "LINEUP PENDING"):  ("[GRAY] ", "WHITE", "--  LINEUP PEND. "),
+    ("PASS", "LOW LAMBDA"):      ("[GRAY] ", "WHITE", "--  LOW LAMBDA   "),
     ("YRFI", "LEAN"):   ("[RED]  ", "RED",    "*  LEAN YRFI  "),
     ("YRFI", "STRONG"): ("[RED]  ", "RED",    "** STRONG YRFI"),
 }
@@ -1997,16 +2001,27 @@ _BOARD_CSV_FIELDS = [
 ]
 
 
-def _load_locked_picks(iso_date: str) -> dict[str, dict[str, str]]:
+def _load_locked_picks(iso_date: str) -> dict[str, dict]:
     """
-    Pull the locked (pre-game-frozen) pick label for every game on the
-    given slate from data/picks_<season>.csv, so the board CSV writer
-    can use it instead of the latest model verdict for games that have
-    already started.
+    Pull the locked (pre-game-frozen) pick label AND probabilities for
+    every game on the given slate from data/picks_<season>.csv, so the
+    board CSV writer can use them instead of the latest model verdict
+    for games that have already started.
 
-    Returns {game_pk: {"pick_side", "pick_strength", "pick_label"}} for
-    each locked row.  Empty dict on any error (the caller falls back
-    to the live model output, which is the pre-fix behavior).
+    Returns {game_pk: {pick_side, pick_strength, pick_label, nrfi_prob,
+    yrfi_prob, combined_lambda}} for each locked row.  Empty dict on
+    any error (the caller falls back to the live model output, which
+    is the pre-fix behavior).
+
+    Probabilities are returned as floats (or None when unparseable);
+    pick fields are returned as the raw strings.
+
+    Why include probabilities?  Without this, the board CSV would show
+    the LATEST model's nrfi%/yrfi% next to the LOCKED pick label --
+    looking inconsistent ("58.7% YRFI but pick=PASS, why?").  The user
+    can't distinguish "high YRFI prob at lockout, demoted by lambda
+    floor" from "model evolved post-lock to high YRFI".  Showing the
+    locked probabilities makes the lockout snapshot self-consistent.
     """
     import csv as _csv
     from pathlib import Path
@@ -2014,12 +2029,21 @@ def _load_locked_picks(iso_date: str) -> dict[str, dict[str, str]]:
     p = Path(__file__).parent / "data" / f"picks_{season}.csv"
     if not p.exists():
         return {}
-    out: dict[str, dict[str, str]] = {}
+    out: dict[str, dict] = {}
     try:
         # Late import to avoid a hard dep when tracker isn't on the path.
         from tracker import _pick_is_locked
     except Exception:
         return {}
+
+    def _f(s: str | None) -> float | None:
+        if not s:
+            return None
+        try:
+            return float(s)
+        except (TypeError, ValueError):
+            return None
+
     try:
         with open(p, encoding="utf-8") as f:
             for row in _csv.DictReader(f):
@@ -2034,6 +2058,9 @@ def _load_locked_picks(iso_date: str) -> dict[str, dict[str, str]]:
                     "pick_side":     row.get("pick_side")     or "",
                     "pick_strength": row.get("pick_strength") or "",
                     "pick_label":    row.get("pick_label")    or "",
+                    "nrfi_prob":     _f(row.get("nrfi_prob")),
+                    "yrfi_prob":     _f(row.get("yrfi_prob")),
+                    "combined_lambda": _f(row.get("combined_lambda")),
                 }
     except Exception:
         return {}
@@ -2081,16 +2108,27 @@ def print_board(results: list[dict], target_date: str) -> None:
 
     csv_rows = []
     for rank, g in enumerate(board, 1):
-        lam      = g["lambda_total"]
         gpk_str  = str(g.get("game_pk", ""))
-        if gpk_str in locked_picks:
-            side = locked_picks[gpk_str]["pick_side"]
-            conf = locked_picks[gpk_str]["pick_strength"]
+        locked   = locked_picks.get(gpk_str)
+        if locked:
+            # Locked snapshot: pick label, probabilities, and combined-lambda
+            # all come from picks_2026 so the row reads self-consistently
+            # ("58.7% YRFI, PASS - LOW LAMBDA" -> "53.1% YRFI, PASS - NO EDGE"
+            # depending on what the model actually said at lockout).
+            side     = locked["pick_side"]
+            conf     = locked["pick_strength"]
+            n_p      = locked.get("nrfi_prob")
+            y_p      = locked.get("yrfi_prob")
+            lam_lk   = locked.get("combined_lambda")
+            nrfi_pct = (n_p if n_p is not None else g["nrfi_prob"]) * 100
+            yrfi_pct = (y_p if y_p is not None else g["yrfi_prob"]) * 100
+            lam      = lam_lk if lam_lk is not None else g["lambda_total"]
         else:
-            side = g["pick_side"]
-            conf = g["pick_conf"]
-        nrfi_pct = g["nrfi_prob"] * 100
-        yrfi_pct = g["yrfi_prob"] * 100
+            side     = g["pick_side"]
+            conf     = g["pick_conf"]
+            nrfi_pct = g["nrfi_prob"] * 100
+            yrfi_pct = g["yrfi_prob"] * 100
+            lam      = g["lambda_total"]
         away     = g["away"]["abbr"]
         home     = g["home"]["abbr"]
         matchup  = f"{away} @ {home}"

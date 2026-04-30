@@ -14,6 +14,7 @@ function toneClass(side: PickSide, strength: PickStrength): string {
 function pickLabelText(side: PickSide, strength: PickStrength): string {
   if (strength === "STARTER PENDING") return "STARTER PENDING";
   if (strength === "LINEUP PENDING")  return "LINEUP PENDING";
+  if (strength === "LOW LAMBDA")      return "PASS · LOW λ";
   if (side === "PASS") return strength === "NO DATA" ? "NO DATA" : "PASS";
   return `${strength} ${side}`;
 }
@@ -46,6 +47,21 @@ function shortBook(name: string): string {
   if (n.startsWith("caesars"))     return "CAE";
   if (n.startsWith("pinnacle"))    return "PIN";
   return name.slice(0, 3).toUpperCase();
+}
+
+/** Tooltip for the P(YRFI) cell -- gives the user a peek at WHY two
+ *  games with similar YRFI% can land in different pick zones.  Combined
+ *  λ is the model's raw expected first-inning runs; if it's below the
+ *  0.78 floor the predictor demotes a would-be YRFI pick to PASS. */
+function lambdaTooltip(row: BoardRow): string {
+  const lam = row.lambda.toFixed(2);
+  const yrfi = row.yrfiPct.toFixed(1);
+  const floor = "0.78";
+  const note =
+    row.lambda < 0.78
+      ? `\n• Below 0.78 floor → would-be YRFI demoted to PASS - LOW λ`
+      : `\n• Above 0.78 floor → YRFI bets enabled when YRFI% high enough`;
+  return `Combined λ ${lam} (expected total 1st-inning runs)\nP(YRFI) ${yrfi}%${note}`;
 }
 
 // Pick the right odds (NRFI vs YRFI) for the picked side, normalize sign.
@@ -107,7 +123,10 @@ export function BoardRowItem({
           )}
         </span>
 
-        <span className={`num ${styles.lambdaVal} ${styles.right}`}>
+        <span
+          className={`num ${styles.lambdaVal} ${styles.right}`}
+          title={lambdaTooltip(row)}
+        >
           {(row.yrfiPct / 100).toFixed(2)}
         </span>
 
@@ -118,7 +137,12 @@ export function BoardRowItem({
                 || row.pickStrength === "LINEUP PENDING")
                 ? styles.pickPillPending
                 : ""
-            }`}
+            } ${row.pickStrength === "LOW LAMBDA" ? styles.pickPillLowLambda : ""}`}
+            title={
+              row.pickStrength === "LOW LAMBDA"
+                ? `Demoted from STRONG/LEAN YRFI: combined λ ${row.lambda.toFixed(2)} below the 0.78 floor (model expects too few total runs to bet YRFI confidently). Tested in backtest: floor adds ~+1.36u/season.`
+                : undefined
+            }
           >
             <span className={styles.pickDot} aria-hidden />
             <span className={styles.pickLabel}>

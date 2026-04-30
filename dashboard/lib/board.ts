@@ -78,7 +78,8 @@ function normalizePickStrength(s: string): PickStrength {
     up === "NO EDGE" ||
     up === "NO DATA" ||
     up === "STARTER PENDING" ||
-    up === "LINEUP PENDING"
+    up === "LINEUP PENDING" ||
+    up === "LOW LAMBDA"
   )
     return up as PickStrength;
   return "NO EDGE";

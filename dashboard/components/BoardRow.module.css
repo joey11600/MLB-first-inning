@@ -348,6 +348,27 @@
   50%      { opacity: 1; }
 }
 
+/* LOW LAMBDA pill — would-have-been YRFI demoted because the model's
+   raw expected-runs (lambda_total) is below the 0.78 floor.  Visually
+   distinct from "PASS - No edge" (which is genuine 50/50) and from
+   the dashed STARTER/LINEUP PENDING (which is missing-data).  Uses a
+   subtle warm-secondary tint with a solid (not dashed) border so it
+   reads as "intentional bet declined", not "data-quality halt". */
+.pickPillLowLambda {
+  background: color-mix(in oklab, var(--secondary) 12%, var(--muted)) !important;
+  border-color: color-mix(in oklab, var(--secondary) 40%, var(--border)) !important;
+}
+.pickPillLowLambda .pickDot {
+  background: var(--secondary) !important;
+  box-shadow: 0 0 6px color-mix(in oklab, var(--secondary) 50%, transparent) !important;
+}
+.pickPillLowLambda .pickLabel {
+  color: color-mix(in oklab, var(--secondary) 80%, var(--foreground)) !important;
+  font-size: 11.5px;
+  letter-spacing: 0.10em;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ============================================================
    Live odds chip — DraftKings price for the picked side ONLY.
    Edge (model_prob - implied_prob) lives in its own dedicated

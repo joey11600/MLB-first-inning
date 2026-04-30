@@ -155,7 +155,9 @@ function zoneLabel(side: PickSide, strength: PickStrength): string {
         ? "STARTER PENDING"
         : strength === "LINEUP PENDING"
           ? "LINEUP PENDING"
-          : "PASS";
+          : strength === "LOW LAMBDA"
+            ? "LOW LAMBDA"
+            : "PASS";
   }
   return `${strength} ${side}`;
 }
@@ -217,7 +219,7 @@ export async function loadRoi(
     const side: PickSide =
       sideRaw === "NRFI" || sideRaw === "YRFI" ? sideRaw : "PASS";
     const strength: PickStrength =
-      ["STRONG", "LEAN", "NO EDGE", "NO DATA", "STARTER PENDING", "LINEUP PENDING"].includes(
+      ["STRONG", "LEAN", "NO EDGE", "NO DATA", "STARTER PENDING", "LINEUP PENDING", "LOW LAMBDA"].includes(
         strengthRaw,
       )
         ? (strengthRaw as PickStrength)
@@ -286,6 +288,7 @@ export async function loadRoi(
     "PASS|NO DATA",
     "PASS|STARTER PENDING",
     "PASS|LINEUP PENDING",
+    "PASS|LOW LAMBDA",
     "YRFI|LEAN",
     "YRFI|STRONG",
   ];
