@@ -711,3 +711,56 @@
   .pct { display: none; }
   .meterCell { grid-area: meter; }
 }
+
+/* T4.21: Below 600px (phones) the 5-col stacked layout still feels
+   cramped -- the time + matchup + result + lambda all fight on one
+   line and clip.  Drop to a card-style 2-area layout where the row
+   reads top-to-bottom: header (time + matchup + caret) over result +
+   lambda + pick + meter.  Touch targets bump to at least 44px tall
+   (matches iOS HIG).  Tested at 360px (smallest common phone). */
+@media (max-width: 600px) {
+  .clickable {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "rank    caret"
+      "matchup matchup"
+      "result  lambda"
+      "pick    pick"
+      "meter   meter";
+    padding: 14px 14px 16px;
+    row-gap: 10px;
+    column-gap: 8px;
+  }
+  .rank    { grid-area: rank;    justify-self: start; font-size: 13px; }
+  .matchup { grid-area: matchup; flex-wrap: wrap; row-gap: 4px; }
+  .resultCell {
+    grid-area: result;
+    justify-self: start;
+    min-height: 28px;
+  }
+  .lambdaVal {
+    grid-area: lambda;
+    justify-self: end;
+    font-size: 16px;
+  }
+  .expander {
+    grid-area: caret;
+    width: 44px;
+    height: 44px;        /* iOS HIG: 44px minimum touch target */
+    justify-self: end;
+  }
+  .pickCell {
+    grid-area: pick;
+    flex-wrap: wrap;
+    row-gap: 6px;
+    /* Keep the pick pill + tentative chip readable -- allow a wider
+       single row before they wrap to a second. */
+    max-width: 100%;
+  }
+  .pickPill { padding: 7px 14px 7px 12px; }
+  .pickLabel { font-size: 13px; letter-spacing: 0.06em; }
+  .meterCell { grid-area: meter; }
+  .row { margin: 6px 0; }
+  /* Reduce noise: the matchup at-separator gets less prominent on phones */
+  .at { font-size: 11px; }
+}

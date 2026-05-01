@@ -297,3 +297,28 @@ jobs:
           done
           echo "push still failing after 8 attempts"
           exit 1
+
+      # T4.12: Healthchecks.io (or any compatible dead-man's-switch)
+      # ping after a successful run.  If the user sets HEALTHCHECKS_URL
+      # as a repo secret, every successful workflow GETs it; the
+      # service alerts the user when expected pings stop arriving --
+      # detects "cron silently stopped firing" without us having to
+      # build alerting infra ourselves.  Quiet no-op when unset.
+      - name: Ping Healthchecks.io (success)
+        if: success() && steps.action.outputs.what == 'predict'
+        env:
+          HEALTHCHECKS_URL: ${{ secrets.HEALTHCHECKS_URL }}
+        run: |
+          if [ -n "${HEALTHCHECKS_URL:-}" ]; then
+            curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_URL" >/dev/null 2>&1 || true
+          fi
+      - name: Ping Healthchecks.io (failure)
+        if: failure() && steps.action.outputs.what == 'predict'
+        env:
+          HEALTHCHECKS_URL: ${{ secrets.HEALTHCHECKS_URL }}
+        run: |
+          if [ -n "${HEALTHCHECKS_URL:-}" ]; then
+            # /fail suffix tells Healthchecks the run failed (some
+            # services support this; if not, it just 404s harmlessly).
+            curl -fsS -m 10 --retry 3 "${HEALTHCHECKS_URL%/}/fail" >/dev/null 2>&1 || true
+          fi

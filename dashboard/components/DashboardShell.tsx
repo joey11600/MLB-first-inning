@@ -101,9 +101,13 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     }
   }
 
-  const displayed = useMemo(() => filterAndSort(data.rows, filters), [
+  // T4.18: query also matches pitcher names from details map.  Lets the
+  // user type "Verlander" to find every game he starts (or has started)
+  // across the slate, not just team abbreviations.
+  const displayed = useMemo(() => filterAndSort(data.rows, filters, data.details), [
     data.rows,
     filters,
+    data.details,
   ]);
 
   useEffect(() => {
@@ -115,6 +119,44 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       window.history.replaceState(null, "", url.toString());
     }
   }, [data.date]);
+
+  // T4.20: Browser notifications on new pick flips.  Compares the
+  // pickChanges array between data refetches; any new entries (newer
+  // capturedAtUtc than what we've seen) trigger a system notification
+  // IF the user has granted permission AND opted in via the toggle in
+  // localStorage ("notifyOnFlip"="1").  Notification permission is
+  // never requested automatically -- the user explicitly clicks the
+  // bell button (rendered in the header alongside ThemeToggle).
+  const seenChangesRef = useRef<Set<string>>(new Set());
+  const seenInitialized = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const optedIn = window.localStorage.getItem("notifyOnFlip") === "1";
+    const granted = "Notification" in window && Notification.permission === "granted";
+    // Seed the "seen" set on first load so existing flips don't trigger
+    // a wave of stale notifications -- only NEW flips that arrive after
+    // page load should ping.
+    const sig = (c: { capturedAtUtc: string; gamePk: string; newPickLabel: string }) =>
+      `${c.capturedAtUtc}|${c.gamePk}|${c.newPickLabel}`;
+    if (!seenInitialized.current) {
+      data.pickChanges.forEach(c => seenChangesRef.current.add(sig(c)));
+      seenInitialized.current = true;
+      return;
+    }
+    if (!optedIn || !granted) return;
+    for (const c of data.pickChanges) {
+      const s = sig(c);
+      if (seenChangesRef.current.has(s)) continue;
+      seenChangesRef.current.add(s);
+      try {
+        new Notification(`${c.awayTeam} @ ${c.homeTeam}`, {
+          body: `${c.oldPickLabel} → ${c.newPickLabel}`,
+          tag: `nrfi-${c.gamePk}`,
+          icon: "/favicon.ico",
+        });
+      } catch { /* notification API can throw on rare browsers; non-fatal */ }
+    }
+  }, [data.pickChanges]);
 
   // Auto-refresh whenever the tab regains focus or visibility -- catches the
   // common case where the user left the dashboard open across a cron run
@@ -198,6 +240,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
             <span className={styles.navLinkIcon} aria-hidden>▤</span>
             History
           </a>
+          <NotifyToggle />
           <ThemeToggle />
         </div>
       </header>
@@ -238,7 +281,66 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   );
 }
 
-function filterAndSort(rows: BoardRow[], f: Filters): BoardRow[] {
+/** T4.20: Bell toggle for browser notifications on pick flips.  Click
+ *  to enable: requests permission if needed, stores opt-in state in
+ *  localStorage.  Click again to disable.  Visually a small icon
+ *  button matching the ThemeToggle styling. */
+function NotifyToggle() {
+  const [enabled, setEnabled] = useState(false);
+  const [supported, setSupported] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const has = "Notification" in window;
+    setSupported(has);
+    if (has) {
+      const opted = window.localStorage.getItem("notifyOnFlip") === "1";
+      setEnabled(opted && Notification.permission === "granted");
+    }
+  }, []);
+  if (!supported) return null;
+  const toggle = async () => {
+    if (typeof window === "undefined") return;
+    if (enabled) {
+      window.localStorage.removeItem("notifyOnFlip");
+      setEnabled(false);
+      return;
+    }
+    let perm: NotificationPermission = Notification.permission;
+    if (perm === "default") {
+      perm = await Notification.requestPermission();
+    }
+    if (perm === "granted") {
+      window.localStorage.setItem("notifyOnFlip", "1");
+      setEnabled(true);
+      try {
+        new Notification("Notifications enabled", {
+          body: "You'll get a ping when picks flip.",
+          tag: "nrfi-test",
+        });
+      } catch { /* */ }
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={styles.navLink}
+      title={enabled ? "Notifications on (click to disable)" : "Click to enable pick-flip notifications"}
+      aria-pressed={enabled}
+    >
+      <span className={styles.navLinkIcon} aria-hidden>
+        {enabled ? "🔔" : "🔕"}
+      </span>
+    </button>
+  );
+}
+
+
+function filterAndSort(
+  rows: BoardRow[],
+  f: Filters,
+  details?: Record<string, import("@/lib/types").GameDetail>,
+): BoardRow[] {
   const q = f.query.trim().toUpperCase();
   let out = rows.filter((r) => {
     if (f.side !== "ALL" && r.pickSide !== f.side) return false;
@@ -249,7 +351,24 @@ function filterAndSort(rows: BoardRow[], f: Filters): BoardRow[] {
       r.pickStrength !== "LEAN"
     )
       return false;
-    if (q && !r.away.includes(q) && !r.home.includes(q)) return false;
+    if (q) {
+      // T4.18: query matches team abbrs OR either pitcher's name
+      // (e.g. typing "VERLANDER" surfaces every game he starts).
+      // Detail lookup uses the same gamePk → away@home#N → away@home
+      // chain as BoardTable so DH-2 rows resolve correctly.
+      const detail = details
+        ? (r.gamePk && details[r.gamePk])
+          || details[`${r.away}@${r.home}#${r.gameNumber || 1}`]
+          || details[`${r.away}@${r.home}`]
+        : undefined;
+      const hay = [
+        r.away,
+        r.home,
+        detail?.away.pitcher.name ?? "",
+        detail?.home.pitcher.name ?? "",
+      ].join("|").toUpperCase();
+      if (!hay.includes(q)) return false;
+    }
     return true;
   });
 

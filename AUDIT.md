@@ -100,40 +100,42 @@ These can corrupt picks, lose data, or silently mis-grade.
 ## 🟢 TIER 4 — Improvements / new features
 
 ### Model & ML
-- [ ] **T4.1** — Add catcher framing feature (top-3 ABs face listed catcher; ~+2-4% NRFI edge documented)
-- [ ] **T4.2** — Umpire zone width feature (announced 24h pre-game, public databases available)
-- [ ] **T4.3** — Lambda floor scaling with weather (wind-out-to-CF games warrant higher YRFI threshold)
-- [ ] **T4.4** — Catcher-pitcher pairing for game-script effects
-- [ ] **T4.5** — Refit LR with more features (away_fip, away_bb9, away_obp, weather, park) — current 4-feature model probably underfits
-- [ ] **T4.6** — Validate calibration shape (PAV-only allows jumps; add Lowess smoother check)
-- [ ] **T4.7** — Backtest holdout (confirm proper train/test split, no leakage)
-- [ ] **T4.8** — Catcher framing data source: MLBAM xwOBA-allowed framing or Baseball Savant fork
+- [ ] **T4.1** — Catcher framing feature — DEFERRED (needs new data source, MLBAM xwOBA-allowed framing or Baseball Savant fork)
+- [ ] **T4.2** — Umpire zone width feature — DEFERRED (needs umpire DB integration)
+- [x] **T4.3** ✅ 2026-05-01 — Lambda floor now scales with weather: hot (≥28°C) +0.02, cold (≤12°C) -0.02, strong wind (≥24 km/h) +0.02. Dome games skip adjustment entirely. ±0.04 max range to avoid overcorrecting on a feature already in the LR.
+- [ ] **T4.4** — Catcher-pitcher pairing — DEFERRED (model addition)
+- [ ] **T4.5** — Refit LR with more features — DEFERRED (requires backtest training run)
+- [x] **T4.6** ✅ 2026-05-01 — `_validate_calibrator_shape` runs at calibrator load. Logs WARNINGs when neighboring bins jump >5pp (sign of overfitting on small holdouts).
+- [x] **T4.7** ✅ 2026-05-01 — `two_stage_model.py` now refuses to train if `--test` file is also in `--train` list (resolved-path comparison). Catches the canonical leakage failure mode.
+- [ ] **T4.8** — Catcher framing data source — DEFERRED (covered by T4.1)
 
 ### Operations / Infrastructure
-- [ ] **T4.9** — Migrate CSV → SQLite (eliminates T1.1, T2.5, T3.22 race conditions in one move)
-- [ ] **T4.10** — Migrate CSV → Supabase/Postgres (adds dashboard query speed + multi-writer safety)
-- [ ] **T4.11** — Backup picks_2026 to S3/Backblaze daily (~$0.50/mo)
-- [ ] **T4.12** — Healthchecks.io ping on every successful cron (dead-man's-switch)
-- [ ] **T4.13** — Move predict logic into Vercel Function directly (drop GHA dispatch layer; eliminates 1-3h cron lag)
-- [ ] **T4.14** — Migrate to Railway ($5/mo) for native Python cron with sub-30s lag
+- [ ] **T4.9** — Migrate CSV → SQLite — DEFERRED (atomic-write fix in T1.1 already eliminates the race conditions)
+- [ ] **T4.10** — Migrate CSV → Supabase/Postgres — DEFERRED (needs major infra refactor)
+- [ ] **T4.11** — Backup picks_2026 to S3/Backblaze — DEFERRED (T3.4 GitHub-based backup already covers durability)
+- [x] **T4.12** ✅ 2026-05-01 — `daily.yml` pings `${{ secrets.HEALTHCHECKS_URL }}` on success and `${HEALTHCHECKS_URL%/}/fail` on failure. Quiet no-op when unset. Combined with `/api/health` from T3.1 for full dead-man's-switch coverage.
+- [ ] **T4.13** — Predict on Vercel directly — DEFERRED (major refactor)
+- [ ] **T4.14** — Railway migration — DEFERRED (would need full pipeline rewrite)
 
 ### Dashboard / UX
-- [ ] **T4.15** — "Why this pick?" panel — feature-importance breakdown (top 5 contributors via LR weights × normalized inputs)
-- [ ] **T4.16** — Calendar heatmap on /history (green/red days, click-to-drill)
-- [ ] **T4.17** — Win-rate by zone chart (STRONG NRFI hits at X%, LEAN NRFI at Y%, etc.)
-- [ ] **T4.18** — Pitcher search across slate
-- [ ] **T4.19** — Saved filter presets ("STRONG only", "high-edge only", "lineups posted")
-- [ ] **T4.20** — Browser notifications (opt-in) for "high-edge bet appeared" / "pick flipped"
-- [ ] **T4.21** — Mobile card layout (board doesn't gracefully collapse below ~700px)
-- [ ] **T4.22** — Sortable result column (currently only edge; add lambda, strength, start time)
-- [ ] **T4.23** — Bet-history tab grouped by zone, with calibration plot (predicted % vs actual hit %)
-- [ ] **T4.24** — Side-by-side game compare (pick 2 games, see feature deltas)
+- [x] **T4.15** ✅ 2026-05-01 — "Why this pick?" panel in expanded GameDetails. Shows top-5 LR feature contributions per half (signed `w*(x-mean)/std`) with friendly names + signed bars + raw values. Predictor writes `top_factors_t1_json` / `top_factors_b1_json` columns; dashboard parses + renders.
+- [x] **T4.16** ✅ 2026-05-01 — `CalendarHeatmap` on /history: 7-row grid colored by day P&L (warm-brown for wins, red for losses, intensity = magnitude). Window-aware (only days in selected window are full-opacity).
+- [x] **T4.17** ✅ 2026-05-01 — `ZoneHitRateChart` on /history: per-zone hit rate bars vs the 52.4% break-even line at -110. Above-break-even zones tinted brown, below tinted red. Shows zone P&L and bet count.
+- [x] **T4.18** ✅ 2026-05-01 — Filter query now matches team abbrs OR either pitcher's name. Type "Verlander" to find every game he starts.
+- [ ] **T4.19** — Saved filter presets — covered by T3.18 (URL/localStorage persistence)
+- [x] **T4.20** ✅ 2026-05-01 — Browser notifications on pick flips (opt-in via 🔕/🔔 toggle in header). Tab-active only; service worker not needed. Compares pickChanges array between refetches and notifies on new entries.
+- [x] **T4.21** ✅ 2026-05-01 — Below 600px the board switches to a 2-column card layout with 44px touch targets. Tested at 360px width. iOS HIG compliant.
+- [x] **T4.22** ✅ 2026-05-01 — Result column header is now a sort toggle. Click to group by graded outcome (W → L → PASS → PP → ungraded), within bucket falls back to original order.
+- [x] **T4.23** ✅ 2026-05-01 — `CalibrationPlot` on /history: scatter of predicted-prob vs actual-hit-rate per zone with diagonal y=x reference. Dot size = bet count. Stems show direction of miscalibration.
+- [ ] **T4.24** — Side-by-side game compare — DEFERRED (substantial UI; pick-2-games + diff overlay needs careful design)
 
-### Money management
-- [ ] **T4.25** — Kelly fraction sizing (currently units_risked = 1.0 fixed; scale by edge × bankroll)
-- [ ] **T4.26** — Bankroll-aware bet sizing (pull bankroll from config, stake fractionally)
-- [ ] **T4.27** — Min/max edge thresholds per zone (different cutoffs for STRONG vs LEAN)
-- [ ] **T4.28** — Closing-line value tracking (capture odds at lockout vs current; CLV is the leading EV indicator)
+### Money management — ALL SKIPPED PER USER PREFERENCE (sticking with flat 1u plays)
+- [ ] **T4.25** — Kelly fraction sizing — SKIPPED (user preference)
+- [ ] **T4.26** — Bankroll-aware bet sizing — SKIPPED (user preference)
+- [ ] **T4.27** — Min/max edge thresholds per zone — SKIPPED (user preference; current 2% threshold works)
+- [ ] **T4.28** — CLV tracking — DEFERRED (needs second odds capture at lockout time; significant API work)
+
+**Tier 4 status: 12/28 shipped, 13 deferred (substantial work / new data sources), 3 skipped per user preference.**
 
 ---
 

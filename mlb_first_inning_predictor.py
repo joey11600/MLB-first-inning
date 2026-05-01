@@ -1059,9 +1059,48 @@ def _load_lr_calibrator():
     try:
         from calibration import ProbCalibrator
         _lr_cal = ProbCalibrator.load(_LR_CAL_PATH)
+        # T4.6: validate the calibration curve's shape on load.  PAV-only
+        # enforces monotonicity but allows large jumps between adjacent
+        # bins (a sign of overfit to noise).  Compute max bin-to-bin
+        # delta; warn if any neighboring pair is >5pp apart, since
+        # well-calibrated curves are smooth.
+        _validate_calibrator_shape(_lr_cal)
     except Exception:
         _lr_cal = None
     return _lr_cal
+
+
+def _validate_calibrator_shape(cal) -> None:
+    """T4.6: Sanity-check the calibrator's shape.  Logs WARNINGs (not
+    fatal) if neighboring bins jump >5pp -- that's a sign the calibrator
+    overfit on a small holdout and the curve has noise spikes."""
+    try:
+        # ProbCalibrator stores ascending (raw_p, calibrated_p) pairs in
+        # `_xs` and `_ys`.  Defensively access via getattr so a future
+        # refactor of calibration.py doesn't break us.
+        xs = getattr(cal, "_xs", None) or getattr(cal, "xs", None)
+        ys = getattr(cal, "_ys", None) or getattr(cal, "ys", None)
+        if not xs or not ys or len(xs) != len(ys) or len(xs) < 2:
+            return
+        max_jump = 0.0
+        worst_idx = 0
+        for i in range(1, len(ys)):
+            jump = abs(ys[i] - ys[i-1])
+            if jump > max_jump:
+                max_jump = jump
+                worst_idx = i
+        if max_jump > 0.05:
+            print(
+                f"  WARNING: calibrator shape has a {max_jump*100:.1f}pp jump "
+                f"between bin {worst_idx-1} (x={xs[worst_idx-1]:.3f}, y={ys[worst_idx-1]:.3f}) "
+                f"and bin {worst_idx} (x={xs[worst_idx]:.3f}, y={ys[worst_idx]:.3f}).  "
+                f"Smooth curves are typical of well-calibrated models; large jumps "
+                f"suggest overfitting on small holdouts.  Consider refitting with "
+                f"more data or smoothing.",
+                file=sys.stderr,
+            )
+    except Exception:
+        pass  # validation is non-fatal
 
 
 def _load_fi_park_rates() -> dict:
@@ -1399,6 +1438,33 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
 # broken / mis-fit).  Cron logs would surface the warning in workflow output.
 _lr_zero_var_warned: set[tuple[int, int]] = set()
 
+
+def _lr_feature_contributions(
+    features: list[float],
+    m: dict,
+    feature_names: list[str],
+    top_n: int = 5,
+) -> list[dict]:
+    """T4.15: For the dashboard's "Why this pick?" panel.  Returns the top-N
+    features by absolute signed contribution `w * (x - mean) / std`.
+    A positive contribution means "pushes toward NRFI" (lower P(run)),
+    a negative one means "pushes toward YRFI".  The bias term is omitted
+    because it's the same for every game.
+    """
+    contribs: list[tuple[str, float, float]] = []
+    for i, (name, x, mean, std, w) in enumerate(zip(
+        feature_names, features, m["mean"], m["std"], m["weights"],
+    )):
+        if std <= 0:
+            continue
+        z_part = w * (x - mean) / std
+        contribs.append((name, x, z_part))
+    contribs.sort(key=lambda t: abs(t[2]), reverse=True)
+    return [
+        {"name": n, "value": round(x, 4), "contribution": round(z, 4)}
+        for n, x, z in contribs[:top_n]
+    ]
+
 def _lr_predict_one(features: list[float], m: dict) -> float:
     """Apply a single standardized-feature LR forward pass."""
     z = m["bias"]
@@ -1441,20 +1507,60 @@ def lr_predict_nrfi(t1_feats: list[float], b1_feats: list[float]) -> float | Non
     return (1.0 - p_t1) * (1.0 - p_b1)
 
 
-def classify_pick_lr(p_nrfi: float, data_pts: int,
-                     lambda_total: float | None = None) -> tuple[str, str]:
+def _weather_adjusted_floor(
+    base: float,
+    wx_temp_c:    float | None = None,
+    wx_wind_kmh:  float | None = None,
+    wx_is_dome:   bool = False,
+) -> float:
+    """T4.3: Scale the lambda floor by weather.  Hot + windy outdoor games
+    naturally produce more runs (carry distance + ball flight), so we
+    can require a slightly higher lambda before committing to YRFI --
+    the model's calibrated probability already accounts for weather
+    via t1_feats/b1_feats, but the floor is a guardrail and benefits
+    from explicit weather context when the calibrator is borderline.
+
+    Adjustment range is intentionally narrow (±0.04) to avoid
+    overcorrecting on a feature already in the LR.  Dome games skip
+    the adjustment entirely (weather is neutralized).
     """
-    Pick zone based on calibrated NRFI probability + a lambda floor on
-    the YRFI side.
+    if wx_is_dome:
+        return base
+    delta = 0.0
+    # Hot games (>= 28°C / 82°F): bump floor up 0.02 -- ball carries
+    # easier, marginal YRFI plays should clear a higher bar.
+    if wx_temp_c is not None and wx_temp_c >= 28.0:
+        delta += 0.02
+    # Cold games (<= 12°C / 54°F): lower floor 0.02 -- ball doesn't
+    # carry, so the same lambda represents a more meaningful YRFI
+    # signal.
+    elif wx_temp_c is not None and wx_temp_c <= 12.0:
+        delta -= 0.02
+    # Strong wind (>= 24 km/h / 15 mph): bump floor 0.02.  We don't
+    # know direction here without parsing wx more deeply; treat any
+    # strong wind as a YRFI booster (most parks have prevailing
+    # out-to-CF) and require higher conviction.
+    if wx_wind_kmh is not None and wx_wind_kmh >= 24.0:
+        delta += 0.02
+    return max(0.40, min(1.20, base + delta))
+
+
+def classify_pick_lr(p_nrfi: float, data_pts: int,
+                     lambda_total: float | None = None,
+                     wx_temp_c:    float | None = None,
+                     wx_wind_kmh:  float | None = None,
+                     wx_is_dome:   bool = False) -> tuple[str, str]:
+    """
+    Pick zone based on calibrated NRFI probability + a (weather-aware)
+    lambda floor on the YRFI side.
 
     `lambda_total` is the model's raw expected 1st-inning runs (lambda_t1
     + lambda_b1).  Optional for backwards-compat: if not provided, the
     lambda gate is skipped (legacy behavior).
 
     YRFI demotion rule: if a game would otherwise classify as STRONG/LEAN
-    YRFI but its lambda is below _LR_LAMBDA_YRFI_FLOOR, demote to PASS.
-    Catches the calibrator over-squashing borderline games where the
-    raw model isn't confident enough that a run is actually coming.
+    YRFI but its lambda is below the floor, demote to PASS.  T4.3 makes
+    the floor weather-aware (±0.02 per condition).
     """
     if data_pts == 0:
         return "PASS", "NO DATA"
@@ -1465,12 +1571,11 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     if p_nrfi >= _LR_PASS_LO_P:
         return "PASS", "NO EDGE"
     # Below the PASS_LO threshold we'd normally fire a YRFI pick.  Apply
-    # the lambda floor first -- if the model's raw expected runs is below
-    # the floor, the YRFI signal isn't strong enough to bet on.  Tag with
-    # "LOW LAMBDA" instead of reusing "NO EDGE" so the demotion is visible
-    # on the dashboard (without this distinction, two games with identical
-    # YRFI% can read as "PASS - No edge" for entirely different reasons).
-    if lambda_total is not None and lambda_total < _LR_LAMBDA_YRFI_FLOOR:
+    # the (weather-adjusted) lambda floor first -- if the model's raw
+    # expected runs is below the floor, the YRFI signal isn't strong
+    # enough to bet on.  Tag "LOW LAMBDA" so the demotion is visible.
+    floor = _weather_adjusted_floor(_LR_LAMBDA_YRFI_FLOOR, wx_temp_c, wx_wind_kmh, wx_is_dome)
+    if lambda_total is not None and lambda_total < floor:
         return "PASS", "LOW LAMBDA"
     if p_nrfi >= _LR_LEAN_YRFI_P:
         return "YRFI", "LEAN"
@@ -1950,6 +2055,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         m_t1, m_b1 = _load_lr_models()
         p_t1_run = _lr_predict_one(t1_feats, m_t1)
         p_b1_run = _lr_predict_one(b1_feats, m_b1)
+        # T4.15: top-5 contributing features per half for the dashboard's
+        # "Why this pick?" panel.  Cheap (~30 multiplies per game) and
+        # gives the user transparency into what's driving each verdict.
+        top_factors_t1 = _lr_feature_contributions(t1_feats, m_t1, _T1_EXPECTED_FEATURES, top_n=5) if m_t1 else []
+        top_factors_b1 = _lr_feature_contributions(b1_feats, m_b1, _B1_EXPECTED_FEATURES, top_n=5) if m_b1 else []
         lr_nrfi  = (1.0 - p_t1_run) * (1.0 - p_b1_run)
         # Convert each half's run-probability into expected runs (Poisson lambda)
         # so the dashboard can show projections in the same units the user is
@@ -1959,7 +2069,16 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         lambda_lr_total = lambda_t1 + lambda_b1
         lr_nrfi = cal.predict(lr_nrfi)
         nrfi_p, yrfi_p = lr_nrfi, 1.0 - lr_nrfi
-        pick_side, pick_conf = classify_pick_lr(lr_nrfi, data_pts, lambda_lr_total)
+        # T4.3: pass weather context into the classifier so the lambda
+        # floor scales appropriately (hot/windy = higher floor; dome =
+        # neutralized).  Reuse the values already computed above.
+        wx_temp   = None if home_ab in DOMED_PARKS else wx.get("temp_c")
+        wx_wind   = None if home_ab in DOMED_PARKS else wx.get("wind_kmh")
+        wx_dome   = home_ab in DOMED_PARKS
+        pick_side, pick_conf = classify_pick_lr(
+            lr_nrfi, data_pts, lambda_lr_total,
+            wx_temp_c=wx_temp, wx_wind_kmh=wx_wind, wx_is_dome=wx_dome,
+        )
 
         # Lineup-pending guard: lineup data drives top3c_obp / top3c_slg /
         # top3c_iso (the strongest offense features).  When lineups haven't
@@ -2035,6 +2154,9 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             # user can see WHO the pitcher will face.
             "away_lineup_json":           json.dumps(away_lineup),
             "home_lineup_json":           json.dumps(home_lineup),
+            # T4.15: top contributing features per half for "Why this pick?" panel.
+            "top_factors_t1_json":        json.dumps(top_factors_t1),
+            "top_factors_b1_json":        json.dumps(top_factors_b1),
             "home_plate_ump_id":          ump_id,
             "home_plate_ump_nrfi_rate":   ump_rate,
             # Phase E.3 Statcast features: xera + whiff_pct_rank per pitcher

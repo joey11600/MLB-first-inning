@@ -73,6 +73,11 @@ FIELDS = [
     # {id, name, bats, obp, slg, iso, ab}.  CSV writer auto-quotes the
     # commas inside.  Empty "[]" when lineup hasn't posted yet.
     "home_lineup_json", "away_lineup_json",
+    # T4.15: top-5 contributing LR features per half-inning (signed
+    # contribution = w * (x - mean) / std).  JSON-encoded list of
+    # {name, value, contribution} dicts.  Drives the "Why this pick?"
+    # panel in the dashboard's expanded GameDetails view.
+    "top_factors_t1_json", "top_factors_b1_json",
     "home_plate_ump_id", "home_plate_ump_nrfi_rate",
     # --- Phase E.3 Statcast features: xERA + whiff_pct_rank per pitcher ---
     "home_xera", "away_xera",
@@ -464,6 +469,10 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             # always parses cleanly (empty array means lineup not posted).
             "home_lineup_json":           g.get("home_lineup_json", "[]"),
             "away_lineup_json":           g.get("away_lineup_json", "[]"),
+            # T4.15: top contributing LR features (JSON arrays).  Default
+            # "[]" so empty / pre-LR-v4 rows parse cleanly.
+            "top_factors_t1_json":        g.get("top_factors_t1_json", "[]"),
+            "top_factors_b1_json":        g.get("top_factors_b1_json", "[]"),
             "home_plate_ump_id":          g.get("home_plate_ump_id", ""),
             "home_plate_ump_nrfi_rate":   _fmt(g.get("home_plate_ump_nrfi_rate"), 4),
             "home_xera":                  _fmt(g.get("home_xera"),                3),

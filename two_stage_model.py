@@ -423,6 +423,22 @@ def main():
         b1_feats = B1_FEATURES
         variant = "FULL"
 
+    # ---------- T4.7: Holdout integrity check ----------
+    # Refuse to train if the test file is also in the train list.
+    # This is the canonical leakage failure mode -- catching it here
+    # prevents accidentally publishing a model that "looks great" on
+    # what is really its own training set.
+    if args.test:
+        train_paths = [str(Path(p).resolve()) for p in args.train]
+        test_path   = str(Path(args.test).resolve())
+        if test_path in train_paths:
+            sys.exit(
+                f"FATAL: --test file is also in --train list (path: {test_path}).  "
+                f"This would silently leak the test set into training, biasing the "
+                f"reported holdout metrics upward.  Use a separate season's data "
+                f"as the holdout (e.g. train on 2024 + 2025, test on 2026)."
+            )
+
     # ---------- Train ----------
     print("=" * 70)
     print(f"  Training two-stage T1 + B1 models  ({variant} variant)"

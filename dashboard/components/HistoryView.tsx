@@ -154,6 +154,43 @@ export function HistoryView({ initial }: { initial: RoiResponse }) {
         <PnlChart days={days} />
       </section>
 
+      {/* T4.16: Calendar heatmap */}
+      <section className={styles.chartCard}>
+        <div className={styles.chartHead}>
+          <div>
+            <div className={styles.eyebrow}>Calendar heatmap</div>
+            <div className={styles.chartTitle}>Daily P&L by date · green = up, red = down</div>
+          </div>
+        </div>
+        <CalendarHeatmap days={days} />
+      </section>
+
+      {/* T4.17: Win-rate by zone */}
+      <section className={styles.chartCard}>
+        <div className={styles.chartHead}>
+          <div>
+            <div className={styles.eyebrow}>Hit rate by pick zone</div>
+            <div className={styles.chartTitle}>
+              Wins / bets per zone vs the {(52.4).toFixed(1)}% break-even at -110
+            </div>
+          </div>
+        </div>
+        <ZoneHitRateChart zones={data.betZones} />
+      </section>
+
+      {/* T4.23: Calibration plot */}
+      <section className={styles.chartCard}>
+        <div className={styles.chartHead}>
+          <div>
+            <div className={styles.eyebrow}>Calibration check</div>
+            <div className={styles.chartTitle}>
+              Per-zone predicted probability vs actual hit rate · diagonal = perfect calibration
+            </div>
+          </div>
+        </div>
+        <CalibrationPlot zones={data.betZones} />
+      </section>
+
       {/* Table */}
       <section className={styles.tableCard}>
         <div className={styles.eyebrow}>Daily ledger</div>
@@ -322,6 +359,267 @@ function PnlChart({ days }: { days: DayRecord[] }) {
           ) : null,
         )}
       </svg>
+    </div>
+  );
+}
+
+/* ------------- T4.16 calendar heatmap ------------- */
+
+function CalendarHeatmap({ days }: { days: DayRecord[] }) {
+  if (days.length === 0) {
+    return <div className={styles.chartEmpty}>No graded days in this window.</div>;
+  }
+  // Build a date → DayRecord map for O(1) lookup.
+  const byDate = new Map(days.map((d) => [d.date, d]));
+  // Render a continuous grid from the first to the last day of the window,
+  // grouped by week (Sun–Sat).  Pad the start so the first week aligns
+  // with its weekday column.
+  const first = parseIso(days[0].date)!;
+  const last = parseIso(days[days.length - 1].date)!;
+  // Walk Sun → Sat starting from the Sunday on/before `first`
+  const start = new Date(first);
+  start.setUTCDate(start.getUTCDate() - start.getUTCDay());
+  // End on the Saturday on/after `last`
+  const end = new Date(last);
+  end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay()));
+  // Find max abs P&L for color scaling
+  const maxAbs = Math.max(0.01, ...days.map((d) => Math.abs(d.units)));
+  const cells: { date: string; rec?: DayRecord; inWindow: boolean }[] = [];
+  for (
+    let cur = new Date(start);
+    cur.getTime() <= end.getTime();
+    cur.setUTCDate(cur.getUTCDate() + 1)
+  ) {
+    const iso = cur.toISOString().slice(0, 10);
+    const inWindow = cur >= first && cur <= last;
+    cells.push({ date: iso, rec: byDate.get(iso), inWindow });
+  }
+  // Group into 7-cell weeks (rows)
+  const weeks: typeof cells[] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return (
+    <div className={styles.heatmapWrap}>
+      <div className={styles.heatmapDayLabels}>
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+          <span key={i}>{d}</span>
+        ))}
+      </div>
+      <div className={styles.heatmapGrid}>
+        {weeks.map((wk, wi) => (
+          <div key={wi} className={styles.heatmapRow}>
+            {wk.map((c, di) => (
+              <HeatCell key={c.date} cell={c} maxAbs={maxAbs} di={di} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className={styles.heatmapLegend}>
+        <span>Loss</span>
+        <span className={styles.heatLegendBar} aria-hidden />
+        <span>Win</span>
+      </div>
+    </div>
+  );
+}
+
+function HeatCell({
+  cell,
+  maxAbs,
+}: {
+  cell: { date: string; rec?: DayRecord; inWindow: boolean };
+  maxAbs: number;
+  di: number;
+}) {
+  const rec = cell.rec;
+  let bg = "transparent";
+  let title = `${cell.date} · no data`;
+  if (rec) {
+    const intensity = Math.min(1, Math.abs(rec.units) / maxAbs);
+    if (rec.units > 0) {
+      // primary (warm brown / win)
+      bg = `color-mix(in oklab, var(--primary) ${Math.round(15 + intensity * 65)}%, transparent)`;
+    } else if (rec.units < 0) {
+      bg = `color-mix(in oklab, var(--destructive) ${Math.round(15 + intensity * 65)}%, transparent)`;
+    } else {
+      bg = `color-mix(in oklab, var(--muted-foreground) 18%, transparent)`;
+    }
+    title = `${cell.date} · ${formatUnits(rec.units)}`;
+  }
+  return (
+    <span
+      className={styles.heatCell}
+      title={title}
+      style={{
+        background: bg,
+        opacity: cell.inWindow ? 1 : 0.25,
+      }}
+      aria-label={title}
+    />
+  );
+}
+
+function parseIso(iso: string): Date | null {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+/* ------------- T4.17 win-rate by zone ------------- */
+
+function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
+  const withBets = zones.filter((z) => z.bets > 0);
+  if (withBets.length === 0) {
+    return <div className={styles.chartEmpty}>No graded bets in this window yet.</div>;
+  }
+  const breakEven = 0.524; // -110 break-even
+  return (
+    <div className={styles.zoneChart}>
+      {withBets.map((z) => {
+        const pct = z.hitRate * 100;
+        const above = z.hitRate >= breakEven;
+        const fillW = Math.min(100, pct);
+        return (
+          <div key={z.label} className={styles.zoneRow}>
+            <div className={styles.zoneLabel}>
+              <span className={styles.zoneName}>{z.label}</span>
+              <span className={styles.zoneN}>{z.bets} bets</span>
+            </div>
+            <div className={styles.zoneBarTrack}>
+              <div
+                className={`${styles.zoneBarFill} ${above ? styles.zoneAbove : styles.zoneBelow}`}
+                style={{ width: `${fillW}%` }}
+              />
+              <span className={styles.zoneBreakEven} style={{ left: `${breakEven * 100}%` }} aria-hidden />
+            </div>
+            <div className={`${styles.zoneRate} ${above ? styles.numWin : styles.numLoss}`}>
+              {pct.toFixed(1)}%
+            </div>
+            <div className={`${styles.zonePL} ${z.unitsPL >= 0 ? styles.numWin : styles.numLoss}`}>
+              {formatUnits(z.unitsPL)}
+            </div>
+          </div>
+        );
+      })}
+      <div className={styles.zoneFoot}>
+        Vertical mark = {(breakEven * 100).toFixed(1)}% break-even at -110.  Bars right of the
+        line are profitable on the long run; left of it are net losers.
+      </div>
+    </div>
+  );
+}
+
+/* ------------- T4.23 calibration plot ------------- */
+
+function CalibrationPlot({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
+  // Predicted probability per zone — coarse, hand-coded from the LR
+  // classifier thresholds.  STRONG NRFI fires at p_nrfi >= 0.56, so use
+  // the bin midpoint (0.65 say) as a rough predicted probability.
+  // STRONG YRFI fires at p_nrfi < 0.44 → P(YRFI) >= 0.56 (0.65 mid).
+  // LEAN equivalently maps to a thinner band.
+  const predicted: Record<string, number> = {
+    "STRONG NRFI": 0.65,
+    "LEAN NRFI":   0.54,
+    "LEAN YRFI":   0.54,
+    "STRONG YRFI": 0.65,
+  };
+  const points = zones
+    .filter((z) => z.bets > 0 && z.label in predicted)
+    .map((z) => ({
+      label: z.label,
+      pred:  predicted[z.label],
+      actual: z.hitRate,
+      n:      z.bets,
+    }));
+  if (points.length === 0) {
+    return <div className={styles.chartEmpty}>Not enough data to plot calibration yet.</div>;
+  }
+  const W = 480;
+  const H = 320;
+  const padL = 50, padR = 16, padT = 14, padB = 36;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  // Both axes 0.30 → 0.80 (covers our practical zone range)
+  const xMin = 0.30, xMax = 0.80;
+  const yMin = 0.30, yMax = 0.80;
+  const xFor = (v: number) => padL + ((v - xMin) / (xMax - xMin)) * innerW;
+  const yFor = (v: number) => padT + innerH - ((v - yMin) / (yMax - yMin)) * innerH;
+  // Diagonal y=x reference
+  const diag = `M ${xFor(xMin)} ${yFor(yMin)} L ${xFor(xMax)} ${yFor(xMax)}`;
+  const ticks = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
+
+  return (
+    <div className={styles.calibPlot}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className={styles.chartSvg}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Calibration plot: predicted probability vs actual hit rate"
+      >
+        {/* Grid */}
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={xFor(t)} x2={xFor(t)} y1={padT} y2={padT + innerH} className={styles.gridLine} />
+            <line x1={padL} x2={padL + innerW} y1={yFor(t)} y2={yFor(t)} className={styles.gridLine} />
+            <text x={xFor(t)} y={H - padB + 16} textAnchor="middle" className={styles.axisText}>
+              {(t * 100).toFixed(0)}%
+            </text>
+            <text x={padL - 8} y={yFor(t) + 3} textAnchor="end" className={styles.axisText}>
+              {(t * 100).toFixed(0)}%
+            </text>
+          </g>
+        ))}
+        {/* Diagonal reference */}
+        <path d={diag} className={styles.calibDiag} />
+        {/* Zone points */}
+        {points.map((p) => {
+          const tone = p.actual > p.pred ? "above" : "below";
+          return (
+            <g key={p.label}>
+              <line
+                x1={xFor(p.pred)}
+                y1={yFor(p.pred)}
+                x2={xFor(p.pred)}
+                y2={yFor(p.actual)}
+                className={tone === "above" ? styles.calibStemAbove : styles.calibStemBelow}
+              />
+              <circle
+                cx={xFor(p.pred)}
+                cy={yFor(p.actual)}
+                r={Math.max(5, Math.min(14, Math.sqrt(p.n) * 2))}
+                className={tone === "above" ? styles.calibPointAbove : styles.calibPointBelow}
+              >
+                <title>{`${p.label}: predicted ${(p.pred*100).toFixed(0)}%, actual ${(p.actual*100).toFixed(1)}% (n=${p.n})`}</title>
+              </circle>
+              <text
+                x={xFor(p.pred) + 12}
+                y={yFor(p.actual) + 4}
+                className={styles.calibLabel}
+              >
+                {p.label}
+              </text>
+            </g>
+          );
+        })}
+        {/* Axis titles */}
+        <text x={padL + innerW / 2} y={H - 4} textAnchor="middle" className={styles.calibAxisTitle}>
+          Predicted hit rate
+        </text>
+        <text
+          x={-padT - innerH / 2}
+          y={14}
+          textAnchor="middle"
+          transform="rotate(-90)"
+          className={styles.calibAxisTitle}
+        >
+          Actual hit rate
+        </text>
+      </svg>
+      <div className={styles.calibFoot}>
+        Dot size = number of resolved bets in that zone.  Above the diagonal = the model is
+        underestimating the side; below = overestimating.  Aim for tight clustering on the line.
+      </div>
     </div>
   );
 }

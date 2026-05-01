@@ -109,6 +109,28 @@ function nullableNumber(s: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Parse a JSON-encoded list of feature contributions (T4.15).  Each
+ *  entry: {name, value, contribution}.  Returns [] for empty/invalid. */
+function parseFactorsJson(s: string | undefined): import("./types").FactorContribution[] {
+  const txt = (s ?? "").trim();
+  if (!txt || txt === "[]") return [];
+  try {
+    const parsed = JSON.parse(txt) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((row): row is Record<string, unknown> => typeof row === "object" && row !== null)
+      .map((row) => ({
+        name:         typeof row.name === "string" ? row.name : "",
+        value:        typeof row.value === "number" && Number.isFinite(row.value) ? row.value : 0,
+        contribution: typeof row.contribution === "number" && Number.isFinite(row.contribution) ? row.contribution : 0,
+      }))
+      .filter(f => f.name.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+
 /** Parse a JSON-encoded list of top-3 batters out of a CSV cell.
  *  Returns [] for blank/invalid cells (e.g. older rows without the column,
  *  or pre-lineup snapshots).  Each entry is normalized so optional stat
@@ -163,6 +185,9 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
     const detail = {
       gamePk: r.game_pk ?? "",
       gameTimeEt: r.game_time_et ?? "",
+      // T4.15: top contributing LR features per half
+      topFactorsT1: parseFactorsJson(r.top_factors_t1_json),
+      topFactorsB1: parseFactorsJson(r.top_factors_b1_json),
       parkFactor: toNumber(r.park_factor),
       awayProj: toNumber(r.away_proj_runs),
       homeProj: toNumber(r.home_proj_runs),

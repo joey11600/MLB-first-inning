@@ -48,6 +48,17 @@ export interface OffenseStats {
   quality: DataQuality;
 }
 
+/** A single LR feature contribution -- the model's "why this pick?" reason.
+ *  Sign convention: positive = pushes toward NRFI (less expected scoring),
+ *  negative = pushes toward YRFI.  Magnitude is the signed `w*(x-mean)/std`
+ *  z-contribution, comparable across features.  Per-half (t1, b1).
+ */
+export interface FactorContribution {
+  name:         string;   // feature name from _T1/B1_EXPECTED_FEATURES
+  value:        number;   // raw feature value for this game
+  contribution: number;   // signed contribution to that half's logit
+}
+
 /** A single batter in the top-3 of the lineup that the opposing pitcher will face.
  *  Source: backtest.current_season_top3_per_batter (lineup-aware, season-to-date stats).
  *  All stat fields are nullable since callups / early-April players may have no log yet. */
@@ -67,6 +78,10 @@ export type ActualSide   = "NRFI" | "YRFI" | "POSTPONED" | "SUSPENDED" | null;
 export interface GameDetail {
   gamePk: string;
   gameTimeEt: string;
+  /** Top-N LR feature contributions for the T1 / B1 halves.  Empty
+   *  array on rows from before the predictor started persisting them. */
+  topFactorsT1?: FactorContribution[];
+  topFactorsB1?: FactorContribution[];
   parkFactor: number | null;
   awayProj: number | null;
   homeProj: number | null;

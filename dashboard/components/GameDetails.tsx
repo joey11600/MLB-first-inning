@@ -76,6 +76,8 @@ export function GameDetails({ row, detail }: { row: BoardRow; detail: GameDetail
         />
       )}
 
+      <WhyThisPickPanel detail={detail} pickSide={row.pickSide} />
+
       <div className={styles.matchupGrid}>
         <TeamCard
           side="AWAY"
@@ -105,6 +107,128 @@ export function GameDetails({ row, detail }: { row: BoardRow; detail: GameDetail
     </div>
   );
 }
+
+/** T4.15: "Why this pick?" panel.  Surfaces the top-5 LR feature
+ *  contributions per half so the user can see the model's reasoning,
+ *  not just the verdict.  Each row: feature name + raw value + a
+ *  signed bar showing magnitude/direction.  Positive contribution
+ *  pushes toward NRFI, negative toward YRFI.  Hidden when no
+ *  contributions are persisted (older rows / pre-LR-v4). */
+function WhyThisPickPanel({
+  detail,
+  pickSide,
+}: {
+  detail: GameDetail | undefined;
+  pickSide: PickSide;
+}) {
+  const t1 = detail?.topFactorsT1 ?? [];
+  const b1 = detail?.topFactorsB1 ?? [];
+  if (t1.length === 0 && b1.length === 0) return null;
+  // Combine the two halves and sort by absolute contribution; cap at 8
+  // so the panel stays scannable.  Tag each with which half it came
+  // from for the user's reference.
+  const combined = [
+    ...t1.map(f => ({ ...f, half: "T1" as const })),
+    ...b1.map(f => ({ ...f, half: "B1" as const })),
+  ].sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)).slice(0, 8);
+  const maxAbs = combined.reduce(
+    (m, f) => Math.max(m, Math.abs(f.contribution)),
+    0.001,
+  );
+
+  return (
+    <section className={styles.whyPanel}>
+      <div className={styles.whyHead}>
+        <span className="eyebrow">Why this pick</span>
+        <span className={styles.whySub}>
+          Top features driving the model's verdict
+        </span>
+      </div>
+      <ul className={styles.whyList}>
+        {combined.map((f, i) => {
+          const pct = Math.min(100, Math.abs(f.contribution) / maxAbs * 100);
+          const dir: "nrfi" | "yrfi" = f.contribution > 0 ? "nrfi" : "yrfi";
+          return (
+            <li key={`${f.half}-${f.name}-${i}`} className={styles.whyRow}>
+              <span className={styles.whyHalf} title={f.half === "T1" ? "Top of 1st" : "Bottom of 1st"}>
+                {f.half}
+              </span>
+              <span className={styles.whyName}>{prettyFeatureName(f.name)}</span>
+              <span className={`num ${styles.whyValue}`} title={`raw value`}>
+                {fmtFeatureVal(f.name, f.value)}
+              </span>
+              <span className={styles.whyBarTrack}>
+                <span
+                  className={`${styles.whyBarFill} ${styles[dir === "nrfi" ? "whyNrfi" : "whyYrfi"]}`}
+                  style={{ width: `${pct}%` }}
+                  aria-hidden
+                />
+              </span>
+              <span
+                className={`num ${styles.whyContrib}`}
+                title={`Pushes toward ${dir.toUpperCase()} by ${Math.abs(f.contribution).toFixed(3)} log-odds`}
+              >
+                {f.contribution > 0 ? "→ N" : "→ Y"} {Math.abs(f.contribution).toFixed(2)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <div className={styles.whyFoot}>
+        Pick: <strong>{pickSide}</strong> · Bars show signed log-odds contribution; longer bar = stronger push toward that side.
+      </div>
+    </section>
+  );
+}
+
+/** Short, human-readable feature label.  Maps the snake_case keys from
+ *  _T1/B1_EXPECTED_FEATURES to phrasing the user can scan quickly. */
+function prettyFeatureName(name: string): string {
+  const map: Record<string, string> = {
+    fi_park_nrfi_rate:           "Park 1st-inning NRFI rate",
+    home_fip:                    "Home pitcher FIP",
+    away_fip:                    "Away pitcher FIP",
+    home_obp:                    "Home OBP (top 9)",
+    away_obp:                    "Away OBP (top 9)",
+    wx_temp_c:                   "Temperature",
+    wx_wind_kmh:                 "Wind speed",
+    wx_humidity:                 "Humidity",
+    wx_is_dome:                  "Dome (weather neutralized)",
+    home_p_last5_pitcher_nrfi:   "Home SP last-5 NRFI rate",
+    away_p_last5_pitcher_nrfi:   "Away SP last-5 NRFI rate",
+    home_p_last10_pitcher_nrfi:  "Home SP last-10 NRFI rate",
+    away_p_last10_pitcher_nrfi:  "Away SP last-10 NRFI rate",
+    home_top3c_obp:              "Home top-3 OBP",
+    away_top3c_obp:              "Away top-3 OBP",
+    home_top3c_slg:              "Home top-3 SLG",
+    away_top3c_slg:              "Away top-3 SLG",
+    home_top3c_iso:              "Home top-3 ISO",
+    away_top3c_iso:              "Away top-3 ISO",
+    home_plate_ump_nrfi_rate:    "Home-plate ump NRFI rate",
+    home_xera:                   "Home pitcher xERA",
+    away_xera:                   "Away pitcher xERA",
+    home_whiff_pct_rank:         "Home whiff-rate rank",
+    away_whiff_pct_rank:         "Away whiff-rate rank",
+    era_gap_t1:                  "ERA gap (T1)",
+    era_gap_b1:                  "ERA gap (B1)",
+    home_pvt_nrfi_rate:          "Home SP vs this opp (career)",
+    away_pvt_nrfi_rate:          "Away SP vs this opp (career)",
+    home_avg_ip_per_start:       "Home SP avg IP/start",
+    away_avg_ip_per_start:       "Away SP avg IP/start",
+  };
+  return map[name] ?? name;
+}
+
+/** Format a feature value with the right precision for its scale. */
+function fmtFeatureVal(name: string, v: number): string {
+  if (name.includes("rank")) return v.toFixed(0);
+  if (name === "wx_temp_c" || name === "wx_humidity" || name === "wx_wind_kmh")
+    return v.toFixed(1);
+  if (name === "wx_is_dome") return v ? "yes" : "no";
+  if (name.includes("ip_per_start")) return v.toFixed(1);
+  return v.toFixed(3);
+}
+
 
 function ResultBanner({
   row,

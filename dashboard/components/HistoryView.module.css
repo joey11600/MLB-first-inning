@@ -395,3 +395,205 @@
     grid-column: 1 / span 2;
   }
 }
+
+/* =============================================================
+   T4.16: Calendar heatmap
+   ============================================================= */
+.heatmapWrap {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+.heatmapDayLabels {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
+  align-items: center;
+  justify-items: center;
+  gap: 3px;
+}
+.heatmapGrid {
+  display: flex;
+  gap: 3px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.heatmapRow {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+}
+.heatCell {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+.heatmapLegend {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.05em;
+}
+.heatLegendBar {
+  width: 80px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(
+    to right,
+    color-mix(in oklab, var(--destructive) 70%, transparent) 0%,
+    color-mix(in oklab, var(--muted-foreground) 18%, transparent) 50%,
+    color-mix(in oklab, var(--primary) 70%, transparent) 100%
+  );
+}
+
+/* =============================================================
+   T4.17: Win-rate by zone chart
+   ============================================================= */
+.zoneChart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+.zoneRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(200px, 2fr) 64px 78px;
+  align-items: center;
+  gap: 12px;
+}
+.zoneLabel {
+  display: flex;
+  flex-direction: column;
+}
+.zoneName {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--foreground);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.zoneN {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
+}
+.zoneBarTrack {
+  position: relative;
+  height: 14px;
+  background: var(--muted);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+}
+.zoneBarFill {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0;
+  border-radius: 4px;
+  transition: width 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zoneAbove { background: var(--primary); }
+.zoneBelow { background: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground)); }
+.zoneBreakEven {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: color-mix(in oklab, var(--foreground) 50%, transparent);
+}
+.zoneRate {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+}
+.zonePL {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: right;
+}
+.zoneFoot {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.01em;
+}
+
+/* =============================================================
+   T4.23: Calibration plot
+   ============================================================= */
+.calibPlot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.calibDiag {
+  fill: none;
+  stroke: color-mix(in oklab, var(--foreground) 30%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.calibStemAbove {
+  stroke: var(--primary);
+  stroke-width: 1.5;
+  opacity: 0.5;
+}
+.calibStemBelow {
+  stroke: var(--destructive);
+  stroke-width: 1.5;
+  opacity: 0.5;
+}
+.calibPointAbove {
+  fill: var(--primary);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.calibPointBelow {
+  fill: var(--destructive);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.calibLabel {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  fill: var(--foreground);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.calibAxisTitle {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  fill: var(--muted-foreground);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.calibFoot {
+  margin-top: 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.01em;
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
