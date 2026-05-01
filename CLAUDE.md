@@ -87,6 +87,12 @@ The CSV ledger at `data/picks_2026.csv` is append-mostly. Specific rules:
   real prices). The dashboard's TOTAL P&L falls back to flat -110 for
   rows without imported odds — see `dashboard/lib/roi.ts:248-260`. The
   TOTAL is the right number to point at when judging the model.
+- **Once `bet_placed=Y`, market_*_odds is LOCKED** (T2.23). The user
+  is already in the bet at that price; subsequent DK line movement
+  doesn't update the row. This is intentional — don't "fix" it by
+  re-enabling closing-line tracking unless the user explicitly asks.
+  `opened_*_odds` still tracks the first scrape, so "open → bet"
+  CLV is preserved.
 - **Never fabricate odds.** If the scraper missed a game, the row stays
   un-priced. Don't synthesize "what DK probably had" — leads to
   fabricated CLV.

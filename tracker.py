@@ -1201,7 +1201,42 @@ def _apply_odds_to_row(
     Apply market odds to a single row dict.
     Computes implied probs, edges, bet sizing, and P&L if already graded.
     Returns the mutated row.
+
+    T2.23 -- Bet-time odds lock.  Once a bet has been placed
+    (bet_placed=Y) at the recorded market_* price, subsequent imports
+    do NOT overwrite market_* / edge / bet_placed / units_risked.  The
+    rationale: the user is already in the bet at that price; further
+    DK line movement is irrelevant to THEIR position, and a moving
+    OddsChip on the dashboard makes them second-guess a closed
+    decision.
+
+    Trade-off: we forgo closing-line capture on bet-placed games
+    (market_* would otherwise track the latest scrape and become the
+    closing line).  opened_*_odds (T4.28) still records the FIRST
+    price ever seen, so we can still compute "open -> bet" line
+    movement -- which is the CLV that actually affects the user's
+    bet (movement after our entry doesn't help us).
+
+    The lock releases automatically if the existing row has
+    bet_placed=Y but market_*_odds are blank (data corruption /
+    legacy row): we treat that as "no real lock" and re-evaluate.
     """
+    existing_bet_placed   = (row.get("bet_placed") or "").strip().upper()
+    existing_market_nrfi  = (row.get("market_nrfi_odds") or "").strip()
+    existing_market_yrfi  = (row.get("market_yrfi_odds") or "").strip()
+
+    if (existing_bet_placed == "Y"
+        and existing_market_nrfi
+        and existing_market_yrfi):
+        # Locked.  Refresh book name (in case the import is from a
+        # different sportsbook -- unlikely but harmless), and recompute
+        # profit_loss_units (so a grade landing AFTER lock still gets
+        # a P&L).  Everything else stays frozen.
+        if sportsbook:
+            row["sportsbook"] = sportsbook
+        row["profit_loss_units"] = _calc_pnl(row)
+        return row
+
     row["market_nrfi_odds"] = nrfi_odds
     row["market_yrfi_odds"] = yrfi_odds
     row["sportsbook"]       = sportsbook

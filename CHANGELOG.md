@@ -106,6 +106,42 @@ entry below.
   bar+number content; meter narrowed 112→96px min; pickCell wraps to 2 lines
   for the rare LINEUP PENDING + tentative + odds combo.
 
+### Changed — Bet-time odds lock (T2.23)
+
+User feedback: "once we pull real odds for a pick, the odds should lock
+for that game, because that's when you're supposed to put the bet in."
+
+The dashboard's OddsChip was reading `market_*_odds` and updating on
+every hourly scrape. For PASS / pending rows that's correct (we want
+to track the live market). For rows where `bet_placed=Y` (we already
+locked in the bet at that price), the moving chip created a confusing
+"my edge is changing" feel even though the user was already in the
+position.
+
+**Fix**: `tracker._apply_odds_to_row` now early-returns on rows that
+have `bet_placed=Y` AND non-blank `market_*_odds`. Effect: once a bet
+is placed at price X, `market_*_odds` stays X for the rest of the
+day. The OddsChip on the dashboard freezes alongside it. Sportsbook
+name still refreshes (in case of book migration). `profit_loss_units`
+still computes at lock time when the row grades.
+
+**Trade-off**: closing-line capture is given up on bet-placed games.
+`market_*` would have tracked the latest scrape and become the
+closing line for traditional CLV. But:
+- `opened_*_odds` (T4.28) still records the first scrape, so we have
+  "open → bet" line movement (which IS the CLV that affects us, since
+  post-bet movement doesn't help the user)
+- The user explicitly preferred bet-time stability over closing-line
+  data; this is the right trade-off for our use case
+
+**Lock release**: if `bet_placed=Y` but `market_*` is blank (legacy /
+corruption), the lock is treated as invalid and the row re-evaluates.
+This handles edge cases without hand-coded escape hatches.
+
+End-to-end tested: 4 scenarios (locked update blocked, unlocked still
+updates, bet_placed=N keeps updating to find better edge, locked-then-
+graded computes P&L correctly at -130 → 0.769u win).
+
 ### Added — Telegram pick-flip notifier (T2.22)
 
 The user wanted a phone ping when a pick commits ("notify me when the
