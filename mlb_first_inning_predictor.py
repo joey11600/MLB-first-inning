@@ -775,9 +775,26 @@ def expected_half_inning_runs(
     If first-inning-specific pitcher stats are available (fi_pitcher), they are
     blended in -- weighted by how much first-inning sample the pitcher has.
     """
-    # Blend season stats with first-inning specific stats if available
+    # Blend season stats with first-inning-specific stats if available.
+    # The cap of 40% used to be flat regardless of FI sample size, which
+    # was too restrictive once a pitcher had 25+ FI IP (effectively a
+    # full season of just-first-innings data).  T2.11: scale the cap
+    # with sample size:
+    #   <  3 FI IP  -> skip (too noisy)
+    #   3-10 FI IP  -> max 25% weight
+    #   10-20 FI IP -> max 40% weight
+    #   20-30 FI IP -> max 55% weight
+    #   30+ FI IP   -> max 65% weight (still cap below 100% so the
+    #                  full-season trend stays a meaningful anchor)
     if fi_pitcher and fi_pitcher.get("ip", 0) >= 3.0:
-        fi_w = min(fi_pitcher["ip"] / 25.0, 0.40)   # cap FI weight at 40%
+        fi_ip = fi_pitcher["ip"]
+        if   fi_ip <  10.0: cap = 0.25
+        elif fi_ip <  20.0: cap = 0.40
+        elif fi_ip <  30.0: cap = 0.55
+        else:               cap = 0.65
+        # Linear ramp within the bracket: at the floor of the bracket we
+        # use roughly half the cap, at the ceiling we use the full cap.
+        fi_w = min(fi_ip / 50.0, cap)
         blended = dict(pitcher)
         blended["era"]  = (1.0 - fi_w) * pitcher["era"]  + fi_w * fi_pitcher["era"]
         blended["whip"] = (1.0 - fi_w) * pitcher["whip"] + fi_w * fi_pitcher["whip"]
@@ -892,6 +909,31 @@ _LR_LEAN_YRFI_P   = 0.44
 # NRFI does NOT need a ceiling: all 39 graded STRONG NRFI picks have
 # lambda <= 0.54, well below average, no bad zone to clip.
 _LR_LAMBDA_YRFI_FLOOR = 0.78
+
+
+def _write_thresholds_json() -> None:
+    """Write the classifier thresholds to data/thresholds.json so the
+    dashboard's TS tentative-classifier reads them at request time
+    instead of duplicating hardcoded constants in BoardRow.tsx.  Cheap
+    enough to call on every predictor run -- ensures any threshold
+    tuning shows up on the dashboard immediately."""
+    out = {
+        "strongNrfiP":     _LR_STRONG_NRFI_P,
+        "leanNrfiP":       _LR_LEAN_NRFI_P,
+        "passLoP":         _LR_PASS_LO_P,
+        "leanYrfiP":       _LR_LEAN_YRFI_P,
+        "lambdaYrfiFloor": _LR_LAMBDA_YRFI_FLOOR,
+        "writtenAtUtc":    datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds") + "Z",
+    }
+    try:
+        path = Path(__file__).parent / "data" / "thresholds.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=2)
+    except Exception:
+        # Non-fatal -- dashboard falls back to hardcoded defaults.
+        pass
+
 
 # Lazy-loaded singletons.  None = "tried to load and failed" (graceful fallback).
 _lr_t1 = None
@@ -2043,6 +2085,10 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         print(f"  Logged {written} picks -> data/picks_{season}.csv")
     except Exception as exc:
         print(f"  Warning: could not write picks log ({exc})")
+
+    # T2.9: Sync classifier thresholds to data/thresholds.json so the
+    # dashboard's tentative-classifier never drifts from Python.
+    _write_thresholds_json()
 
     # Footer summary -- count actual pick assignments (LR or lambda).
     print("=" * 70)

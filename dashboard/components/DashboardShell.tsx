@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BoardResponse, BoardRow } from "@/lib/types";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
@@ -58,11 +58,21 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   // baked at page-load stays frozen and grades / lineup updates appear
   // missing until the user remembers to hard-refresh.  Server-side has
   // cache-control: no-store on this route, so the fetch always hits fresh data.
+  //
+  // T2.6: keep `data.date` in a ref so the interval+listeners are
+  // installed exactly ONCE on mount and torn down ONCE on unmount.  The
+  // previous implementation had `[data.date]` in the deps array, which
+  // recreated the interval every time the date refetched -- if a poll
+  // fired during a render cycle, multiple intervals could accumulate.
+  const dataDateRef = useRef(data.date);
+  useEffect(() => { dataDateRef.current = data.date; }, [data.date]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const refresh = () => {
-      if (document.visibilityState === "visible" && data.date) {
-        void refetch(data.date);
+      const d = dataDateRef.current;
+      if (document.visibilityState === "visible" && d) {
+        void refetch(d);
       }
     };
     window.addEventListener("focus", refresh);
@@ -76,7 +86,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       window.clearInterval(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.date]);
+  }, []);
 
   return (
     <>
@@ -149,6 +159,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           details={data.details}
           totalCount={data.rows.length}
           loading={loading}
+          thresholds={data.thresholds}
         />
       </section>
 

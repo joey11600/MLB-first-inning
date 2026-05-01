@@ -306,6 +306,7 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
 
   const details = await loadDetails(iso);
   const pickChanges = await loadPickChanges(iso);
+  const thresholds = await loadThresholds();
 
   return {
     date: iso,
@@ -314,7 +315,36 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     details,
     generatedAt,
     pickChanges,
+    thresholds,
   };
+}
+
+
+/** Read data/thresholds.json so the dashboard's TS tentative-classifier
+ *  reads from the Python source of truth rather than duplicating
+ *  hardcoded constants.  Returns undefined if the file is missing or
+ *  malformed -- TentativeChip falls back to its own defaults. */
+async function loadThresholds(): Promise<import("./types").PickThresholds | undefined> {
+  const p = path.join(dataDir(), "thresholds.json");
+  const raw = await safeRead(p);
+  if (!raw) return undefined;
+  try {
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    const num = (v: unknown): number | null =>
+      typeof v === "number" && Number.isFinite(v) ? v : null;
+    const t = {
+      strongNrfiP:     num(obj.strongNrfiP),
+      leanNrfiP:       num(obj.leanNrfiP),
+      passLoP:         num(obj.passLoP),
+      leanYrfiP:       num(obj.leanYrfiP),
+      lambdaYrfiFloor: num(obj.lambdaYrfiFloor),
+    };
+    // All five must be present and numeric or we treat as missing.
+    if (Object.values(t).some((v) => v == null)) return undefined;
+    return t as import("./types").PickThresholds;
+  } catch {
+    return undefined;
+  }
 }
 
 

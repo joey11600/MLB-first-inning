@@ -1,6 +1,6 @@
 "use client";
 
-import type { BoardRow, GameDetail, PickSide, PickStrength } from "@/lib/types";
+import type { BoardRow, GameDetail, PickSide, PickStrength, PickThresholds } from "@/lib/types";
 import { LambdaMeter } from "./LambdaMeter";
 import { GameDetails } from "./GameDetails";
 import styles from "./BoardRow.module.css";
@@ -23,25 +23,33 @@ function pickLabelText(side: PickSide, strength: PickStrength): string {
  *  pick the model WOULD return given an NRFI probability + total lambda,
  *  ignoring the LINEUP PENDING / STARTER PENDING guards.  Used to surface
  *  a "tentative lean" chip while a row is in the pending state, so the
- *  user has SOMETHING to look at before lineups post (otherwise the
- *  morning slate is 13 indistinguishable PASS - LINEUP PENDING rows).
- *  Thresholds + lambda floor must match the Python definition exactly. */
-const _TENTATIVE_STRONG_NRFI_P = 0.56;
-const _TENTATIVE_LEAN_NRFI_P   = 0.56;
-const _TENTATIVE_PASS_LO_P     = 0.44;
-const _TENTATIVE_LEAN_YRFI_P   = 0.44;
-const _TENTATIVE_LAMBDA_FLOOR  = 0.78;
+ *  user has SOMETHING to look at before lineups post.
+ *
+ *  T2.9: thresholds are now sourced from data/thresholds.json (written
+ *  by the predictor on every run) via the BoardResponse.thresholds
+ *  field.  Falls back to these defaults only when the response doesn't
+ *  carry thresholds (older deploy / missing file).  This keeps the
+ *  TS classifier and the Python classifier aligned without manual sync. */
+const _DEFAULT_THRESHOLDS = {
+  strongNrfiP:     0.56,
+  leanNrfiP:       0.56,
+  passLoP:         0.44,
+  leanYrfiP:       0.44,
+  lambdaYrfiFloor: 0.78,
+} as const;
 function classifyTentative(
   pNrfi:       number,
   lambdaTotal: number | null,
+  th:          PickThresholds | undefined,
 ): { side: PickSide; strength: PickStrength } {
-  if (pNrfi >= _TENTATIVE_STRONG_NRFI_P) return { side: "NRFI", strength: "STRONG" };
-  if (pNrfi >= _TENTATIVE_LEAN_NRFI_P)   return { side: "NRFI", strength: "LEAN" };
-  if (pNrfi >= _TENTATIVE_PASS_LO_P)     return { side: "PASS", strength: "NO EDGE" };
-  if (lambdaTotal != null && lambdaTotal < _TENTATIVE_LAMBDA_FLOOR) {
+  const t = th ?? _DEFAULT_THRESHOLDS;
+  if (pNrfi >= t.strongNrfiP) return { side: "NRFI", strength: "STRONG" };
+  if (pNrfi >= t.leanNrfiP)   return { side: "NRFI", strength: "LEAN" };
+  if (pNrfi >= t.passLoP)     return { side: "PASS", strength: "NO EDGE" };
+  if (lambdaTotal != null && lambdaTotal < t.lambdaYrfiFloor) {
     return { side: "PASS", strength: "LOW LAMBDA" };
   }
-  if (pNrfi >= _TENTATIVE_LEAN_YRFI_P)   return { side: "YRFI", strength: "LEAN" };
+  if (pNrfi >= t.leanYrfiP)   return { side: "YRFI", strength: "LEAN" };
   return { side: "YRFI", strength: "STRONG" };
 }
 
@@ -103,11 +111,13 @@ export function BoardRowItem({
   detail,
   expanded,
   onToggle,
+  thresholds,
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
   expanded: boolean;
   onToggle: () => void;
+  thresholds?: PickThresholds;
 }) {
   const tone = toneClass(row.pickSide, row.pickStrength);
 
@@ -175,7 +185,7 @@ export function BoardRowItem({
               {pickLabelText(row.pickSide, row.pickStrength)}
             </span>
           </span>
-          <TentativeChip row={row} detail={detail} />
+          <TentativeChip row={row} detail={detail} thresholds={thresholds} />
           <OddsChip row={row} detail={detail} />
         </span>
 
@@ -225,11 +235,19 @@ export function BoardRowItem({
  *
  *  Skipped for STARTER PENDING (where pitcher data is also fallback,
  *  so the tentative would be noise) and for any non-pending state. */
-function TentativeChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefined }) {
+function TentativeChip({
+  row,
+  detail,
+  thresholds,
+}: {
+  row: BoardRow;
+  detail: GameDetail | undefined;
+  thresholds?: PickThresholds;
+}) {
   if (row.pickStrength !== "LINEUP PENDING") return null;
   const pNrfi  = row.nrfiPct / 100;
   const lambda = detail?.lambdaLrTotal ?? row.lambda;
-  const t      = classifyTentative(pNrfi, lambda);
+  const t      = classifyTentative(pNrfi, lambda, thresholds);
   // No point showing "PASS - No edge" or "PASS - Low lambda" as the
   // tentative -- those are just less-pending versions of PASS, not
   // actionable.  Only show when the model is actually leaning a side.

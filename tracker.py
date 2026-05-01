@@ -218,8 +218,11 @@ def _pick_is_locked(existing: dict, iso_date: str) -> bool:
     intraday refresh.
 
     A pick is "locked" once:
-      - The game has been graded (final or postponed), or
-      - The game's start time has passed (live in-progress, no W/L yet)
+      - The game has been graded (any result), OR
+      - The game's start time has passed (live in-progress, no W/L yet), OR
+      - The slate date is more than 24 h in the past (defensive: protects
+        against ANY parse failure of game_time_et leaking a refresh
+        through to a row that's clearly already played)
 
     Picks that haven't started yet are NOT locked, so the predictor can
     refresh them throughout the day as new info (lineups, weather, last-
@@ -229,14 +232,51 @@ def _pick_is_locked(existing: dict, iso_date: str) -> bool:
     if graded in ("WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"):
         return True
 
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    now_et = datetime.now(et)
+
+    # Defensive lock #1: any slate date that's more than 24 h in the
+    # past must be locked, even if game_time_et is missing/malformed.
+    # Otherwise a refresh that lands tomorrow could silently rewrite
+    # yesterday's locked-but-ungraded pick.
+    try:
+        slate_end_et = datetime.fromisoformat(iso_date).replace(
+            hour=23, minute=59, tzinfo=et,
+        )
+        from datetime import timedelta
+        if now_et > slate_end_et + timedelta(hours=24):
+            return True
+    except Exception:
+        pass
+
+    # Defensive lock #2: any row whose created_at timestamp is older
+    # than 12 h is treated as locked.  Predictor runs idempotently and
+    # writes a fresh created_at on every refresh of a still-mutable row,
+    # so a stale created_at is a strong signal that the row has been
+    # frozen (game in progress / final / API gave up trying to refresh).
+    try:
+        created_at = (existing.get("created_at") or "").strip()
+        if created_at:
+            ca_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            from datetime import timedelta
+            if (datetime.now(ZoneInfo("UTC")) - ca_dt) > timedelta(hours=12):
+                return True
+    except Exception:
+        pass
+
     # Compare game start time to "now" in ET
     time_et = (existing.get("game_time_et") or "").strip()
     if not time_et:
         return False
+    # Non-numeric placeholders ("After Game 1", "TBD") cannot be locked
+    # by start time -- the predictor's DH-Y placeholder resolution will
+    # have emitted these only for games whose real time isn't known yet.
+    # Defensive lock #1 (slate-date > 24h) catches the case where this
+    # row outlives its slate.
+    if ":" not in time_et:
+        return False
     try:
-        from zoneinfo import ZoneInfo
-        et = ZoneInfo("America/New_York")
-        now_et = datetime.now(et)
         # game_time_et looks like "7:05 PM ET"
         cleaned = time_et.replace("ET", "").strip()
         # Try a couple of common formats
@@ -274,10 +314,24 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
     path     = _csv_path(season)
     rows     = _read_rows(path)
 
-    # Build index: (iso_date, str(game_pk)) -> list-index
+    # Build index: (iso_date, str(game_pk)) -> list-index.
+    # Detect duplicate keys -- if MLB ever returns the same game_pk for
+    # both halves of a doubleheader (rare but observed historically),
+    # we'd silently overwrite Game 1's row with Game 2's data.  Better
+    # to fail loudly so the operator can investigate than to corrupt
+    # a locked bet record.
     index: dict[tuple, int] = {}
     for i, row in enumerate(rows):
         key = (row["date"], str(row["game_pk"]))
+        if key in index:
+            prev = rows[index[key]]
+            print(
+                f"  WARNING: duplicate (date, game_pk)={key} in picks CSV -- "
+                f"row {index[key]} ({prev.get('pick_label','?')}) and "
+                f"row {i} ({row.get('pick_label','?')}).  Keeping the later "
+                f"row; first row's data will be lost.  Investigate MLB API "
+                f"for game_pk={key[1]}."
+            )
         index[key] = i
 
     now = _now_utc()
@@ -470,9 +524,23 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     "home_lineup_json", "away_lineup_json",
                     "game_time_et",
                 }
+                # PASS-label refresh extra guards (T2.14):
+                #   - Both old AND new pick_side must be "PASS" (no real
+                #     bet at risk -- this is the original guard).
+                #   - The row must NOT have a real graded result yet
+                #     (W/L/PASS).  Once grade lands, the strength label
+                #     belongs to the historical record and we shouldn't
+                #     keep flipping it for cosmetic reasons.
+                #   - bet_placed must NOT be "Y".  Belt-and-suspenders:
+                #     if a future code path ever lets bet_placed=Y on a
+                #     PASS row (data corruption), don't mutate it.
+                existing_grade = (existing.get("graded_result") or "").upper()
+                existing_bet   = (existing.get("bet_placed") or "").upper()
                 pass_label_refresh = (
                     (existing.get("pick_side") or "").upper() == "PASS"
                     and new_row.get("pick_side") == "PASS"
+                    and existing_grade not in ("WIN", "LOSS", "PASS")
+                    and existing_bet != "Y"
                 )
                 if pass_label_refresh:
                     allow_update |= {"pick_side", "pick_strength", "pick_label"}
@@ -690,16 +758,28 @@ def grade_date(date_str: str, season: int) -> None:
             skipped_n += 1
             continue
 
-        if detail in ("Postponed", "Suspended"):
-            rows[idx]["actual_result"] = detail.upper()
-            rows[idx]["graded_result"] = detail.upper()
-            rows[idx]["graded_at"]     = now
-            print(f"{tag}  {detail} -- marked, not counted as a bet")
-            graded_n += 1
-            continue
-
         away_r = result["away_runs"]
         home_r = result["home_runs"]
+
+        # T2.7: If a game is Suspended but the 1st inning was COMPLETE
+        # before the suspension hit (e.g. rain delay during the 3rd
+        # inning, suspended at 7-2 in the 5th, resumed next day), the
+        # 1st-inning result is already determined and the bet should
+        # be graded as a normal W/L -- not marked SUSPENDED-no-bet.
+        # Only treat it as terminal-no-bet when the 1st inning never
+        # completed.
+        if detail in ("Postponed", "Suspended", "Cancelled"):
+            if away_r is not None and home_r is not None:
+                # 1st inning was finished -- fall through to normal grading.
+                # Don't return; we'll grade the W/L below.
+                print(f"{tag}  {detail} but 1st inning complete ({away_r}-{home_r}) -- grading normally")
+            else:
+                rows[idx]["actual_result"] = detail.upper()
+                rows[idx]["graded_result"] = detail.upper()
+                rows[idx]["graded_at"]     = now
+                print(f"{tag}  {detail} -- marked, not counted as a bet")
+                graded_n += 1
+                continue
 
         if away_r is None or home_r is None:
             # First inning not yet complete -- decide why
@@ -910,21 +990,25 @@ def _apply_odds_to_row(
 
     row["edge_on_pick"] = _fmt(edge_pick, 4) if edge_pick is not None else ""
 
-    # Bet sizing: only bet if pick is NRFI/YRFI and edge meets threshold
-    if pick in ("NRFI", "YRFI") and edge_pick is not None and edge_pick >= min_edge:
-        if strength == "STRONG":
-            units = units_strong
-        elif strength == "LEAN":
-            units = units_lean
-        else:
-            units = 0.0
-
-        if units > 0:
+    # Bet sizing: only bet if pick is NRFI/YRFI and edge meets threshold.
+    # units_risked is the WOULD-BE stake -- always populated for any
+    # NRFI/YRFI pick (regardless of bet_placed) so the audit trail can
+    # compute counterfactual P&L for skipped bets ("how would the
+    # min_edge=0.02 strategy have performed if we'd dropped the gate?").
+    # PASS picks have no would-be stake; units_risked stays blank.
+    if pick in ("NRFI", "YRFI"):
+        would_be_units = units_strong if strength == "STRONG" else (
+            units_lean if strength == "LEAN" else 0.0
+        )
+        if edge_pick is not None and edge_pick >= min_edge and would_be_units > 0:
             row["bet_placed"]   = "Y"
-            row["units_risked"] = _fmt(units, 2)
+            row["units_risked"] = _fmt(would_be_units, 2)
         else:
             row["bet_placed"]   = "N"
-            row["units_risked"] = ""
+            # Preserve the would-be stake so post-mortem analysis can
+            # distinguish "would have bet 1u but skipped due to edge"
+            # from "PASS pick, never a candidate".
+            row["units_risked"] = _fmt(would_be_units, 2) if would_be_units > 0 else ""
     else:
         row["bet_placed"]   = "N"
         row["units_risked"] = ""

@@ -49,21 +49,22 @@ These can corrupt picks, lose data, or silently mis-grade.
 
 ## 🟠 TIER 2 — Probable bugs / soon
 
-- [ ] **T2.1** — PASS-only days hide-then-show in cumulativePL (verify seeding hits consistently) — `dashboard/lib/roi.ts`
-- [ ] **T2.2** — Lock-preserve format parsing fragile — `tracker.py:204-229` (game_time_et without "ET" silently returns False; bet snapshot can be overwritten)
-- [ ] **T2.3** — `bet_placed="N"` zeroes `units_risked` (audit trail loss) — `tracker.py:876-882`
-- [ ] **T2.4** — Spring training games leak into pitcher-blend weights — `backtest.py:305-323` (filter `gameType=R` only)
-- [ ] **T2.5** — `pick_changes.csv` append race: duplicate headers if two crons land within 1s — `tracker.py:506-510`
-- [ ] **T2.6** — Memory leak risk in dashboard auto-refetch interval (deps array recreates interval) — `DashboardShell.tsx:61-79`
-- [ ] **T2.7** — Suspended-game mid-1st grading broken (resumed game new pk) — `backtest.py:309, tracker.py:364`
-- [ ] **T2.8** — DST transition not automated (Nov 2 silently mis-times everything) — `daily.yml:3-4`
-- [ ] **T2.9** — Tentative-pick thresholds duplicated in TS (must match Python by hand) — `BoardRow.tsx:29-33`
-- [ ] **T2.10** — GHA free tier at 85-90% quota (1700-1800 / 2000 min/mo) — `daily.yml`
-- [ ] **T2.11** — Pitcher blending weight cap (40%) arbitrary, doesn't scale with FI sample size — `predictor.py:639-642`
-- [ ] **T2.12** — `_pick_is_locked` returns False on parse failure of `game_time_et` (could allow overwrite of locked bet) — `tracker.py:204-229`
-- [ ] **T2.13** — DH game_pk collision not detected — `tracker.py:248-252` (silent index overwrite if MLB returns same pk for DH-1 + DH-2)
-- [ ] **T2.14** — `pass_label_refresh` flips PASS strength repeatedly across cron runs — `tracker.py:444-449`
-- [ ] **T2.15** — Date param `?date=2099-12-31` silently swaps to today — `app/page.tsx:11`
+- [x] **T2.1** ✅ Already fixed in earlier roi.ts change. Verified at `roi.ts:271,277` — PASS picks seed `dayPL.set(date, 0)` so all-PASS days show on the chart.
+- [x] **T2.2 + T2.12** ✅ 2026-05-01 — `_pick_is_locked` now has 3 defensive locks: graded-result terminal, slate-date >24h past, `created_at` >12h stale. Plus skips parse on non-numeric `game_time_et` (DH-Y placeholders). Bet snapshots can no longer be overwritten by parse failures.
+- [x] **T2.3** ✅ 2026-05-01 — `_apply_odds_to_row` now stores would-be `units_risked` even when `bet_placed=N`, so post-mortem can compute counterfactual P&L for skipped bets. `_calc_pnl` short-circuits on bet_placed=N so no double-counting.
+- [x] **T2.4** ✅ 2026-05-01 — `fetch_pitcher_gamelog` now filters by `gameType in VALID_GAME_TYPES` (R/F/D/L/W). Spring training + exhibition games no longer inflate the pitcher-blend IP-weight. Cache TTL is 12h so existing entries refresh naturally.
+- [x] **T2.5** ✅ Already fixed in T1.1b — `_record_pick_change` detects header by reading first line content, not just file existence. Two racing appends no longer write duplicate headers.
+- [x] **T2.6** ✅ 2026-05-01 — `DashboardShell` interval+listener effect now has empty deps array; current `data.date` is read via a ref. Mounting is idempotent — no interval accumulation across date refetches.
+- [x] **T2.7** ✅ 2026-05-01 — `grade_date` now grades suspended/postponed games normally if the 1st inning was complete before suspension. Otherwise marks SUSPENDED-no-bet as before. Combined with T1.5 regrade gate, resumed games eventually pick up real W/L.
+- [x] **T2.8** ✅ 2026-05-01 — Cron schedule expanded to UTC 12-23 (every hour) so it covers both EDT (8am-7pm) and EST (7am-6pm) without manual DST shifting. No more November/March panic.
+- [x] **T2.9** ✅ 2026-05-01 — Predictor writes `data/thresholds.json` on every run; `loadBoard` reads it; `BoardResponse.thresholds` flows through `BoardTable` → `BoardRowItem` → `TentativeChip`. Hardcoded TS defaults retained as fallback. No more drift between Python and TS classifiers.
+- [x] **T2.10** ✅ Verified — actual GHA usage is ~890 min/month (mean 137s × 13 runs/day × 30 days), well under 2000 free-tier limit. Audit's pessimistic 1700-1800 estimate was wrong. No fix needed.
+- [x] **T2.11** ✅ 2026-05-01 — FI weight cap now scales with sample size: 25% / 40% / 55% / 65% caps at 10/20/30/30+ FI IP. Linear ramp via `min(fi_ip / 50.0, cap)`. A pitcher with 30 FI IP (a full season's worth) now gets 60%+ weight instead of being arbitrarily capped at 40%.
+- [x] **T2.13** ✅ 2026-05-01 — `log_picks` now warns on duplicate `(date, game_pk)` keys when building the index. Silent overwrite of DH-1 by DH-2 (rare but possible if MLB returns same pk) is now logged loudly.
+- [x] **T2.14** ✅ 2026-05-01 — `pass_label_refresh` now requires existing_grade not in (WIN/LOSS/PASS) AND existing_bet != "Y". Belt-and-suspenders against any future code path that accidentally lets bet_placed=Y on a PASS row.
+- [x] **T2.15** ✅ 2026-05-01 — `app/page.tsx` validates `?date=` against strict `YYYY-MM-DD` regex + calendar validity before passing to `loadBoard`. Invalid params fall through to null (latest available date) instead of being silently coerced to today.
+
+**Tier 2 status: 15/15 complete.**
 
 ---
 

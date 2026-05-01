@@ -127,6 +127,18 @@ export interface PickChange {
   newPickLabel:  string;     // e.g. "STRONG YRFI"
 }
 
+/** Classification thresholds the predictor uses, surfaced to the dashboard
+ *  so the tentative-pick classifier in BoardRow.tsx never drifts from the
+ *  Python source of truth.  Fall back to default constants if the response
+ *  is missing this field (older deploys). */
+export interface PickThresholds {
+  strongNrfiP:    number;   // NRFI prob >= this -> STRONG NRFI
+  leanNrfiP:      number;   // NRFI prob >= this -> LEAN NRFI
+  passLoP:        number;   // NRFI prob >= this -> PASS NO EDGE
+  leanYrfiP:      number;   // NRFI prob >= this (and below passLoP) -> LEAN YRFI
+  lambdaYrfiFloor: number;  // would-be YRFI demoted to LOW LAMBDA when below
+}
+
 export interface BoardResponse {
   date: string;              // YYYY-MM-DD
   availableDates: string[];  // sorted desc
@@ -136,4 +148,8 @@ export interface BoardResponse {
   /** Today's pre-game pick flips, newest first.  Empty when no changes
    *  yet today (most common case at slate generation). */
   pickChanges: PickChange[];
+  /** Classifier thresholds shared from the Python predictor.  Optional
+   *  for back-compat with cached responses; the BoardRow tentative
+   *  classifier falls back to hardcoded defaults if missing. */
+  thresholds?: PickThresholds;
 }

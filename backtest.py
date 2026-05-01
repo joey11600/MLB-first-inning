@@ -266,10 +266,21 @@ def fetch_pitcher_gamelog(player_id: int, season: int, use_cache: bool = True) -
         date_str = sp.get("date")
         if not gpk or not date_str:
             continue
+        # T2.4: Filter out spring training ("S") and exhibition games --
+        # they leak into pitcher_stats_blended's IP-weighted blend
+        # (`min(ip / 25.0, 1.0)`) and inflate the current-season weight.
+        # A pitcher with 15 IP of spring + 5 IP of regular previously
+        # got blended at 80% current-year (20 / 25) when really only
+        # 20% (5 / 25) of his data is meaningful.  Only count game
+        # types in VALID_GAME_TYPES (R, F, D, L, W -- regular + post).
+        gtype = sp.get("game", {}).get("gameType", "R")
+        if gtype not in VALID_GAME_TYPES:
+            continue
         games.append({
             "gamePk":  gpk,
             "date":    date_str,
             "team_id": sp.get("team", {}).get("id"),
+            "gameType": gtype,
             "ip":      _parse_innings_pitched(s.get("inningsPitched")),
             "er":      safe_float(s.get("earnedRuns"),  0.0),
             "k":       safe_float(s.get("strikeOuts"),  0.0),

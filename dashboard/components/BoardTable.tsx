@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { BoardRow, GameDetail } from "@/lib/types";
+import type { BoardRow, GameDetail, PickThresholds } from "@/lib/types";
 import { BoardRowItem } from "./BoardRow";
 import styles from "./BoardTable.module.css";
 
@@ -12,11 +12,13 @@ export function BoardTable({
   details,
   totalCount,
   loading,
+  thresholds,
 }: {
   rows: BoardRow[];
   details: Record<string, GameDetail>;
   totalCount: number;
   loading: boolean;
+  thresholds?: PickThresholds;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   // Sort state: "default" = original lambda-ranked order; "edge" = highest
@@ -99,6 +101,7 @@ export function BoardTable({
               detail={detail}
               expanded={expanded === key}
               onToggle={() => setExpanded(expanded === key ? null : key)}
+              thresholds={thresholds}
             />
           );
         })}

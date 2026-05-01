@@ -50,4 +50,21 @@ if (fs.existsSync(changes)) {
   copied += 1;
 }
 
+// 4. thresholds.json -- classifier thresholds the dashboard's tentative
+//    classifier reads at request time so it never drifts from Python.
+const thresholds = path.join(src, "thresholds.json");
+if (fs.existsSync(thresholds)) {
+  fs.copyFileSync(thresholds, path.join(dest, "thresholds.json"));
+  copied += 1;
+}
+
+// 5. system_errors.csv -- recent cron failure log surfaced as a
+//    "system status" indicator on the dashboard.  Defensive: always
+//    populated by the workflow even on success days (just empty).
+const errs = path.join(src, "system_errors.csv");
+if (fs.existsSync(errs)) {
+  fs.copyFileSync(errs, path.join(dest, "system_errors.csv"));
+  copied += 1;
+}
+
 console.log(`[copy-data] copied ${copied} files from ${src} → ${dest}`);
