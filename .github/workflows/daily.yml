@@ -125,7 +125,13 @@ jobs:
         # only step that's truly fail-soft is the catch-up grade -- if
         # yesterday's grade fails, we still want today's predict to run.
         env:
-          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          ALERT_WEBHOOK_URL:    ${{ secrets.ALERT_WEBHOOK_URL }}
+          # T2.22: Telegram pick-flip notifier.  When both vars are set,
+          # tracker.log_picks pings the bot on every actionable flip
+          # (PASS/PENDING -> STRONG/LEAN, side-flips, demotes).  Silent
+          # no-op when unset, so this stays back-compat.
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
           ACTION: predict
         run: |
           YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)

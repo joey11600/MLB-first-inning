@@ -118,6 +118,22 @@ The CSV ledger at `data/picks_2026.csv` is append-mostly. Specific rules:
   current code before quoting** — system reminders flag these as
   potentially stale (point-in-time observations).
 
+## Notifications
+
+The cron pings `@nrfi_terminal_bot` (Telegram) when picks flip to/from
+actionable states (T2.22). Configured via `TELEGRAM_BOT_TOKEN` +
+`TELEGRAM_CHAT_ID` GHA secrets; silent no-op without them. Code lives
+in `tracker._notify_pick_flip_telegram`; called from
+`tracker.log_picks` alongside the `pick_changes.csv` write. Failures
+are caught and logged but never break the predictor.
+
+If a user reports "I didn't get a Telegram ping for X game" — first
+check `pick_changes.csv` for the flip (proves it was logged); then
+check workflow logs for any `[telegram] notify failed:` stderr; then
+check whether the GHA secrets are present (`gh secret list -R <repo>`).
+Don't rotate the token without explicit user permission — that
+invalidates their bot config.
+
 ## Working with the user
 
 - The user runs production from this branch. **Don't break working

@@ -239,6 +239,34 @@ The prebuild data-copy quirk is documented in `nrfi_dashboard.md`. If you
 touch `next.config.mjs`, `package.json` scripts, or `lib/board.dataDir()`,
 re-verify end-to-end with a fresh build.
 
+### Telegram pick-flip notifier (T2.22)
+
+Bot `@nrfi_terminal_bot` pings the user on every actionable pick flip
+(commits, demotes, side-flips). Filters out PASS-variant churn
+(LINEUP↔STARTER↔NO-EDGE) which would just spam.
+
+Configured via two env vars / GHA secrets, both required:
+- `TELEGRAM_BOT_TOKEN` — bot token from @BotFather
+- `TELEGRAM_CHAT_ID` — user's Telegram user ID (from @userinfobot)
+
+When either is unset, `_notify_pick_flip_telegram` is a silent no-op,
+so local dev / unconfigured deploys don't try to ping.
+
+To test manually:
+```bash
+TOKEN='<bot-token>' CHAT_ID='<chat-id>' python -c "
+import os; os.environ['TELEGRAM_BOT_TOKEN']=os.environ['TOKEN']
+os.environ['TELEGRAM_CHAT_ID']=os.environ['CHAT_ID']
+from tracker import _notify_pick_flip_telegram
+_notify_pick_flip_telegram(iso_date='2026-05-01', away_team='TEST',
+    home_team='SIM', game_time='9:00 PM', old_label='PASS - Lineup pending',
+    new_label='STRONG NRFI')
+"
+```
+
+To rotate the token: in @BotFather, `/revoke` → pick the bot → confirm.
+Then update both the local env and the GitHub Actions secret.
+
 ### Modifying cron behavior
 
 `.github/workflows/daily.yml` — UTC schedule covers EDT/EST without DST

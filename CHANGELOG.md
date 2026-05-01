@@ -106,6 +106,39 @@ entry below.
   bar+number content; meter narrowed 112→96px min; pickCell wraps to 2 lines
   for the rare LINEUP PENDING + tentative + odds combo.
 
+### Added — Telegram pick-flip notifier (T2.22)
+
+The user wanted a phone ping when a pick commits ("notify me when the
+next STRONG/LEAN lands so I don't have to camp the dashboard"). Shipped
+end-to-end via Telegram:
+
+- New `@nrfi_terminal_bot` created via @BotFather. Token + chat ID
+  captured during setup. Test message verified live.
+- New `_notify_pick_flip_telegram` in `tracker.py` posts to
+  `https://api.telegram.org/bot<TOKEN>/sendMessage` whenever a pick
+  flips. Wired into the existing `_record_pick_change` site so every
+  pick_changes.csv entry also generates a Telegram ping.
+- **Filter**: only notifies when at least one side of the flip is
+  **actionable** (`STRONG`/`LEAN` `NRFI`/`YRFI`). PASS-variant churn
+  (LINEUP PENDING ↔ STARTER PENDING ↔ NO EDGE) stays quiet — that's
+  data-quality noise, not betting decisions.
+- **Tone-coded icon** matches the dashboard's odds-chip color scheme:
+  🟫 STRONG NRFI, 🟥 STRONG YRFI, 🟧/🟨 leans, ⬜ demotes.
+- **Format** (mobile-friendly):
+  ```
+  🟫 Pick flip · 2026-05-01
+  PHI @ MIA  (7:10 PM ET)
+  PASS - Lineup pending  →  STRONG YRFI
+  ```
+- **Configured via**: `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` env vars.
+  Both must be set; either missing → silent no-op. Keeps local dev
+  quiet and back-compat with existing deploys.
+- **Workflow**: `daily.yml` predict step now exposes both as
+  `${{ secrets.TELEGRAM_BOT_TOKEN }}` / `${{ secrets.TELEGRAM_CHAT_ID }}`.
+- **Failure handling**: any error (network, bad token, etc.) is caught
+  and logged to stderr — never breaks the predictor cron. Notifications
+  are advisory.
+
 ### Added — Tier 1 scraper improvements (T2.20, T2.21)
 
 Three reliability improvements to the DK odds scraper, all shipped together:

@@ -10,7 +10,9 @@ All heavy lifting lives here; the predictor just calls three functions:
 """
 
 import csv
+import os
 import sys
+import urllib.request
 from datetime import datetime, date as date_type, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -542,6 +544,20 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     new_label   = new_label,
                     captured_at = now,
                 )
+                # T2.22: also push the flip to Telegram (advisory; no-op
+                # without TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID env vars).
+                # The notifier filters internally so PASS-variant churn
+                # (LINEUP PENDING ↔ STARTER PENDING ↔ NO EDGE) doesn't
+                # spam the user's phone -- only commits / demotes /
+                # side-flips ping.
+                _notify_pick_flip_telegram(
+                    iso_date  = iso_date,
+                    away_team = ap["abbr"],
+                    home_team = hp["abbr"],
+                    game_time = g["time"],
+                    old_label = old_label,
+                    new_label = new_label,
+                )
 
             # If the game has already started (live or final), preserve
             # EVERYTHING the predictor would normally overwrite -- the
@@ -642,6 +658,85 @@ CHANGE_LOG_FIELDS = [
 def _change_log_path() -> Path:
     DATA_DIR.mkdir(exist_ok=True)
     return DATA_DIR / "pick_changes.csv"
+
+
+# ---------------------------------------------------------------------------
+# Telegram pick-flip notifier (T2.22)
+# ---------------------------------------------------------------------------
+#
+# Posts to a Telegram bot when a pick flips to/from an actionable state
+# (STRONG / LEAN NRFI/YRFI).  Configured via two env vars, both required:
+#
+#   TELEGRAM_BOT_TOKEN  - the bot token from @BotFather
+#   TELEGRAM_CHAT_ID    - the user's chat ID (from @userinfobot)
+#
+# When either is unset, this is a silent no-op so local dev / testing
+# doesn't try to ping an unconfigured Telegram.  Failures (network, bad
+# token, etc.) are caught and logged to stderr but never bubble up --
+# notifications are advisory, they must not break the predictor cron.
+#
+# Filter:  notify only when at least one side of the flip is actionable.
+# This keeps quiet on intraday PASS-variant churn (LINEUP PENDING ↔
+# STARTER PENDING ↔ NO EDGE) which is just data-quality noise, but DOES
+# notify on:
+#   PASS / pending  →  STRONG / LEAN NRFI/YRFI   (commit, the user wants this)
+#   STRONG / LEAN   →  PASS / pending             (rare demote, also wants)
+#   STRONG NRFI     →  STRONG YRFI                (side flip, definitely wants)
+
+
+def _is_actionable_label(label: str) -> bool:
+    s = (label or "").upper()
+    if "NRFI" not in s and "YRFI" not in s:
+        return False
+    return ("STRONG" in s) or ("LEAN" in s)
+
+
+def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
+                                game_time: str, old_label: str, new_label: str) -> None:
+    """Best-effort Telegram ping on actionable pick flip.  Silent no-op
+    when env vars are unset; never raises."""
+    token   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
+    if not token or not chat_id:
+        return
+
+    if not _is_actionable_label(old_label) and not _is_actionable_label(new_label):
+        return  # both sides PASS-variant; user doesn't care about this churn
+
+    new_upper = (new_label or "").upper()
+    if "STRONG" in new_upper and "NRFI" in new_upper:
+        icon = "🟫"   # warm-brown for NRFI
+    elif "STRONG" in new_upper and "YRFI" in new_upper:
+        icon = "🟥"   # red for YRFI
+    elif "LEAN" in new_upper and "NRFI" in new_upper:
+        icon = "🟧"
+    elif "LEAN" in new_upper and "YRFI" in new_upper:
+        icon = "🟨"
+    else:
+        icon = "⬜"   # actionable -> non-actionable demote
+
+    text = (
+        f"{icon} Pick flip · {iso_date}\n"
+        f"{away_team} @ {home_team}  ({game_time or 'TBD'})\n"
+        f"{old_label or '—'}  →  {new_label or '—'}"
+    )
+
+    try:
+        import urllib.parse
+        body = urllib.parse.urlencode({
+            "chat_id": chat_id,
+            "text":    text,
+        }).encode("utf-8")
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        req = urllib.request.Request(
+            url, data=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()   # discard body, we only care about the HTTP success
+    except Exception as exc:  # noqa: BLE001 -- swallow ALL errors; advisory only
+        print(f"  [telegram] notify failed for {away_team}@{home_team}: {exc!r}",
+              file=sys.stderr)
 
 
 def _record_pick_change(*, iso_date: str, game_pk: str,
