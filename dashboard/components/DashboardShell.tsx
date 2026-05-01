@@ -52,6 +52,32 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     }
   }, [data.date]);
 
+  // Auto-refresh whenever the tab regains focus or visibility -- catches the
+  // common case where the user left the dashboard open across a cron run
+  // (predict every 2h, grade overnight).  Without this, the SSR snapshot
+  // baked at page-load stays frozen and grades / lineup updates appear
+  // missing until the user remembers to hard-refresh.  Server-side has
+  // cache-control: no-store on this route, so the fetch always hits fresh data.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const refresh = () => {
+      if (document.visibilityState === "visible" && data.date) {
+        void refetch(data.date);
+      }
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    // Also poll on a timer (every 90s) so the same tab kept open during a
+    // game updates the result column the moment grading lands.
+    const id = window.setInterval(refresh, 90_000);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      window.clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.date]);
+
   return (
     <>
       {/* Full-bleed sticky ticker, outside the max-width shell */}
