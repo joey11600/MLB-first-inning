@@ -348,6 +348,40 @@
   50%      { opacity: 1; }
 }
 
+/* Tentative-lean chip — shown next to a LINEUP PENDING pill to indicate
+   what the model WOULD pick under the team-fallback batter stats.
+   Visually subordinate to the real pickPill: smaller text, dashed
+   border, no dot, side-tinted but desaturated.  The arrow prefix
+   reinforces "leaning toward, not committed". */
+.tentativeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px dashed currentColor;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  opacity: 0.7;
+  transition: opacity 200ms ease;
+}
+.tentativeChip:hover { opacity: 0.95; }
+.tentativeChipLabel {
+  font-variant-numeric: tabular-nums;
+}
+.tentativeNrfi {
+  color: color-mix(in oklab, var(--primary) 75%, var(--muted-foreground));
+}
+.tentativeYrfi {
+  color: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground));
+}
+
 /* LOW LAMBDA pill — would-have-been YRFI demoted because the model's
    raw expected-runs (lambda_total) is below the 0.78 floor.  Visually
    distinct from "PASS - No edge" (which is genuine 50/50) and from
