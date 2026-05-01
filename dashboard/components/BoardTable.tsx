@@ -20,7 +20,10 @@ export function BoardTable({
   loading: boolean;
   thresholds?: PickThresholds;
 }) {
-  const [expanded, setExpanded] = useState<string | null>(null);
+  // T4.24: multi-row expand so the user can pin 2+ games open and
+  // compare their feature breakdowns side-by-side.  Click a row to
+  // toggle its expansion; previously open rows stay open.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   // Sort state:
   //   "default" = lambda-ranked, the predictor's original ordering
   //   "edge"    = highest edge first (most-betable plays at top)
@@ -147,8 +150,13 @@ export function BoardTable({
               key={key}
               row={row}
               detail={detail}
-              expanded={expanded === key}
-              onToggle={() => setExpanded(expanded === key ? null : key)}
+              expanded={expanded.has(key)}
+              onToggle={() => setExpanded((prev) => {
+                const next = new Set(prev);
+                if (next.has(key)) next.delete(key);
+                else next.add(key);
+                return next;
+              })}
               thresholds={thresholds}
             />
           );

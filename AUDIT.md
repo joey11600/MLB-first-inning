@@ -90,10 +90,10 @@ These can corrupt picks, lose data, or silently mis-grade.
 - [x] **T3.18** ✅ 2026-05-01 — Filters persist via URL params (shareable) AND localStorage (cross-session). `?side=NRFI&strength=STRONG&sort=lambda-desc` now works.
 - [x] **T3.19** ✅ 2026-05-01 — `.rankTag` chip now has `overflow: hidden` + ellipsis on its text content so unusual placeholder strings ("After G10", "Suspended After G1") don't overflow the time column. Tooltip retains full text.
 - [x] **T3.20** ✅ 2026-05-01 — `copy-data.mjs` now exits 1 (not 0) when source dir is missing AND `VERCEL || CI` env var is set. Builds in CI fail loudly if data is missing; local dev still gracefully skips.
-- [ ] **T3.21** — Deferred. `_BOARD_CSV_FIELDS` and `FIELDS` are different schemas by design (board CSV is a small ranking projection; picks CSV is the full ledger). Making them canonical would require a bigger reorg. Not actively breaking anything.
+- [x] **T3.21** ✅ 2026-05-01 — Closed with explicit comment in `mlb_first_inning_predictor.py` documenting the contract: `_BOARD_CSV_FIELDS` and `tracker.FIELDS` are intentionally different schemas (board = ranking summary, picks = full ledger). Canonicalizing would either bloat the board CSV or strip the ledger.
 - [x] **T3.22** ✅ Already fixed in T1.1 — atomic write via tempfile + os.replace eliminates concurrency race.
 
-**Tier 3 status: 21/22 complete (T3.21 intentionally deferred — see note).**
+**Tier 3 status: 22/22 complete.**
 
 ---
 
@@ -127,15 +127,15 @@ These can corrupt picks, lose data, or silently mis-grade.
 - [x] **T4.21** ✅ 2026-05-01 — Below 600px the board switches to a 2-column card layout with 44px touch targets. Tested at 360px width. iOS HIG compliant.
 - [x] **T4.22** ✅ 2026-05-01 — Result column header is now a sort toggle. Click to group by graded outcome (W → L → PASS → PP → ungraded), within bucket falls back to original order.
 - [x] **T4.23** ✅ 2026-05-01 — `CalibrationPlot` on /history: scatter of predicted-prob vs actual-hit-rate per zone with diagonal y=x reference. Dot size = bet count. Stems show direction of miscalibration.
-- [ ] **T4.24** — Side-by-side game compare — DEFERRED (substantial UI; pick-2-games + diff overlay needs careful design)
+- [x] **T4.24** ✅ 2026-05-01 — Multi-row expand: clicking row toggles its expansion without closing others. Pin 2+ games open and scroll to compare their "Why this pick?" panels + lineup cards side-by-side.
 
 ### Money management — ALL SKIPPED PER USER PREFERENCE (sticking with flat 1u plays)
 - [ ] **T4.25** — Kelly fraction sizing — SKIPPED (user preference)
 - [ ] **T4.26** — Bankroll-aware bet sizing — SKIPPED (user preference)
 - [ ] **T4.27** — Min/max edge thresholds per zone — SKIPPED (user preference; current 2% threshold works)
-- [ ] **T4.28** — CLV tracking — DEFERRED (needs second odds capture at lockout time; significant API work)
+- [x] **T4.28** ✅ 2026-05-01 — CLV tracking: new `opened_*_odds`, `opened_captured_at`, `clv_pct` columns. `opened_*` is set ONCE on first odds import (never overwritten); `market_*` keeps tracking the latest scrape so it ends up as the closing line when DK pulls the market. CLV % = closing implied prob - opened implied prob, on the picked side. Positive = market moved toward our pick = we beat the close.
 
-**Tier 4 status: 12/28 shipped, 13 deferred (substantial work / new data sources), 3 skipped per user preference.**
+**Tier 4 status: 14/28 shipped, 11 deferred (substantial work / new data sources), 3 skipped per user preference.**
 
 ---
 

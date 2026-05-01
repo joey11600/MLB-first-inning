@@ -2296,6 +2296,16 @@ _BOARD_ZONE: dict[tuple[str, str], tuple[str, str, str]] = {
     ("YRFI", "STRONG"): ("[RED]  ", "RED",    "** STRONG YRFI"),
 }
 
+# T3.21: _BOARD_CSV_FIELDS is intentionally NOT a subset of tracker.FIELDS
+# -- the two CSVs have different schemas by design:
+#   - board_<date>.csv = compact slate ranking (this list).  Drives the
+#     dashboard's row table.  Has rank, derived %s, no pitcher details.
+#   - picks_<season>.csv = full season ledger (tracker.FIELDS).  Drives
+#     the GameDetail join.  Has full pitcher / offense / lineup / odds /
+#     grade history per game.
+# Trying to "canonicalize" them would either bloat the board CSV or
+# strip the ledger.  Document the contract here so future contributors
+# know they're meant to be separate.
 _BOARD_CSV_FIELDS = [
     "rank", "away", "home", "lambda",
     "pick_side", "pick_strength", "pick_label",

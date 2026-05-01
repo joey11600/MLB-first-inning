@@ -107,6 +107,19 @@ FIELDS = [
     "bet_placed",
     "units_risked",
     "profit_loss_units",
+    # T4.28: Closing-line value tracking.  `opened_*` is the FIRST-EVER
+    # odds capture for this row -- set once on initial import and never
+    # overwritten, representing the "open" odds we actually bet.
+    # `market_*` continues to track the LATEST scrape (overwritten every
+    # cron) -- the final pre-game value before DK pulls the market
+    # becomes the "close" line.  CLV in % = closing implied prob -
+    # opened implied prob, on the picked side.  Positive CLV =
+    # market moved toward our side = we beat the close = leading
+    # indicator of EV.
+    "opened_nrfi_odds",
+    "opened_yrfi_odds",
+    "opened_captured_at",
+    "clv_pct",
 ]
 
 # ---------------------------------------------------------------------------
@@ -1037,6 +1050,15 @@ def _apply_odds_to_row(
     row["sportsbook"]       = sportsbook
     row["odds_captured_at"] = captured_at
 
+    # T4.28: Capture the FIRST seen odds as the "open" line; never
+    # overwrite once set.  market_* keeps tracking the latest scrape;
+    # the final pre-game value (before DK pulls the market) becomes
+    # the "close" used for CLV computation.
+    if not (row.get("opened_nrfi_odds") or "").strip():
+        row["opened_nrfi_odds"]  = nrfi_odds
+        row["opened_yrfi_odds"]  = yrfi_odds
+        row["opened_captured_at"] = captured_at
+
     imp_nrfi = american_to_prob(nrfi_odds)
     imp_yrfi = american_to_prob(yrfi_odds)
 
@@ -1093,6 +1115,24 @@ def _apply_odds_to_row(
     else:
         row["bet_placed"]   = "N"
         row["units_risked"] = ""
+
+    # T4.28: CLV — closing implied prob - opened implied prob, on the
+    # picked side.  Positive = market moved toward our pick (we beat
+    # the close).  Computable any time we have both opened_* (set on
+    # first import) and the latest market_* (set on every import).
+    try:
+        opened_nrfi = american_to_prob(row.get("opened_nrfi_odds", ""))
+        opened_yrfi = american_to_prob(row.get("opened_yrfi_odds", ""))
+        closing_nrfi = imp_nrfi  # latest scrape we just stored
+        closing_yrfi = imp_yrfi
+        clv = None
+        if pick == "NRFI" and opened_nrfi is not None and closing_nrfi is not None:
+            clv = closing_nrfi - opened_nrfi
+        elif pick == "YRFI" and opened_yrfi is not None and closing_yrfi is not None:
+            clv = closing_yrfi - opened_yrfi
+        row["clv_pct"] = _fmt(clv, 4) if clv is not None else ""
+    except Exception:
+        row["clv_pct"] = ""
 
     # Compute P&L if graded
     row["profit_loss_units"] = _calc_pnl(row)
