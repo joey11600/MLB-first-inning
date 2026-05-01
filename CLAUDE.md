@@ -1,0 +1,133 @@
+# NRFI Terminal — Agent Rules
+
+Read this first. These are the operating rules for any Claude (or other
+agent) working on this repo. Violating any of them costs the user real
+time and money. Read [docs/KB.md](./docs/KB.md) for the system overview;
+this file is just the rules.
+
+## Deploy rules — read before touching the dashboard
+
+The Vercel project is auto-wired to deploy on any push to
+`claude/mlb-inning-run-predictor-QyazL`. The GitHub Actions cron pushes
+~12 commits per day to this branch (every hourly `auto: predict` run).
+**Each cron push triggers a Vercel auto-deploy.** That means:
+
+> Any uncommitted local change that you deploy via the Vercel CLI will be
+> SILENTLY OVERWRITTEN by the next cron commit's auto-deploy, which builds
+> from the remote branch source — *without* your uncommitted change.
+
+This is exactly what happened on 2026-05-01 (T2.17/T2.18 incident — see
+AUDIT.md). The user lost ~30 minutes verifying a fix, only to see it
+overwritten by a cron-triggered auto-deploy. Don't repeat that.
+
+### The only correct deploy procedure
+
+For **code changes** (anything under `dashboard/`, `scrape_dk_odds.py`,
+`mlb_first_inning_predictor.py`, `tracker.py`, workflows, configs):
+
+```bash
+# 1. Make your change
+# 2. Commit it
+git add <files>
+git commit -m "..."
+
+# 3. Push to the production branch
+git push origin claude/mlb-inning-run-predictor-QyazL
+
+# That's it. Vercel auto-deploys from the push within ~60 seconds.
+# You can verify by polling the live URL for an expected marker:
+#    curl -sL https://dashboard-pink-seven-64.vercel.app/ | grep -q "<marker>"
+```
+
+**Do not run `vercel --prod` or `npx vercel --prod` directly for code
+changes.** It deploys local files, then a cron commit will overwrite it
+within the hour. If you absolutely must deploy via CLI (env var test,
+emergency rollback, etc.) — use `cd dashboard && npm run deploy`, which
+runs `scripts/safe-deploy.sh`. That script aborts if the working tree is
+dirty or the local branch is behind origin, preventing the failure mode.
+
+### Verifying a deploy is live
+
+Before reporting "deployed" to the user, confirm the live URL actually
+serves your change. Vercel deploy success ≠ alias actually pointing at
+your build (an interleaved cron push can move the alias). Cheap check:
+
+```bash
+# Look for a CSS class or string that only exists in your new code:
+curl -sL https://dashboard-pink-seven-64.vercel.app/ | grep -c "<my-marker>"
+# Should be > 0.  If it's 0, something raced you.
+```
+
+If a poll loop is needed (the build is in flight), use Bash with
+`run_in_background: true` and an `until` loop, not chained sleeps.
+
+## Data integrity rules
+
+The CSV ledger at `data/picks_2026.csv` is append-mostly. Specific rules:
+
+- **Atomic writes only** (`tracker._write_rows` does this via tempfile
+  + `os.replace`). Don't bypass it.
+- **Never delete rows.** Even `POSTPONED` rows stay; they just get
+  re-graded if the game resumes. See `tracker.grade_picks` (T1.5).
+- **Locked picks freeze.** `_pick_is_locked` has 3 defensive locks
+  (graded terminal / >24h past / `created_at` >12h stale). Don't soften
+  these without understanding T2.2 + T2.12.
+- **Pick changes are journaled.** Every flip writes to `pick_changes.csv`.
+  90-day rolling retention (T3.5). Never truncate this file manually.
+
+## Money rules
+
+- **Flat 1u plays only.** User explicitly rejected Kelly / fractional /
+  bankroll-aware sizing (T4.25-27 skipped per user preference). Don't
+  introduce per-bet sizing variation without checking with the user.
+- **Min edge threshold is 2%.** Hardcoded in the import flow. If the
+  scraper imports odds and `edge_on_pick < 0.02`, `bet_placed=N`. Don't
+  change this threshold without a backtest.
+- **`profit_loss_units` only fills for `bet_placed=Y`** (real bets at
+  real prices). The dashboard's TOTAL P&L falls back to flat -110 for
+  rows without imported odds — see `dashboard/lib/roi.ts:248-260`. The
+  TOTAL is the right number to point at when judging the model.
+- **Never fabricate odds.** If the scraper missed a game, the row stays
+  un-priced. Don't synthesize "what DK probably had" — leads to
+  fabricated CLV.
+
+## Test methodology rules
+
+- **Out-of-sample validation is non-negotiable** for any model change.
+  Run `test_*.py`-style 3-split (2024→2025, 2025→2024, 2024+2025→2026).
+  Reject any feature that helps in only one direction. See
+  `nrfi_model_architecture.md` in user memory for the full retraining
+  procedure.
+- **Holdout leakage guard** (T4.7): `two_stage_model.py` refuses to
+  train if `--test` file is also in `--train` list. Don't bypass this.
+- **Don't add 2022/2023 backtest data** to training — pre-pitch-clock
+  distribution shift makes those seasons hurt the model. Documented in
+  `nrfi_model_architecture.md`.
+
+## Documentation rules
+
+- **CHANGELOG.md** at repo root — dated log of shipped changes. Add a
+  section every time you ship something user-visible. Keep the
+  performance snapshot current.
+- **AUDIT.md** at repo root — running checkbox list of audit items.
+  Mark items with `✅ <date>` when complete. Don't recycle audit IDs.
+- **docs/KB.md** — single-page system overview. Update when major
+  architecture changes ship.
+- **User memory** (`~/.claude/projects/.../memory/*.md`) — model
+  internals, dashboard architecture, feature backlog. **Verify against
+  current code before quoting** — system reminders flag these as
+  potentially stale (point-in-time observations).
+
+## Working with the user
+
+- The user runs production from this branch. **Don't break working
+  state.** When in doubt, do less.
+- The user prefers **flat 1u plays, no Kelly sizing** (asked + answered).
+- The user prefers the **warm-brown / peach palette**, NOT terminal
+  green/red. Use existing CSS variables (`--primary`, `--secondary`,
+  `--destructive`).
+- The user **does not want odds fabricated** for unmatched games.
+- The user gets frustrated when picks appear to disappear (incident
+  history: 4/30 grade reset, 5/01 odds-chip-hidden, 5/01 deploy-overwrite).
+  Default to verifying data integrity AND deployed state when they
+  report something missing.

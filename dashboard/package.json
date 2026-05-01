@@ -7,7 +7,8 @@
     "prebuild": "node scripts/copy-data.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "bash scripts/safe-deploy.sh"
   },
   "dependencies": {
     "next": "14.2.18",

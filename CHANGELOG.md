@@ -106,6 +106,68 @@ entry below.
   bar+number content; meter narrowed 112→96px min; pickCell wraps to 2 lines
   for the rare LINEUP PENDING + tentative + odds combo.
 
+### Fixed — Deploy-overwrite race (T2.19)
+
+A real production incident, captured here so it never happens again.
+
+The Vercel project auto-deploys on every push to
+`claude/mlb-inning-run-predictor-QyazL`. The cron pushes ~12 commits/day
+(`auto: predict <date>`). When an agent or developer runs
+`vercel --prod` with **uncommitted local code changes**, the manual deploy
+ships local files — but within ~60 minutes the next cron push triggers
+a NEW auto-deploy that builds from the remote branch source (without the
+uncommitted changes), and that auto-deploy silently overwrites the alias.
+
+Today this happened to the T2.17 and T2.18 fixes back-to-back. The
+sequence was: T2.17 deploy → cron push → auto-deploy reverted T2.17 →
+T2.18 deploy → cron push → auto-deploy reverted T2.18. The user saw
+"odds disappeared" on two computers and asked "why does this shit keep
+happening." It kept happening because the failure mode was structural,
+not bad luck.
+
+**Three-layer prevention now in place**:
+
+1. **`CLAUDE.md`** at the repo root — agent rules document with the
+   deploy procedure spelled out. Auto-loaded by future Claude sessions
+   so the rule travels with the codebase.
+2. **`dashboard/scripts/safe-deploy.sh`** — guarded wrapper around
+   `vercel --prod`. Aborts if (a) working tree is dirty, (b) current
+   branch isn't the production branch, or (c) local HEAD differs from
+   `origin/<branch>`. Verified end-to-end: it correctly refused to run
+   while there were uncommitted CLAUDE.md / scripts/safe-deploy.sh /
+   package.json changes.
+3. **`npm run deploy`** — the only sanctioned CLI deploy path; wired
+   to the guard above. Anyone (human or agent) who tries the old
+   `npx vercel --prod` directly still works, but `npm run deploy` is
+   the documented path that's been load-bearing tested.
+
+**The canonical deploy is still `git push`.** Vercel auto-deploys from
+the push, the alias points at that commit's build by design, and a
+later cron push can't race because it'd be a newer commit deploying its
+own code (which already includes the previous push's code). The guard
+script is for the rare cases where you genuinely need a CLI deploy
+(env-var test, emergency rollback) — it makes those cases safe by
+forcing a state where the cron can't overwrite you.
+
+### Fixed — Odds layout: own column + tone-coded by pick side (T2.18)
+
+After T2.17 made the chip visible on PASS rows by inlining it into the
+PICK cell, the user pointed out three real UX issues: (1) odds should
+have their own column for proper scanning, (2) tone should match the
+pick side (NRFI brown vs YRFI red, muted for pending), and (3) it
+wasn't clear which price was NRFI vs YRFI. Shipped:
+
+- New `Odds` column header between PICK and EDGE; grid expanded from
+  10 to 11 columns (header + body + mobile breakpoints all updated).
+- Three new tone classes: `.oddsNrfi` (warm-brown), `.oddsYrfi` (red),
+  `.oddsPending` (desaturated muted). Skipped-bet rows additionally
+  get `.oddsSkipped` (dashed border) so we can see "we picked this side
+  but didn't bet" without losing the side color.
+- `N` and `Y` letter labels prefix each price (small ticker style,
+  9.5px/0.10em, 0.72 opacity) so the chip reads `DK  N -135` for NRFI
+  picks, `DK  Y +120` for YRFI picks, and `DK  N -130 · Y +100` for
+  PASS rows showing both sides.
+
 ### Fixed — Odds visibility on PASS rows
 
 - **T2.17** `OddsChip` was returning `null` for every row where

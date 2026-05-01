@@ -206,14 +206,34 @@ full list of tested-and-rejected features (don't redo that work).
 
 ### Modifying the dashboard
 
+**The canonical deploy is `git push`.** Vercel auto-deploys from any push
+to `claude/mlb-inning-run-predictor-QyazL`. Workflow:
+
 ```
 cd dashboard
 npm install                   # one-time
 npm run dev                   # local at http://localhost:3000
 # make changes…
 npm run build                 # verify build passes
-npx vercel --prod             # deploy
+cd ..
+git add <files>
+git commit -m "..."
+git push origin claude/mlb-inning-run-predictor-QyazL
+# Auto-deploy lands within ~60s. Verify with:
+#   curl -sL https://dashboard-pink-seven-64.vercel.app/ | grep -c "<your-marker>"
 ```
+
+**DO NOT run `vercel --prod` or `npx vercel --prod` directly** for code
+changes — this caused real incidents on 2026-05-01 (see CLAUDE.md and
+T2.19 in AUDIT.md). The cron pushes ~12 `auto: predict` commits/day,
+and each one triggers an auto-deploy from the remote branch source. A
+manual CLI deploy with uncommitted local changes will be silently
+overwritten by the next cron push's auto-deploy.
+
+If you genuinely need a CLI deploy (env-var test, emergency rollback,
+non-code change), use `cd dashboard && npm run deploy` — it runs
+`scripts/safe-deploy.sh` which aborts if the working tree is dirty or
+the local branch isn't pushed.
 
 The prebuild data-copy quirk is documented in `nrfi_dashboard.md`. If you
 touch `next.config.mjs`, `package.json` scripts, or `lib/board.dataDir()`,
