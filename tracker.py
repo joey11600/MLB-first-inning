@@ -528,6 +528,28 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "bet_placed", "units_risked", "profit_loss_units",
             ]
 
+            # T2.25 -- Bet-time pick lock.  Once a bet has been placed
+            # (bet_placed=Y), the pick_side / pick_strength / probabilities
+            # / lambdas should freeze at the moment-of-bet snapshot.
+            # Without this, a post-bet weather refresh, lineup tweak, or
+            # any other input shift could flip pick_side from STRONG YRFI
+            # to PASS, leaving the row with `bet_placed=Y` but
+            # `pick_side=PASS` -- an incoherent state.  Confirmed via
+            # 2026-05-01 ATL@COL: bet placed at STRONG YRFI -150 with
+            # P(YRFI)=0.587, then a fresh weather fetch (wind 11.9 km/h
+            # -> 5.6 km/h at Coors Field) shifted P(YRFI) to 0.551 and
+            # demoted the pick to PASS-NO-EDGE -- but the user was
+            # already in the bet at the original STRONG.
+            if (existing.get("bet_placed") or "").strip().upper() == "Y":
+                preserve += [
+                    "pick_side", "pick_strength", "pick_label",
+                    "nrfi_prob", "yrfi_prob",
+                    "lambda_lr_t1", "lambda_lr_b1", "lambda_lr_total",
+                    "combined_lambda",
+                    "over_1_5_prob", "under_1_5_prob",
+                    "blended_inputs",
+                ]
+
             # Detect pick change BEFORE we apply the lock-preserve logic.
             # We only care about pre-lockout flips (game not yet started)
             # since locked rows preserve the pick by design.

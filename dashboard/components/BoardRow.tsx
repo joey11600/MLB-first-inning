@@ -15,8 +15,42 @@ function pickLabelText(side: PickSide, strength: PickStrength): string {
   if (strength === "STARTER PENDING") return "STARTER PENDING";
   if (strength === "LINEUP PENDING")  return "LINEUP PENDING";
   if (strength === "LOW LAMBDA")      return "PASS · LOW λ";
-  if (side === "PASS") return strength === "NO DATA" ? "NO DATA" : "PASS";
+  // T2.25: NO DATA shows as plain PASS on the chip; the reason
+  // (rookie debut / insufficient stats) lives in the tooltip + the
+  // expanded GameDetails panel so the chip stays clean while the
+  // user can drill in for the why.
+  if (side === "PASS") return "PASS";
   return `${strength} ${side}`;
+}
+
+/** Human-readable explanation for NO DATA picks: which pitcher's stats
+ *  are unavailable + the most likely cause (rookie debut / call-up).
+ *  Shown in the pickPill tooltip and surfaced again in GameDetails. */
+function noDataReason(detail: GameDetail | undefined): string {
+  if (!detail) return "Insufficient data — model declined to predict.";
+  const issues: string[] = [];
+  if (detail.away.pitcher.quality === "avg") {
+    const name = detail.away.pitcher.name && detail.away.pitcher.name !== "TBD"
+      ? `${detail.away.pitcher.name} (${detail.away.team})`
+      : `${detail.away.team}'s starter`;
+    issues.push(`${name} has insufficient MLB stats — likely a rookie debut, recent call-up, or limited sample`);
+  }
+  if (detail.home.pitcher.quality === "avg") {
+    const name = detail.home.pitcher.name && detail.home.pitcher.name !== "TBD"
+      ? `${detail.home.pitcher.name} (${detail.home.team})`
+      : `${detail.home.team}'s starter`;
+    issues.push(`${name} has insufficient MLB stats — likely a rookie debut, recent call-up, or limited sample`);
+  }
+  if (detail.away.offense.quality === "avg") {
+    issues.push(`${detail.away.team} team batting data unavailable`);
+  }
+  if (detail.home.offense.quality === "avg") {
+    issues.push(`${detail.home.team} team batting data unavailable`);
+  }
+  if (issues.length === 0) {
+    return "Insufficient data — model declined to predict.";
+  }
+  return "PASS — no real prediction made because:\n• " + issues.join("\n• ");
 }
 
 /** Mirror of mlb_first_inning_predictor.classify_pick_lr -- computes the
@@ -183,7 +217,9 @@ export function BoardRowItem({
             title={
               row.pickStrength === "LOW LAMBDA"
                 ? `Demoted from STRONG/LEAN YRFI: combined λ ${row.lambda.toFixed(2)} below the 0.78 floor (model expects too few total runs to bet YRFI confidently). Tested in backtest: floor adds ~+1.36u/season.`
-                : undefined
+                : row.pickStrength === "NO DATA"
+                  ? noDataReason(detail)
+                  : undefined
             }
           >
             <span className={styles.pickDot} aria-hidden />
