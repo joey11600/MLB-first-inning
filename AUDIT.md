@@ -63,8 +63,10 @@ These can corrupt picks, lose data, or silently mis-grade.
 - [x] **T2.13** ✅ 2026-05-01 — `log_picks` now warns on duplicate `(date, game_pk)` keys when building the index. Silent overwrite of DH-1 by DH-2 (rare but possible if MLB returns same pk) is now logged loudly.
 - [x] **T2.14** ✅ 2026-05-01 — `pass_label_refresh` now requires existing_grade not in (WIN/LOSS/PASS) AND existing_bet != "Y". Belt-and-suspenders against any future code path that accidentally lets bet_placed=Y on a PASS row.
 - [x] **T2.15** ✅ 2026-05-01 — `app/page.tsx` validates `?date=` against strict `YYYY-MM-DD` regex + calendar validity before passing to `loadBoard`. Invalid params fall through to null (latest available date) instead of being silently coerced to today.
+- [x] **T2.16** ✅ 2026-05-01 — `scrape_dk_odds.py` hourly file overwrite. Each cron run was clobbering `data/odds/dk_<DATE>.csv` with whatever DK markets were currently OPEN, so a 5pm run that captured 1 game would erase the 8 captured at 9am. `picks_2026.csv` survived via UPSERT in the importer, but the daily file became a useless audit trail and any re-import would only see the residue of the last hourly run. Now: read existing → merge with fresh fetch (fresher snapshot wins per-game) → write merged. Also added 3-attempt exponential backoff on the DK API call and a smarter empty-fetch path: if 0 markets returned but the file already has rows from earlier today, exit 0 (success) instead of triggering the "stale category IDs" alarm. Tier 2 because the data loss was real even if `picks_2026.csv` didn't expose it directly — a future re-import flow would have noticed.
+- [x] **T2.17** ✅ 2026-05-01 — `OddsChip` was hardcoded to render `null` whenever `pickSide === "PASS"`, which silently hid every captured DK price on PASS rows.  Today (5/01) all 15 games are PASS (LINEUP PENDING / STARTER PENDING / NO EDGE) because the model is waiting on lineups, so the dashboard showed zero odds chips even though 15/15 markets were imported correctly.  Now: PASS rows render a both-sides neutral chip (`DK -130 · +100`) so the user can confirm market coverage at a glance.  NRFI/YRFI rows keep the existing single-side chip with bet/skip styling.  No behavior change to the underlying odds capture or import flow.
 
-**Tier 2 status: 15/15 complete.**
+**Tier 2 status: 17/17 complete.**
 
 ---
 

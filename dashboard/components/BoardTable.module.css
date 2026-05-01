@@ -4,19 +4,23 @@
 
 .headRow {
   display: grid;
+  /* Mirrors .clickable in BoardRow.module.css.  When changing widths here,
+     update the body grid in lock-step or the column rhythm desyncs.
+     Odds gets its own column (T2.18) -- previously crammed inside PICK. */
   grid-template-columns:
-    82px
-    minmax(150px, 0.85fr)
-    78px
-    58px
-    minmax(220px, 1.25fr)
-    62px                  /* edge */
-    minmax(112px, 0.6fr)
-    60px
-    60px
-    52px;
+    78px                  /* time */
+    minmax(120px, 0.5fr)  /* matchup */
+    68px                  /* result */
+    54px                  /* P(YRFI) */
+    minmax(250px, 1.0fr)  /* pick pill + tentative chip */
+    minmax(150px, 0.5fr)  /* odds chip (DK N -130 · Y +100) */
+    56px                  /* edge % */
+    minmax(92px, 0.35fr)  /* lambda meter */
+    72px                  /* NRFI % */
+    72px                  /* YRFI % */
+    56px;                 /* caret affordance */
   align-items: center;
-  padding: 10px 22px 8px;
+  padding: 10px 24px 8px;
   font-family: var(--font-sans);
   font-size: 11px;
   line-height: 1rem;

@@ -115,6 +115,7 @@ export function BoardTable({
         </button>
         <div className={styles.right}>P(YRFI)</div>
         <div>Pick</div>
+        <div>Odds</div>
         <button
           type="button"
           onClick={toggleEdgeSort}

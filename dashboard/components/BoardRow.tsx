@@ -98,12 +98,17 @@ function lambdaTooltip(row: BoardRow): string {
   return `Combined λ ${lam} (expected total 1st-inning runs)\nP(YRFI) ${yrfi}%${note}`;
 }
 
+// Normalize a single American-odds string: ensure a leading +/-.  Empty
+// input -> empty output (caller decides what to render).
+function normalizeAmericanOdds(raw: string): string {
+  const s = (raw || "").trim();
+  if (!s) return "";
+  return /^[+\-]/.test(s) ? s : (Number.parseFloat(s) > 0 ? `+${s}` : s);
+}
+
 // Pick the right odds (NRFI vs YRFI) for the picked side, normalize sign.
 function oddsForPick(side: PickSide, nrfi: string, yrfi: string): string {
-  const raw = (side === "NRFI" ? nrfi : side === "YRFI" ? yrfi : "").trim();
-  if (!raw) return "";
-  // Already has +/- prefix?  Otherwise prepend +.
-  return /^[+\-]/.test(raw) ? raw : (Number.parseFloat(raw) > 0 ? `+${raw}` : raw);
+  return normalizeAmericanOdds(side === "NRFI" ? nrfi : side === "YRFI" ? yrfi : "");
 }
 
 export function BoardRowItem({
@@ -187,6 +192,9 @@ export function BoardRowItem({
             </span>
           </span>
           <TentativeChip row={row} detail={detail} thresholds={thresholds} />
+        </span>
+
+        <span className={styles.oddsCell}>
           <OddsChip row={row} detail={detail} />
         </span>
 
@@ -314,29 +322,88 @@ function TentativeChip({
 }
 
 
-/** Live-odds chip: sportsbook + price for the picked side.  Edge is shown
- *  in its own dedicated column to the right (see EdgeCell).  Hidden when
- *  no odds yet; PASS picks always render nothing. */
+/** Live-odds chip: sportsbook + price, in its own grid column (T2.18).
+ *
+ *  Tone class is driven by `row.pickSide`:
+ *   • NRFI pick → `.oddsNrfi` (warm-brown, matches NRFI row tinting)
+ *   • YRFI pick → `.oddsYrfi` (red, matches YRFI row tinting)
+ *   • PASS pick → `.oddsPending` (desaturated muted)
+ *
+ *  Bet decision is layered separately via `.oddsSkipped` (dashed border)
+ *  when bet_placed === "N" on an actionable pick — preserves "we picked
+ *  this side but the edge wasn't enough" without losing the side color.
+ *
+ *  Side labels (`N` / `Y`) prefix each price so the user can see at a
+ *  glance which way the line is.  PASS rows render BOTH sides
+ *  (`DK  N -130 · Y +100`); NRFI/YRFI rows render just the picked
+ *  side (`DK  N -135`). */
 function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefined }) {
   if (!detail) return null;
-  if (row.pickSide === "PASS") return null;
-  const price = oddsForPick(row.pickSide, detail.marketNrfiOdds, detail.marketYrfiOdds);
-  if (!price) return null;
 
-  const bet  = detail.betPlaced;
-  const cls  = bet === "Y" ? styles.oddsBet : bet === "N" ? styles.oddsSkip : "";
+  const nrfiPrice = normalizeAmericanOdds(detail.marketNrfiOdds);
+  const yrfiPrice = normalizeAmericanOdds(detail.marketYrfiOdds);
+  if (!nrfiPrice && !yrfiPrice) return null;
+
   const book = shortBook(detail.sportsbook);
-  const edgePct = detail.edgeOnPick != null ? detail.edgeOnPick * 100 : null;
-  const edgeStr = edgePct == null ? "" : (edgePct >= 0 ? `+${edgePct.toFixed(1)}%` : `${edgePct.toFixed(1)}%`);
-  // T3.14: surface odds-capture freshness in the tooltip so the user
-  // can tell stale odds (e.g. imported pre-game last night) from
-  // current ones.  "Captured 47 min ago" vs "Captured 14 h ago".
   const ageStr = relAge(detail.oddsCapturedAt);
   const ageSuffix = ageStr ? `\nCaptured ${ageStr}` : "";
+  const bet = detail.betPlaced;
+
+  // Tone class from pickSide.  Note: pending strengths (LINEUP PENDING /
+  // STARTER PENDING) get pickSide="PASS" from the predictor while we wait
+  // on data, so they correctly fall into the .oddsPending bucket.
+  const toneClass =
+    row.pickSide === "NRFI" ? styles.oddsNrfi
+    : row.pickSide === "YRFI" ? styles.oddsYrfi
+    : styles.oddsPending;
+
+  // Skipped-bet overlay: only meaningful for actionable NRFI/YRFI picks
+  // (PASS rows aren't bets so the dashed border would just be visual noise).
+  const skipClass =
+    bet === "N" && row.pickSide !== "PASS" ? styles.oddsSkipped : "";
+
+  // PASS branch: both sides as informational market data.
+  if (row.pickSide === "PASS") {
+    return (
+      <span
+        className={`${styles.oddsChip} ${toneClass}`}
+        title={
+          `Market on ${detail.sportsbook || "DK"}: `
+          + (nrfiPrice ? `NRFI ${nrfiPrice}` : "NRFI —")
+          + " · "
+          + (yrfiPrice ? `YRFI ${yrfiPrice}` : "YRFI —")
+          + "\nModel declined or pending; no bet."
+          + ageSuffix
+        }
+      >
+        {book && <span className={styles.oddsBook}>{book}</span>}
+        {nrfiPrice && (
+          <span className={styles.oddsPair}>
+            <span className={styles.oddsSideLabel}>N</span>
+            <span className={styles.oddsPrice}>{nrfiPrice}</span>
+          </span>
+        )}
+        {nrfiPrice && yrfiPrice && <span className={styles.oddsSep}>·</span>}
+        {yrfiPrice && (
+          <span className={styles.oddsPair}>
+            <span className={styles.oddsSideLabel}>Y</span>
+            <span className={styles.oddsPrice}>{yrfiPrice}</span>
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  // NRFI / YRFI active pick — single side, tone-colored.
+  const price = row.pickSide === "NRFI" ? nrfiPrice : yrfiPrice;
+  if (!price) return null;
+  const sideLabel = row.pickSide === "NRFI" ? "N" : "Y";
+  const edgePct = detail.edgeOnPick != null ? detail.edgeOnPick * 100 : null;
+  const edgeStr = edgePct == null ? "" : (edgePct >= 0 ? `+${edgePct.toFixed(1)}%` : `${edgePct.toFixed(1)}%`);
 
   return (
     <span
-      className={`${styles.oddsChip} ${cls}`}
+      className={`${styles.oddsChip} ${toneClass} ${skipClass}`}
       title={
         (bet === "Y"
           ? `Bet placed: ${row.pickSide} @ ${price} (edge ${edgeStr})`
@@ -347,7 +414,10 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
       }
     >
       {book && <span className={styles.oddsBook}>{book}</span>}
-      <span className={styles.oddsPrice}>{price}</span>
+      <span className={styles.oddsPair}>
+        <span className={styles.oddsSideLabel}>{sideLabel}</span>
+        <span className={styles.oddsPrice}>{price}</span>
+      </span>
     </span>
   );
 }

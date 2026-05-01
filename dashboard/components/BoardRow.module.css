@@ -56,20 +56,33 @@
 .clickable {
   display: grid;
   width: 100%;
+  /* 11-col rhythm.  Sync with .headRow in BoardTable.module.css.
+     T2.18 split odds out of pick into its own column so it (a) reads as
+     "market data" not "part of the recommendation" and (b) gives the
+     chip room for both-sides display (DK N -130 · Y +100) on PASS rows.
+     Width budget at the smallest desktop viewport (1281px):
+       fixed:   78+68+54+56+72+72+56             = 456
+       minima:  120 + 250 + 150 + 92             = 612
+       gaps:    10 × 12                          = 120
+       padding: 24 + 24                          = 48
+       ------                                    1236px min
+     Leaves ~45px of fr slack at 1281, ~205px at 1440.  Pick cell still
+     gets the lion's share for the LINEUP PENDING + tentative-chip combo. */
   grid-template-columns:
-    82px                   /* game time */
-    minmax(150px, 0.85fr)  /* matchup */
-    78px                   /* result */
-    58px                   /* P(YRFI) */
-    minmax(220px, 1.25fr)  /* pick pill + odds chip */
-    62px                   /* edge % (NEW) */
-    minmax(112px, 0.6fr)   /* meter */
-    60px                   /* NRFI % */
-    60px                   /* YRFI % */
-    52px;                  /* caret + Details label */
+    78px                   /* game time */
+    minmax(120px, 0.5fr)   /* matchup */
+    68px                   /* result */
+    54px                   /* P(YRFI) */
+    minmax(250px, 1.0fr)   /* pick pill + tentative chip */
+    minmax(150px, 0.5fr)   /* odds chip */
+    56px                   /* edge % */
+    minmax(92px, 0.35fr)   /* lambda meter */
+    72px                   /* NRFI % */
+    72px                   /* YRFI % */
+    56px;                  /* caret affordance */
   align-items: center;
   gap: 12px;
-  padding: 18px 22px;
+  padding: 18px 24px;
   text-align: left;
   color: var(--foreground);
   position: relative;
@@ -314,15 +327,20 @@
 
 /* Pick pill + odds chip live side-by-side in the same grid cell.
    The pill is the primary signal; the odds chip is supporting data.
-   gap: 10px gives them visual separation without a literal divider. */
+   column-gap: 10px gives them visual separation without a literal divider.
+
+   flex-wrap: wrap lets the odds chip drop to a 2nd line in the rare
+   case when the cell is also hosting a TentativeChip (LINEUP PENDING
+   state, model leaning a side).  In the common 2-element case
+   (pill + odds), the cell's 252px minimum comfortably holds both on
+   one line so wrap is inert.  row-gap keeps the wrapped state tight. */
 .pickCell {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  column-gap: 10px;
+  row-gap: 6px;
   min-width: 0;
-  /* Allow the chip to overflow gracefully if the cell is briefly tight
-     during a window resize -- prevents jarring text clipping. */
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 .pickPill {
   display: inline-flex;
@@ -333,6 +351,10 @@
   border: 1px solid var(--border);
   background: var(--muted);
   white-space: nowrap;
+  /* Pill is the primary signal — never let flex compress it.  Without
+     flex-shrink: 0 the label can be clipped on narrow desktop windows
+     when the odds chip + tentative chip are both present. */
+  flex: 0 0 auto;
   transition: background 200ms ease, border-color 200ms ease;
 }
 .pickDot {
@@ -508,34 +530,77 @@
   font-size: 11px;
 }
 
-/* Bet=Y: positive edge above min_edge threshold.  Uses the warm-brown
-   --primary tone so the chip harmonizes with the rest of the warm
-   palette instead of crashing in with off-key surgical green.  A subtle
-   border + faint background tint signal "this is actionable". */
-.oddsBet {
-  background: color-mix(in oklab, var(--primary) 10%, var(--muted));
-  border-color: color-mix(in oklab, var(--primary) 32%, var(--border));
+/* T2.18 — Pick-side tone-coded chip.  The base .oddsChip rendering is
+   neutral; one of these three classes is layered on top based on the
+   row's pickSide so the chip color reinforces "are we leaning NRFI or
+   YRFI on this game".  Bet decision (placed vs skipped) is conveyed
+   separately via the optional .oddsSkipped dashed-border modifier. */
+
+/* Active NRFI pick — warm-brown (matches .nrfiStrong row tinting). */
+.oddsNrfi {
+  background: color-mix(in oklab, var(--primary) 12%, var(--muted));
+  border-color: color-mix(in oklab, var(--primary) 38%, var(--border));
 }
-.oddsBet .oddsEdge {
-  color: var(--primary);
+.oddsNrfi .oddsPrice { color: var(--primary); }
+.oddsNrfi .oddsBook  { color: color-mix(in oklab, var(--primary) 70%, var(--muted-foreground)); }
+
+/* Active YRFI pick — destructive red (matches .yrfiStrong row tinting). */
+.oddsYrfi {
+  background: color-mix(in oklab, var(--destructive) 12%, var(--muted));
+  border-color: color-mix(in oklab, var(--destructive) 38%, var(--border));
 }
-.oddsBet .oddsBook {
-  color: color-mix(in oklab, var(--primary) 70%, var(--muted-foreground));
-  opacity: 0.85;
+.oddsYrfi .oddsPrice { color: var(--destructive); }
+.oddsYrfi .oddsBook  { color: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground)); }
+
+/* PASS / pending — desaturated muted chip.  We have the market data,
+   we just declined or are still waiting, so the chip recedes. */
+.oddsPending {
+  background: color-mix(in oklab, var(--muted) 50%, transparent);
+  border-color: color-mix(in oklab, var(--border) 100%, transparent);
+  opacity: 0.78;
+}
+.oddsPending .oddsPrice { color: var(--muted-foreground); }
+.oddsPending .oddsBook  { color: color-mix(in oklab, var(--muted-foreground) 80%, transparent); }
+
+/* Skipped (bet_placed=N) — overlay a dashed border on the tone-colored
+   chip so the user can still tell it's NRFI/YRFI tinted but didn't
+   clear the edge threshold.  Slightly desaturated. */
+.oddsSkipped {
+  border-style: dashed;
+  opacity: 0.82;
 }
 
-/* Bet=N: below threshold (or negative edge); we skipped the bet.  Same
-   neutral chip but desaturated so the eye glides past it on scan. */
-.oddsSkip {
-  background: color-mix(in oklab, var(--muted) 60%, transparent);
-  border-style: dashed;
-  border-color: color-mix(in oklab, var(--border) 100%, transparent);
+/* Side label "N" / "Y" prefix to a price token.  Tiny ticker-style
+   monogram in the same hue as the chip body so it reads as scaffolding,
+   not a separate element. */
+.oddsSideLabel {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 9.5px;
+  letter-spacing: 0.10em;
+  margin-right: 3px;
+  opacity: 0.72;
 }
-.oddsSkip .oddsEdge {
-  color: var(--muted-foreground);
+.oddsNrfi    .oddsSideLabel { color: var(--primary); }
+.oddsYrfi    .oddsSideLabel { color: var(--destructive); }
+.oddsPending .oddsSideLabel { color: var(--muted-foreground); }
+
+/* The two side+price pairs in a PASS chip should sit as a single visual
+   group each, separated only by the dot in .oddsSep.  Wrap in this
+   helper span so they don't hyphenate at small widths. */
+.oddsPair {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
 }
-.oddsSkip .oddsPrice {
-  color: color-mix(in oklab, var(--foreground) 60%, var(--muted-foreground));
+
+/* Dedicated odds cell.  The chip itself sets its own width via flex
+   layout; this wrapper just gives the column a hook for layout debug
+   and lets us right-align if we ever want to. */
+.oddsCell {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .yrfiLean .pickPill {
@@ -688,6 +753,7 @@
     grid-template-areas:
       "rank matchup result lambda caret"
       ".    pick    pick   pick   pick"
+      ".    odds    odds   odds   odds"
       ".    meter   meter  meter  meter";
     padding: 16px 18px 18px;
     row-gap: 12px;
@@ -707,6 +773,7 @@
     justify-self: end;
   }
   .pickCell { grid-area: pick; flex-wrap: wrap; row-gap: 6px; }
+  .oddsCell { grid-area: odds; }
   .edgeCell { display: none; }   /* edge re-folds into the OddsChip on mobile */
   .pct { display: none; }
   .meterCell { grid-area: meter; }
@@ -726,6 +793,7 @@
       "matchup matchup"
       "result  lambda"
       "pick    pick"
+      "odds    odds"
       "meter   meter";
     padding: 14px 14px 16px;
     row-gap: 10px;

@@ -89,12 +89,99 @@ def parse_american_odds(s: str) -> str:
     return s.replace("−", "-").strip()
 
 
-def fetch_dk_first_inning_runs() -> dict:
-    """Hit the DK API for the entire MLB slate's 1st-inning-runs market."""
+def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
+    """Hit the DK API for the entire MLB slate's 1st-inning-runs market.
+
+    Retries on transient errors (timeout, connection reset, 5xx) with
+    exponential backoff.  We can't recover from a stale category-ID
+    problem -- that returns a successful 200 with empty events -- but
+    we CAN recover from network blips, which were the silent cause of
+    most missed-coverage hours during the 04-29/04-30 partial captures.
+    """
+    import time
     url = f"{DK_BASE}/leagues/{MLB_LEAGUE_ID}/categories/{INNING_1_CAT}"
-    req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        return json.loads(resp.read())
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, headers=HEADERS)
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                return json.loads(resp.read())
+        except Exception as exc:  # noqa: BLE001 -- want to retry on anything network-y
+            last_exc = exc
+            if attempt < retries - 1:
+                wait = backoff ** attempt
+                print(f"  DK fetch attempt {attempt+1}/{retries} failed ({exc!r}); "
+                      f"retrying in {wait:.1f}s...", file=sys.stderr)
+                time.sleep(wait)
+    raise last_exc if last_exc else RuntimeError("DK fetch failed (no exception captured)")
+
+
+# ---------------------------------------------------------------------------
+# Merge logic: preserve odds captured in earlier hourly runs
+# ---------------------------------------------------------------------------
+#
+# The cron fires every hour 12-23 UTC.  Each hour, DK only returns games
+# whose markets are currently OPEN -- games already in progress have their
+# market removed.  Without merging, the noon run captures the morning slate
+# (8 games), then the 5pm run captures only the late slate (1 game) and
+# OVERWRITES the file -- losing the 8 morning games from the daily file.
+#
+# `picks_2026.csv` doesn't lose them (the importer's UPSERT preserves earlier
+# updates), but the per-day odds file ends up lossy and useless as an audit
+# trail.  Worse: any tooling that re-imports from the file later would only
+# see the residue of the last run.
+#
+# Merge semantics:
+#   - existing rows (from previous hourly runs today) start as the baseline
+#   - new fetch overrides existing rows for the SAME (date, away, home)
+#     combination -- fresher snapshot wins, so we converge on the closing
+#     line as the day progresses
+#   - new games not previously seen are added
+#   - existing games not in the new fetch are KEPT (locked / market pulled)
+
+
+def _row_key(r: dict) -> tuple[str, str, str]:
+    """Identity key for an odds row.  Date+abbrs uniquely IDs a game on
+    the slate (doubleheaders disambiguate via DK eventId, but for our
+    purposes both DH halves share the same NRFI/YRFI line so collapsing
+    them is fine -- the importer matches by date+abbrs anyway)."""
+    return (r.get("date", ""), r.get("away_team", ""), r.get("home_team", ""))
+
+
+def read_existing_csv(path: Path) -> list[dict]:
+    """Read prior hourly capture, if any.  Returns [] when the file
+    doesn't exist or has no rows.  Preserves whatever schema the file
+    already has (we only need date / teams / odds / sportsbook columns
+    for the merge)."""
+    if not path.exists():
+        return []
+    try:
+        with open(path, "r", encoding="utf-8", newline="") as f:
+            return list(csv.DictReader(f))
+    except Exception as exc:  # noqa: BLE001
+        # Don't let a corrupted file stop us from writing fresh data.
+        # Log and proceed with empty baseline.
+        print(f"  WARNING: existing odds file at {path} unreadable ({exc!r}); "
+              f"starting from empty baseline.", file=sys.stderr)
+        return []
+
+
+def merge_rows(existing: list[dict], fresh: list[dict]) -> list[dict]:
+    """Union existing + fresh, keyed by (date, away, home).  Fresh row
+    wins on conflict so we end up with the latest captured odds per game.
+    Empty-odds rows in `fresh` are skipped (treated as "didn't capture
+    this game this run") so we never overwrite real odds with blanks."""
+    by_key: dict[tuple[str, str, str], dict] = {_row_key(r): r for r in existing}
+    for r in fresh:
+        # Skip rows that have no actual odds -- they shouldn't ever be
+        # emitted by extract_odds() (the early `continue` filters them
+        # out), but defensive check in case the schema evolves.
+        if not (r.get("market_nrfi_odds") or r.get("market_yrfi_odds")):
+            continue
+        by_key[_row_key(r)] = r
+    # Sort by (date, away, home) so the file diff is human-readable
+    # across runs.
+    return sorted(by_key.values(), key=_row_key)
 
 
 def utc_iso_to_et_date(utc_iso: str) -> str:
@@ -212,8 +299,12 @@ def write_csv(rows: list[dict], path: Path) -> None:
     fields = ["date", "game_pk", "away_team", "home_team",
               "market_nrfi_odds", "market_yrfi_odds", "sportsbook"]
     path.parent.mkdir(parents=True, exist_ok=True)
+    # extrasaction="ignore" is defensive: if a future schema adds columns
+    # to extract_odds() but the existing file on disk still has the old
+    # shape, the merge can produce rows with extra keys.  Drop them
+    # rather than crash the run.
     with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
+        writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -234,30 +325,43 @@ def main() -> None:
     except Exception as exc:
         sys.exit(f"  Fetch failed: {exc}")
 
-    rows = extract_odds(data)
-    if not rows:
+    fresh_rows = extract_odds(data)
+
+    # Resolve output path BEFORE deciding what to do with an empty fetch --
+    # we need to know whether a prior run already populated the file today.
+    if args.output:
+        out_path = Path(args.output)
+    else:
+        et_today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        out_path = Path("data/odds") / f"dk_{et_today}.csv"
+
+    existing_rows = read_existing_csv(out_path)
+
+    if not fresh_rows:
         # Distinguish between:
         #   - Late-night / off-day: legitimate empty slate (no MLB games today)
         #   - Mid-day during games: all markets correctly locked (games started)
         #   - DK API IDs went stale: WE have a problem and don't know it
-        # The third case is silent and dangerous -- imports run with no odds,
-        # bet_placed never gets populated, the user thinks "no good bets
-        # today" when really our scraper is broken.
-        #
-        # Heuristic: if it's morning/afternoon ET (9am-5pm) and the MLB
-        # schedule has games today, 0 odds is almost certainly a scraper
-        # break.  Exit 2 (distinct from 0=success and 1=fetch failure) so
-        # the workflow can alert.
+        # Mitigation now: if this hour returns 0 BUT a prior hourly run today
+        # already populated the file, we still have data -- exit 0 (success)
+        # and leave the existing file alone.  The "stale IDs" alarm only
+        # fires when the file is ALSO empty (which means the IDs broke
+        # before the FIRST run of the day captured anything).
         from zoneinfo import ZoneInfo as _ZI
         et_now = datetime.now(_ZI("America/New_York"))
         is_prime_window = 9 <= et_now.hour < 17
-        likely_stale_ids = is_prime_window
-        if likely_stale_ids:
+        if existing_rows:
+            n = len(existing_rows)
+            print(f"  No new markets returned this run; preserving {n} games "
+                  f"from earlier today's captures at {out_path}.")
+            return
+        if is_prime_window:
             print(
                 "  WARNING: 0 NRFI/YRFI markets returned during prime hours "
-                f"({et_now.strftime('%I:%M %p ET')}).  DraftKings may have "
-                "changed the API category/subcategory IDs (currently "
-                f"{INNING_1_CAT}/{RUNS_1ST_SUB}).  Verify the IDs at "
+                f"({et_now.strftime('%I:%M %p ET')}) AND no prior captures "
+                f"in {out_path}.  DraftKings may have changed the API "
+                f"category/subcategory IDs (currently "
+                f"{INNING_1_CAT}/{RUNS_1ST_SUB}).  Verify at "
                 "https://sportsbook.draftkings.com/leagues/baseball/mlb "
                 "(Network tab -> 1st Inning section).",
                 file=sys.stderr,
@@ -266,21 +370,27 @@ def main() -> None:
         print("  No NRFI/YRFI markets found (slate may be empty or all locked).")
         return
 
-    # Default output path uses ET-local "today" so a 9am cron run lands
-    # on the right slate even if it crosses UTC midnight.
-    if args.output:
-        out_path = Path(args.output)
+    # Merge with anything captured in earlier hourly runs today so the file
+    # is a complete daily audit trail, not just the most recent snapshot.
+    merged_rows = merge_rows(existing_rows, fresh_rows)
+    new_count   = len(merged_rows) - len(existing_rows)  # may be negative if
+                                                          # earlier file had
+                                                          # different shape;
+                                                          # we just report it
+    write_csv(merged_rows, out_path)
+    if existing_rows:
+        print(f"  Fetched {len(fresh_rows)} games this run; merged with "
+              f"{len(existing_rows)} from earlier captures -> "
+              f"{len(merged_rows)} total in {out_path}"
+              + (f" (+{new_count} new game{'s' if new_count != 1 else ''})"
+                 if new_count > 0 else ""))
     else:
-        et_today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
-        out_path = Path("data/odds") / f"dk_{et_today}.csv"
-
-    write_csv(rows, out_path)
-    print(f"  Wrote {len(rows)} games -> {out_path}")
+        print(f"  Wrote {len(merged_rows)} games -> {out_path}")
 
     if args.print:
         print()
         print(f"  {'Date':10}  {'Matchup':12}  {'NRFI':>5}  {'YRFI':>5}")
-        for r in rows:
+        for r in merged_rows:
             print(f"  {r['date']}  {r['away_team']:>3} @ {r['home_team']:<3}    "
                   f"{r['market_nrfi_odds']:>5}  {r['market_yrfi_odds']:>5}")
 
