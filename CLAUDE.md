@@ -80,9 +80,10 @@ The CSV ledger at `data/picks_2026.csv` is append-mostly. Specific rules:
 - **Flat 1u plays only.** User explicitly rejected Kelly / fractional /
   bankroll-aware sizing (T4.25-27 skipped per user preference). Don't
   introduce per-bet sizing variation without checking with the user.
-- **Min edge threshold is 2%.** Hardcoded in the import flow. If the
-  scraper imports odds and `edge_on_pick < 0.02`, `bet_placed=N`. Don't
-  change this threshold without a backtest.
+- **Min edge threshold is 2% — applies to LEAN ONLY.** STRONG picks
+  auto-Y regardless of edge (T2.24). User's policy: "if the model
+  commits STRONG, we bet at whatever odds DK has." Don't add an edge
+  gate to STRONG without explicit user permission.
 - **`profit_loss_units` only fills for `bet_placed=Y`** (real bets at
   real prices). The dashboard's TOTAL P&L falls back to flat -110 for
   rows without imported odds — see `dashboard/lib/roi.ts:248-260`. The

@@ -106,6 +106,43 @@ entry below.
   bar+number content; meter narrowed 112→96px min; pickCell wraps to 2 lines
   for the rare LINEUP PENDING + tentative + odds combo.
 
+### Changed — Strong-auto-bet + accurate STARTER PENDING vs NO DATA labels (T2.24)
+
+User clarified two policy items:
+
+1. **"Place a bet on every strong play."** The 2% edge gate was filtering
+   out STRONG picks with marginal-edge odds (e.g., ATL@COL STRONG YRFI
+   at -150 with edge -1.3% → previously `bet_placed=N`). User's actual
+   policy: if the model commits STRONG, the bet goes in regardless of
+   the recorded edge. `tracker._apply_odds_to_row` now auto-Y on every
+   STRONG NRFI/YRFI pick. LEAN keeps the 2% gate (model less certain
+   on LEAN, want a margin-of-safety on price).
+
+   **Retroactive impact**: 3 historical STRONG picks flipped from
+   `bet_placed=N` to `Y`:
+   - 4/29 KC@OAK YRFI -135 (WIN, was 0u → now +0.741u)
+   - 4/30 KC@OAK YRFI -130 (WIN, was 0u → now +0.769u)
+   - 5/01 ATL@COL YRFI -150 (graded later tonight)
+
+   Net retroactive P&L correction: **+1.51u** to season-to-date.
+
+2. **"STARTER PENDING" was lying when starter was named.** HOU@BOS 5/01
+   showed `STARTER PENDING` despite Boston naming Jake Bennett (his
+   MLB debut, zero prior stats). The predictor's
+   `pitcher_q='avg'` guard fired the same label for two distinct
+   conditions:
+   - Truly TBD pitcher (no name announced yet)
+   - Named pitcher with insufficient MLB history (rookie debut)
+
+   `mlb_first_inning_predictor.py:2102-2125` now differentiates via
+   `_name_announced(name)`:
+   - Name unannounced ("TBD"/empty/etc.) → `STARTER PENDING` (existing)
+   - Name announced + quality `avg` → **`NO DATA`** (new path)
+
+   Both still PASS the game (we don't bet without real data) but the
+   label is truthful. HOU@BOS will now show `NO DATA` once the
+   predictor re-runs.
+
 ### Changed — Bet-time odds lock (T2.23)
 
 User feedback: "once we pull real odds for a pick, the odds should lock

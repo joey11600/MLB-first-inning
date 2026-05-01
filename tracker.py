@@ -1285,24 +1285,29 @@ def _apply_odds_to_row(
 
     row["edge_on_pick"] = _fmt(edge_pick, 4) if edge_pick is not None else ""
 
-    # Bet sizing: only bet if pick is NRFI/YRFI and edge meets threshold.
-    # units_risked is the WOULD-BE stake -- always populated for any
-    # NRFI/YRFI pick (regardless of bet_placed) so the audit trail can
-    # compute counterfactual P&L for skipped bets ("how would the
-    # min_edge=0.02 strategy have performed if we'd dropped the gate?").
-    # PASS picks have no would-be stake; units_risked stays blank.
+    # Bet sizing.  T2.24 -- STRONG picks auto-bet regardless of edge:
+    # user's stated policy is "if the model commits STRONG, we bet at
+    # whatever odds DK has".  LEAN keeps the 2% edge gate (model is less
+    # certain on LEAN, so we want a margin of safety on price).
+    #
+    # units_risked is always populated for NRFI/YRFI picks (per T2.3) so
+    # post-mortem analysis can compute counterfactual P&L for any row
+    # regardless of bet_placed.  PASS picks have no would-be stake.
     if pick in ("NRFI", "YRFI"):
         would_be_units = units_strong if strength == "STRONG" else (
             units_lean if strength == "LEAN" else 0.0
         )
-        if edge_pick is not None and edge_pick >= min_edge and would_be_units > 0:
+        if strength == "STRONG" and would_be_units > 0:
+            # Auto-bet on every STRONG play, no edge gate.
+            row["bet_placed"]   = "Y"
+            row["units_risked"] = _fmt(would_be_units, 2)
+        elif edge_pick is not None and edge_pick >= min_edge and would_be_units > 0:
+            # LEAN with edge above threshold -> bet.
             row["bet_placed"]   = "Y"
             row["units_risked"] = _fmt(would_be_units, 2)
         else:
+            # LEAN below edge threshold -> skip but record the would-be stake.
             row["bet_placed"]   = "N"
-            # Preserve the would-be stake so post-mortem analysis can
-            # distinguish "would have bet 1u but skipped due to edge"
-            # from "PASS pick, never a candidate".
             row["units_risked"] = _fmt(would_be_units, 2) if would_be_units > 0 else ""
     else:
         row["bet_placed"]   = "N"

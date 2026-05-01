@@ -2094,13 +2094,40 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 and (away_top3c_source != "lineup" or home_top3c_source != "lineup")):
             pick_side, pick_conf = "PASS", "LINEUP PENDING"
 
-        # Starter-pending guard: when either probable pitcher is league-average
-        # fallback (TBD or unannounced), there isn't enough information for a
-        # real bet recommendation -- force PASS regardless of what the model
-        # spits out.  Probability stays visible as informational only.
-        # Takes priority over LINEUP PENDING (more fundamental missing input).
+        # T2.24 -- Differentiate "starter not announced" from "starter
+        # announced but limited MLB stats" (rookie debut, recent call-up,
+        # mid-season trade with sparse history).  Both trigger
+        # pitcher_q='avg' (the model is using LEAGUE_AVG_* placeholders),
+        # but the user-facing label should accurately reflect the cause:
+        #
+        #   STARTER PENDING -- name is "TBD"/unannounced; MLB hasn't
+        #     published a probable pitcher yet.  Will resolve at game time.
+        #
+        #   NO DATA -- name IS announced (real player + ID) but their
+        #     MLB stats history is too thin for the model to draw a real
+        #     prediction from.  Will NOT resolve unless the pitcher
+        #     accumulates innings.  System will not bet either way.
+        #
+        # The previous code emitted STARTER PENDING for both cases, which
+        # mislead users into thinking the starter wasn't named when in
+        # fact it was a rookie debut.  Confirmed via 2026-05-01 HOU@BOS:
+        # Jake Bennett (id 687562, real player) was named as Boston's
+        # starter; statsapi returned 0 games across 2024/2025/2026.  Tonight
+        # is his MLB debut.  Old label: STARTER PENDING (wrong).  New
+        # label: NO DATA (truthful).
         if away_sp_q == "avg" or home_sp_q == "avg":
-            pick_side, pick_conf = "PASS", "STARTER PENDING"
+            def _name_announced(name: str) -> bool:
+                s = (name or "").strip().upper()
+                return bool(s) and s not in ("TBD", "TBA", "UNDECIDED", "UNKNOWN")
+            away_unannounced = away_sp_q == "avg" and not _name_announced(game.get("away_pitcher_name", ""))
+            home_unannounced = home_sp_q == "avg" and not _name_announced(game.get("home_pitcher_name", ""))
+            if away_unannounced or home_unannounced:
+                # At least one avg-quality pitcher has no name -> truly STARTER PENDING.
+                pick_side, pick_conf = "PASS", "STARTER PENDING"
+            else:
+                # All avg-quality pitchers have real names -> data is the issue.
+                # Both verdicts are PASS, but NO DATA is the truthful label.
+                pick_side, pick_conf = "PASS", "NO DATA"
 
         results.append({
             "game_pk":       game["game_pk"],
