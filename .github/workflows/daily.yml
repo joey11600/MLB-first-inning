@@ -49,6 +49,17 @@ on:
     - cron: "0 21 * * *"   # 5pm EDT / 4pm EST
     - cron: "0 22 * * *"   # 6pm EDT / 5pm EST
     - cron: "0 23 * * *"   # 7pm EDT / 6pm EST
+    # T2.26: extended evening coverage for late games.  Without these,
+    # 9pm-10pm ET first-pitch games' last data refresh was at 7pm ET --
+    # 2-3 hours of weather/lineup drift before lock-in.  Adding 8pm/
+    # 9pm/10pm ET crons brings the worst-case freshness to ~60-90 min
+    # pre-game for west-coast / late-evening starts.  Confirmed via
+    # 2026-05-01 ATL@COL: wind shifted 11.9 -> 5.6 km/h between morning
+    # and evening fetches, which would have shifted P(YRFI) on the
+    # row before the bet was locked.
+    - cron: "0 0 * * *"    # 8pm EDT / 7pm EST   -- catches 9pm games' final hour
+    - cron: "0 1 * * *"    # 9pm EDT / 8pm EST   -- catches 10pm + west-coast games
+    - cron: "0 2 * * *"    # 10pm EDT / 9pm EST  -- final pre-lock for west-coast
     - cron: "30 3 * * *"   # 11:30pm EDT / 10:30pm EST  -- nightly grade
     - cron: "45 4 * * 1"   # 12:45am EDT / 11:45pm EST Sun -- weekly recal
   workflow_dispatch:
@@ -96,7 +107,7 @@ jobs:
           # PENDING -> real verdict where applicable.  We catch by hour
           # prefix to avoid listing 11 explicit lines.
           case "$SCHEDULE" in
-            "0 5 * * *"|"0 12 * * *"|"0 13 * * *"|"0 14 * * *"|"0 15 * * *"|"0 16 * * *"|"0 17 * * *"|"0 18 * * *"|"0 19 * * *"|"0 20 * * *"|"0 21 * * *"|"0 22 * * *"|"0 23 * * *")
+            "0 5 * * *"|"0 12 * * *"|"0 13 * * *"|"0 14 * * *"|"0 15 * * *"|"0 16 * * *"|"0 17 * * *"|"0 18 * * *"|"0 19 * * *"|"0 20 * * *"|"0 21 * * *"|"0 22 * * *"|"0 23 * * *"|"0 0 * * *"|"0 1 * * *"|"0 2 * * *")
               echo "what=predict" >> "$GITHUB_OUTPUT"
               ;;
             "30 3 * * *")
