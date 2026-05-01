@@ -75,9 +75,16 @@
   position: relative;
   z-index: 1;
 }
+/* T3.17: Make the focus ring distinctly visible for keyboard users.
+   The previous outline-offset: -2px sat _inside_ the row border and
+   blended with the existing 1px border, making the focused row look
+   ~identical to its idle neighbors.  Pull the outline outward, bump
+   to 3px, and add a soft glow so the active row pops at a glance. */
 .clickable:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--ring) 25%, transparent);
 }
 
 .right { text-align: right; justify-self: end; }
@@ -127,10 +134,20 @@
   color: var(--muted-foreground);
   /* Lock to the time column so longer placeholders never overflow into
      the matchup cell.  min-width: 0 lets the flex container shrink
-     properly inside its grid track. */
+     properly inside its grid track.
+     T3.19: ellipsis the chip's text content if it would otherwise
+     exceed the column width.  Belt-and-suspenders for unusual
+     placeholders ("After G10", "Suspended After G1", etc.) -- the
+     truncated text remains hover-readable via the title attribute. */
   min-width: 0;
   max-width: 100%;
   flex: 0 1 auto;
+  overflow: hidden;
+}
+.rankTag > span:not(.rankTagDot) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .rankTagDot {
   width: 4px;
@@ -178,6 +195,36 @@
   font-weight: 400;
   font-size: 12px;
   letter-spacing: 0.04em;
+}
+
+/* Data-quality badge -- shown when any input is using a league-avg
+   fallback (TBD pitcher, missing team-batting data, lineup not posted).
+   Tiny circular "!" -- hover for the full list of issues.  Two
+   severity tones: high (pitcher fallback = unreliable) and med
+   (offense / lineup pending = soft signal). */
+.dqBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid currentColor;
+  flex-shrink: 0;
+  cursor: help;
+}
+.dqHigh {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 10%, transparent);
+}
+.dqMed {
+  color: var(--secondary);
+  background: color-mix(in oklab, var(--secondary) 12%, transparent);
 }
 
 /* Doubleheader chip */

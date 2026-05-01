@@ -21,7 +21,8 @@ export const dynamic = "force-dynamic";
 const GITHUB_OWNER  = "joey11600";
 const GITHUB_REPO   = "MLB-first-inning";
 const WORKFLOW_FILE = "daily.yml";
-const TARGET_BRANCH = "claude/mlb-inning-run-predictor-QyazL";
+// Branch configurable via env var (T3.7).
+const TARGET_BRANCH = process.env.TARGET_BRANCH || "claude/mlb-inning-run-predictor-QyazL";
 
 export async function GET(req: Request) {
   const auth   = req.headers.get("authorization") ?? "";

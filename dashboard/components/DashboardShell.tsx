@@ -12,15 +12,79 @@ import { StatusLine } from "./StatusLine";
 import { ThemeToggle } from "./ThemeToggle";
 import styles from "./DashboardShell.module.css";
 
+// T3.18: Filter persistence helpers.  We persist via TWO mechanisms:
+//   1. URL search params (shareable, bookmarkable, survives reloads)
+//   2. localStorage (survives across sessions when user navigates away)
+// On mount we read from URL first, fall back to localStorage, fall back
+// to defaults.  On every filter change we write to BOTH.
+const FILTER_STORAGE_KEY = "nrfi-dashboard-filters-v1";
+
+const DEFAULT_FILTERS: Filters = {
+  side: "ALL",
+  strength: "ALL",
+  sort: "yrfi-desc",
+  query: "",
+};
+
+function readPersistedFilters(): Filters {
+  if (typeof window === "undefined") return DEFAULT_FILTERS;
+  try {
+    const url = new URL(window.location.href);
+    const fromUrl: Partial<Filters> = {};
+    const side = url.searchParams.get("side");
+    const strength = url.searchParams.get("strength");
+    const sort  = url.searchParams.get("sort");
+    const query = url.searchParams.get("query");
+    if (side === "ALL" || side === "NRFI" || side === "YRFI" || side === "PASS")
+      fromUrl.side = side;
+    if (strength === "ALL" || strength === "STRONG" || strength === "LEAN+")
+      fromUrl.strength = strength;
+    if (sort === "lambda-desc" || sort === "lambda-asc" || sort === "nrfi-desc" || sort === "yrfi-desc" || sort === "rank")
+      fromUrl.sort = sort;
+    if (query) fromUrl.query = query;
+    if (Object.keys(fromUrl).length > 0) {
+      return { ...DEFAULT_FILTERS, ...fromUrl };
+    }
+    // Fallback: localStorage
+    const stored = window.localStorage.getItem(FILTER_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<Filters>;
+      return { ...DEFAULT_FILTERS, ...parsed };
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_FILTERS;
+}
+
 export function DashboardShell({ initial }: { initial: BoardResponse }) {
   const [data, setData] = useState<BoardResponse>(initial);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<Filters>({
-    side: "ALL",
-    strength: "ALL",
-    sort: "yrfi-desc",
-    query: "",
-  });
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+
+  // Hydrate filters once on mount from URL params + localStorage.
+  // (Done in an effect so SSR-rendered HTML doesn't read window.)
+  useEffect(() => {
+    setFilters(readPersistedFilters());
+  }, []);
+
+  // Persist filters whenever they change -- both to URL (for share) and
+  // to localStorage (for cross-session continuity).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      // Only write non-default values to keep URL clean
+      const setOrDelete = (k: string, v: string, def: string) => {
+        if (v && v !== def) url.searchParams.set(k, v);
+        else url.searchParams.delete(k);
+      };
+      setOrDelete("side", filters.side, "ALL");
+      setOrDelete("strength", filters.strength, "ALL");
+      setOrDelete("sort", filters.sort, "yrfi-desc");
+      setOrDelete("query", filters.query.trim(), "");
+      window.history.replaceState(null, "", url.toString());
+      window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
+    } catch { /* ignore */ }
+  }, [filters]);
 
   async function refetch(date: string) {
     setLoading(true);

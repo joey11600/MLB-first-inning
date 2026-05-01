@@ -1,0 +1,85 @@
+name: Daily data backup snapshot
+
+# Snapshots data/picks_<year>.csv + boards/ + pick_changes.csv into
+# data/backups/<YYYY-MM-DD>/ once per day at 5am ET (after the nightly
+# grade has finished updating the previous day's results).  Old
+# snapshots are pruned on a 30-day rolling window so the backup
+# directory stays bounded.
+#
+# Backup is git-committed (free, off-machine via GitHub).  For external
+# durability (S3/Backblaze) wire ALERT_WEBHOOK_URL or extend with a
+# dedicated S3 step.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 5am EDT / 4am EST -- after nightly grade
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nrfi-backup
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Snapshot data files
+        run: |
+          STAMP=$(date -u +%Y-%m-%d)
+          BACKUP_DIR="data/backups/$STAMP"
+          mkdir -p "$BACKUP_DIR"
+
+          # picks_<year>.csv files (season ledgers)
+          for f in data/picks_*.csv; do
+            [ -f "$f" ] && cp "$f" "$BACKUP_DIR/"
+          done
+
+          # board CSVs (compact slate snapshots)
+          if [ -d data/boards ]; then
+            mkdir -p "$BACKUP_DIR/boards"
+            cp -R data/boards/. "$BACKUP_DIR/boards/" 2>/dev/null || true
+          fi
+
+          # pick changes journal
+          [ -f data/pick_changes.csv ] && cp data/pick_changes.csv "$BACKUP_DIR/"
+          # thresholds + system errors (small operational state)
+          [ -f data/thresholds.json ]   && cp data/thresholds.json   "$BACKUP_DIR/"
+          [ -f data/system_errors.csv ] && cp data/system_errors.csv "$BACKUP_DIR/"
+
+          echo "Snapshot directory:"
+          ls -la "$BACKUP_DIR" || true
+
+      - name: Prune snapshots older than 30 days
+        run: |
+          if [ -d data/backups ]; then
+            find data/backups -mindepth 1 -maxdepth 1 -type d \
+              -regex '.*/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}$' \
+              -mtime +30 -exec rm -rf {} + || true
+          fi
+
+      - name: Commit + push snapshot
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backups
+          if git diff --cached --quiet; then
+            echo "No backup changes -- nothing to commit (data unchanged)."
+            exit 0
+          fi
+          STAMP=$(date -u +%Y-%m-%d)
+          git commit -m "auto: daily backup snapshot $STAMP"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for attempt in $(seq 1 5); do
+            if git push origin "$BRANCH"; then exit 0; fi
+            sleep $(( ( RANDOM % 20 ) + 5 ))
+            git pull --rebase origin "$BRANCH" || true
+          done
+          exit 1

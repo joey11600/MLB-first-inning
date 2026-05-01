@@ -60,8 +60,17 @@ def _today_et() -> date:
 
 
 # ---------------------------------------------------------------------------
-# League-wide constants  (2023-2024 MLB averages)
+# League-wide constants  (T3.11 — version-stamped)
 # ---------------------------------------------------------------------------
+# Source: MLB league averages, 2023-2024 seasons (combined).
+# Last verified: 2026-01-15.
+# When updating: refresh ALL constants to the same source season range,
+# rebuild park factors (rebuild_park_factors.py), and refit the calibrator
+# (recalibrate_v2.py).  Mismatched-vintage constants silently bias the
+# Bayesian-blend toward older data when you only update one.
+LEAGUE_CONSTANTS_VERSION  = "2023-2024"
+LEAGUE_CONSTANTS_VERIFIED = "2026-01-15"
+
 LEAGUE_FIRST_INNING_RUNS = 0.475   # avg runs per team per first half-inning
 LEAGUE_AVG_ERA           = 4.20
 LEAGUE_AVG_WHIP          = 1.25
@@ -1056,18 +1065,40 @@ def _load_lr_calibrator():
 
 
 def _load_fi_park_rates() -> dict:
-    """Load the empirical FI park factors. Returns {} if unavailable."""
+    """Load the empirical FI park factors. Returns {} if unavailable.
+    T3.9: warn loudly when the file is missing or fails to load -- the
+    LR model relies on per-park first-inning NRFI rates as a feature,
+    and a silent fallback to the neutral default of 0.50 across all
+    parks effectively de-features the model without anyone knowing."""
     global _fi_park_rates, _fi_park_loaded
     if _fi_park_loaded:
         return _fi_park_rates or {}
     _fi_park_loaded = True
     if not _FI_PARK_PATH.exists():
+        print(
+            f"  WARNING: FI park factors file not found at {_FI_PARK_PATH}.\n"
+            f"           All games will use the neutral default ({_FI_PARK_NRFI_DEFAULT:.2f}),\n"
+            f"           silently de-featuring the LR model's park signal.\n"
+            f"           Run: python rebuild_park_factors.py",
+            file=sys.stderr,
+        )
         _fi_park_rates = {}
         return _fi_park_rates
     try:
         with open(_FI_PARK_PATH, encoding="utf-8") as f:
             _fi_park_rates = json.load(f)
-    except Exception:
+        if not _fi_park_rates:
+            print(
+                f"  WARNING: FI park factors file at {_FI_PARK_PATH} is empty.\n"
+                f"           Run: python rebuild_park_factors.py",
+                file=sys.stderr,
+            )
+    except Exception as exc:
+        print(
+            f"  WARNING: failed to parse FI park factors at {_FI_PARK_PATH}: {exc}\n"
+            f"           Falling back to neutral default for all parks.",
+            file=sys.stderr,
+        )
         _fi_park_rates = {}
     return _fi_park_rates
 
@@ -1362,11 +1393,27 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
     ]
 
 
+# T3.8: One-time warning per (model, feature_idx) pair when we encounter
+# std <= 0 -- previously silently skipped, hiding the fact that a feature
+# the model expects has zero variance in the training set (model is
+# broken / mis-fit).  Cron logs would surface the warning in workflow output.
+_lr_zero_var_warned: set[tuple[int, int]] = set()
+
 def _lr_predict_one(features: list[float], m: dict) -> float:
     """Apply a single standardized-feature LR forward pass."""
     z = m["bias"]
-    for x, mean, std, w in zip(features, m["mean"], m["std"], m["weights"]):
+    model_id = id(m)
+    for i, (x, mean, std, w) in enumerate(zip(features, m["mean"], m["std"], m["weights"])):
         if std <= 0:
+            key = (model_id, i)
+            if key not in _lr_zero_var_warned:
+                _lr_zero_var_warned.add(key)
+                print(
+                    f"  WARNING: LR feature index {i} has std={std} (zero variance) -- "
+                    f"feature contributes nothing to the prediction.  Likely a "
+                    f"training-set issue; consider refitting.",
+                    file=sys.stderr,
+                )
             continue
         z += w * (x - mean) / std
     if z >= 0:

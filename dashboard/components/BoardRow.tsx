@@ -143,6 +143,7 @@ export function BoardRowItem({
               DH-{row.gameNumber}
             </span>
           )}
+          <DataQualityBadge detail={detail} />
         </span>
 
         <span className={styles.resultCell}>
@@ -225,6 +226,48 @@ export function BoardRowItem({
   );
 }
 
+/** Data-quality badge -- shown when ANY model input is using a fallback
+ *  rather than real data.  Triggers:
+ *    - pitcher quality "avg" (TBD pitcher, league-default fallback)
+ *    - offense quality "avg" (no team batting data)
+ *    - top3c source != "lineup" (team-fallback used because lineup not posted)
+ *  When all inputs are real, the badge is hidden.  Hover reveals the
+ *  specific gaps so the user can judge how much to trust the verdict. */
+function DataQualityBadge({ detail }: { detail: GameDetail | undefined }) {
+  if (!detail) return null;
+  const issues: string[] = [];
+  const ap = detail.away.pitcher.quality;
+  const hp = detail.home.pitcher.quality;
+  const ao = detail.away.offense.quality;
+  const ho = detail.home.offense.quality;
+  // Pitcher data quality
+  if (ap === "avg") issues.push(`${detail.away.team} pitcher: TBD / league-avg fallback`);
+  if (hp === "avg") issues.push(`${detail.home.team} pitcher: TBD / league-avg fallback`);
+  // Offense data quality
+  if (ao === "avg") issues.push(`${detail.away.team} offense: league-avg fallback`);
+  if (ho === "avg") issues.push(`${detail.home.team} offense: league-avg fallback`);
+  // Lineup data quality (top-3 batters)
+  if (detail.away.lineup.length === 0) {
+    issues.push(`${detail.away.team} lineup: not posted yet`);
+  }
+  if (detail.home.lineup.length === 0) {
+    issues.push(`${detail.home.team} lineup: not posted yet`);
+  }
+  if (issues.length === 0) return null;
+  // Severity: any pitcher fallback = "high"; offense or lineup-only = "med"
+  const severity = ap === "avg" || hp === "avg" ? "high" : "med";
+  return (
+    <span
+      className={`${styles.dqBadge} ${severity === "high" ? styles.dqHigh : styles.dqMed}`}
+      title={`Data quality issues:\n• ${issues.join("\n• ")}`}
+      aria-label={`Data quality: ${issues.length} issues`}
+    >
+      <span aria-hidden>!</span>
+    </span>
+  );
+}
+
+
 /** Tentative-lean chip — shown ONLY when the row is LINEUP PENDING (the
  *  starter is known but the lineup hasn't posted yet, so the model has
  *  ~75% real input and is using team-fallback for top-3 batter stats).
@@ -285,22 +328,42 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
   const book = shortBook(detail.sportsbook);
   const edgePct = detail.edgeOnPick != null ? detail.edgeOnPick * 100 : null;
   const edgeStr = edgePct == null ? "" : (edgePct >= 0 ? `+${edgePct.toFixed(1)}%` : `${edgePct.toFixed(1)}%`);
+  // T3.14: surface odds-capture freshness in the tooltip so the user
+  // can tell stale odds (e.g. imported pre-game last night) from
+  // current ones.  "Captured 47 min ago" vs "Captured 14 h ago".
+  const ageStr = relAge(detail.oddsCapturedAt);
+  const ageSuffix = ageStr ? `\nCaptured ${ageStr}` : "";
 
   return (
     <span
       className={`${styles.oddsChip} ${cls}`}
       title={
-        bet === "Y"
+        (bet === "Y"
           ? `Bet placed: ${row.pickSide} @ ${price} (edge ${edgeStr})`
           : bet === "N"
             ? `Skipped: edge ${edgeStr || "below threshold"} on ${row.pickSide} @ ${price}`
-            : `${row.pickSide} @ ${price}${edgeStr ? ` (edge ${edgeStr})` : ""}`
+            : `${row.pickSide} @ ${price}${edgeStr ? ` (edge ${edgeStr})` : ""}`)
+        + ageSuffix
       }
     >
       {book && <span className={styles.oddsBook}>{book}</span>}
       <span className={styles.oddsPrice}>{price}</span>
     </span>
   );
+}
+
+/** Format an ISO timestamp as a relative age ("47 min ago", "14 h ago",
+ *  "3 d ago").  Returns empty string if unparseable.  Used for odds
+ *  capture freshness display. */
+function relAge(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const ageSec = Math.max(0, (Date.now() - t) / 1000);
+  if (ageSec < 60)    return `${Math.round(ageSec)}s ago`;
+  if (ageSec < 3600)  return `${Math.round(ageSec / 60)} min ago`;
+  if (ageSec < 86400) return `${Math.round(ageSec / 3600)} h ago`;
+  return `${Math.round(ageSec / 86400)} d ago`;
 }
 
 
@@ -386,10 +449,22 @@ function ResultBadge({
         : "-";
   const totalText = totalRuns != null ? `${totalRuns}R` : "-";
 
+  // T3.16: build verbose accessible labels so screen readers announce
+  // the full outcome instead of just "0-2" or "W".
+  const ariaScore = awayRuns != null && homeRuns != null
+    ? `${awayRuns} runs away, ${homeRuns} runs home`
+    : totalRuns != null
+      ? `${totalRuns} total runs`
+      : "score not yet recorded";
   // Postponed / suspended games: amber pause indicator
   if (graded === "POSTPONED" || graded === "SUSPENDED") {
     return (
-      <span className={`${styles.resultBadge} ${styles.resultPP}`} title={graded}>
+      <span
+        className={`${styles.resultBadge} ${styles.resultPP}`}
+        title={graded}
+        aria-label={`Game ${graded.toLowerCase()}, no result.`}
+        role="status"
+      >
         <span className={styles.resultGlyph}>PP</span>
       </span>
     );
@@ -400,6 +475,8 @@ function ResultBadge({
       <span
         className={`${styles.resultBadge} ${styles.resultPass}`}
         title={`PASS · 1st inning ${score} · ${actual ?? "-"} (${totalText})`}
+        aria-label={`Pass: model declined. First inning final ${ariaScore}, actual side ${actual ?? "unknown"}.`}
+        role="status"
       >
         <span className={styles.resultGlyph}>{score}</span>
       </span>
@@ -409,10 +486,13 @@ function ResultBadge({
   const isWin = graded === "WIN";
   const cls   = isWin ? styles.resultWin : styles.resultLoss;
   const glyph = isWin ? "W" : "L";
+  const outcomeWord = isWin ? "Win" : "Loss";
   return (
     <span
       className={`${styles.resultBadge} ${cls}`}
       title={`${graded} · 1st inning ${score} · ${actual ?? "-"} (${totalText})`}
+      aria-label={`${outcomeWord}. First inning ${ariaScore}, actual side ${actual ?? "unknown"}.`}
+      role="status"
     >
       <span className={styles.resultGlyph}>{glyph}</span>
       <span className={styles.resultRuns}>{score}</span>

@@ -16,6 +16,21 @@ const src = path.resolve(projectRoot, "..", "data");
 const dest = path.resolve(projectRoot, "data");
 
 if (!fs.existsSync(src)) {
+  // T3.20: fail loudly when running on Vercel / CI (source must exist
+  // for the dashboard to ship anything useful), but stay quiet when
+  // run locally outside the repo (e.g. someone copies dashboard/ alone
+  // for inspection).  Heuristic: if VERCEL or CI env var is set, the
+  // build is in a CI environment and a missing src is a real problem.
+  const inCI = !!(process.env.VERCEL || process.env.CI);
+  if (inCI) {
+    console.error(
+      `[copy-data] FATAL: source data dir not found at ${src}.\n` +
+      `  This bundle would ship with no boards or picks data.\n` +
+      `  Verify the build is running from the repo root and that\n` +
+      `  ../data/ exists relative to the dashboard directory.`,
+    );
+    process.exit(1);
+  }
   console.log(`[copy-data] no ${src} — skipping (running outside repo?)`);
   process.exit(0);
 }

@@ -70,28 +70,30 @@ These can corrupt picks, lose data, or silently mis-grade.
 
 ## 🟡 TIER 3 — Operational hygiene
 
-- [ ] **T3.1** — No `/api/health` endpoint for liveness — `dashboard/app/api/`
-- [ ] **T3.2** — No Slack/email alerts on cron failure — `daily.yml`
-- [ ] **T3.3** — `/api/run-job` publicly callable (no auth) — `dashboard/app/api/run-job/route.ts`
-- [ ] **T3.4** — No automated backups (`data/backups/` is manual) — `data/backups/`
-- [ ] **T3.5** — `pick_changes.csv` grows unbounded (no rotation) — `tracker.py`
-- [ ] **T3.6** — `requirements.txt` lower bounds only (no `<2.0` upper) — `requirements.txt`
-- [ ] **T3.7** — TARGET_BRANCH hardcoded in 3 cron route files — `run-job, cron/predict, cron/grade`
-- [ ] **T3.8** — LR-v4 features with `std<=0` silently skipped (not flagged) — `predictor.py:770-772`
-- [ ] **T3.9** — FI park factors silently default to 0.50 if file missing — `predictor.py:695`
-- [ ] **T3.10** — Pitcher ID=None ("TBD") doesn't surface "data quality degraded" badge — `predictor.py:419`
-- [ ] **T3.11** — Hardcoded league constants stale (no version stamp) — `predictor.py:65-86`
-- [ ] **T3.12** — CSV schema not validated on read — `tracker.py:154-164`
-- [ ] **T3.13** — Vercel cron gap at even hours (10/12/2/4/6/8 PM) — `vercel.json`
-- [ ] **T3.14** — OddsChip can show stale odds without "captured at" timestamp — `BoardRow.tsx:259-286`
-- [ ] **T3.15** — Color-only signaling on lambda meter (a11y) — `LambdaMeter.tsx`
-- [ ] **T3.16** — Result badge "0-2" has no aria-label for screen readers — `BoardRow.tsx ResultBadge`
-- [ ] **T3.17** — No keyboard focus indicator visible on board rows — `BoardRow.module.css`
-- [ ] **T3.18** — Filters don't persist across page reloads — `ControlPanel.tsx`
-- [ ] **T3.19** — DH-2 "After G10" (10-game DH) overflows 82px column — `BoardRow.tsx:320-332`
-- [ ] **T3.20** — `copy-data.mjs` exits 0 silently if source missing (build ships empty data) — `dashboard/scripts/copy-data.mjs`
-- [ ] **T3.21** — `_BOARD_CSV_FIELDS` and `FIELDS` not enforced as canonical; column drift across writers possible — `predictor.py + tracker.py`
-- [ ] **T3.22** — Concurrency in `_write_rows` has no locking — `tracker.py:168` (subset of T1.1)
+- [x] **T3.1** ✅ 2026-05-01 — `/api/health` endpoint returns `{status, reasons, minutesSinceRefresh, latestBoard, latestPicks, recentErrors[]}`. Surfaces OK/STALE/DEGRADED/BROKEN status based on data freshness + recent system_errors.csv. Designed for Healthchecks.io / UptimeRobot pings.
+- [x] **T3.2** ✅ 2026-05-01 — `daily.yml` `record_err` helper now POSTs JSON to `${{ secrets.ALERT_WEBHOOK_URL }}` (Slack/Discord/ntfy compatible) on every captured error. Stays silent if the secret is unset (back-compat).
+- [x] **T3.3** ✅ 2026-05-01 — `/api/run-job` now optionally requires `body.secret == process.env.RUN_JOB_SECRET`. Endpoint stays open if env var unset (back-compat); enabled by setting RUN_JOB_SECRET in Vercel.
+- [x] **T3.4** ✅ 2026-05-01 — New `.github/workflows/backup.yml` snapshots picks/boards/pick_changes/thresholds/system_errors into `data/backups/<YYYY-MM-DD>/` daily at 5am ET, prunes older than 30 days, commits + pushes.
+- [x] **T3.5** ✅ 2026-05-01 — `_prune_change_log` runs at end of every `log_picks` invocation, keeping pick_changes.csv to last 90 days. Atomic rewrite via tempfile + os.replace; bounded growth.
+- [x] **T3.6** ✅ 2026-05-01 — `requirements.txt` now pins upper bounds (`<2.0`, `<3.0`, etc.) so a major-version release of any dep can't silently break the predictor.
+- [x] **T3.7** ✅ 2026-05-01 — `TARGET_BRANCH` now reads from `process.env.TARGET_BRANCH` in all three cron routes (run-job, cron/predict, cron/grade). Hardcoded fallback retained for back-compat.
+- [x] **T3.8** ✅ 2026-05-01 — `_lr_predict_one` now logs a one-time WARNING per (model, feature_idx) when `std <= 0`. Previously silent skip; now visible in cron logs so a broken training set is surfaced quickly.
+- [x] **T3.9** ✅ 2026-05-01 — `_load_fi_park_rates` now WARNs when the file is missing/empty/malformed, with a "run rebuild_park_factors.py" hint. Silent fallback to neutral 0.50 default no longer hides a de-featured model.
+- [x] **T3.10** ✅ 2026-05-01 — New `DataQualityBadge` component on each board row shows a small `!` chip when ANY input is on a fallback (TBD pitcher, league-avg offense, lineup not posted). Two severity tones (high/med). Hover for full issue list.
+- [x] **T3.11** ✅ 2026-05-01 — Added `LEAGUE_CONSTANTS_VERSION` and `LEAGUE_CONSTANTS_VERIFIED` stamps next to the constants. Comment now lists the procedure for refresh: refresh ALL constants together + rebuild park factors + refit calibrator.
+- [x] **T3.12** ✅ 2026-05-01 — `_read_rows` now compares header against `FIELDS`, logs WARNINGs for unknown columns (will be dropped on next write) and missing columns (will be back-filled). Schema drift visible at read time.
+- [x] **T3.13** ✅ Verified — Vercel cron entries at UTC 13/15/17/19/21/23 + GHA hourly at 12-23 UTC = redundant coverage at every hour. Single-point-of-failure at "even hours" claim is moot.
+- [x] **T3.14** ✅ 2026-05-01 — `OddsChip` tooltip now shows odds capture freshness (`Captured 47 min ago`). User can tell stale odds (last night's import) from current ones.
+- [x] **T3.15** ✅ 2026-05-01 — Lambda meter track now layers a low-contrast diagonal-stripe pattern over the gradient. Colorblind users have a non-color signal of position; sighted users barely notice.
+- [x] **T3.16** ✅ 2026-05-01 — `ResultBadge` now has descriptive `aria-label`s: "Win. First inning 1 run away, 1 run home, actual side YRFI." Screen readers announce the full outcome.
+- [x] **T3.17** ✅ 2026-05-01 — `.clickable:focus-visible` outline bumped from 2px inside-edge to 3px outside-edge with a soft glow. Keyboard users can clearly see which row is focused.
+- [x] **T3.18** ✅ 2026-05-01 — Filters persist via URL params (shareable) AND localStorage (cross-session). `?side=NRFI&strength=STRONG&sort=lambda-desc` now works.
+- [x] **T3.19** ✅ 2026-05-01 — `.rankTag` chip now has `overflow: hidden` + ellipsis on its text content so unusual placeholder strings ("After G10", "Suspended After G1") don't overflow the time column. Tooltip retains full text.
+- [x] **T3.20** ✅ 2026-05-01 — `copy-data.mjs` now exits 1 (not 0) when source dir is missing AND `VERCEL || CI` env var is set. Builds in CI fail loudly if data is missing; local dev still gracefully skips.
+- [ ] **T3.21** — Deferred. `_BOARD_CSV_FIELDS` and `FIELDS` are different schemas by design (board CSV is a small ranking projection; picks CSV is the full ledger). Making them canonical would require a bigger reorg. Not actively breaking anything.
+- [x] **T3.22** ✅ Already fixed in T1.1 — atomic write via tempfile + os.replace eliminates concurrency race.
+
+**Tier 3 status: 21/22 complete (T3.21 intentionally deferred — see note).**
 
 ---
 

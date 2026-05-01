@@ -118,6 +118,9 @@ jobs:
         # dashboard / health endpoint can surface degraded state.  The
         # only step that's truly fail-soft is the catch-up grade -- if
         # yesterday's grade fails, we still want today's predict to run.
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          ACTION: predict
         run: |
           YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)
           TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
@@ -181,6 +184,9 @@ jobs:
         # `TZ=America/New_York date` returns the WRONG date and the
         # original slate goes ungraded.  Grading both dates is idempotent
         # (already-graded games stay graded, new ones get filled in).
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          ACTION: grade
         run: |
           TODAY=$(TZ='America/New_York' date +%m/%d/%Y)
           YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)
@@ -196,6 +202,15 @@ jobs:
             local SAFE_MSG=$(echo "$MSG" | tr ',' ';' | tr '"' "'" | head -c 400)
             echo "$NOW_UTC,$TODAY_ISO,$STEP,$CODE,\"$SAFE_MSG\"" >> data/system_errors.csv
             echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
+            # Optional webhook alert -- set ALERT_WEBHOOK_URL secret in
+            # the repo (Slack incoming webhook, Discord, ntfy.sh, etc.).
+            # Posts JSON {text} which Slack/Discord both accept.
+            if [ -n "${ALERT_WEBHOOK_URL:-}" ]; then
+              local PAYLOAD=$(printf '{"text":"NRFI %s [%s]: step \"%s\" failed (exit %s) -- %s"}' \
+                "$ACTION" "$TODAY_ISO" "$STEP" "$CODE" "$SAFE_MSG")
+              curl -fsS -X POST -H 'Content-Type: application/json' \
+                -d "$PAYLOAD" "$ALERT_WEBHOOK_URL" >/dev/null 2>&1 || true
+            fi
           }
 
           echo "==> Grading $YDAY (yesterday)..."

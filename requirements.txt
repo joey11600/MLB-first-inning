@@ -1,5 +1,9 @@
-mlb-statsapi>=1.7.2
-scipy>=1.11.0
-numpy>=1.24.0
-requests>=2.31.0
-colorama>=0.4.6
+# T3.6: pin upper bounds so a major-version release of any dep can't
+# silently break the predictor (e.g. mlb-statsapi 2.0 with a renamed
+# `statsapi.get` signature would break every API call).  Bump these
+# manually after testing a new major version locally.
+mlb-statsapi>=1.7.2,<2.0
+scipy>=1.11.0,<2.0
+numpy>=1.24.0,<3.0
+requests>=2.31.0,<3.0
+colorama>=0.4.6,<1.0

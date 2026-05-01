@@ -152,11 +152,39 @@ def _csv_path(season: int) -> Path:
 
 
 def _read_rows(path: Path) -> list[dict]:
+    """Read picks_<season>.csv into a list of dicts.
+
+    T3.12: Validate the header against FIELDS at read time.  Missing
+    columns are silently back-filled (forwards-compat with newer schema
+    being written to an older CSV), but EXTRA columns NOT in FIELDS are
+    flagged via a one-time stderr warning -- those would be silently
+    dropped by DictWriter(extrasaction='ignore') on the next write.
+    """
     if not path.exists():
         return []
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
+        header = reader.fieldnames or []
         rows = list(reader)
+    # Schema drift detection (one-time warning per process invocation)
+    field_set = set(FIELDS)
+    extras = [h for h in header if h and h not in field_set]
+    if extras:
+        import sys as _sys
+        print(
+            f"  WARNING: {path.name} has {len(extras)} column(s) not in FIELDS: "
+            f"{extras[:5]}{'...' if len(extras) > 5 else ''}.  "
+            f"These will be DROPPED on the next write.  Add to FIELDS to preserve.",
+            file=_sys.stderr,
+        )
+    missing = [f for f in FIELDS if f not in header]
+    if missing and header:
+        import sys as _sys
+        print(
+            f"  Schema-evolution: {path.name} missing {len(missing)} column(s) -- "
+            f"will back-fill on next write.",
+            file=_sys.stderr,
+        )
     # Back-fill any new columns added after the file was first created
     for row in rows:
         for field in FIELDS:
@@ -561,6 +589,9 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
         written += 1
 
     _write_rows(path, rows)
+    # T3.5: prune the pick-change log to the last 90 days on every
+    # predictor run (cheap, idempotent, bounded growth).
+    _prune_change_log(_change_log_path(), keep_days=90)
     return written
 
 
@@ -628,6 +659,47 @@ def _record_pick_change(*, iso_date: str, game_pk: str,
     except Exception:
         # Don't let a logging failure break the predictor run.
         pass
+
+
+def _prune_change_log(path: Path, keep_days: int = 90) -> None:
+    """T3.5: Trim data/pick_changes.csv to last N days so it stays bounded.
+    Cheap: a season of intraday flips is roughly a few thousand rows
+    (~250KB).  Without this, the file would grow unbounded over years.
+    Runs at the END of log_picks so we touch it at most once per
+    predictor invocation."""
+    if not path.exists():
+        return
+    try:
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(days=keep_days)
+        cutoff_iso = cutoff.isoformat() + "Z"
+        with open(path, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = [r for r in reader
+                    if (r.get("captured_at_utc") or "") >= cutoff_iso]
+        # If we'd lose nothing, skip the rewrite entirely.
+        original_count = sum(1 for _ in open(path, encoding="utf-8")) - 1
+        if len(rows) >= original_count:
+            return
+        # Atomic rewrite via tempfile + os.replace (mirrors _write_rows).
+        import os, tempfile
+        tmp_fd, tmp_path = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+        try:
+            with os.fdopen(tmp_fd, "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=CHANGE_LOG_FIELDS)
+                w.writeheader()
+                w.writerows(rows)
+                f.flush()
+                try: os.fsync(f.fileno())
+                except OSError: pass
+            os.replace(tmp_path, path)
+        except Exception:
+            try: os.unlink(tmp_path)
+            except OSError: pass
+            raise
+    except Exception:
+        pass  # non-fatal
+
 
 # ---------------------------------------------------------------------------
 # 2. Grade picks

@@ -27,7 +27,9 @@ export const dynamic  = "force-dynamic";
 const GITHUB_OWNER  = "joey11600";
 const GITHUB_REPO   = "MLB-first-inning";
 const WORKFLOW_FILE = "daily.yml";
-const TARGET_BRANCH = "claude/mlb-inning-run-predictor-QyazL";
+// Branch configurable via env var (T3.7) so renaming the working
+// branch doesn't require a code change.
+const TARGET_BRANCH = process.env.TARGET_BRANCH || "claude/mlb-inning-run-predictor-QyazL";
 
 export async function GET(req: Request) {
   // Vercel Cron auth: prefer Bearer token comparison, fall back to the

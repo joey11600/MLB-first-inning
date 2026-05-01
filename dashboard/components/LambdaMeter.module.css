@@ -14,14 +14,25 @@
   overflow: hidden;
   border: 1px solid var(--border);
   /* Continuous warm gradient: brown -> peach -> brick red.
-     The 0.40 / 0.50 / 0.60 inflection points line up with our pick zones. */
-  background: linear-gradient(90deg,
-    var(--primary) 0%,
-    color-mix(in oklab, var(--primary) 55%, var(--secondary)) 30%,
-    var(--secondary) 47%,
-    var(--secondary) 53%,
-    color-mix(in oklab, var(--destructive) 55%, var(--secondary)) 70%,
-    var(--destructive) 100%);
+     The 0.40 / 0.50 / 0.60 inflection points line up with our pick zones.
+     T3.15: layer a subtle diagonal-stripe pattern over the gradient so
+     colorblind users have a non-color signal of position.  Stripes are
+     intentionally low-contrast so they don't disturb sighted users. */
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent 0,
+      transparent 5px,
+      color-mix(in oklab, var(--foreground) 6%, transparent) 5px,
+      color-mix(in oklab, var(--foreground) 6%, transparent) 6px
+    ),
+    linear-gradient(90deg,
+      var(--primary) 0%,
+      color-mix(in oklab, var(--primary) 55%, var(--secondary)) 30%,
+      var(--secondary) 47%,
+      var(--secondary) 53%,
+      color-mix(in oklab, var(--destructive) 55%, var(--secondary)) 70%,
+      var(--destructive) 100%);
 }
 
 .compact .track {

@@ -2,11 +2,17 @@
  * POST /api/run-job
  *
  * Triggers the daily.yml workflow on GitHub via workflow_dispatch.
- * Body: { action: "predict" | "grade" }
+ * Body: { action: "predict" | "grade", secret?: string }
  *
- * Auth: requires GITHUB_TOKEN env var (a fine-grained PAT scoped to this
- * repo with "Actions: read+write" permission).  Set it in Vercel project
- * settings -> Environment Variables for both Production and Preview.
+ * Auth (T3.3):
+ *   - GITHUB_TOKEN env var must be set server-side (PAT for the dispatch).
+ *   - If RUN_JOB_SECRET env var is set, the request must include a
+ *     matching `secret` field in the JSON body.  The dashboard's manual
+ *     button reads window.localStorage.runJobSecret and forwards it.
+ *     Without RUN_JOB_SECRET set the endpoint stays open (back-compat
+ *     for users who haven't enabled the gate yet).
+ *
+ * Set both secrets in Vercel project settings -> Environment Variables.
  */
 
 import { NextResponse } from "next/server";
@@ -14,17 +20,31 @@ import { NextResponse } from "next/server";
 export const runtime  = "nodejs";
 export const dynamic  = "force-dynamic";
 
-const GITHUB_OWNER = "joey11600";
-const GITHUB_REPO  = "MLB-first-inning";
+const GITHUB_OWNER  = "joey11600";
+const GITHUB_REPO   = "MLB-first-inning";
 const WORKFLOW_FILE = "daily.yml";
-const TARGET_BRANCH = "claude/mlb-inning-run-predictor-QyazL";
+// Branch is configurable via env var so renaming the working branch
+// doesn't require a code change (T3.7).
+const TARGET_BRANCH = process.env.TARGET_BRANCH || "claude/mlb-inning-run-predictor-QyazL";
 
 export async function POST(req: Request) {
-  let body: { action?: string };
+  let body: { action?: string; secret?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Optional auth gate -- only enforced if the env var is set.
+  const expectedSecret = process.env.RUN_JOB_SECRET;
+  if (expectedSecret) {
+    const provided = (body.secret || "").trim();
+    if (!provided || provided !== expectedSecret) {
+      return NextResponse.json(
+        { error: "Unauthorized: missing or invalid run-job secret." },
+        { status: 401 },
+      );
+    }
   }
 
   const action = body.action;
