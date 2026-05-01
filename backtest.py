@@ -1231,6 +1231,28 @@ def current_season_top3_per_batter(
     year in that case; the per-batter card just shows the name with em-
     dash stats so the user knows the lineup is set but the data is thin.
     """
+    def _nn_float(v) -> float | None:
+        """Non-negative float or None.  Defense-in-depth -- upstream
+        already guards via safe_float, but a refactor that lets a
+        negative leak through would be silently absorbed if we just
+        cast with float().  Better to surface as None so the dashboard
+        can render an em-dash than to feed bad data into the lineup
+        card."""
+        if v is None: return None
+        try:
+            f = float(v)
+            return f if f >= 0.0 else None
+        except (TypeError, ValueError):
+            return None
+
+    def _nn_int(v) -> int | None:
+        if v is None: return None
+        try:
+            i = int(v)
+            return i if i >= 0 else None
+        except (TypeError, ValueError):
+            return None
+
     out: list[dict] = []
     for pid in player_ids[:3]:
         if not pid:
@@ -1241,10 +1263,10 @@ def current_season_top3_per_batter(
             "id":   pid,
             "name": info.get("name", "") or "",
             "bats": info.get("bats", "") or "",
-            "obp":  float(s["obp"]) if s and s.get("obp") is not None else None,
-            "slg":  float(s["slg"]) if s and s.get("slg") is not None else None,
-            "iso":  float(s["iso"]) if s and s.get("iso") is not None else None,
-            "ab":   int(s["ab"])    if s and s.get("ab")  is not None else None,
+            "obp":  _nn_float(s.get("obp")) if s else None,
+            "slg":  _nn_float(s.get("slg")) if s else None,
+            "iso":  _nn_float(s.get("iso")) if s else None,
+            "ab":   _nn_int(s.get("ab"))    if s else None,
         })
     return out
 

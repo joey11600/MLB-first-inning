@@ -236,6 +236,33 @@ def main() -> None:
 
     rows = extract_odds(data)
     if not rows:
+        # Distinguish between:
+        #   - Late-night / off-day: legitimate empty slate (no MLB games today)
+        #   - Mid-day during games: all markets correctly locked (games started)
+        #   - DK API IDs went stale: WE have a problem and don't know it
+        # The third case is silent and dangerous -- imports run with no odds,
+        # bet_placed never gets populated, the user thinks "no good bets
+        # today" when really our scraper is broken.
+        #
+        # Heuristic: if it's morning/afternoon ET (9am-5pm) and the MLB
+        # schedule has games today, 0 odds is almost certainly a scraper
+        # break.  Exit 2 (distinct from 0=success and 1=fetch failure) so
+        # the workflow can alert.
+        from zoneinfo import ZoneInfo as _ZI
+        et_now = datetime.now(_ZI("America/New_York"))
+        is_prime_window = 9 <= et_now.hour < 17
+        likely_stale_ids = is_prime_window
+        if likely_stale_ids:
+            print(
+                "  WARNING: 0 NRFI/YRFI markets returned during prime hours "
+                f"({et_now.strftime('%I:%M %p ET')}).  DraftKings may have "
+                "changed the API category/subcategory IDs (currently "
+                f"{INNING_1_CAT}/{RUNS_1ST_SUB}).  Verify the IDs at "
+                "https://sportsbook.draftkings.com/leagues/baseball/mlb "
+                "(Network tab -> 1st Inning section).",
+                file=sys.stderr,
+            )
+            sys.exit(2)
         print("  No NRFI/YRFI markets found (slate may be empty or all locked).")
         return
 

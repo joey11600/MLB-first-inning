@@ -244,8 +244,14 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
     };
     // Primary key: game_pk (uniquely identifies even doubleheader splits)
     if (pk) out[pk] = detail;
-    // Compatibility key: only set when there isn't already a doubleheader
-    // collision (preserves first-game detail when only away@home is queried).
+    // Compatibility key for old board CSVs without game_pk.  We DH-disambiguate
+    // by appending the game_number so DH-1 and DH-2 don't collide; previously
+    // the second insert was gated by `if (!(teamKey in out))` which silently
+    // dropped DH-2's detail and rendered DH-2 with DH-1's pitcher / lineup.
+    const gameNum  = Number(r.game_number) || 1;
+    const dhKey    = `${r.away_team}@${r.home_team}#${gameNum}`;
+    out[dhKey]     = detail;
+    // Single-game key only set when no DH collision (one-game days).
     if (!(teamKey in out)) out[teamKey] = detail;
   }
   return out;

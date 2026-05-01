@@ -103,20 +103,65 @@ jobs:
         # grade cron missed it due to GitHub Actions cron lag), then
         # predict today, then pull DraftKings odds + import for edge calc.
         # All ops are idempotent.
+        #
+        # We intentionally DO NOT use `|| true` to mask failures any more.
+        # Each step records its outcome to data/system_errors.csv so the
+        # dashboard / health endpoint can surface degraded state.  The
+        # only step that's truly fail-soft is the catch-up grade -- if
+        # yesterday's grade fails, we still want today's predict to run.
         run: |
           YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)
           TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
-          echo "Catch-up grading $YDAY (yesterday) before predicting today..."
-          python mlb_first_inning_predictor.py --date "$YDAY" --grade || true
-          python mlb_first_inning_predictor.py
-          echo "Scraping DraftKings 1st-inning runs market for $TODAY_ISO..."
-          python scrape_dk_odds.py || true
+          NOW_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # Helper: record a failure into data/system_errors.csv.  CSV
+          # has a stable header; we append rather than rewrite.
+          record_err() {
+            local STEP="$1"; local CODE="$2"; local MSG="$3"
+            mkdir -p data
+            if [ ! -f data/system_errors.csv ]; then
+              echo "captured_at_utc,date,step,exit_code,message" > data/system_errors.csv
+            fi
+            # CSV-escape the message (replace commas + quotes)
+            local SAFE_MSG=$(echo "$MSG" | tr ',' ';' | tr '"' "'" | head -c 400)
+            echo "$NOW_UTC,$TODAY_ISO,$STEP,$CODE,\"$SAFE_MSG\"" >> data/system_errors.csv
+            echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
+          }
+
+          echo "==> Catch-up grading $YDAY (yesterday)..."
+          if ! python mlb_first_inning_predictor.py --date "$YDAY" --grade 2>grade_err.log; then
+            record_err "grade-yesterday" "$?" "$(tail -c 400 grade_err.log)"
+            # Soft-fail: continue to today's predict
+          fi
+
+          echo "==> Predicting today's slate..."
+          if ! python mlb_first_inning_predictor.py 2>predict_err.log; then
+            record_err "predict" "$?" "$(tail -c 400 predict_err.log)"
+            # Hard-fail: predict is the heart of the slate; abort run
+            exit 1
+          fi
+
+          echo "==> Scraping DraftKings odds for $TODAY_ISO..."
+          set +e
+          python scrape_dk_odds.py 2>scrape_err.log
+          DK_RC=$?
+          set -e
+          if [ "$DK_RC" -eq 2 ]; then
+            # Exit 2 = scraper detected stale API IDs (0 markets during
+            # prime hours).  Loud warning, but we proceed without odds.
+            record_err "scrape-dk" "$DK_RC" "DK API IDs likely stale -- 0 markets in prime hours"
+          elif [ "$DK_RC" -ne 0 ]; then
+            record_err "scrape-dk" "$DK_RC" "$(tail -c 400 scrape_err.log)"
+          fi
+
           ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
           if [ -s "$ODDS_CSV" ]; then
-            echo "Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
-            python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 || true
+            echo "==> Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
+            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 2>import_err.log; then
+              record_err "import-odds" "$?" "$(tail -c 400 import_err.log)"
+            fi
           else
-            echo "No DK odds CSV for $TODAY_ISO -- skipping import (DK may have pulled all markets)."
+            echo "==> No DK odds CSV for $TODAY_ISO -- skipping import (DK pulled markets or scraper broken)."
           fi
 
       - name: Run grader (grade)
@@ -130,9 +175,28 @@ jobs:
         run: |
           TODAY=$(TZ='America/New_York' date +%m/%d/%Y)
           YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)
-          echo "Grading $YDAY (yesterday) and $TODAY (today)"
-          python mlb_first_inning_predictor.py --date "$YDAY"  --grade || true
-          python mlb_first_inning_predictor.py --date "$TODAY" --grade || true
+          TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
+          NOW_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          record_err() {
+            local STEP="$1"; local CODE="$2"; local MSG="$3"
+            mkdir -p data
+            if [ ! -f data/system_errors.csv ]; then
+              echo "captured_at_utc,date,step,exit_code,message" > data/system_errors.csv
+            fi
+            local SAFE_MSG=$(echo "$MSG" | tr ',' ';' | tr '"' "'" | head -c 400)
+            echo "$NOW_UTC,$TODAY_ISO,$STEP,$CODE,\"$SAFE_MSG\"" >> data/system_errors.csv
+            echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
+          }
+
+          echo "==> Grading $YDAY (yesterday)..."
+          if ! python mlb_first_inning_predictor.py --date "$YDAY" --grade 2>grade_y_err.log; then
+            record_err "grade-yesterday" "$?" "$(tail -c 400 grade_y_err.log)"
+          fi
+          echo "==> Grading $TODAY (today)..."
+          if ! python mlb_first_inning_predictor.py --date "$TODAY" --grade 2>grade_t_err.log; then
+            record_err "grade-today" "$?" "$(tail -c 400 grade_t_err.log)"
+          fi
 
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
@@ -147,6 +211,15 @@ jobs:
           ACTION:  ${{ steps.action.outputs.what }}
           TODAY:   ${{ steps.action.outputs.today }}
         run: |
+          # 5-second sleep before any git activity so any concurrent Python
+          # process that's mid-write of picks_2026.csv has time to finish
+          # the atomic rename.  Without this, an in-flight `os.replace()`
+          # racing with `git add` could attach a half-written file to the
+          # commit (the atomic-write change in tracker._write_rows
+          # eliminates the truncated-file risk; this sleep eliminates the
+          # "stale read between flush and replace" risk for git's perspective).
+          sleep 5
+
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/
@@ -155,20 +228,48 @@ jobs:
             exit 0
           fi
           git commit -m "auto: $ACTION $TODAY"
-          # Push with rebase+retry.  The manual Predict/Grade buttons can
-          # race with each other, with the cron schedules, and with manual
-          # commits to the same branch -- a naive `git push` fails with
-          # "fetch first" in that case.  Rebasing on origin and retrying
-          # handles the common case (CSV data appended by both sides).
+
+          # Push with rebase+retry.  Unbounded attempts (up to 8) with
+          # jittered backoff -- the previous 3-attempt limit dropped 15+
+          # minutes of compute on the floor when two crons happened to
+          # collide.  At 8 attempts with 5-30s jitter we cover the worst
+          # observed race (~3 cron firings within 90s).
+          #
+          # CSV-only conflicts (predict, grade, odds — all data files)
+          # are auto-resolved by KEEPING OURS (this run's freshly-computed
+          # output) and discarding origin's stale data.  This is safe
+          # because each cron run is a complete recomputation; merging
+          # would just produce duplicate-key chaos.  Code conflicts (any
+          # non-data/ file) abort and surface the failure.
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          for attempt in 1 2 3; do
-            if git push; then exit 0; fi
-            echo "push attempt $attempt rejected; rebasing onto origin/$BRANCH..."
+          for attempt in $(seq 1 8); do
+            if git push origin "$BRANCH"; then
+              echo "push succeeded on attempt $attempt"
+              exit 0
+            fi
+            JITTER=$(( ( RANDOM % 26 ) + 5 ))   # 5-30s
+            echo "push attempt $attempt rejected; sleeping ${JITTER}s, then rebasing..."
+            sleep "$JITTER"
+            git fetch origin "$BRANCH"
             if ! git pull --rebase origin "$BRANCH"; then
-              echo "rebase produced a conflict; cannot auto-resolve"
-              git rebase --abort 2>/dev/null || true
-              exit 1
+              # Conflict -- check if it's data-only.
+              CONFLICTS=$(git diff --name-only --diff-filter=U)
+              NON_DATA_CONFLICTS=$(echo "$CONFLICTS" | grep -v '^data/' || true)
+              if [ -z "$NON_DATA_CONFLICTS" ] && [ -n "$CONFLICTS" ]; then
+                echo "data-only conflict, taking ours (this run's fresh data):"
+                echo "$CONFLICTS"
+                for f in $CONFLICTS; do
+                  git checkout --ours -- "$f"
+                  git add "$f"
+                done
+                git rebase --continue || git -c core.editor=true rebase --continue
+              else
+                echo "non-data conflict; cannot auto-resolve. Conflicting files:"
+                echo "$CONFLICTS"
+                git rebase --abort 2>/dev/null || true
+                exit 1
+              fi
             fi
           done
-          echo "push still failing after 3 attempts"
+          echo "push still failing after 8 attempts"
           exit 1

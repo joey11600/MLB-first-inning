@@ -82,9 +82,16 @@ export function BoardTable({
         className={`${styles.body} stagger ${loading ? styles.dim : ""}`}
       >
         {sortedRows.map((row) => {
-          const key       = row.gamePk || `${row.away}@${row.home}#${row.rank}`;
-          const detailKey = row.gamePk || `${row.away}@${row.home}`;
-          const detail    = details[detailKey];
+          const key = row.gamePk || `${row.away}@${row.home}#${row.rank}`;
+          // Detail-key fallback chain: gamePk (canonical) -> away@home#N
+          // (DH-aware) -> away@home (single-game-only legacy fallback).
+          // The middle key matches loadDetails()' DH-aware insertion so
+          // DH-2 rows from older board CSVs without gamePk don't collide
+          // with DH-1's detail and render the wrong pitcher / lineup.
+          const detail =
+            (row.gamePk && details[row.gamePk]) ||
+            details[`${row.away}@${row.home}#${row.gameNumber || 1}`] ||
+            details[`${row.away}@${row.home}`];
           return (
             <BoardRowItem
               key={key}

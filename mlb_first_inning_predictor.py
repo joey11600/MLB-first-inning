@@ -267,15 +267,31 @@ def fetch_schedule(date_str: str) -> list[dict]:
     """
     Returns a list of game dicts, each with both team IDs/abbrs, pitcher
     IDs/names, game number, and doubleheader flag.
+
+    Retries up to 3 times with exponential backoff on transient errors --
+    MLB's StatsAPI occasionally 503s during high-traffic moments (slate
+    posting, mid-game).  A bare `sys.exit` on the first failure used to
+    take down the entire predictor for what was usually a 5-second blip.
     """
-    try:
-        raw = statsapi.get("schedule", {
-            "date": date_str,
-            "sportId": 1,
-            "hydrate": "probablePitcher",
-        })
-    except Exception as exc:
-        sys.exit(f"Failed to fetch schedule: {exc}")
+    import time as _time
+    last_exc = None
+    for attempt, sleep_s in enumerate([0, 2, 5, 10], start=1):
+        if sleep_s:
+            _time.sleep(sleep_s)
+        try:
+            raw = statsapi.get("schedule", {
+                "date": date_str,
+                "sportId": 1,
+                "hydrate": "probablePitcher",
+            })
+            break
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 4:
+                print(f"  schedule fetch attempt {attempt}/4 failed: {exc} -- retrying...", file=sys.stderr)
+            continue
+    else:
+        sys.exit(f"Failed to fetch schedule after 4 attempts: {last_exc}")
 
     games = []
     for date_obj in raw.get("dates", []):

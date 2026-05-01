@@ -165,10 +165,39 @@ def _read_rows(path: Path) -> list[dict]:
 
 
 def _write_rows(path: Path, rows: list[dict]) -> None:
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
+    """Atomic CSV write -- write to a temp file in the same directory, fsync,
+    then os.replace() to swap.  Eliminates the "torn write" race where two
+    cron firings both open(path, "w") and a third reader (e.g. Vercel build's
+    copy-data.mjs running in parallel) sees a partially-written file.
+    os.replace is atomic on the same filesystem on both POSIX and Windows.
+    """
+    import os, tempfile
+    tmp_fd, tmp_path = tempfile.mkstemp(
+        prefix=path.name + ".",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(tmp_fd, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except OSError:
+                # fsync may fail on some Windows configurations; the
+                # replace is still the atomicity guarantee.
+                pass
+        os.replace(tmp_path, path)
+    except Exception:
+        # Best-effort cleanup of the temp file if anything went wrong
+        # before the rename.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 # ---------------------------------------------------------------------------
 # 1. Log picks
@@ -503,11 +532,20 @@ def _record_pick_change(*, iso_date: str, game_pk: str,
     cycles each get their own entry, so the dashboard can show the full
     history of how a pick evolved through the day."""
     path = _change_log_path()
-    is_new = not path.exists()
+    # Build the row in a tiny in-memory buffer first so we can decide
+    # header-or-not after re-reading the file.  Two cron runs that race
+    # the append previously could both see is_new=True and both write
+    # a header, breaking the parser.  Now we check the file's actual
+    # first-line content rather than just existence.
     try:
+        existing_has_header = False
+        if path.exists() and path.stat().st_size > 0:
+            with open(path, encoding="utf-8") as f:
+                first = f.readline().strip()
+                existing_has_header = first.startswith("captured_at_utc")
         with open(path, "a", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=CHANGE_LOG_FIELDS)
-            if is_new:
+            if not existing_has_header:
                 w.writeheader()
             w.writerow({
                 "captured_at_utc": captured_at,
@@ -628,10 +666,20 @@ def grade_date(date_str: str, season: int) -> None:
         tag = f"  {row['away_team']:>3} @ {row['home_team']:<3}"
 
         existing_grade = row.get("graded_result", "")
-        if existing_grade and existing_grade not in ("", "UNGRADED"):
+        # Allow regrading of POSTPONED / SUSPENDED rows: MLB sometimes
+        # marks a game POSTPONED then later actually plays it as a
+        # makeup with the same game_pk, or resumes a suspended game.
+        # Without this, the original PP grade is permanent and the
+        # actual W/L outcome never gets recorded.  Only WIN / LOSS /
+        # PASS are truly terminal (real outcomes that won't re-grade
+        # differently).
+        terminal = {"WIN", "LOSS", "PASS"}
+        if existing_grade and existing_grade.upper() in terminal:
             print(f"{tag}  already graded: {existing_grade}")
             already_n += 1
             continue
+        if existing_grade and existing_grade.upper() in ("POSTPONED", "SUSPENDED"):
+            print(f"{tag}  was {existing_grade}, re-checking for makeup/resume...")
 
         result = _fetch_first_inning(int(row["game_pk"]))
         state  = result["state"]
