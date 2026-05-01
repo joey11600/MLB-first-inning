@@ -31,6 +31,12 @@ name: Daily NRFI predict + grade + weekly recalibrate
 # each flip logged to data/pick_changes.csv.
 on:
   schedule:
+    # Overnight opener-line capture (T2.20).  DK posts most overnight lines
+    # by 8pm ET and updates them through the night; running at 1am ET grabs
+    # the opening snapshot for CLV tracking before the morning crons start.
+    # Also covers the "first scrape of the day" case so we don't lose 12hr
+    # of pre-game lines that close before the 7am cron fires.
+    - cron: "0 5 * * *"    # 1am EDT / 12am EST  -- overnight opener capture
     - cron: "0 12 * * *"   # 8am EDT / 7am EST
     - cron: "0 13 * * *"   # 9am EDT / 8am EST
     - cron: "0 14 * * *"   # 10am EDT / 9am EST
@@ -90,7 +96,7 @@ jobs:
           # PENDING -> real verdict where applicable.  We catch by hour
           # prefix to avoid listing 11 explicit lines.
           case "$SCHEDULE" in
-            "0 12 * * *"|"0 13 * * *"|"0 14 * * *"|"0 15 * * *"|"0 16 * * *"|"0 17 * * *"|"0 18 * * *"|"0 19 * * *"|"0 20 * * *"|"0 21 * * *"|"0 22 * * *"|"0 23 * * *")
+            "0 5 * * *"|"0 12 * * *"|"0 13 * * *"|"0 14 * * *"|"0 15 * * *"|"0 16 * * *"|"0 17 * * *"|"0 18 * * *"|"0 19 * * *"|"0 20 * * *"|"0 21 * * *"|"0 22 * * *"|"0 23 * * *")
               echo "what=predict" >> "$GITHUB_OUTPUT"
               ;;
             "30 3 * * *")

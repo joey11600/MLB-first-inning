@@ -106,6 +106,44 @@ entry below.
   bar+number content; meter narrowed 112→96px min; pickCell wraps to 2 lines
   for the rare LINEUP PENDING + tentative + odds combo.
 
+### Added — Tier 1 scraper improvements (T2.20, T2.21)
+
+Three reliability improvements to the DK odds scraper, all shipped together:
+
+**T2.20 — Schedule-aware coverage alerting + overnight cron**
+- Scraper now queries `https://statsapi.mlb.com/api/v1/schedule` after each
+  capture and warns to stderr if `captured/scheduled < 80%` during prime
+  hours (9am-1pm ET). Previously we only alerted on 0 captures (T1.4) —
+  4/15 looked identical to 15/15 from the workflow's perspective.
+  StatsAPI failures fall through silently to avoid false alarms.
+- Added overnight cron at `0 5 * * *` (1am EDT / 12am EST) to catch DK's
+  overnight opening lines for CLV tracking. The earliest existing cron
+  was 12 UTC (7am ET); we were missing ~12hr of pre-game line movement.
+  Workflow's action selector also updated to map `0 5 * * *` to `predict`.
+
+**T2.21 — Doubleheader odds disambiguation**
+- The scraper's merge logic keyed by `(date, away, home)` so DH-1 and
+  DH-2 collided and only the second survived. The importer in
+  `tracker.import_odds` had the matching issue with `by_team[(date,
+  away, home)] = int`. Confirmed via 2026-04-30 HOU@BAL: G1 had no
+  odds (graded LOSS un-priced), G2 did.
+- Scraper now emits `start_time_utc` (DK's `event.startEventDate`) per
+  row, and `_row_key` includes start time so DH halves stay distinct
+  in the merged file.
+- Importer's `by_team` is now `dict[..., list[int]]` and a new
+  `_pick_dh_candidate` helper picks the picks_2026 row whose
+  `game_time_et` parses to a UTC time within 90 min of the odds row's
+  `start_time_utc` (ties broken by smallest delta).
+- Match priority: `pk → teams+time → teams (legacy)`. The legacy
+  fallback keeps older odds files (before this change) working without
+  reimport.
+- 90-min tolerance: well inside half the typical DH gap (~3.5h between
+  DH-1 and DH-2), so they can never both match the same odds row.
+
+End-to-end tested: scraper merge preserves both DH halves with distinct
+start times; `_pick_dh_candidate` correctly picks index 0 for DH-1 odds
+and index 1 for DH-2 odds, returns None when nothing is in range.
+
 ### Fixed — Deploy-overwrite race (T2.19)
 
 A real production incident, captured here so it never happens again.

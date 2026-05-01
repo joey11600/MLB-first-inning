@@ -117,6 +117,90 @@ def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Schedule-aware coverage alerting (T2.20)
+# ---------------------------------------------------------------------------
+#
+# DK's API only returns games with currently-OPEN markets.  Games already
+# in progress are removed from the response.  Without comparing against
+# the actual MLB schedule we can't tell the difference between:
+#
+#   "captured 4/15 because 11 games were locked" — fine
+#   "captured 4/15 because something silently broke for 11 games" — NOT fine
+#
+# We hit the public MLB Stats API schedule endpoint (no auth, well-known
+# URL) to get the count of games scheduled for the slate, then warn loudly
+# if our capture is < 80% during the prime window when DK should have
+# every game open.
+
+MLB_SCHEDULE_URL = "https://statsapi.mlb.com/api/v1/schedule"
+
+
+def fetch_mlb_schedule_count(date_iso: str, timeout: float = 10.0) -> int | None:
+    """Return the number of regular-season MLB games scheduled on `date_iso`.
+
+    Returns None if the schedule fetch fails -- caller should treat that
+    as "can't compute coverage" and skip the alert (don't false-alarm
+    just because StatsAPI is briefly down)."""
+    url = f"{MLB_SCHEDULE_URL}?sportId=1&date={date_iso}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": HEADERS["User-Agent"]})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read())
+    except Exception as exc:  # noqa: BLE001
+        print(f"  MLB schedule fetch failed ({exc!r}); skipping coverage check.",
+              file=sys.stderr)
+        return None
+    dates = data.get("dates", []) or []
+    # `dates` is one entry per date; filter to ours and count games.
+    for d in dates:
+        if d.get("date") == date_iso:
+            games = d.get("games", []) or []
+            # Only count games that haven't been postponed/cancelled
+            # at the schedule-fetch moment.  Status codes per MLB API:
+            #   "Scheduled" / "Pre-Game" / "Warmup" / "In Progress" / "Final"
+            #     -> count
+            #   "Postponed" / "Cancelled" / "Suspended" (final) / "Delayed"
+            #     -> exclude (they don't have markets either)
+            countable = sum(
+                1 for g in games
+                if (g.get("status", {}).get("abstractGameState") or "")
+                   not in ("Postponed", "Cancelled")
+            )
+            return countable
+    return 0
+
+
+def check_coverage(captured: int, scheduled: int | None,
+                   et_now: datetime) -> tuple[bool, str]:
+    """Decide whether to warn about partial coverage.
+
+    Returns (should_warn, message).  Only fires during the prime window
+    when DK should have every game open (9am-1pm ET); after 1pm, partial
+    coverage is expected as games progressively start.
+
+    Threshold is 80% -- captured at least 80% of scheduled games is OK,
+    less is suspicious.  10/13 = 77% triggers; 11/13 = 85% does not.
+    """
+    if scheduled is None or scheduled == 0:
+        return (False, "")  # can't compute, or off-day
+    is_prime_window = 9 <= et_now.hour < 13
+    if not is_prime_window:
+        return (False, "")
+    coverage = captured / scheduled
+    if coverage >= 0.80:
+        return (False, "")
+    msg = (
+        f"PARTIAL COVERAGE: captured {captured}/{scheduled} games "
+        f"({100*coverage:.0f}%) during prime hours "
+        f"({et_now.strftime('%I:%M %p ET')}).  Expected >=80%.  Possible causes: "
+        f"DK API intermittent, abbrev mismatch (check DK_TO_OUR_ABBR), "
+        f"or matchup parsing changed.  Investigate today's missed games "
+        f"before tomorrow."
+    )
+    return (True, msg)
+
+
+# ---------------------------------------------------------------------------
 # Merge logic: preserve odds captured in earlier hourly runs
 # ---------------------------------------------------------------------------
 #
@@ -140,12 +224,26 @@ def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
 #   - existing games not in the new fetch are KEPT (locked / market pulled)
 
 
-def _row_key(r: dict) -> tuple[str, str, str]:
-    """Identity key for an odds row.  Date+abbrs uniquely IDs a game on
-    the slate (doubleheaders disambiguate via DK eventId, but for our
-    purposes both DH halves share the same NRFI/YRFI line so collapsing
-    them is fine -- the importer matches by date+abbrs anyway)."""
-    return (r.get("date", ""), r.get("away_team", ""), r.get("home_team", ""))
+def _row_key(r: dict) -> tuple[str, str, str, str]:
+    """Identity key for an odds row, DH-aware (T2.21).
+
+    Previously keyed by (date, away, home) only — DH-1 and DH-2 share
+    teams + date and the second-listed game would clobber the first
+    in our merge dict, leaving picks_2026.csv with odds on only one
+    half of every doubleheader.  Confirmed via 2026-04-30 HOU@BAL: G1
+    had no odds, G2 did.
+
+    Adding `start_time_utc` makes DH halves distinct keys.  When the
+    column is missing (older odds files written before this change),
+    `start_time_utc` falls back to "" and behavior is identical to
+    the old key — no schema-migration churn.
+    """
+    return (
+        r.get("date", ""),
+        r.get("away_team", ""),
+        r.get("home_team", ""),
+        r.get("start_time_utc", ""),
+    )
 
 
 def read_existing_csv(path: Path) -> list[dict]:
@@ -284,12 +382,16 @@ def extract_odds(data: dict) -> list[dict]:
 
         out.append({
             "date":             date_iso,
-            "game_pk":          "",            # DK has its own eventId; importer matches by date+teams
+            "game_pk":          "",            # DK has its own eventId; importer matches by date+teams (+start_time for DH)
             "away_team":        away_abbr,
             "home_team":        home_abbr,
             "market_nrfi_odds": nrfi_odds,
             "market_yrfi_odds": yrfi_odds,
             "sportsbook":       "DraftKings",
+            # T2.21 -- DK's start time, used by importer to disambiguate
+            # doubleheader halves (same teams, different start times).
+            # Stored verbatim from event.startEventDate (UTC ISO).
+            "start_time_utc":   event.get("startEventDate", "") or "",
         })
 
     return out
@@ -297,7 +399,8 @@ def extract_odds(data: dict) -> list[dict]:
 
 def write_csv(rows: list[dict], path: Path) -> None:
     fields = ["date", "game_pk", "away_team", "home_team",
-              "market_nrfi_odds", "market_yrfi_odds", "sportsbook"]
+              "market_nrfi_odds", "market_yrfi_odds", "sportsbook",
+              "start_time_utc"]   # T2.21 -- DH disambiguation
     path.parent.mkdir(parents=True, exist_ok=True)
     # extrasaction="ignore" is defensive: if a future schema adds columns
     # to extract_odds() but the existing file on disk still has the old
@@ -393,6 +496,21 @@ def main() -> None:
         for r in merged_rows:
             print(f"  {r['date']}  {r['away_team']:>3} @ {r['home_team']:<3}    "
                   f"{r['market_nrfi_odds']:>5}  {r['market_yrfi_odds']:>5}")
+
+    # T2.20 -- check coverage against today's MLB schedule and warn loudly
+    # on partial captures during prime hours.  Filters merged_rows to the
+    # ET-today date so a stale leftover from yesterday's run doesn't inflate
+    # the count.
+    from zoneinfo import ZoneInfo as _ZI
+    et_now = datetime.now(_ZI("America/New_York"))
+    et_today_iso = et_now.strftime("%Y-%m-%d")
+    captured_today = sum(1 for r in merged_rows if r.get("date", "") == et_today_iso)
+    scheduled = fetch_mlb_schedule_count(et_today_iso)
+    if scheduled is not None:
+        print(f"  Coverage: {captured_today}/{scheduled} games captured for {et_today_iso}.")
+    should_warn, warn_msg = check_coverage(captured_today, scheduled, et_now)
+    if should_warn:
+        print(f"  WARNING: {warn_msg}", file=sys.stderr)
 
     print()
     print(f"  Next: python mlb_first_inning_predictor.py --import-odds {out_path} --min-edge 0.02")

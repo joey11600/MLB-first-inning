@@ -11,7 +11,8 @@ All heavy lifting lives here; the predictor just calls three functions:
 
 import csv
 import sys
-from datetime import datetime, date as date_type
+from datetime import datetime, date as date_type, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 try:
@@ -980,6 +981,67 @@ def payout_per_unit(odds_str: str) -> float | None:
         return 100.0 / abs(odds)
 
 
+def _pick_dh_candidate(
+    rows:        list[dict],
+    candidates:  list[int],
+    start_iso:   str,
+) -> int | None:
+    """T2.21 -- DH-aware odds-to-pick matching.
+
+    `candidates` is a list of indices into `rows` that all share
+    (date, away_team, home_team) -- typically 2 entries for a
+    doubleheader.  `start_iso` is the odds row's `start_time_utc`
+    (DK's `event.startEventDate`).  Returns the index whose
+    `game_time_et` parses to a UTC time within 90 min of `start_iso`,
+    breaking ties by smallest delta.  Returns None if nothing is in
+    range -- caller should fall back to first candidate or skip.
+
+    Why 90 min: a typical DH-1 starts ~3.5h before DH-2 (e.g. 4:10pm
+    and 7:10pm ET).  90 min is well inside half-the-gap so they
+    can't both match the same odds row.  Generous enough to absorb
+    schedule shifts of an hour or so without false-failing.
+    """
+    try:
+        odds_dt = datetime.strptime(
+            start_iso.replace("Z", "+0000"), "%Y-%m-%dT%H:%M:%S%z"
+        )
+    except (ValueError, AttributeError):
+        # Some DK timestamps include subseconds -- try the trim path.
+        try:
+            cleaned = start_iso.split(".")[0] + "+0000"
+            odds_dt = datetime.strptime(cleaned, "%Y-%m-%dT%H:%M:%S%z")
+        except (ValueError, AttributeError):
+            return None
+
+    et = ZoneInfo("America/New_York")
+    best_idx     = None
+    best_delta_s = None
+    for i in candidates:
+        time_et = (rows[i].get("game_time_et") or "").strip()
+        if not time_et:
+            continue
+        # game_time_et looks like "7:05 PM ET" -- parse and combine
+        # with the row's date in ET.
+        try:
+            t = datetime.strptime(time_et.replace(" ET", "").strip(), "%I:%M %p")
+        except ValueError:
+            continue   # placeholder like "After Game 1" -- skip
+        date_iso = rows[i].get("date", "")
+        try:
+            d = datetime.strptime(date_iso, "%Y-%m-%d")
+        except ValueError:
+            continue
+        pick_dt_et = d.replace(hour=t.hour, minute=t.minute, tzinfo=et)
+        pick_dt_utc = pick_dt_et.astimezone(timezone.utc)
+        delta_s = abs((pick_dt_utc - odds_dt).total_seconds())
+        if delta_s > 90 * 60:
+            continue
+        if best_delta_s is None or delta_s < best_delta_s:
+            best_delta_s = delta_s
+            best_idx = i
+    return best_idx
+
+
 def _calc_pnl(row: dict) -> str:
     """
     Compute profit/loss in units for one already-graded row.
@@ -1151,18 +1213,25 @@ def import_odds(
 
     Odds file format (header required):
       date, game_pk, away_team, home_team, market_nrfi_odds, market_yrfi_odds
-      Optional columns: sportsbook
+      Optional columns: sportsbook, start_time_utc
 
-    Matching priority:
-      1. date + game_pk        (exact)
-      2. date + away_team + home_team  (fuzzy fallback)
+    Matching priority (T2.21):
+      1. date + game_pk                                    (exact)
+      2. date + away + home + start_time_utc match         (DH-aware)
+      3. date + away + home                                (legacy fallback)
+
+    The DH-aware path is what kept doubleheaders from getting
+    half-priced -- `by_team` collisions caused DH-2 to overwrite DH-1
+    in the lookup, so DH-1 never matched.  Now if the odds row carries
+    a `start_time_utc`, we compare against picks_2026's `game_time_et`
+    converted to UTC and pick the closest match (within 90 min).
 
     After matching, computes:
       implied probs, model edges, bet_placed, units_risked, profit_loss_units
 
     Example:
       2026-04-05,745459,NYY,BOS,-115,+105,FanDuel
-      2026-04-05,,LAD,SF,-110,-110,DraftKings
+      2026-04-05,,LAD,SF,-110,-110,DraftKings,2026-04-05T23:10:00Z
     """
     odds_path = Path(odds_path)
     if not odds_path.exists():
@@ -1180,16 +1249,19 @@ def import_odds(
         print(f"No picks logged for season {season}. Run the predictor first.")
         return
 
-    # Build lookup indexes
-    by_pk:   dict[tuple, int] = {}   # (iso_date, str(game_pk)) -> idx
-    by_team: dict[tuple, int] = {}   # (iso_date, away, home) -> idx
+    # Build lookup indexes.  T2.21: by_team is now a LIST of indices per
+    # team key (not a single int) so DH games don't clobber each other.
+    # Caller picks the right one by start-time proximity when DH detected.
+    by_pk:   dict[tuple, int]              = {}   # (iso_date, game_pk) -> idx
+    by_team: dict[tuple, list[int]]        = {}   # (iso_date, away, home) -> [idx,...]
     for i, r in enumerate(rows):
         d = r["date"]
         by_pk[(d, str(r["game_pk"]))] = i
-        by_team[(d, r["away_team"].upper(), r["home_team"].upper())] = i
+        key = (d, r["away_team"].upper(), r["home_team"].upper())
+        by_team.setdefault(key, []).append(i)
 
     now = _now_utc()
-    matched_n = unmatched_n = pk_matched_n = team_matched_n = 0
+    matched_n = unmatched_n = pk_matched_n = team_matched_n = time_matched_n = 0
     dates_covered: set[str] = set()
 
     with open(odds_path, newline="", encoding="utf-8") as f:
@@ -1204,6 +1276,7 @@ def import_odds(
             nrfi_o   = cols.get("market_nrfi_odds", "")
             yrfi_o   = cols.get("market_yrfi_odds", "")
             book     = cols.get("sportsbook", "")
+            start_iso = cols.get("start_time_utc", "")  # T2.21
 
             # Attempt match
             idx         = None
@@ -1213,9 +1286,27 @@ def import_odds(
                 if idx is not None:
                     match_method = "pk"
             if idx is None:
-                idx = by_team.get((iso_date, away, home))
-                if idx is not None:
+                # T2.21 -- DH-aware match.  Look up all picks rows for this
+                # (date, away, home) and pick the one whose game_time_et
+                # is closest to the odds row's start_time_utc.  90-min
+                # tolerance is generous enough to absorb minor schedule
+                # shifts but tight enough to keep DH-1 (afternoon) and
+                # DH-2 (evening) on opposite sides of the cutoff.
+                candidates = by_team.get((iso_date, away, home), [])
+                if len(candidates) == 1:
+                    idx = candidates[0]
                     match_method = "teams"
+                elif len(candidates) > 1:
+                    if start_iso:
+                        idx = _pick_dh_candidate(rows, candidates, start_iso)
+                        if idx is not None:
+                            match_method = "teams+time"
+                    if idx is None:
+                        # Fall back to the first DH candidate so we don't
+                        # silently drop the row -- but log it so partial
+                        # coverage on DH days surfaces.
+                        idx = candidates[0]
+                        match_method = "teams (DH-ambiguous; first)"
 
             if idx is None:
                 print(f"  [no match] {iso_date}  {away} @ {home}  pk={game_pk or '?'}")
@@ -1224,6 +1315,8 @@ def import_odds(
 
             if match_method == "pk":
                 pk_matched_n += 1
+            elif match_method.startswith("teams+time"):
+                time_matched_n += 1
             else:
                 team_matched_n += 1
 
@@ -1257,7 +1350,10 @@ def import_odds(
     else:
         missing_odds = []
 
-    print(f"\n  Matched {matched_n} ({pk_matched_n} by game_pk, {team_matched_n} by teams)"
+    print(f"\n  Matched {matched_n} "
+          f"({pk_matched_n} by game_pk, "
+          f"{time_matched_n} by teams+time, "
+          f"{team_matched_n} by teams)"
           f"  |  Unmatched {unmatched_n}")
     if missing_odds:
         print(f"  Still missing odds: {len(missing_odds)} pick(s) for {sorted(dates_covered)}")
