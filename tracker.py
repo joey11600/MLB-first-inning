@@ -1039,6 +1039,15 @@ def grade_date(date_str: str, season: int) -> None:
         rows[idx]["fi_home_runs"]  = home_r
         rows[idx]["fi_total_runs"] = total_r
         rows[idx]["graded_at"]     = now
+        # T2.27: compute P&L now that the grade landed.  Previously this
+        # was deferred to the next --import-odds run, which on the live
+        # path could be 30-60 min late OR never if no fresh DK fetch
+        # came in (e.g., late-evening grade post-market-pull).  Without
+        # this, a graded WIN row would show profit_loss_units="" on the
+        # dashboard until the next odds refresh -- looks like the win
+        # didn't count.  _calc_pnl is pure (no I/O) so safe inside the
+        # grade loop.
+        rows[idx]["profit_loss_units"] = _calc_pnl(rows[idx])
 
         outcome_tag = {"WIN": "W", "LOSS": "L", "PASS": "-"}.get(graded_result, "?")
         source_tag  = "" if state == "Final" else f" [from {state}]"

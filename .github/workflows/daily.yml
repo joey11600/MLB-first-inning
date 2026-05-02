@@ -169,6 +169,19 @@ jobs:
             # Soft-fail: continue to today's predict
           fi
 
+          echo "==> Live-grading today's completed 1st innings..."
+          # T2.27: grade today on every predict cron, not just at 11:30pm.
+          # tracker.grade_date skips games whose 1st inning isn't complete
+          # yet, so this is idempotent and safe to run on every cron.
+          # Without this, a STRONG bet that wins in the bottom of the 1st
+          # at 7:30pm doesn't show as graded WIN on the dashboard until
+          # the dedicated grade cron at UTC 3:30 (11:30pm ET) -- a 3-4
+          # hour delay where the user can't see their own win.
+          if ! python mlb_first_inning_predictor.py --date "$TODAY_ISO" --grade 2>>grade_err.log; then
+            record_err "grade-today" "$?" "$(tail -c 400 grade_err.log)"
+            # Soft-fail: even if grade-today errors, predict should still run.
+          fi
+
           echo "==> Predicting today's slate..."
           if ! python mlb_first_inning_predictor.py 2>predict_err.log; then
             record_err "predict" "$?" "$(tail -c 400 predict_err.log)"
