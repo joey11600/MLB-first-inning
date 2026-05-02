@@ -878,32 +878,53 @@ _DEDUP_WINDOW_M: dict[str, int] = {
 
 
 def _send_telegram_html(text: str) -> bool:
-    """Low-level send.  Returns True on success.  Catches every exception
-    so callers don't have to.  Fail-OPEN per the original notifier
-    contract: a Telegram outage must NEVER break the predictor."""
-    token   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
-    if not token or not chat_id:
+    """Low-level send.  Fans out to ALL chat_ids in `TELEGRAM_CHAT_ID`
+    (comma-separated CSV).  Each chat_id can be:
+      • a positive int  — DM to a person      (e.g. 5285688562)
+      • a negative int  — group / channel     (e.g. -1001234567890)
+
+    Returns True if at least one delivery succeeded.  Each recipient
+    is independently attempted; one bad chat_id (e.g. bot kicked from
+    a group) does NOT prevent delivery to the others.
+
+    T2.43: previously a single chat_id was supported.  Bumped to CSV
+    so the same notifications can broadcast to a group ('Backfist Bets')
+    while still hitting the operator's personal chat.
+
+    Fail-OPEN per the original notifier contract: a Telegram outage
+    must NEVER break the predictor."""
+    token        = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_ids_raw = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
+    if not token or not chat_ids_raw:
         return False
-    try:
-        import urllib.parse
-        body = urllib.parse.urlencode({
-            "chat_id":                  chat_id,
-            "text":                     text,
-            "parse_mode":               "HTML",
-            "disable_web_page_preview": "true",
-        }).encode("utf-8")
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        req = urllib.request.Request(
-            url, data=body,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            resp.read()
-        return True
-    except Exception as exc:    # noqa: BLE001 — advisory only, swallow all
-        print(f"  [telegram] send failed: {exc!r}", file=sys.stderr)
+
+    # Tolerate whitespace around commas; ignore empty entries.
+    chat_ids = [c.strip() for c in chat_ids_raw.split(",") if c.strip()]
+    if not chat_ids:
         return False
+
+    import urllib.parse
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    delivered = 0
+    for chat_id in chat_ids:
+        try:
+            body = urllib.parse.urlencode({
+                "chat_id":                  chat_id,
+                "text":                     text,
+                "parse_mode":               "HTML",
+                "disable_web_page_preview": "true",
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                url, data=body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resp.read()
+            delivered += 1
+        except Exception as exc:    # noqa: BLE001 — per-recipient soft fail
+            print(f"  [telegram] send to {chat_id!r} failed: {exc!r}",
+                  file=sys.stderr)
+    return delivered > 0
 
 
 def _notify_event_dedup_check(event_type: str, event_key: str) -> bool:

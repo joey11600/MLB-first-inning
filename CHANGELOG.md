@@ -665,6 +665,48 @@ unchanged; switching window re-fetches `/api/roi?window=...` and
 the equity chart recomputes with the narrower data set.  Stats
 re-derive automatically from the filtered rows.
 
+### Added — Multi-recipient Telegram broadcast (T2.43)
+
+Lets the same Telegram notifications fan out to multiple chats from
+a single env var.  Created a Telegram group named **"Backfist Bets"**
+so the operator can add friends and have them receive every alert
+the operator sees, with no extra wiring per recipient.
+
+`tracker._send_telegram_html` now treats `TELEGRAM_CHAT_ID` as a
+**comma-separated CSV** instead of a single id.  Each entry can be:
+  • a positive int — DM to a person       (e.g. `5285688562`)
+  • a negative int — group / channel      (e.g. `-5115372935`)
+
+Per-recipient delivery loop with **soft fail**: one bad chat_id (bot
+kicked from a group, chat blocked, etc.) does NOT prevent delivery
+to the other recipients.  Returns `True` if at least one delivery
+succeeded.  Back-compat: a single chat_id with no comma still works
+unchanged.
+
+The dedup framework from T2.38 (`notifications_log` Supabase table)
+is per-event-type, not per-recipient — so each of the 8 STRONG-only
+event types still fires at most once per dedup window, but the ping
+goes to all recipients atomically.
+
+Operationally, three places store the chat_id and all three were
+updated to the CSV `5285688562,-5115372935`:
+  - Railway predictor service (`MLB-first-inning`) — env var
+  - Railway worker service (`worker`) — env var
+  - GitHub Actions repo secret `TELEGRAM_CHAT_ID` — for the daily
+    backup predictor that still runs in GHA
+
+The bot (`@nrfi_terminal_bot`) was added to the "Backfist Bets"
+group as a member.  No admin permissions required for read-only
+broadcast use.
+
+Files:
+  - `tracker.py` — `_send_telegram_html` rewritten for CSV fan-out
+    (45 +/-, 24 -).  Function-level docstring documents the contract.
+
+Live verification: a manual `sendMessage` call (one round-trip per
+recipient) returned `ok=True message_id=24` to the personal chat
+and `ok=True message_id=25` to the Backfist Bets group.
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |

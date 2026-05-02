@@ -28,7 +28,8 @@ Companion to:
 | 2026-05-02 | `e80a0a1` | **T2.38** — 8 new STRONG-only Telegram event types: graded W/L, voided, pregame, CLV, weather, milestone, daily digest, ops health |
 | 2026-05-02 | `e5a0f84` | **T2.39** — Pitcher days-rest feature tested (4 variants on 2024↔2025) and rejected per ship rules; logged in KB.md |
 | 2026-05-02 | `2c55af5` | **T2.40 + T2.41** — Pre-game starter-scratch detector (Telegram alert on STRONG bets affected by a probable-pitcher change) + dedup window fix on `flip_to_strong` (5min → 24h, prevents Railway×GHA race-induced duplicate pings) |
-| 2026-05-02 | `<this commit>` | **T2.42** — Bankroll equity curve on `/history`: SVG line + drawdown shading + ATH marker + 6-stat panel (Bankroll, ATH, Max DD, Current DD, Vol, Sharpe). +1.4kB bundle. |
+| 2026-05-02 | `fc55aee` | **T2.42** — Bankroll equity curve on `/history`: SVG line + drawdown shading + ATH marker + 6-stat panel (Bankroll, ATH, Max DD, Current DD, Vol, Sharpe). +1.4kB bundle. |
+| 2026-05-02 | `<this commit>` | **T2.43** — Multi-recipient Telegram broadcast. `TELEGRAM_CHAT_ID` upgraded from a single id to comma-separated CSV; `_send_telegram_html` fans out per-recipient with soft-fail. Created **"Backfist Bets"** group; bot added; live ping verified to both personal + group. Three env stores synced (Railway predictor, Railway worker, GHA secret). |
 
 End result: the dashboard is now an **installable PWA** receiving **sub-second Realtime push** of model predictions every 5 minutes (Railway predictor) and game state every 10 seconds (Railway live-state worker).
 
