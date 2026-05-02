@@ -224,8 +224,35 @@ def check_coverage(captured: int, scheduled: int | None,
 #   - existing games not in the new fetch are KEPT (locked / market pulled)
 
 
+def _bucket_start_time(s: str, slot_minutes: int = 30) -> str:
+    """Round a UTC ISO start time down to the nearest `slot_minutes`-minute
+    bucket.  Returns "" when input is empty or unparseable.
+
+    Used by `_row_key` so that small DK schedule revisions (e.g. DK
+    publishes 20:05 in the morning then re-publishes 20:10 at noon for
+    the same game) collapse to the same bucket and merge as one row,
+    while genuine DH halves (always ≥ 2 hours apart) stay distinct.
+    """
+    if not s:
+        return ""
+    try:
+        # DK strings look like "2026-05-02T20:10:00.0000000Z"; trim the
+        # subsecond block so fromisoformat() works on stdlib < 3.11.
+        norm = s.replace("Z", "+00:00")
+        if "." in norm:
+            head, _, tail = norm.partition(".")
+            plus = tail.find("+")
+            norm = head + (tail[plus:] if plus >= 0 else "")
+        dt = datetime.fromisoformat(norm)
+    except (ValueError, TypeError):
+        return s   # fall back to raw string so we never erase the field
+    epoch = int(dt.timestamp())
+    bucket_secs = max(1, slot_minutes) * 60
+    return str(epoch - (epoch % bucket_secs))
+
+
 def _row_key(r: dict) -> tuple[str, str, str, str]:
-    """Identity key for an odds row, DH-aware (T2.21).
+    """Identity key for an odds row, DH-aware (T2.21) and DK-revision-tolerant (T2.47).
 
     Previously keyed by (date, away, home) only — DH-1 and DH-2 share
     teams + date and the second-listed game would clobber the first
@@ -233,16 +260,26 @@ def _row_key(r: dict) -> tuple[str, str, str, str]:
     half of every doubleheader.  Confirmed via 2026-04-30 HOU@BAL: G1
     had no odds, G2 did.
 
-    Adding `start_time_utc` makes DH halves distinct keys.  When the
-    column is missing (older odds files written before this change),
-    `start_time_utc` falls back to "" and behavior is identical to
-    the old key — no schema-migration churn.
+    T2.21 added `start_time_utc` to make DH halves distinct keys.
+    But DK occasionally revises a game's start time by a few minutes
+    (e.g. 4:05 PM -> 4:10 PM published mid-morning), and the raw
+    timestamp difference made the same game look like two halves of a
+    DH.  Merge then preserved both -> picks_2026 mirror payload had
+    duplicate (date, game_pk) -> Postgres SQLSTATE 21000 -> entire
+    batch rejected -> dashboard fell ~hour behind on grades.  Confirmed
+    via 2026-05-02 CIN@PIT: 20:05 + 20:10 rows both kept.
+
+    Fix (T2.47): bucket start_time_utc to 30-minute slots before keying.
+    A 5-minute DK revision now collapses to the same bucket; a real DH
+    (always 2+ hours apart) still hashes to distinct buckets.  When the
+    column is missing or malformed, falls back to "" -- behavior is
+    identical to the legacy 3-tuple key -- no schema migration needed.
     """
     return (
         r.get("date", ""),
         r.get("away_team", ""),
         r.get("home_team", ""),
-        r.get("start_time_utc", ""),
+        _bucket_start_time(r.get("start_time_utc", "")),
     )
 
 

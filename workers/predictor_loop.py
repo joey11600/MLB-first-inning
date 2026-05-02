@@ -96,23 +96,47 @@ def yesterday_iso() -> str:
     return (datetime.now(ET) - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
+# T2.47: capture last 600 chars of stderr per step so the system_errors
+# row carries actual diagnostic context (not just "rc=1").  Cleared at
+# the start of each cycle.  This is dual-streamed: stderr still flows
+# to Railway's log capture in real time AND we keep a tail buffer for
+# the system_errors message field.
+_LAST_STDERR_TAIL: dict[str, str] = {}
+
+
 def run(cmd: list[str], timeout_s: int, label: str) -> int:
     """Run a subprocess in REPO_ROOT, streaming output.  Returns exit
     code.  124 on timeout, 1 on unexpected exception.
 
-    Output is intentionally not captured -- we want stdout/stderr to
-    stream directly to Railway's log capture so the operator can watch
-    a live cycle in real time.  If a step crashes, the traceback is
-    visible in the deploy logs."""
+    stdout streams directly to Railway's log capture so the operator
+    can watch a live cycle in real time.  stderr is teed: streamed to
+    the parent's stderr AND captured into _LAST_STDERR_TAIL[label] so
+    `_record_step_failure` can surface the actual error in
+    system_errors instead of an opaque "rc=1"."""
     print(f"[predictor] [{label}] $ {' '.join(cmd)}", flush=True)
     started = time.time()
     try:
-        rc = subprocess.run(cmd, cwd=REPO_ROOT, timeout=timeout_s).returncode
+        proc = subprocess.run(
+            cmd, cwd=REPO_ROOT, timeout=timeout_s,
+            stderr=subprocess.PIPE, text=True,
+        )
+        # Re-emit stderr so Railway log capture still sees it in
+        # real time (subprocess.PIPE swallows it from the parent's
+        # tty otherwise).
+        if proc.stderr:
+            print(proc.stderr, end="", file=sys.stderr, flush=True)
+            # Keep the LAST 600 chars -- usually the actual error msg.
+            _LAST_STDERR_TAIL[label] = proc.stderr[-600:].strip()
+        else:
+            _LAST_STDERR_TAIL[label] = ""
+        rc = proc.returncode
     except subprocess.TimeoutExpired:
         print(f"[predictor] [{label}] TIMEOUT after {timeout_s}s", file=sys.stderr, flush=True)
+        _LAST_STDERR_TAIL[label] = f"TIMEOUT after {timeout_s}s"
         return 124
     except Exception as exc:    # noqa: BLE001
         print(f"[predictor] [{label}] subprocess error: {exc!r}", file=sys.stderr, flush=True)
+        _LAST_STDERR_TAIL[label] = f"subprocess error: {exc!r}"
         return 1
     dur = time.time() - started
     print(f"[predictor] [{label}] exit={rc} ({dur:.1f}s)", flush=True)
@@ -133,7 +157,8 @@ def _record_step_failure(step: str, exit_code: int, message: str = "") -> None:
 
     `step`        — short label (e.g. "predict", "grade-today", "scrape-dk")
     `exit_code`   — non-zero RC from `run()`; 124 means timeout
-    `message`     — short human-readable hint (rc-derived if empty)
+    `message`     — short human-readable hint (auto-derived from
+                    _LAST_STDERR_TAIL if empty)
     """
     if exit_code == 0:
         return
@@ -143,6 +168,12 @@ def _record_step_failure(step: str, exit_code: int, message: str = "") -> None:
         if str(REPO_ROOT) not in sys.path:
             sys.path.insert(0, str(REPO_ROOT))
         from db.supabase_writer import mirror_system_error
+        # T2.47: if no explicit message, prefer the captured stderr tail
+        # over the opaque "rc=N" placeholder -- much more useful for ops.
+        if not message:
+            stderr_tail = _LAST_STDERR_TAIL.get(step, "").strip()
+            if stderr_tail:
+                message = stderr_tail
         msg = message.strip() if message else (
             "timeout" if exit_code == 124 else f"rc={exit_code}"
         )
