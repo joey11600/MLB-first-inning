@@ -24,6 +24,8 @@ Companion to:
 | 2026-05-02 | `7925fe6` + `8dd0cb7` | **T2.33 / Phase 3** — Railway predictor loop (5min cadence) + start-command fix |
 | 2026-05-02 | `8dd0cb7` | **T2.34 / Phase 6** — PWA bundle (manifest + icons + service worker + iOS meta) |
 | 2026-05-02 | `91d094c` | **T2.35** — Bypass Next.js fetch cache on dashboard SSR (was serving stale data) |
+| 2026-05-02 | `442fe4d` + `6d23152` | **T2.36 + T2.37** — Telegram notifier upgrade (Supabase dedup, HTML format, dashboard hyperlink) + STRONG-only filter |
+| 2026-05-02 | `e80a0a1` | **T2.38** — 8 new STRONG-only Telegram event types: graded W/L, voided, pregame, CLV, weather, milestone, daily digest, ops health |
 
 End result: the dashboard is now an **installable PWA** receiving **sub-second Realtime push** of model predictions every 5 minutes (Railway predictor) and game state every 10 seconds (Railway live-state worker).
 
