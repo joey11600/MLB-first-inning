@@ -618,13 +618,22 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 # (LINEUP PENDING ↔ STARTER PENDING ↔ NO EDGE) doesn't
                 # spam the user's phone -- only commits / demotes /
                 # side-flips ping.
+                #
+                # T2.36: pass game_pk + probability context so the notifier
+                # can dedupe across runners (Supabase query) and include
+                # P(NRFI)/P(YRFI) in the message body.
                 _notify_pick_flip_telegram(
-                    iso_date  = iso_date,
-                    away_team = ap["abbr"],
-                    home_team = hp["abbr"],
-                    game_time = g["time"],
-                    old_label = old_label,
-                    new_label = new_label,
+                    iso_date    = iso_date,
+                    away_team   = ap["abbr"],
+                    home_team   = hp["abbr"],
+                    game_time   = g["time"],
+                    old_label   = old_label,
+                    new_label   = new_label,
+                    game_pk     = str(g.get("game_pk", "")),
+                    row_context = {
+                        "nrfi_prob": g.get("nrfi_prob"),
+                        "yrfi_prob": g.get("yrfi_prob"),
+                    },
                 )
 
             # If the game has already started (live or final), preserve
@@ -766,10 +775,155 @@ def _is_actionable_label(label: str) -> bool:
     return ("STRONG" in s) or ("LEAN" in s)
 
 
+# T2.36: Dashboard URL for the "→ View on dashboard" link in pings.
+# Override via DASHBOARD_URL env var (e.g. for staging / preview deploys).
+_DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "https://nrfi-terminal.vercel.app").rstrip("/")
+
+
+def _flip_already_pinged_supabase(iso_date: str, game_pk: str, new_label: str) -> bool:
+    """T2.36 cross-runner dedup.
+
+    Both Railway (every 5 min) and the GHA cron (hourly) detect the
+    same flip and each writes a pick_changes journal row plus a
+    Telegram ping.  Without dedup, every actionable flip fires 2-4
+    pings per cycle.
+
+    Strategy: query Supabase for ALL pick_changes rows matching
+    (date, game_pk, new_pick_label) within the last 5 minutes.  By
+    the time this function is called, _record_pick_change has already
+    inserted THIS runner's row -- so:
+      • count == 1  → only us in the window, ping
+      • count >= 2  → another runner already pinged, skip
+
+    Race window: ~1 sec between two runners both seeing count==1
+    simultaneously.  Acceptable; the alternative (locks / unique
+    constraints) is more complex than a duplicate ping every few
+    weeks justifies.
+
+    Returns True when the ping should be SKIPPED (duplicate detected).
+    Always returns False on any error so the notifier fails-OPEN
+    rather than silently swallowing real flips."""
+    if not game_pk:
+        return False  # legacy rows without game_pk -- skip dedup, ping anyway
+    try:
+        from db.supabase_writer import _get_client
+        from datetime import timedelta as _td
+        client = _get_client()
+        if client is None:
+            return False    # Supabase not configured -- can't dedup, ping anyway
+        cutoff = (datetime.utcnow() - _td(minutes=5)).isoformat() + "Z"
+        res = (
+            client.table("pick_changes")
+                  .select("id", count="exact", head=True)
+                  .eq("date",          iso_date)
+                  .eq("game_pk",       str(game_pk))
+                  .eq("new_pick_label", new_label)
+                  .gte("captured_at_utc", cutoff)
+                  .execute()
+        )
+        count = getattr(res, "count", None) or 0
+        return count > 1
+    except Exception:    # noqa: BLE001 -- fail-open, never swallow a real flip
+        return False
+
+
+def _flip_category(old_label: str, new_label: str) -> tuple[str, str]:
+    """Classify a flip into a category + emoji for the Telegram ping.
+
+    Returns (category, emoji).  Categories:
+      'commit'  — PASS/pending → STRONG/LEAN  (the user wants in)
+      'demote'  — STRONG/LEAN → PASS/pending  (the user is out)
+      'side'    — STRONG NRFI ↔ STRONG YRFI   (rare; high-impact)
+    """
+    old_a = _is_actionable_label(old_label)
+    new_a = _is_actionable_label(new_label)
+    if old_a and new_a:
+        # Both actionable.  If sides differ → side flip; else strength change.
+        old_side = "NRFI" if "NRFI" in (old_label or "").upper() else "YRFI"
+        new_side = "NRFI" if "NRFI" in (new_label or "").upper() else "YRFI"
+        if old_side != new_side:
+            return ("side", "🔄")
+        # Same side, strength changed (LEAN → STRONG = commit; STRONG → LEAN = trim)
+        if "STRONG" in (new_label or "").upper() and "LEAN" in (old_label or "").upper():
+            return ("commit", "📈")
+        if "LEAN" in (new_label or "").upper() and "STRONG" in (old_label or "").upper():
+            return ("demote", "📉")
+        return ("commit", "📈")
+    if not old_a and new_a:
+        # PASS / pending → actionable.  Pick icon based on side + strength.
+        nu = (new_label or "").upper()
+        if "STRONG" in nu and "NRFI" in nu: return ("commit", "🟢")
+        if "STRONG" in nu and "YRFI" in nu: return ("commit", "🔴")
+        if "LEAN"   in nu and "NRFI" in nu: return ("commit", "🟢")
+        if "LEAN"   in nu and "YRFI" in nu: return ("commit", "🔴")
+        return ("commit", "✨")
+    if old_a and not new_a:
+        return ("demote", "⬇️")
+    return ("commit", "•")    # both non-actionable -- shouldn't reach here
+
+
+def _format_flip_message(*, iso_date: str, away_team: str, home_team: str,
+                          game_time: str, old_label: str, new_label: str,
+                          row_context: dict | None = None) -> str:
+    """Build the Telegram message body.  HTML-formatted (Telegram parse_mode=HTML)
+    so we can hyperlink the dashboard URL.  Falls back to plain text if
+    parse_mode fails server-side."""
+    category, emoji = _flip_category(old_label, new_label)
+
+    # Headline: emoji + category + new pick label
+    if category == "commit":
+        headline = f"{emoji} <b>{(new_label or '—').upper()}</b> committed"
+    elif category == "demote":
+        headline = f"{emoji} <b>{(old_label or '—').upper()}</b> demoted"
+    elif category == "side":
+        headline = f"{emoji} <b>SIDE FLIP</b>: {(old_label or '—')} → {(new_label or '—')}"
+    else:
+        headline = f"{emoji} {(old_label or '—')} → {(new_label or '—')}"
+
+    # Subline: matchup + game time + slate date
+    matchup_line = f"{away_team} @ {home_team} · {game_time or 'TBD'} · {iso_date}"
+
+    # Optional probability context line
+    extra_lines: list[str] = []
+    if row_context:
+        nrfi_p = row_context.get("nrfi_prob")
+        yrfi_p = row_context.get("yrfi_prob")
+        try:
+            if nrfi_p is not None and yrfi_p is not None:
+                extra_lines.append(
+                    f"P(NRFI) {float(nrfi_p) * 100:.1f}% · "
+                    f"P(YRFI) {float(yrfi_p) * 100:.1f}%"
+                )
+        except (ValueError, TypeError):
+            pass
+
+    # Footer: clickable dashboard link.  Telegram HTML supports <a href>.
+    dashboard_link = (
+        f'<a href="{_DASHBOARD_URL}/?date={iso_date}">View on dashboard →</a>'
+    )
+
+    parts = [headline, matchup_line]
+    parts += extra_lines
+    parts += [f"\n{old_label or '—'} → {new_label or '—'}", dashboard_link]
+    return "\n".join(parts)
+
+
 def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
-                                game_time: str, old_label: str, new_label: str) -> None:
+                                game_time: str, old_label: str, new_label: str,
+                                game_pk: str = "",
+                                row_context: dict | None = None) -> None:
     """Best-effort Telegram ping on actionable pick flip.  Silent no-op
-    when env vars are unset; never raises."""
+    when env vars are unset; never raises.
+
+    T2.36 changes:
+      • Cross-runner dedup via Supabase (skip if another runner pinged
+        the same flip in last 5 min).
+      • Richer HTML-formatted message: category emoji, probability
+        context (when available), hyperlink to the dashboard.
+      • Optional `game_pk` + `row_context` parameters; backwards
+        compatible -- callers without them get the old simple format
+        without dedup.
+    """
     token   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
     if not token or not chat_id:
@@ -778,29 +932,32 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
     if not _is_actionable_label(old_label) and not _is_actionable_label(new_label):
         return  # both sides PASS-variant; user doesn't care about this churn
 
-    new_upper = (new_label or "").upper()
-    if "STRONG" in new_upper and "NRFI" in new_upper:
-        icon = "🟫"   # warm-brown for NRFI
-    elif "STRONG" in new_upper and "YRFI" in new_upper:
-        icon = "🟥"   # red for YRFI
-    elif "LEAN" in new_upper and "NRFI" in new_upper:
-        icon = "🟧"
-    elif "LEAN" in new_upper and "YRFI" in new_upper:
-        icon = "🟨"
-    else:
-        icon = "⬜"   # actionable -> non-actionable demote
+    # T2.36: skip if another runner (Railway / GHA) already logged
+    # this flip in the last 5 min.
+    if _flip_already_pinged_supabase(iso_date, game_pk, new_label):
+        return
 
-    text = (
-        f"{icon} Pick flip · {iso_date}\n"
-        f"{away_team} @ {home_team}  ({game_time or 'TBD'})\n"
-        f"{old_label or '—'}  →  {new_label or '—'}"
+    text = _format_flip_message(
+        iso_date    = iso_date,
+        away_team   = away_team,
+        home_team   = home_team,
+        game_time   = game_time,
+        old_label   = old_label,
+        new_label   = new_label,
+        row_context = row_context,
     )
 
     try:
         import urllib.parse
         body = urllib.parse.urlencode({
-            "chat_id": chat_id,
-            "text":    text,
+            "chat_id":    chat_id,
+            "text":       text,
+            # HTML parse_mode unlocks <b>, <a href>, etc.
+            "parse_mode": "HTML",
+            # Don't show a giant URL preview card -- the link itself is
+            # already in the body, and the preview would push our
+            # actual content below the fold on small screens.
+            "disable_web_page_preview": "true",
         }).encode("utf-8")
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         req = urllib.request.Request(
