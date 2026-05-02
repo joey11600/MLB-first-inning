@@ -339,6 +339,40 @@ def mirror_picks(rows: Iterable[dict], season: int) -> int:
     if not payloads:
         return 0
 
+    # T2.46: dedupe by composite PK (date, game_pk) before sending to
+    # Supabase.  Without this, an upsert payload that contains the same
+    # PK twice triggers Postgres `ON CONFLICT DO UPDATE command cannot
+    # affect row a second time` (SQLSTATE 21000) and the ENTIRE batch
+    # is rejected -- silently breaking the dual-write so the dashboard
+    # never sees the latest state.
+    #
+    # Real-world trigger: import_odds builds matched_indices by
+    # appending per odds-CSV row matched.  When the DK scrape returns
+    # two rows for the same game (DH-ambiguous match -- see the
+    # "teams (DH-ambiguous; first)" log path in tracker.import_odds),
+    # the same row index lands in matched_indices twice, then both
+    # copies get appended to the mirror payload -- duplicate PK ->
+    # 21000 -> whole batch dropped.
+    #
+    # Strategy: keep the LAST occurrence per (date, game_pk).  Caller
+    # code appends rows in chronological order, so "last" == "freshest"
+    # -- if the same row got rebuilt twice in one call, the later
+    # rebuild is the one we want to mirror anyway.
+    if len(payloads) > 1:
+        deduped: dict[tuple, dict] = {}
+        for p in payloads:
+            deduped[(p["date"], p["game_pk"])] = p
+        if len(deduped) != len(payloads):
+            dropped = len(payloads) - len(deduped)
+            print(
+                f"[supabase_writer] mirror_picks deduped {dropped} duplicate "
+                f"(date, game_pk) row(s) before upsert "
+                f"({len(payloads)} -> {len(deduped)}).  "
+                f"Caller likely passed the same idx twice; safe to ignore.",
+                file=sys.stderr,
+            )
+        payloads = list(deduped.values())
+
     # T2.45 #5: per-batch retry + per-batch error isolation.
     #
     # Old behavior: a single try/except wrapped the entire batch loop.
