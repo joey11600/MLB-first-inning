@@ -394,6 +394,15 @@ backtests, none of these improved out-of-sample Brier:
 - Handedness / platoon advantage features
 - xERA alone, xwOBA alone (only `xera + whiff` combo helped, see Phase E.3)
 - Umpire NRFI rate alone
+- **Pitcher days-rest** (tested 2026-05-02 via `test_days_rest.py`).
+  4 variants tried: raw rest per half, short-rest flag (≤4d), signed
+  gap (away_rest − home_rest), and raw+flag combo.  Best variant
+  (`+rest_signed_gap`) showed +8.2u sum P&L over baseline across the
+  2-split 2024↔2025 cross-validation — below the +10u ship bar — AND
+  regressed STRONG YRFI hit rate from 61.9% → 58.8% on the
+  2024→2025 split.  Three of the four variants made things noticeably
+  worse (-21u to -60u sum P&L).  Conclusion: rest signal isn't
+  separable from the FIP/ERA/last-5 features the model already uses.
 
 Full list with mechanism explanations in `nrfi_model_architecture.md`.
 

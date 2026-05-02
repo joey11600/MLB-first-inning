@@ -378,6 +378,53 @@ The Railway predictor + live-state services already have
 TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID env vars (T2.36).  Next
 deploy picks up the new notifier code automatically.
 
+### Tested & rejected — Pitcher days-rest feature (T2.39)
+
+User asked to ship pitcher days-rest as a model feature
+(per `ROADMAP.md` Tier 1 #2).  Investigation:
+- `backfill_days_rest.py` already exists at the repo root.
+- 2024 and 2025 backtest CSVs already have `away_days_rest` +
+  `home_days_rest` columns (from a prior run).
+- `picks_2026.csv` does NOT have these columns (`tracker.FIELDS`
+  filters them out on every `_write_rows`).
+- The production `data/lr_model.json` has 11 features; none is
+  rest-related.
+
+Wrote `test_days_rest.py` (mirrors `test_era_gap.py` template) and
+ran a 2-split cross-validation (2024→2025, 2025→2024).  Skipped
+the 2026 holdout split because picks_2026 lacks the columns; 2-way
+cross is sufficient to gate a model change.
+
+4 variants tested:
+- `+rest_raw`         — pitcher's own days-rest in their half
+- `+rest_short_flag`  — 1 if rest ≤ 4 days, else 0
+- `+rest_signed_gap`  — opposing rest − own rest per half
+- `+rest_raw+short_flag` — both
+
+Results vs baseline (sum P&L across both splits at flat -110):
+- baseline:                +69.7u
+- +rest_raw:               +32.1u    (-37.6u)  ❌
+- +rest_short_flag:        +48.3u    (-21.4u)  ❌
+- +rest_signed_gap:        +77.9u    (+8.2u)   below ship bar
+- +rest_raw+short_flag:     +9.8u    (-59.9u)  ❌
+
+Best variant (`+rest_signed_gap`) gained only +8.2u P&L, below
+the +10u ship bar, AND regressed STRONG YRFI hit rate from 61.9%
+to 58.8% on the 2024→2025 split.  Per `CLAUDE.md` test methodology
+("reject any feature that helps in only one direction" + "STRONG
+hit rates don't drop on holdout"), this is a clear reject.
+
+Logged the result in `docs/KB.md` "What's NOT in the model" so
+future Claude / human sessions don't retest unless they have a
+fundamentally different feature-engineering approach.  Test
+artifact `test_days_rest.py` kept in the repo for posterity (same
+treatment as `test_era_gap.py`).
+
+Mechanism interpretation: rest signal isn't separable from the
+FIP/ERA/last-5 features the model already uses.  A pitcher on
+short rest pitches worse, which manifests as higher FIP / lower
+last-5 NRFI rate already; the explicit rest variable adds noise.
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |
