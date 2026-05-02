@@ -250,9 +250,19 @@ Code fix (this commit, addresses #2):
   nrfi_prob / yrfi_prob) so the notifier has dedup keys + body
   context.
 
-User-facing manual step (#1 above): paste `TELEGRAM_BOT_TOKEN` +
-`TELEGRAM_CHAT_ID` into the Railway predictor service's Variables
-panel.  Same values as the existing GitHub Actions secrets.
+Manual step (#1 above) now also done: with explicit user
+permission, retrieved both secrets via Telegram Web (BotFather
+`/mybots` for the bot token; `localStorage.user_auth` for the
+user's chat ID), verified end-to-end with a live test ping, then
+pasted both into the Railway predictor service Variables panel
+via Raw Editor.  Test ping was received in the user's NRFI
+Terminal chat.  Predictor service redeployed with the full set of
+4 env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`,
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.  Temp files holding the
+secrets in `$env:TEMP` were wiped + clipboard cleared after the
+Railway paste landed.  Next actionable pick flip detected by
+Railway should produce exactly one ping (no duplicates between
+runners thanks to the Supabase dedup query).
 
 ### Operations / runtime services — current state
 
