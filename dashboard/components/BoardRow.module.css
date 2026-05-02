@@ -82,26 +82,36 @@
      T2.18 split odds out of pick into its own column so it (a) reads as
      "market data" not "part of the recommendation" and (b) gives the
      chip room for both-sides display (DK N -130 · Y +100) on PASS rows.
+     T2.29 rebalance: previously odds.min (150) was just under the
+     natural width of a PASS-row chip (~160px), so the chip's right
+     edge was being clipped by .row's overflow:hidden + the chip's
+     flex: 0 0 auto.  Redistribute within the *same* 1236px budget --
+     shave a few px off time/matchup/result/p(yrfi)/meter/pick to
+     give odds the +22px it needs, plus +4px to the caret track so
+     it doesn't crowd the YRFI% number on the right.
      Width budget at the smallest desktop viewport (1281px):
-       fixed:   78+68+54+56+72+72+56             = 456
-       minima:  120 + 250 + 150 + 92             = 612
+       fixed:   74+64+52+58+72+72+60             = 452
+       minima:  114 + 240 + 172 + 90             = 616
        gaps:    10 × 12                          = 120
        padding: 24 + 24                          = 48
-       ------                                    1236px min
-     Leaves ~45px of fr slack at 1281, ~205px at 1440.  Pick cell still
-     gets the lion's share for the LINEUP PENDING + tentative-chip combo. */
+       ------                                    1236px min  (== old)
+     Leaves ~45px of fr slack at 1281 (same as before), ~205px at
+     1440.  At 1281 the odds column lands at ~184px -- comfortable
+     for the dual-side PASS chip with breathing room; caret has 24px
+     of left-padding inside its track so the chevron sits clear of
+     the YRFI% number. */
   grid-template-columns:
-    78px                   /* game time */
-    minmax(120px, 0.5fr)   /* matchup */
-    68px                   /* result */
-    54px                   /* P(YRFI) */
-    minmax(250px, 1.0fr)   /* pick pill + tentative chip */
-    minmax(150px, 0.5fr)   /* odds chip */
-    56px                   /* edge % */
-    minmax(92px, 0.35fr)   /* lambda meter */
+    74px                   /* game time */
+    minmax(114px, 0.5fr)   /* matchup */
+    64px                   /* result */
+    52px                   /* P(YRFI) */
+    minmax(240px, 0.95fr)  /* pick pill + tentative chip */
+    minmax(172px, 0.6fr)   /* odds chip (DK + N price [+ · Y price]) */
+    58px                   /* edge % */
+    minmax(90px, 0.3fr)    /* lambda meter */
     72px                   /* NRFI % */
     72px                   /* YRFI % */
-    56px;                  /* caret affordance */
+    60px;                  /* caret affordance (+4 over old 56 for breathing) */
   align-items: center;
   gap: 12px;
   padding: 18px 24px;
