@@ -425,6 +425,188 @@ FIP/ERA/last-5 features the model already uses.  A pitcher on
 short rest pitches worse, which manifests as higher FIP / lower
 last-5 NRFI rate already; the explicit rest variable adds noise.
 
+### Added — Pre-game scratch detector (T2.40)
+
+User picked Tier 1 #4 from `ROADMAP.md` after the days-rest model
+feature failed validation.  Goal: detect when a starter scratches
+before first pitch on a placed STRONG bet, alert the user, and
+let the next predictor cycle recompute with the replacement.
+
+Implementation extends the existing Phase-4 live-state worker
+(already polling MLB Stats API every 10s) so we don't add a new
+Railway service for this:
+
+- `workers/live_state.py` schedule call: `hydrate=linescore,team`
+  → `hydrate=linescore,team,probablePitcher`.  The probable-pitcher
+  hydrate adds `teams.{away,home}.probablePitcher.{id,fullName}`
+  per game.  Zero extra round-trips.
+- `parse_game()` now also extracts:
+    `_probable_away_id`, `_probable_home_id`,
+    `_probable_away_name`, `_probable_home_name`
+  Leading-underscore prefix marks them as "internal worker fields"
+  not part of the `live_game_state` table schema.
+- New `_strip_internal_fields()` helper drops `_*` keys before the
+  Supabase upsert so PostgREST doesn't reject the row with a 400.
+- `state_signature()` is unchanged, so the diff-skip cache still
+  triggers off the user-visible game state — a change in probable
+  pitcher alone doesn't push a no-op live_game_state update.
+- `run_cycle()` return shape extended to also yield the FULL row
+  list (with `_probable_*` retained) so downstream consumers
+  (check_scratches) can use them.
+- New `check_scratches()` function:
+    1. Filters fetched slate to pre-game games only (Preview state)
+    2. Queries Supabase picks_<season> for today's STRONG +
+       bet_placed=Y rows (`pick_strength=STRONG AND bet_placed=Y`)
+    3. For each match, compares our recorded `away_pitcher_id` /
+       `home_pitcher_id` to the live `_probable_*_id`
+    4. On any mismatch, fires `_notify_strong_scratch_telegram(...)`
+- Throttle: scratch check runs every 6 cycles (~60s in active mode,
+  ~30min in quiet mode) to avoid pounding Supabase + MLB API.
+- `notifications_log` 6h dedup ensures even with the throttle the
+  user sees at most one ping per game per scratched side.
+
+New notifier function in `tracker.py`:
+- `_notify_strong_scratch_telegram(row, scratched_side, original_name,
+  replacement_name)` -- standard T2.38 framework, message body:
+    ⚠️ Starter scratched · STRONG NRFI
+    ARI @ CHC · 8:05 PM ET
+    AWAY starter: Trevor Williams → **Slade Cecconi**
+    Bet stays locked at the original prediction (T2.25); next predictor
+    cycle will recompute with the new starter.
+    View on dashboard →
+
+  Includes the existing T2.38 dedup (event_type=`strong_scratch`,
+  event_key=`strong_scratch:{game_pk}:{side}`).  6-hour window
+  per side per game.  Self-filters non-STRONG / non-bet-placed rows.
+
+Notification framework `_DEDUP_WINDOW_M` gains `"strong_scratch":
+6 * 60`.
+
+Smoke test:
+- AST clean across `tracker.py` + `workers/live_state.py`
+- Format render: scratch-alert message renders correctly with
+  bold pitcher name, hyperlink to dashboard
+- `python workers/live_state.py --once` exits clean: 15/15 games
+  pushed to Supabase (proving `_probable_*` strip works -- the
+  upsert would 400 otherwise), check_scratches + check_ops_health
+  both ran silently in the same cycle
+- Supabase live_game_state row `updated_at` advanced from old to
+  7 sec ago, confirming the upsert path works with the new fields
+
+Edge cases handled:
+- TBD pitcher (`our_away == 0` or `our_home == 0`): skip, don't
+  alert -- those rows haven't had a real pitcher recorded yet.
+- Probable-pitcher not yet posted by MLB: skip, wait for next cycle.
+- Game in progress / Final: skip, scratch is moot once first pitch
+  has happened.
+- Doubleheader: each game-pk is checked independently; only the
+  affected game alerts.
+
+What's NOT in this iteration (could ship later):
+- Dashboard visual badge on rows where the locked-in pitcher no
+  longer matches the live probable.  Currently the alert is
+  Telegram-only.
+- Auto-trigger an immediate predictor re-run when a scratch is
+  detected.  Currently the user just waits ≤5 min for the next
+  Railway predictor cycle.
+
+### Fixed — Duplicate flip-to-strong Telegram ping (T2.41)
+
+User reported a duplicate Telegram message for a flip-to-strong
+event.  Investigation in `notifications_log`:
+
+  flip_to_strong:822746:STRONG YRFI  fired 2x
+    18:37:06 UTC  ←  Railway predictor cycle
+    18:43:10 UTC  ←  GHA cron OR another Railway cycle
+    span: 364 sec (6 min, 4 sec)
+
+`pick_changes` table for game_pk=822746 (MIL@WSH) showed the same
+PASS - Lineup pending → STRONG YRFI transition logged TWICE, 6 min
+apart -- exactly the cross-runner race documented in the original
+T2.36 design note: Railway and GHA each maintain independent local
+CSV state, so each can detect the same flip from its own pre-state.
+
+The original 5-min dedup window was a hair too short to absorb a
+race + cycle-drift case.  Bumped `flip_to_strong` window from
+5 min → 24h.  Semantics now match user expectation: one ping per
+(game_pk, side) per day, regardless of how many times the pick
+churns through PASS/LEAN states.  If the pick later demotes and
+re-commits hours later, the bet is already locked at the first
+commit (T2.25), so the re-ping adds no information the user
+needs.
+
+Other event types' dedup windows are unchanged.
+
+### Added — Pre-game scratch detector (T2.40)
+
+User picked Tier 1 #4 from `ROADMAP.md` after the days-rest model
+feature failed validation.  Goal: detect when a starter scratches
+before first pitch on a placed STRONG bet, alert the user, and
+let the next predictor cycle recompute with the replacement.
+
+Implementation extends the existing Phase-4 live-state worker
+(already polling MLB Stats API every 10s) so we don't add a new
+Railway service for this:
+
+- `workers/live_state.py` schedule call: `hydrate=linescore,team`
+  → `hydrate=linescore,team,probablePitcher`.  The probable-pitcher
+  hydrate adds `teams.{away,home}.probablePitcher.{id,fullName}`
+  per game.  Zero extra round-trips.
+- `parse_game()` now also extracts `_probable_*_id` /
+  `_probable_*_name` per side (leading underscore marks them as
+  internal worker-only fields, not part of the live_game_state
+  table schema).
+- New `_strip_internal_fields()` helper drops `_*` keys before the
+  Supabase upsert so PostgREST doesn't reject the row.
+- `state_signature()` is unchanged, so the diff-skip cache still
+  triggers off the user-visible game state — a probable-pitcher
+  change alone doesn't push a no-op live_game_state update.
+- `run_cycle()` return shape extended to also yield the FULL row
+  list (with `_probable_*` retained) for downstream consumers.
+- New `check_scratches()` function:
+    1. Filters fetched slate to pre-game games only (Preview state)
+    2. Queries Supabase picks_<season> for today's STRONG +
+       bet_placed=Y rows
+    3. Compares our recorded `away_pitcher_id` / `home_pitcher_id`
+       to the live `_probable_*_id`
+    4. On any mismatch, fires `_notify_strong_scratch_telegram(...)`
+- Throttle: scratch check runs every 6 cycles (~60s in active mode).
+- 6h dedup window per (game, side) so the same scratch doesn't
+  re-ping across multiple cycles.
+
+New notifier function `_notify_strong_scratch_telegram(row,
+scratched_side, original_name, replacement_name)`.  Standard T2.38
+framework.  Body example:
+  ⚠️ Starter scratched · STRONG NRFI
+  ARI @ CHC · 8:05 PM ET
+  AWAY starter: Trevor Williams → **Slade Cecconi**
+  Bet stays locked at the original prediction (T2.25); next predictor
+  cycle will recompute with the new starter.
+
+`_DEDUP_WINDOW_M["strong_scratch"] = 6 * 60`.
+
+Smoke test:
+- AST clean across `tracker.py` + `workers/live_state.py`
+- Format render: scratch-alert message renders correctly with bold
+  pitcher name + hyperlink to dashboard
+- `python workers/live_state.py --once` exits clean: 15/15 games
+  pushed to Supabase (proving the `_probable_*` strip works); both
+  check_scratches and check_ops_health ran silently
+- Supabase live_game_state row `updated_at` advanced to 7s after
+  the test, confirming the upsert path works with the new fields
+
+Edge cases:
+- TBD pitcher: skipped (false-positive guard)
+- Probable-pitcher not yet posted: skipped, wait for next cycle
+- Game in progress / Final: skipped (scratch is moot post-first-pitch)
+- Doubleheader: each game_pk independently checked
+
+What's deferred (could ship later):
+- Dashboard visual badge on rows where the locked pitcher diverges
+  from the live probable.
+- Auto-trigger an immediate predictor re-run on scratch detection
+  (currently the user just waits ≤5 min for the next Railway cycle).
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |

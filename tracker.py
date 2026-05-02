@@ -856,12 +856,21 @@ _DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "https://nrfi-terminal.vercel.a
 # These are minutes; the helper filters notifications_log by
 # captured_at_utc > now() - INTERVAL '<window>' minutes.
 _DEDUP_WINDOW_M: dict[str, int] = {
-    "flip_to_strong":       5,        # both runners detect within 5 min
+    # T2.41: was 5 min; observed duplicate flip pings 6 min apart on
+    # 2026-05-02 (Railway + GHA cron each independently detecting the
+    # same PASS→STRONG YRFI flip from their separate CSV states, with
+    # the 2nd run firing just outside the 5-min window).  24h ensures
+    # a STRONG commit on a given (game, side) pings exactly once per
+    # day — even if the pick demotes and re-commits hours later, the
+    # bet is already locked at the first commit so the re-ping adds
+    # no value.
+    "flip_to_strong":       24 * 60,
     "strong_graded":        24 * 60,  # at most one grade ping per day per game
     "strong_voided":        24 * 60,  # one void ping per game
     "strong_pregame":       6 * 60,   # one pregame ping per game per ~6h window
     "strong_clv":           24 * 60,  # one CLV alert per bet per day
     "strong_weather":       6 * 60,   # one weather alert per ~6h window
+    "strong_scratch":       6 * 60,   # one scratch alert per game per side
     "bankroll_milestone":   90 * 24 * 60,  # near-permanent (3 months) per milestone
     "daily_digest":         18 * 60,  # one digest per day
     "ops_health":           60,       # at most one stall alert per hour
@@ -1302,6 +1311,47 @@ def _notify_strong_weather_telegram(row: dict, change_summary: str) -> None:
 
     event_key = f"strong_weather:{game_pk or (away + '@' + home)}"
     _notify_event_telegram("strong_weather", event_key, body)
+
+
+def _notify_strong_scratch_telegram(row: dict,
+                                     scratched_side: str,
+                                     original_name: str,
+                                     replacement_name: str) -> None:
+    """T2.40: A starter scratched on a placed STRONG bet.  The bet's
+    pick_state stays locked at the original prediction (per T2.25
+    bet-time pick lock), but the matchup the user actually has money
+    on now has a different pitcher.  Alert the user so they know
+    their STRONG bet's underlying inputs changed.
+
+    Args:
+        row: tracker CSV row (existing locked state)
+        scratched_side: "away" or "home" -- which pitcher was scratched
+        original_name: the pitcher name we predicted with
+        replacement_name: the pitcher actually starting now"""
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    side       = (row.get("pick_side") or "").upper()
+    away       = (row.get("away_team") or "").upper()
+    home       = (row.get("home_team") or "").upper()
+    game_time  = (row.get("game_time_et") or "TBD").strip()
+    iso_date   = (row.get("date") or "").strip()
+    game_pk    = (row.get("game_pk") or "").strip()
+    side_label = scratched_side.upper()    # "AWAY" or "HOME"
+
+    body = "\n".join([
+        f"⚠️ Starter scratched · <b>STRONG {side}</b>",
+        f"{away} @ {home} · {game_time}",
+        f"{side_label} starter: {original_name or '?'} → <b>{replacement_name or '?'}</b>",
+        "Bet stays locked at the original prediction (T2.25); next predictor",
+        "cycle will recompute with the new starter.",
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    event_key = f"strong_scratch:{game_pk or (away + '@' + home)}:{scratched_side}"
+    _notify_event_telegram("strong_scratch", event_key, body)
 
 
 def _notify_bankroll_milestone_telegram(milestone_units: int,

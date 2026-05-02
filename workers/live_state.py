@@ -136,7 +136,10 @@ def fetch_slate(date_iso: str) -> list[dict]:
             # the schedule endpoint only returns the full team name and
             # numeric ID -- and we'd be writing "?" placeholders to
             # Supabase, breaking the dashboard's row matching by team.
-            "hydrate":  "linescore,team",
+            # `probablePitcher` lets us detect starter scratches by
+            # comparing live IDs vs what we recorded in picks_2026
+            # (T2.40 scratch detection).
+            "hydrate":  "linescore,team,probablePitcher",
         })
     except Exception as exc:    # noqa: BLE001 — keep loop resilient
         print(f"[live_state] schedule fetch failed: {exc!r}", file=sys.stderr)
@@ -196,6 +199,15 @@ def parse_game(g: dict, date_iso: str) -> Optional[dict]:
         or (cur_inning == 1 and inn_state in ("End", "Middle", "Bottom"))
     )
 
+    # T2.40: pull current probable_pitcher info per side so check_scratches
+    # can compare live IDs vs the IDs we recorded at predict time.
+    away_pp = (away.get("probablePitcher") or {})
+    home_pp = (home.get("probablePitcher") or {})
+    away_pp_id   = away_pp.get("id")
+    home_pp_id   = home_pp.get("id")
+    away_pp_name = away_pp.get("fullName") or ""
+    home_pp_name = home_pp.get("fullName") or ""
+
     return {
         "game_pk":              str(gp),
         "date":                 date_iso,
@@ -211,6 +223,14 @@ def parse_game(g: dict, date_iso: str) -> Optional[dict]:
         "fi_home_runs":         int(fi_home)  if isinstance(fi_home,  int) else None,
         "fi_total_runs":        int(fi_total) if isinstance(fi_total, int) else None,
         "fi_complete":          bool(fi_complete),
+        # T2.40 scratch-detection fields.  Not written to Supabase
+        # live_game_state — they're consumed only by check_scratches
+        # in this same worker.  state_signature() ignores them so the
+        # diff-skip logic isn't affected.
+        "_probable_away_id":    int(away_pp_id) if isinstance(away_pp_id, int) else None,
+        "_probable_home_id":    int(home_pp_id) if isinstance(home_pp_id, int) else None,
+        "_probable_away_name":  str(away_pp_name),
+        "_probable_home_name":  str(home_pp_name),
     }
 
 
@@ -250,19 +270,30 @@ def short_state(row: dict) -> str:
 # Main loop
 # ---------------------------------------------------------------------------
 
-def run_cycle(client: Client, last_sigs: dict[str, tuple], debug: bool) -> tuple[int, int, bool]:
-    """Run one polling iteration.  Returns (rows_seen, rows_upserted, all_final)."""
+def _strip_internal_fields(row: dict) -> dict:
+    """Remove leading-underscore keys before sending to Supabase.  PostgREST
+    rejects unknown columns; the underscore-prefixed fields (_probable_*)
+    are consumed locally by check_scratches but not part of the
+    live_game_state schema."""
+    return {k: v for k, v in row.items() if not k.startswith("_")}
+
+
+def run_cycle(client: Client, last_sigs: dict[str, tuple], debug: bool) -> tuple[int, int, bool, list[dict]]:
+    """Run one polling iteration.  Returns
+    (rows_seen, rows_upserted, all_final, full_rows).
+    `full_rows` retains the _probable_* fields for downstream
+    consumers like check_scratches."""
     date_iso = todays_iso()
     rows = fetch_slate(date_iso)
     if not rows:
-        return (0, 0, True)   # treat empty-slate days as "all final" for sleep purposes
+        return (0, 0, True, [])
 
     to_upsert: list[dict] = []
     for r in rows:
         sig  = state_signature(r)
         prev = last_sigs.get(r["game_pk"])
         if sig != prev:
-            to_upsert.append(r)
+            to_upsert.append(_strip_internal_fields(r))
             last_sigs[r["game_pk"]] = sig
             if debug:
                 print(f"[live_state] CHANGE  {short_state(r)}")
@@ -280,7 +311,110 @@ def run_cycle(client: Client, last_sigs: dict[str, tuple], debug: bool) -> tuple
             print(f"[live_state] upsert failed: {exc!r}", file=sys.stderr)
 
     all_final = all(r.get("abstract_game_state") == "Final" for r in rows)
-    return (len(rows), len(to_upsert), all_final)
+    return (len(rows), len(to_upsert), all_final, rows)
+
+
+def check_scratches(client, full_rows: list[dict]) -> int:
+    """T2.40 starter-scratch detector.
+
+    For each pre-game game in today's slate, compare the LIVE
+    `probablePitcher.id` (just fetched from MLB Stats API in
+    fetch_slate) to the pitcher_id we recorded in picks_<season>
+    at predict time.  If they differ on a placed STRONG bet, fire
+    a Telegram scratch alert via the T2.38 notifier framework.
+
+    Throttled by the caller to ~once per minute.  Self-deduped via
+    notifications_log (6h window per side per game) so a scratch
+    that lingers across many cycles still pings exactly once.
+
+    Returns the number of scratch alerts dispatched (0 if none)."""
+    if not full_rows:
+        return 0
+    # Only check pre-game games; once a game is Live or Final the
+    # pitcher matchup is locked in and any "probable" change is
+    # cosmetic / late-season-roster-noise that doesn't affect the bet.
+    pregame = [r for r in full_rows if (r.get("abstract_game_state") or "") == "Preview"]
+    if not pregame:
+        return 0
+    today_iso = todays_iso()
+    season = datetime.now(ET).year
+    try:
+        res = (
+            client.table(f"picks_{season}")
+                  .select(
+                      "game_pk, away_team, home_team, "
+                      "away_pitcher, home_pitcher, "
+                      "away_pitcher_id, home_pitcher_id, "
+                      "pick_side, pick_strength, "
+                      "bet_placed, game_time_et, date"
+                  )
+                  .eq("date", today_iso)
+                  .eq("pick_strength", "STRONG")
+                  .eq("bet_placed", "Y")
+                  .execute()
+        )
+    except Exception as exc:    # noqa: BLE001
+        print(f"[live_state] scratch check supabase select failed: {exc!r}",
+              file=sys.stderr)
+        return 0
+    our_rows = res.data or []
+    if not our_rows:
+        return 0
+
+    sched_by_pk = {(r.get("game_pk") or ""): r for r in pregame}
+
+    # Lazy-import so the worker boots even if tracker / supabase_writer
+    # have an init failure (e.g. supabase-py missing in a stripped image).
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        repo_root = _P(__file__).resolve().parent.parent
+        if str(repo_root) not in _sys.path:
+            _sys.path.insert(0, str(repo_root))
+        from tracker import _notify_strong_scratch_telegram
+    except Exception as exc:    # noqa: BLE001
+        print(f"[live_state] scratch notifier import failed: {exc!r}",
+              file=sys.stderr)
+        return 0
+
+    fired = 0
+    for our in our_rows:
+        gp = str(our.get("game_pk") or "")
+        sched = sched_by_pk.get(gp)
+        if sched is None:
+            continue
+        cur_away_id   = sched.get("_probable_away_id")
+        cur_home_id   = sched.get("_probable_home_id")
+        cur_away_name = sched.get("_probable_away_name") or ""
+        cur_home_name = sched.get("_probable_home_name") or ""
+        try:
+            our_away = int(our.get("away_pitcher_id") or 0)
+            our_home = int(our.get("home_pitcher_id") or 0)
+        except (TypeError, ValueError):
+            continue
+
+        # Skip rows where we never had a real pitcher recorded
+        # (TBD / pitcher_q='avg' rows).  Those would false-positive
+        # every time a probable_pitcher gets named.
+        if our_away and cur_away_id and our_away != cur_away_id:
+            _notify_strong_scratch_telegram(
+                our, "away",
+                our.get("away_pitcher") or f"id={our_away}",
+                cur_away_name or f"id={cur_away_id}",
+            )
+            fired += 1
+        if our_home and cur_home_id and our_home != cur_home_id:
+            _notify_strong_scratch_telegram(
+                our, "home",
+                our.get("home_pitcher") or f"id={our_home}",
+                cur_home_name or f"id={cur_home_id}",
+            )
+            fired += 1
+
+    if fired:
+        ts = datetime.now(ET).strftime("%H:%M:%S")
+        print(f"[live_state] {ts} ET  scratch alerts fired: {fired}", flush=True)
+    return fired
 
 
 def check_ops_health(client) -> None:
@@ -357,6 +491,12 @@ def main() -> None:
     # Supabase with health queries the user doesn't see anyway.
     cycle_count = 0
     HEALTH_EVERY_N_CYCLES = 10
+    # T2.40: scratch-detection throttle.  Probable pitcher rarely
+    # changes minute-to-minute, so polling MLB and querying Supabase
+    # every 10s is wasteful.  Run every 6 cycles (~60s in fast mode,
+    # ~30min in quiet mode).  Notifications_log dedup means even if
+    # it fires more often we still only ping once per game per side.
+    SCRATCH_EVERY_N_CYCLES = 6
 
     def handle_sig(*_a):
         nonlocal running
@@ -383,16 +523,22 @@ def main() -> None:
             time.sleep(QUIET_INTERVAL_S)
             continue
 
-        seen, pushed, all_final = run_cycle(client, last_sigs, args.debug)
+        seen, pushed, all_final, full_rows = run_cycle(client, last_sigs, args.debug)
 
         # T2.38 #7: throttled ops-health check.
         cycle_count += 1
         if cycle_count % HEALTH_EVERY_N_CYCLES == 0:
             check_ops_health(client)
 
+        # T2.40: throttled scratch detection on pre-game games.
+        if cycle_count % SCRATCH_EVERY_N_CYCLES == 0:
+            check_scratches(client, full_rows)
+
         if args.once:
-            # In --once mode also run health check so smoke tests cover it.
+            # In --once mode also run health + scratch checks so smoke
+            # tests cover them.
             check_ops_health(client)
+            check_scratches(client, full_rows)
             print(f"[live_state] --once mode: seen={seen} pushed={pushed} all_final={all_final}")
             break
 

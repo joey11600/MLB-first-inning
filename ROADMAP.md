@@ -26,6 +26,8 @@ Companion to:
 | 2026-05-02 | `91d094c` | **T2.35** — Bypass Next.js fetch cache on dashboard SSR (was serving stale data) |
 | 2026-05-02 | `442fe4d` + `6d23152` | **T2.36 + T2.37** — Telegram notifier upgrade (Supabase dedup, HTML format, dashboard hyperlink) + STRONG-only filter |
 | 2026-05-02 | `e80a0a1` | **T2.38** — 8 new STRONG-only Telegram event types: graded W/L, voided, pregame, CLV, weather, milestone, daily digest, ops health |
+| 2026-05-02 | `e5a0f84` | **T2.39** — Pitcher days-rest feature tested (4 variants on 2024↔2025) and rejected per ship rules; logged in KB.md |
+| 2026-05-02 | `<this commit>` | **T2.40 + T2.41** — Pre-game starter-scratch detector (Telegram alert on STRONG bets affected by a probable-pitcher change) + dedup window fix on `flip_to_strong` (5min → 24h, prevents Railway×GHA race-induced duplicate pings) |
 
 End result: the dashboard is now an **installable PWA** receiving **sub-second Realtime push** of model predictions every 5 minutes (Railway predictor) and game state every 10 seconds (Railway live-state worker).
 
@@ -40,7 +42,7 @@ These improve money outcomes without touching the working model.
 | 1 | [needs user opt-in] | 2–3 hr | **+10–30% ROI** | **Kelly fractional bet sizing** in `tracker._apply_odds_to_row`. Currently flat 1u STRONG / 0.5u LEAN. Quarter-Kelly sizing (units = `0.25 × edge / (price-1)`) typically lifts ROI 10-20% without raising variance much. ⚠ **CLAUDE.md "Money rules"** explicitly says "Flat 1u plays only. User explicitly rejected Kelly / fractional / bankroll-aware sizing." Don't ship without re-checking with the user. |
 | 2 | [tested 2026-05-02 · rejected] | 3 hr | — | **Pitcher days-rest feature**. `away_days_rest` + `home_days_rest` already backfilled in 2024/2025 backtests; `backfill_days_rest.py` is on disk. Tested 4 variants via `test_days_rest.py` against the Phase E.3 baseline on a 2-split 2024↔2025 cross-validation. Best variant (`+rest_signed_gap`) +8.2u sum P&L vs baseline (below the +10u ship bar) AND regressed STRONG YRFI hit rate by 3.1pp on the 2024→2025 split. Other 3 variants regressed -21 to -60u. Joins the "tested, didn't help" list in `docs/KB.md`. Reason: rest signal isn't separable from the FIP/ERA/last-5 features already in the model. |
 | 3 | [previously rejected] | 4–6 hr | — | **Wind-direction × park-orientation**. Per `docs/KB.md` "What's NOT in the model" list, this was previously tested across 2024/2025 backtests and didn't improve out-of-sample Brier. **Don't re-test without a fundamentally new feature engineering approach** (e.g. categorical "blowing OUT to RF / blowing IN from CF / cross-wind" with park-specific orientation, vs the prior continuous interaction). |
-| 4 | [ ] | 4–5 hr | Prevents bad-data losses | **Pre-game injury / scratch detection**. Tiny worker polls MLB rosters every 5 min from -2hr to first pitch. Auto-flag pick when starter scratches. |
+| 4 | [shipped 2026-05-02 · T2.40] | 3 hr | Prevents bad-data losses | **Pre-game injury / scratch detection**. Extended the existing Phase-4 live-state worker to also poll `probablePitcher` and compare to our recorded pitcher_id on STRONG bets. Telegram alert via the T2.38 framework, 6h dedup, 60s throttle. See `workers/live_state.py` `check_scratches()`. |
 | 5 | [scheduled T+14d] | 6 hr | +2–4% NRFI edge | **Catcher framing** (T4.1 in AUDIT). Remote agent scheduled via `/schedule` to investigate Baseball Savant on 2026-05-16. Backtest gates before any model change. |
 
 ---
