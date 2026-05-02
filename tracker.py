@@ -775,6 +775,20 @@ def _is_actionable_label(label: str) -> bool:
     return ("STRONG" in s) or ("LEAN" in s)
 
 
+def _is_strong_label(label: str) -> bool:
+    """T2.37: tighter filter for Telegram pings.  User explicitly wants
+    STRONG-only notifications -- no LEAN, no PASS-variant churn, no
+    demotes, no side-flips that don't end in STRONG.
+
+    Returns True when `label` is a STRONG NRFI or STRONG YRFI pick.
+    Used by the Telegram notifier to decide whether the NEW state is
+    one the user cares about (STRONG to come in on, NOT LEAN or PASS)."""
+    s = (label or "").upper()
+    if "NRFI" not in s and "YRFI" not in s:
+        return False
+    return "STRONG" in s
+
+
 # T2.36: Dashboard URL for the "→ View on dashboard" link in pings.
 # Override via DASHBOARD_URL env var (e.g. for staging / preview deploys).
 _DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "https://nrfi-terminal.vercel.app").rstrip("/")
@@ -929,8 +943,16 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
     if not token or not chat_id:
         return
 
-    if not _is_actionable_label(old_label) and not _is_actionable_label(new_label):
-        return  # both sides PASS-variant; user doesn't care about this churn
+    # T2.37: STRONG-only filter (user preference).  Only ping when the
+    # NEW state is STRONG NRFI or STRONG YRFI.  Skip everything else:
+    #   • PASS-variant churn (LINEUP/STARTER PENDING / NO EDGE / NO DATA)
+    #   • LEAN commits (LEAN NRFI / LEAN YRFI as final state)
+    #   • Demotes from STRONG to anything (the user already saw the
+    #     STRONG ping; the demote is just noise on their phone)
+    # Side flips that END at STRONG (e.g. STRONG NRFI → STRONG YRFI)
+    # still ping — those are high-impact signals.
+    if not _is_strong_label(new_label):
+        return
 
     # T2.36: skip if another runner (Railway / GHA) already logged
     # this flip in the last 5 min.

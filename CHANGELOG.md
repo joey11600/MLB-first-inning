@@ -264,6 +264,32 @@ Railway paste landed.  Next actionable pick flip detected by
 Railway should produce exactly one ping (no duplicates between
 runners thanks to the Supabase dedup query).
 
+### Changed — Telegram pings now STRONG-only (T2.37)
+
+User feedback: "I don't want any telegram notifications for passes
+or anything like that.  The only Telegram notifications I want is
+when there's a strong pick."
+
+The previous filter (`_is_actionable_label`) considered both LEAN
+and STRONG as actionable.  T2.37 tightens it to STRONG only:
+`_notify_pick_flip_telegram` now bails when the NEW label is not
+STRONG NRFI or STRONG YRFI.
+
+Pings that DO fire after this change:
+  • PASS / pending → STRONG NRFI       (commit; the most common one)
+  • PASS / pending → STRONG YRFI       (commit)
+  • LEAN → STRONG (same side)          (promotion; high signal)
+  • STRONG NRFI → STRONG YRFI          (side flip; rare, high impact)
+
+Pings that get filtered (silent):
+  • Anything → LEAN  (LEAN as final state -- skip)
+  • Anything → PASS  (demote / no-edge -- skip)
+  • PASS-variant churn (LINEUP↔STARTER↔NO EDGE) -- skip
+  • STRONG → LEAN / PASS (demotes -- user already saw the STRONG
+    ping; demote is just noise)
+
+Tested against all 11 known label variants; all classified correctly.
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |
