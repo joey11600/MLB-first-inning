@@ -3,7 +3,8 @@
 Single-page overview for future Claude (or human) sessions picking up this
 project. Read this first; it pointers out to the deeper docs at the bottom.
 
-Last refreshed: **2026-05-01**.
+Last refreshed: **2026-05-02** (after the Phase 1.5 / 2 / 3 / 4 / 6 real-time
+architecture migration; see [CHANGELOG.md](../CHANGELOG.md)).
 
 ---
 
@@ -62,40 +63,76 @@ how few games clear both "odds captured" AND "edge ≥ 2%".
 
 ---
 
-## Architecture
+## Architecture (post-Phase-1.5/2/3/4/6 — current)
 
 ```
-                 ┌─────────────────────────────────────────────────┐
-                 │           GitHub Actions (UTC 12-23)            │
-                 │                                                 │
-   StatsAPI ───► │ predict step → mlb_first_inning_predictor.py   │
-   Open-Meteo    │   ├─ writes data/boards/board_<DATE>.csv        │
-   DK API ─────► │   └─ writes data/picks_2026.csv (append)        │
-                 │                                                 │
-                 │ scrape DK odds → scrape_dk_odds.py              │
-                 │   └─ writes data/odds/dk_<DATE>.csv             │
-                 │                                                 │
-                 │ grade step → tracker.grade_picks                │
-                 │   └─ updates picks_2026.csv graded_result       │
-                 │                                                 │
-                 │ commit + push (8-attempt jittered retry)        │
-                 │   └─ ALERT_WEBHOOK_URL on failure (T3.2)        │
-                 │   └─ HEALTHCHECKS_URL ping (T4.12)              │
-                 └─────────────────────────────────────────────────┘
-                                          │ git push
-                                          ▼
-                 ┌─────────────────────────────────────────────────┐
-                 │  Vercel auto-deploy (joeys-projects/dashboard)  │
-                 │   prebuild: copy ../data → ./data               │
-                 │   /api/board, /api/details, /api/health          │
-                 │   live URL: dashboard-pink-seven-64.vercel.app  │
-                 └─────────────────────────────────────────────────┘
+              MLB Stats API   Open-Meteo   DraftKings
+                   │              │            │
+                   ▼              ▼            ▼
+   ┌────────────────────────────────────────────────────────┐
+   │ Railway "MLB-first-inning" (predictor) — every 5 min   │
+   │   workers/predictor_loop.py                            │
+   │     1. catch-up grade yesterday                        │
+   │     2. live-grade today's completed 1sts               │
+   │     3. predict → mlb_first_inning_predictor.py         │
+   │     4. scrape_dk_odds.py                               │
+   │     5. import_odds → tracker.import_odds               │
+   │   ALL writes dual-write to Supabase via                │
+   │   db/supabase_writer.py (Phase 1.5)                    │
+   └────────────────────────────────────────────────────────┘
+                                      │
+   ┌────────────────────────────────────────────────────────┐
+   │ Railway "worker" (live-state) — every 10s              │
+   │   workers/live_state.py                                │
+   │     poll MLB schedule + linescore → upsert             │
+   │     Supabase live_game_state on change                 │
+   └────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼  (dual-write, idempotent UPSERT)
+   ┌────────────────────────────────────────────────────────┐
+   │ Supabase Postgres (uubhwrmhlfnsvracdzbg)               │
+   │   picks_2026, pick_changes, live_game_state,           │
+   │   system_errors, odds_history                          │
+   │   RLS: anon/authenticated SELECT-only                  │
+   │   service_role bypasses RLS for the workers            │
+   │   Realtime publication: picks_2026, pick_changes,      │
+   │   live_game_state                                      │
+   └────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼  Realtime push (~200ms)
+   ┌────────────────────────────────────────────────────────┐
+   │ Next.js dashboard (Vercel mlb-nrfi-yrfi project)       │
+   │   loadBoard() reads Supabase → falls back to CSV       │
+   │   useSupabaseRealtime → triggers refetch on change     │
+   │   useLiveGameState → SELECT + Realtime subscribe       │
+   │   PWA installable (manifest + sw.js + icons)           │
+   │   live URL: dashboard-pink-seven-64.vercel.app         │
+   └────────────────────────────────────────────────────────┘
+
+   Backup / archival path (still running, kept as redundancy):
+
+   GHA daily.yml cron — UTC every hour 12-23 plus extras
+     • Same predict + grade + scrape + import cycle as Railway.
+     • Dual-writes to Supabase via the same path.
+     • Commits CSVs to git for archival + Vercel rebuild.
+     • Acts as a backup if Railway is down.
 ```
 
-The single source of truth is the CSV pair: `data/picks_2026.csv` (the
-ledger, all 97 columns) and `data/boards/board_<DATE>.csv` (the day's
-ranked summary, leaner schema). They are intentionally different schemas
-— see T3.21 in AUDIT.md.
+**Source of truth: Supabase Postgres tables.** The CSV ledger
+(`data/picks_2026.csv` + `data/boards/board_<DATE>.csv`) is still
+written by both Railway + GHA, but only the GHA path commits them to
+git for archival. The dashboard reads Supabase first; CSV is fallback.
+
+**Latency contract** (worst-case freshness):
+
+| Event | Worst case | Path |
+|---|---|---|
+| Run scores in B1 | ~10 sec | live-state worker poll → Realtime push |
+| Inning ends, bet graded | ~10 sec | same |
+| Lineup posts | ~5 min | predictor cycle catches it on next tick |
+| Pick flips on weather/lineup | ~5 min | same |
+| DK odds drift | ~5 min | scrape → import → upsert in same cycle |
+| Bet placed (manual via dashboard chip) | <1 sec | local state |
 
 ---
 
@@ -128,50 +165,117 @@ ranked summary, leaner schema). They are intentionally different schemas
 - `data/system_errors.csv` — every cron failure (T1.3).
 
 ### Workflows / ops
-- `.github/workflows/daily.yml` — predict + grade + scrape every hour
+- `.github/workflows/daily.yml` — backup predict + grade + scrape every hour
   UTC 12-23. 8-attempt push retry with `--ours` for CSV conflicts (T1.6).
+  Now also dual-writes to Supabase via the SUPABASE_URL/KEY secrets.
 - `.github/workflows/backup.yml` — daily 5am ET snapshot (T3.4).
-- `requirements.txt` — pinned with upper bounds (T3.6).
+- `requirements.txt` — pinned with upper bounds (T3.6); includes
+  `supabase>=2.0,<3.0` + `python-dotenv>=1.0,<2.0` for the dual-write.
+
+### Railway workers (Phase 3 + 4)
+- `workers/live_state.py` — Phase 4. 10s MLB Stats API poll → upsert
+  `live_game_state`. Diff-skips unchanged games. Active hours window
+  10am-2am ET, quiet sleep otherwise.
+- `workers/predictor_loop.py` — Phase 3. 5min cycle running the full
+  predict+grade+scrape+import flow. Subprocess-based (shells out to
+  the same scripts GHA uses).
+- `Procfile` — `worker: python workers/live_state.py` (default service).
+- `railway.json` — Nixpacks builder config; `startCommand` deliberately
+  NOT set (would override per-service UI customizations).
+- Railway project: **capable-nourishment** (workspace `joey1160`).
+  Two services in one project:
+  1. `worker` → live_state.py (default Procfile)
+  2. `MLB-first-inning` → predictor_loop.py (Custom Start Command UI override)
+  Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` on both services.
+  Optional: `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` for predictor
+  pick-flip pings.
+
+### Supabase (Phase 1 / 1.5 / 2)
+- `db/schema.sql` — full DDL: 5 tables + indexes + RLS policies +
+  realtime publication + auto-bump triggers. Idempotent.
+- `db/migrate_csv_to_supabase.py` — one-off bulk migrator. Re-runnable
+  via `--dry-run`.
+- `db/supabase_writer.py` — Phase 1.5 dual-write helper. Lazy client,
+  silent no-op when env vars unset, swallows all errors. Re-used by
+  tracker.py at the four call sites in `log_picks`, `grade_date`,
+  `import_odds`, `_record_pick_change`.
+- Supabase project: **nrfi-terminal** (id `uubhwrmhlfnsvracdzbg`).
+  - `SUPABASE_URL=https://uubhwrmhlfnsvracdzbg.supabase.co`
+  - `SUPABASE_SERVICE_KEY` (service-role JWT — bypasses RLS).
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (anon JWT — RLS-protected SELECT-only).
+  - All three live in `.env` locally + GitHub Actions secrets + Railway
+    env vars + Vercel project env vars.
 
 ### Dashboard (Next.js, lives in `dashboard/`)
 - `app/page.tsx` — server component, `loadBoard(date?)`. Strict
-  YYYY-MM-DD validation on `?date=` (T2.15).
-- `app/api/board/route.ts` — board API.
+  YYYY-MM-DD validation on `?date=` (T2.15). `fetchCache = "force-no-store"`
+  added in T2.35 to prevent Next.js from caching Supabase responses.
+- `app/layout.tsx` — Phase 6 PWA: manifest link, appleWebApp config,
+  viewport.themeColor for light + dark, service worker registration.
+- `app/api/board/route.ts` — board API. Reads via `loadBoard` (Supabase
+  first, CSV fallback).
 - `app/api/details/route.ts` — game details (lineup, pitcher cards).
+- `app/api/live-state/route.ts` — MLB Stats API proxy (back-compat
+  fallback for browsers without Realtime).
 - `app/api/health/route.ts` — health endpoint (T3.1).
-- `app/api/cron/{predict,grade}/route.ts` — Vercel cron entrypoints
-  (redundant with GHA).
+- `app/api/cron/{predict,grade}/route.ts` — Vercel cron entrypoints.
 - `components/BoardTable.tsx` / `BoardRow.tsx` — main board.
 - `components/GameDetails.tsx` — expanded panel; renders `WhyThisPickPanel`,
   lineup cards, pitcher comparison.
 - `components/HistoryView.tsx` — /history page; CalendarHeatmap (T4.16),
   ZoneHitRateChart (T4.17), CalibrationPlot (T4.23).
 - `components/DashboardShell.tsx` — filter persistence (T3.18), pitcher
-  search (T4.18), browser notifications (T4.20).
-- `lib/board.ts` — `loadBoard`, `loadDetails`, `parseFactorsJson`,
-  `loadThresholds`, DH-aware detail-key composition (T1.2).
+  search (T4.18), browser notifications (T4.20), Realtime push hook
+  (Phase 2 / T2.31).
+- `lib/board.ts` — `loadBoard`. Tries Supabase first via
+  `loadBoardFromSupabase`, falls back to CSV.
+- `lib/board-supabase.ts` — Phase 2 Supabase reader. Same `BoardResponse`
+  shape as the CSV path; rows mapped 1:1 from `picks_<season>` table.
+- `lib/supabase.ts` — Phase 2. Server + browser client factories.
+  Server fetch wrapped with `cache: "no-store"` so Next.js doesn't
+  memoize Supabase responses (T2.35).
+- `lib/useSupabaseRealtime.ts` — Phase 2 client hook subscribing to
+  `postgres_changes` on picks/pick_changes/live_game_state.
+- `lib/useLiveGameState.ts` — Phase 4 refactor. Two branches:
+  Supabase Realtime (when env vars set) or `/api/live-state` polling.
 - `lib/types.ts` — TS types for everything.
+- `public/manifest.json`, `icon-{192,512,maskable}.svg`,
+  `apple-touch-icon.svg`, `sw.js` — Phase 6 PWA bundle.
 - `scripts/copy-data.mjs` — prebuild copy of `../data` → `./data` with
-  whitelist (boards/picks/pick_changes/thresholds/system_errors).
+  whitelist. Now serves only as a CSV-fallback path; primary data
+  source is Supabase.
 
 ---
 
 ## Daily operations cycle
 
-You don't normally have to do anything — GHA runs the full cycle hourly.
-Manual interventions:
+You don't normally have to do anything — Railway runs the full cycle
+every 5 min, GHA backs it up hourly. Manual interventions:
 
 | Need | Command |
 |---|---|
-| Force a fresh slate now | `python mlb_first_inning_predictor.py --date 2026-05-01` |
-| Re-grade a date | `python tracker.py grade --date 2026-04-30` |
+| Force a fresh predict now | `python mlb_first_inning_predictor.py` |
+| Force a fresh predict on Railway | redeploy "MLB-first-inning" service in Railway |
+| Re-grade a date | `python mlb_first_inning_predictor.py --date 2026-04-30 --grade` |
 | Re-scrape DK odds | `python scrape_dk_odds.py` |
-| Redeploy dashboard | `cd dashboard && npx vercel --prod` |
+| Smoke-test predictor loop locally | `python workers/predictor_loop.py --once` |
+| Smoke-test live-state worker locally | `python workers/live_state.py --once --debug` |
+| Check parity (CSV vs Supabase) | `python -m db.supabase_writer` |
 | Check health | `curl https://dashboard-pink-seven-64.vercel.app/api/health` |
 | Run a one-off backtest | `python backtest.py --season 2026` |
+| Browse Supabase rows | https://supabase.com/dashboard/project/uubhwrmhlfnsvracdzbg |
+| View Railway worker logs | https://railway.com/project/51d66094-e55f-4281-90df-033f20246d75 |
 
-If GHA is broken: check the latest run at https://github.com/joey11600/MLB-first-inning/actions
-and read `data/system_errors.csv` for structured failure rows.
+If something is broken:
+- **Railway worker silent**: check Deploy Logs in Railway dashboard.
+  Confirm Custom Start Command (UI) is set; railway.json must NOT
+  override it (T2.34 lesson).
+- **Supabase reads stale**: confirm `fetchCache = "force-no-store"` is
+  on every page that calls `loadBoard` (T2.35 lesson).
+- **GHA cron broken**: https://github.com/joey11600/MLB-first-inning/actions
+  + read `data/system_errors.csv` for structured failure rows.
+- **Dashboard offline**: check Vercel deployment status. Service worker
+  caches the shell so a brief outage still renders last-known UI.
 
 ---
 
@@ -315,6 +419,7 @@ beats baseline by ≥10u AND no STRONG hit-rate regression on holdout.
 
 | Document | What's there |
 |---|---|
+| [ROADMAP.md](../ROADMAP.md) | Forward-looking upgrade list (Tier 1-5), status, recommended sequence |
 | [AUDIT.md](../AUDIT.md) | Open / closed audit items, all 4 tiers |
 | [CHANGELOG.md](../CHANGELOG.md) | Dated log of shipped changes + perf snapshots |
 | `~/.claude/projects/.../memory/nrfi_model_architecture.md` | Model internals, feature list, retraining policy |

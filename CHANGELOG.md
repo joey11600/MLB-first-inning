@@ -2,11 +2,219 @@
 
 Dated log of meaningful changes to the NRFI Terminal system (predictor, tracker,
 dashboard, ops). For the running list of open audit items see [AUDIT.md](./AUDIT.md).
+For the forward-looking upgrade list see [ROADMAP.md](./ROADMAP.md).
 For the system overview see [docs/KB.md](./docs/KB.md).
 
 Format: latest first. Each entry is grouped Added / Changed / Fixed / Deferred
 with audit IDs (`T1.1`, `T4.15`, …) cross-referenced to AUDIT.md. Performance
 section captures actual picks accuracy on/around the change date.
+
+---
+
+## [2026-05-02] — Real-time architecture migration (Phases 1.5 / 2 / 3 / 4 / 6)
+
+Six-phase push that took the dashboard from "polled CSV reads" to a
+**Supabase Postgres + Realtime + Railway workers** stack with a **PWA-installable
+Next.js dashboard** receiving sub-second push of model + game-state updates.
+The predictor model itself is **untouched** — same LR-v3 weights, same
+classifier, same bet-time locks. The change is purely data plumbing + freshness.
+
+End-to-end latency dropped:
+- Predictions:    60-180 min (GHA cron drift) → **~5 min** (Railway 5-min loop)
+- Live game state: 30 sec polling             → **~10 sec** push
+- Pick flips on the dashboard: Vercel rebuild  → **~200ms** Realtime push
+
+### Performance snapshot — 2026-05-02
+
+| Window | Active picks (W-L) | Win rate | Net P&L |
+|---|---|---|---|
+| Last 30 days | **113-60** | **65.3%** | **+41.99u** at -110 fallback |
+| Last 7 days | included above | 69%+ | continuing 4/30 streak |
+| 2026-05-02 (today, in-progress) | 0-0, 2 STRONG bets pending | — | ARI@CHC NRFI +4.32% edge, BAL@NYY YRFI +4.63% edge — both auto-`bet=Y` |
+
+### Added — Phase 1: Supabase project + schema (yesterday's prep, but listed for context)
+
+- **db/schema.sql** — 5 tables: `picks_2026` (mirrors tracker.FIELDS field-for-field),
+  `pick_changes` (intraday flip journal), `system_errors` (cron failure log),
+  `live_game_state` (Phase 4 worker writes here), `odds_history` (Phase 5 placeholder).
+  Composite PK `(date, game_pk)` handles doubleheaders correctly. JSONB columns
+  for lineup + top-factors. Realtime publication enabled on the 3 tables the
+  dashboard subscribes to.
+- **db/migrate_csv_to_supabase.py** — one-off bulk migration with PICKS_FIELD_MAP
+  for type conversions. 413 picks + 23 pick_changes successfully migrated.
+- **RLS migration** — `enable_rls_with_anon_read_only_policies`. anon +
+  authenticated SELECT-only policies on all 5 tables; service_role bypasses
+  RLS so tracker.py + workers keep writing freely. Resolves all 5
+  ERROR-level + 1 WARN security advisor lints.
+
+### Added — Phase 1.5: Supabase dual-write from tracker.py (T2.30 / `bae3f34`)
+
+- **db/supabase_writer.py** — lazy-loaded helper module. `mirror_picks(rows, season)`
+  bulk-upserts to `picks_<season>` with ON CONFLICT (date, game_pk).
+  `mirror_pick_change(...)` inserts a single journal row. `mirror_system_error(...)`
+  inserts an ops-health row. All public entry points catch all exceptions, log
+  to stderr, return 0/False on failure — never raise. Silent no-op when
+  SUPABASE_URL / SUPABASE_SERVICE_KEY env vars are unset.
+- **tracker.py wiring** — `_mirror_picks_to_supabase` + `_mirror_pick_change_to_supabase`
+  helpers added. Four call sites: after each `_write_rows` in `log_picks`,
+  `grade_date`, `import_odds`, plus inside `_record_pick_change`. Each callsite
+  passes only the rows that actually changed in the current call (not the full
+  slate) to keep egress minimal. Wrapped in try/except that swallows everything
+  — CSV remains source of truth, Supabase is the mirror.
+- **requirements.txt** — `supabase>=2.0,<3.0` + `python-dotenv>=1.0,<2.0`,
+  marked as optional at runtime.
+- **.github/workflows/daily.yml** — `SUPABASE_URL` + `SUPABASE_SERVICE_KEY`
+  surfaced in the predict + grade env blocks. GitHub repo secrets added via
+  the Actions settings UI; cron starts dual-writing automatically.
+
+### Added — Phase 2: Dashboard read-side cutover to Supabase + Realtime (T2.31 / `d078dbc`)
+
+- **dashboard/lib/supabase.ts** — server-side + browser-side client factories.
+  Lazy-cached singletons. Returns null when env vars unset so callers can
+  gracefully fall back. Server client disables Realtime + auth (overhead-free),
+  browser client persists session.
+- **dashboard/lib/board-supabase.ts** — `loadBoardFromSupabase(iso)` returns
+  the same `BoardResponse` shape as the CSV reader, populated from
+  `picks_<season>` + `pick_changes`. Mirrors all the normalizers (PickSide,
+  GradedResult, BatterLine, etc.) so results are interchangeable. Server-side
+  only.
+- **dashboard/lib/board.ts (modified)** — `loadBoard(iso)` now tries Supabase
+  first, falls back to CSV when Supabase is unconfigured / unreachable / has
+  no rows for that date. Available-dates list is merged from BOTH sources so
+  the date picker stays correct during the Phase-1.5 transition.
+- **dashboard/lib/useSupabaseRealtime.ts** — client hook subscribing to
+  `postgres_changes` on `picks_<season>` / `pick_changes` / `live_game_state`
+  for the displayed date. Fires a callback that triggers `/api/board` refetch.
+  Auto-skips on past dates and when env vars are missing.
+- **dashboard/components/DashboardShell.tsx** — wires `useSupabaseRealtime` into
+  the existing 30s/90s polling loop. Polling stays as heartbeat fallback;
+  Realtime push is now the primary update path.
+- **package.json** — `@supabase/supabase-js@^2.45.0` (~60kB on the main route).
+- **Vercel env vars** — `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  set on the production + preview environments.
+
+### Added — Phase 4: Railway live game-state worker (T2.32 / `a2b8410`)
+
+- **workers/live_state.py** — long-running Railway worker. Single sync loop,
+  10s tick cadence during active hours (10am-2am ET), 5min quiet sleep
+  outside. Diff-skips unchanged games (caches last-seen state per `game_pk`,
+  upserts only on real change). One MLB schedule call per tick with
+  `hydrate=linescore,team` (the `team` hydrate is what gets us 3-letter
+  abbreviations — without it we'd be writing `?` placeholders). Graceful
+  SIGTERM so Railway's deploy-rollover doesn't mid-write a row.
+- **Procfile** — `worker: python workers/live_state.py` (default service).
+- **railway.json** — Nixpacks builder, ALWAYS restart with 10 retries.
+- **Migration** — `live_game_state_auto_bump_updated_at`. Adds an UPDATE
+  trigger so `updated_at` advances on every write. Without this, the
+  default `NOW()` only fires on INSERT, so the dashboard couldn't tell
+  when fresh push arrived.
+- **Refactored `dashboard/lib/useLiveGameState.ts`** — two branches:
+  Supabase Realtime (preferred when env vars set; initial SELECT then
+  subscribe + merge events into local state); `/api/live-state` polling
+  (back-compat fallback). Same return shape (`byGamePk` + `byTeam`) so
+  every consumer keeps working with no changes. Worst-case score
+  freshness dropped from 30 sec polling to ~10 sec push.
+
+### Added — Phase 3: Railway predictor loop (T2.33 / `7925fe6`, fix `8dd0cb7`)
+
+- **workers/predictor_loop.py** — runs the full predict + grade + scrape +
+  import-odds flow every 5 minutes during active hours (9am-2am ET).
+  Subprocess-based: each step shells out to the existing scripts
+  (`mlb_first_inning_predictor.py`, `scrape_dk_odds.py`), so no code
+  duplication — features added to those scripts pick up automatically on
+  next deploy. Per-step timeouts (180s grade, 300s predict, 120s
+  scrape+import) so a stuck MLB API call can't wedge the whole loop.
+  Predict is hard-fail (aborts the cycle); grade / scrape / import are
+  soft-fail. Smoke-tested locally: full cycle in 85s.
+- **Second Railway service** in the same project (`capable-nourishment`).
+  Custom Start Command override: `python workers/predictor_loop.py`. Same
+  `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` env vars.
+- **railway.json fix** — removed `startCommand` from the file. It was
+  overriding the UI's Custom Start Command, so the predictor service was
+  silently running `live_state.py` (both services were doing the same
+  thing). Procfile now drives the default; UI overrides take effect for
+  per-service customization.
+
+### Added — Phase 6: Installable PWA (T2.34 / `8dd0cb7`)
+
+- **dashboard/public/manifest.json** — name / short_name / theme color
+  matching the in-app phosphor green (`#5dff9a` on `#07090b`). Standalone
+  display, portrait orientation, shortcuts to Today + History.
+- **Icons**: `icon-192.svg`, `icon-512.svg`, `icon-maskable.svg`,
+  `apple-touch-icon.svg` — all phosphor-diamond mark over near-black,
+  matching the in-app brand. Maskable variant has 60% safe-zone for
+  Android adaptive icon clipping.
+- **dashboard/public/sw.js** — service worker. Pre-caches shell on install.
+  Network-first for `/api/*` (live data, never serves stale). Cache-first
+  for `/_next/static/*` + immutable assets. Stale-while-revalidate for
+  HTML (instant boot, refresh-in-background). Old caches purged via
+  versioned cache name. `push` + `notificationclick` handlers stubbed
+  for future Web Push (currently no-op since Telegram covers mobile).
+- **dashboard/app/layout.tsx (modified)** — Next.js 14 metadata: manifest
+  link, applicationName, appleWebApp config, viewport.themeColor for
+  light + dark, viewport-fit cover for iPhone notch. Service worker
+  registration in a deferred-load script so it doesn't block FCP.
+
+### Fixed — Dashboard SSR was caching Supabase responses (T2.35 / `91d094c`)
+
+Symptom: `/api/board` returned fresh Supabase data (latest `generatedAt`
+timestamp matching the most recent Railway predictor write), but the
+SSR page (`/?date=...`) served stale data with a `generatedAt` matching
+the last GHA cron commit's CSV mtime — ~1.5 hours old.
+
+Root cause: Next.js 14 wraps the global `fetch` in server components
+with its data-cache layer. `dynamic = "force-dynamic"` only prevents
+*route* caching; fetches inside server components are STILL memoized
+for the build's lifetime unless either:
+- The component declares `fetchCache = "force-no-store"`, or
+- Each fetch passes `cache: "no-store"`, or
+- The route declares `revalidate = 0`.
+
+`/api/board` is a Route Handler with `revalidate = 0` (immune).
+`/` page only had `dynamic = "force-dynamic"` (vulnerable).
+
+Fix at two layers:
+1. **dashboard/app/page.tsx** — added `export const fetchCache = "force-no-store"`.
+2. **dashboard/lib/supabase.ts** — wrapped the server client's fetch with
+   a `cache: "no-store"` override so any future page using
+   `loadBoardFromSupabase` is immune by default, no per-page flag needed.
+
+### Fixed — PASS-row OddsChip was clipping (T2.29 / `2de0c3a`)
+
+The dual-side PASS chip ("DK · N -130 · Y +100") natural width is
+~160px, but `dashboard/components/BoardRow.module.css` had the odds
+column at `minmax(150px, 0.5fr)` — at 1281px desktop it resolved to
+~159px. Combined with `.row { overflow: hidden }` and `.oddsChip
+{ flex: 0 0 auto }`, the chip's right edge was silently clipped on
+every PASS row.
+
+Fix: rebalance within the *same* 1236px min-width budget (no breakpoint
+shifts). Bumped odds to `minmax(172px, 0.6fr)`, trimmed pick to
+`minmax(240px, 0.95fr)`, added 4px to the caret track for breathing
+room from the YRFI% number. At 1281px the odds column now lands at
+~184px — comfortable for the dual-side chip with breathing room.
+
+### Operations / runtime services — current state
+
+| Service | Where | Cadence | What it does |
+|---|---|---|---|
+| Predictor (primary) | Railway (`capable-nourishment` / MLB-first-inning) | every 5 min, 9am-2am ET | predict + grade + scrape DK + import odds → Supabase |
+| Live game-state | Railway (`capable-nourishment` / worker) | every 10s, 10am-2am ET | poll MLB Stats API → live_game_state |
+| Predictor (backup) | GHA cron `daily.yml` | every UTC hour 12-23 + extras | same as primary; commits CSVs to git for archival |
+| Daily backup snapshot | GHA cron `backup.yml` | 5am ET | snapshot CSVs → `data/backups/<DATE>/` |
+| Vercel rebuild | Vercel CI on git push | per cron commit | rebuilds dashboard with copied CSV state (legacy fallback path) |
+
+### Risks / known issues
+
+- **Two predictors writing to Supabase in parallel** (Railway every 5 min, GHA
+  every ~60 min). Both compute the same model on the same MLB data; race is
+  benign because both upserts use ON CONFLICT (date, game_pk) and the
+  bet-time pick lock prevents stomping placed bets. Not a problem in practice;
+  worth a stronger leader-election mechanism if we ever see the cron lag
+  compound.
+- **Predictor service named "MLB-first-inning"** in Railway (auto-generated when
+  added as second service). Cosmetic only; could rename to "predictor" for
+  clarity.
 
 ---
 

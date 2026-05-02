@@ -116,6 +116,10 @@ The CSV ledger at `data/picks_2026.csv` is append-mostly. Specific rules:
 - **CHANGELOG.md** at repo root — dated log of shipped changes. Add a
   section every time you ship something user-visible. Keep the
   performance snapshot current.
+- **ROADMAP.md** at repo root — forward-looking upgrade list (Tier 1-5),
+  status tracking, recommended sequence. When you ship a roadmap
+  item, move its row from the relevant tier into the **Recently
+  shipped** table at the top of ROADMAP.md and check the box.
 - **AUDIT.md** at repo root — running checkbox list of audit items.
   Mark items with `✅ <date>` when complete. Don't recycle audit IDs.
 - **docs/KB.md** — single-page system overview. Update when major
@@ -124,6 +128,26 @@ The CSV ledger at `data/picks_2026.csv` is append-mostly. Specific rules:
   internals, dashboard architecture, feature backlog. **Verify against
   current code before quoting** — system reminders flag these as
   potentially stale (point-in-time observations).
+
+### When you ship anything (the "every fix and addition" rule)
+
+The user explicitly asked for every fix/addition to be logged to the
+knowledge base. Follow this checklist for *every* shipped change, not
+just the big ones:
+
+1. **CHANGELOG.md** — add a row under today's date section
+   (Added / Changed / Fixed / Deferred). Cross-reference an audit
+   ID `T<x.y>` if relevant. Include the commit SHA.
+2. **ROADMAP.md** — if the change is a roadmap item, check it off
+   `[x]` and move it to the "Recently shipped" table at the top.
+3. **AUDIT.md** — if the change closes an audit item, mark it
+   `✅ <date>`.
+4. **docs/KB.md** — update the architecture diagram, file map, or
+   "daily ops" table only if those facts changed. Skip if the change
+   is internal-only.
+5. **Commit all four (when relevant) in the same commit as the code
+   change.** This way `git log -p` shows code + doc together; future
+   readers don't have to chase across commits.
 
 ## Notifications
 
