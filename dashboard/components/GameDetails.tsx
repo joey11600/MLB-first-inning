@@ -153,7 +153,7 @@ function WhyThisPickPanel({
               <span className={styles.whyHalf} title={f.half === "T1" ? "Top of 1st" : "Bottom of 1st"}>
                 {f.half}
               </span>
-              <span className={styles.whyName}>{prettyFeatureName(f.name)}</span>
+              <span className={styles.whyName} title={featureTooltip(f.name)}>{prettyFeatureName(f.name)}</span>
               <span className={`num ${styles.whyValue}`} title={`raw value`}>
                 {fmtFeatureVal(f.name, f.value)}
               </span>
@@ -205,8 +205,8 @@ function prettyFeatureName(name: string): string {
     home_top3c_iso:              "Home top-3 ISO",
     away_top3c_iso:              "Away top-3 ISO",
     home_plate_ump_nrfi_rate:    "Home-plate ump NRFI rate",
-    home_xera:                   "Home pitcher xERA",
-    away_xera:                   "Away pitcher xERA",
+    home_xera:                   "Home pitcher xERA (Statcast)",
+    away_xera:                   "Away pitcher xERA (Statcast)",
     home_whiff_pct_rank:         "Home whiff-rate rank",
     away_whiff_pct_rank:         "Away whiff-rate rank",
     era_gap_t1:                  "ERA gap (T1)",
@@ -227,6 +227,78 @@ function fmtFeatureVal(name: string, v: number): string {
   if (name === "wx_is_dome") return v ? "yes" : "no";
   if (name.includes("ip_per_start")) return v.toFixed(1);
   return v.toFixed(3);
+}
+
+/** Hover-tooltip body for each feature.  Native `title=""` attribute --
+ *  shows on hover (desktop) and long-press (mobile), no JS needed.
+ *  Goal: explain what the stat IS so someone unfamiliar with sabermetrics
+ *  can read the rationale at a glance.  Especially important for xERA
+ *  (Statcast expected ERA) since the lowercase "x" is easy to miss next
+ *  to the player card's raw ERA. */
+function featureTooltip(name: string): string {
+  const map: Record<string, string> = {
+    fi_park_nrfi_rate:
+      "Park 1st-inning NRFI rate. % of games at this stadium with no run in the 1st (3-yr rolling). League avg ≈ 53%.",
+    home_fip:
+      "Home pitcher FIP. Fielding-Independent Pitching: ERA estimate from Ks/walks/HRs only, strips out defense + luck. League avg ≈ 4.20.",
+    away_fip:
+      "Away pitcher FIP. Fielding-Independent Pitching: ERA estimate from Ks/walks/HRs only, strips out defense + luck. League avg ≈ 4.20.",
+    home_obp:
+      "Home team's full lineup on-base %. Batters reach base this often.",
+    away_obp:
+      "Away team's full lineup on-base %. Batters reach base this often.",
+    wx_temp_c:
+      "First-pitch temperature in °C. Hotter air = ball flies further = more runs.",
+    wx_wind_kmh:
+      "Wind speed in km/h. Higher absolute speed = more variance in batted-ball distance.",
+    wx_humidity:
+      "Relative humidity %. Damp air is denser, suppresses fly-ball carry.",
+    wx_is_dome:
+      "Indoor stadium — weather inputs neutralized.",
+    home_p_last5_pitcher_nrfi:
+      "Home SP last-5 starts NRFI rate. Recent form: % of last 5 starts where pitcher's first inning was scoreless.",
+    away_p_last5_pitcher_nrfi:
+      "Away SP last-5 starts NRFI rate. Recent form: % of last 5 starts where pitcher's first inning was scoreless.",
+    home_p_last10_pitcher_nrfi:
+      "Home SP last-10 starts NRFI rate. Same as last-5 but smoother window.",
+    away_p_last10_pitcher_nrfi:
+      "Away SP last-10 starts NRFI rate. Same as last-5 but smoother window.",
+    home_top3c_obp:
+      "Home top-3 hitters' combined OBP. The 1-2-3 batters' on-base rate; first inning is almost always these 3 hitters.",
+    away_top3c_obp:
+      "Away top-3 hitters' combined OBP. The 1-2-3 batters' on-base rate; first inning is almost always these 3 hitters.",
+    home_top3c_slg:
+      "Home top-3 hitters' combined SLG (slugging %). Power output of the 1-2-3 hitters.",
+    away_top3c_slg:
+      "Away top-3 hitters' combined SLG (slugging %). Power output of the 1-2-3 hitters.",
+    home_top3c_iso:
+      "Home top-3 hitters' combined ISO (isolated power = SLG − AVG). Pure extra-base hit rate; runs above singles.",
+    away_top3c_iso:
+      "Away top-3 hitters' combined ISO (isolated power = SLG − AVG). Pure extra-base hit rate; runs above singles.",
+    home_plate_ump_nrfi_rate:
+      "Home-plate ump's career 1st-inning NRFI rate. Big strike zones produce more 1-2-3 frames.",
+    home_xera:
+      "Home pitcher xERA — Statcast 'expected ERA'. What his ERA SHOULD be based on quality-of-contact (exit velocity + launch angle), stripping out batted-ball luck. Often very different from raw ERA. League avg ≈ 4.20.",
+    away_xera:
+      "Away pitcher xERA — Statcast 'expected ERA'. What his ERA SHOULD be based on quality-of-contact (exit velocity + launch angle), stripping out batted-ball luck. Often very different from raw ERA. League avg ≈ 4.20.",
+    home_whiff_pct_rank:
+      "Home pitcher whiff-rate percentile rank (0-100). 100 = swinging-strike king; high = strikeout stuff = runs suppressed.",
+    away_whiff_pct_rank:
+      "Away pitcher whiff-rate percentile rank (0-100). 100 = swinging-strike king; high = strikeout stuff = runs suppressed.",
+    era_gap_t1:
+      "Signed ERA gap for top of 1st = home_era − away_era. Positive = home pitcher worse than away. Encodes 'worse pitcher gives up the run.'",
+    era_gap_b1:
+      "Signed ERA gap for bottom of 1st = away_era − home_era. Mirror of T1.",
+    home_pvt_nrfi_rate:
+      "Home SP vs this opponent (career) NRFI rate. Long-run head-to-head 1st-inning history.",
+    away_pvt_nrfi_rate:
+      "Away SP vs this opponent (career) NRFI rate. Long-run head-to-head 1st-inning history.",
+    home_avg_ip_per_start:
+      "Home SP average innings pitched per start. Proxy for stuff + efficiency.",
+    away_avg_ip_per_start:
+      "Away SP average innings pitched per start. Proxy for stuff + efficiency.",
+  };
+  return map[name] ?? `Model feature: ${name}`;
 }
 
 
