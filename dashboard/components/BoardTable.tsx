@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { BoardRow, GameDetail, PickThresholds } from "@/lib/types";
 import { BoardRowItem } from "./BoardRow";
+import { useLiveGameState } from "@/lib/useLiveGameState";
 import styles from "./BoardTable.module.css";
 
 type SortKey = "default" | "edge" | "result";
@@ -13,13 +14,20 @@ export function BoardTable({
   totalCount,
   loading,
   thresholds,
+  date,
 }: {
   rows: BoardRow[];
   details: Record<string, GameDetail>;
   totalCount: number;
   loading: boolean;
   thresholds?: PickThresholds;
+  date?: string;
 }) {
+  // Tier-1 live MLB state: poll /api/live-state every 30s for in-progress
+  // games on today's date.  Hook auto-skips for historical dates so we
+  // don't waste bandwidth on yesterday's slate.  Returns gamePk + team
+  // lookup tables for cheap O(1) row matching.
+  const liveState = useLiveGameState(date ?? null, 30_000);
   // T4.24: multi-row expand so the user can pin 2+ games open and
   // compare their feature breakdowns side-by-side.  Click a row to
   // toggle its expansion; previously open rows stay open.
@@ -146,11 +154,18 @@ export function BoardTable({
             (row.gamePk && details[row.gamePk]) ||
             details[`${row.away}@${row.home}#${row.gameNumber || 1}`] ||
             details[`${row.away}@${row.home}`];
+          // Live game state lookup (T2.28): primary key is gamePk; fall
+          // back to team key for legacy rows without gamePk.
+          const live =
+            (row.gamePk && liveState.byGamePk[row.gamePk]) ||
+            liveState.byTeam[`${row.away}@${row.home}`] ||
+            undefined;
           return (
             <BoardRowItem
               key={key}
               row={row}
               detail={detail}
+              live={live}
               expanded={expanded.has(key)}
               onToggle={() => setExpanded((prev) => {
                 const next = new Set(prev);

@@ -1,6 +1,6 @@
 "use client";
 
-import type { BoardRow } from "@/lib/types";
+import type { BoardRow, GameDetail } from "@/lib/types";
 import styles from "./SummaryStrip.module.css";
 
 interface Bucket {
@@ -37,7 +37,13 @@ const BUCKETS: Bucket[] = [
   },
 ];
 
-export function SummaryStrip({ rows }: { rows: BoardRow[] }) {
+export function SummaryStrip({
+  rows,
+  details = {},
+}: {
+  rows: BoardRow[];
+  details?: Record<string, GameDetail>;
+}) {
   const avgLambda =
     rows.length === 0 ? 0 : rows.reduce((a, r) => a + r.lambda, 0) / rows.length;
   const maxLambda =
@@ -46,6 +52,48 @@ export function SummaryStrip({ rows }: { rows: BoardRow[] }) {
     rows.length === 0 ? 0 : Math.min(...rows.map((r) => r.lambda));
   const nrfiCnt = rows.filter((r) => r.pickSide === "NRFI").length;
   const yrfiCnt = rows.filter((r) => r.pickSide === "YRFI").length;
+
+  // T1.4 Today's running P&L tile.  Computed from the details map so it
+  // updates live as polling fetches fresh data.  Only counts rows with
+  // graded WIN/LOSS results (PASS picks contribute 0 to record, blank
+  // graded means in-progress).  Uses profit_loss_units when populated
+  // (real bet at real price after T2.27), else flat -110 fallback.
+  function lookupDetail(r: BoardRow): GameDetail | undefined {
+    return (
+      (r.gamePk && details[r.gamePk]) ||
+      details[`${r.away}@${r.home}#${r.gameNumber || 1}`] ||
+      details[`${r.away}@${r.home}`]
+    );
+  }
+  const DEFAULT_WIN = 100 / 110;       // 0.909
+  const DEFAULT_LOSS = -1.0;
+  let strongPicks = 0;
+  let bets = 0;     // graded WIN/LOSS (any side)
+  let wins = 0;
+  let losses = 0;
+  let pl = 0;
+  for (const r of rows) {
+    if (r.pickStrength === "STRONG" && (r.pickSide === "NRFI" || r.pickSide === "YRFI")) {
+      strongPicks += 1;
+    }
+    const d = lookupDetail(r);
+    const g = d?.gradedResult;
+    if (g === "WIN" || g === "LOSS") {
+      bets += 1;
+      if (g === "WIN") wins += 1;
+      else losses += 1;
+      const realPl = d?.profitLossUnits;
+      if (typeof realPl === "number" && Number.isFinite(realPl)) {
+        pl += realPl;
+      } else {
+        pl += g === "WIN" ? DEFAULT_WIN : DEFAULT_LOSS;
+      }
+    }
+  }
+  const ungraded = strongPicks - bets;   // STRONG bets still pending
+  const plSign = pl >= 0 ? "+" : "";
+  const plClass = pl > 0 ? styles.plPositive : pl < 0 ? styles.plNegative : "";
+  const winRate = bets > 0 ? (wins / bets) * 100 : null;
 
   return (
     <section className={styles.wrap} aria-label="Slate summary">
@@ -70,6 +118,42 @@ export function SummaryStrip({ rows }: { rows: BoardRow[] }) {
             <span className="num">{minLambda.toFixed(3)}</span>
             <span className={styles.sep}>—</span>
             <span className="num">{maxLambda.toFixed(3)}</span>
+          </div>
+        </div>
+
+        <div className={`${styles.tile} ${styles.plTile}`}>
+          <div className="eyebrow">Today P&amp;L</div>
+          <div className={`${styles.big} ${plClass}`}>
+            {plSign}{pl.toFixed(2)}
+            <span className={styles.plUnit}>u</span>
+          </div>
+          <div className={styles.foot}>
+            {bets > 0 ? (
+              <>
+                <span className={styles.footCell}>
+                  <span className={styles.tinyDot} data-tone="nrfi" />
+                  {wins}-{losses}
+                </span>
+                {winRate !== null && (
+                  <span className={styles.footCell}>
+                    <span className="num">{winRate.toFixed(0)}%</span>
+                  </span>
+                )}
+                {ungraded > 0 && (
+                  <span className={styles.footCell}>
+                    <span className={styles.pendingDot} aria-hidden />
+                    {ungraded} pending
+                  </span>
+                )}
+              </>
+            ) : ungraded > 0 ? (
+              <span className={styles.footCell}>
+                <span className={styles.pendingDot} aria-hidden />
+                {ungraded} STRONG pending
+              </span>
+            ) : (
+              <span className={styles.footCell}>no bets graded yet</span>
+            )}
           </div>
         </div>
 

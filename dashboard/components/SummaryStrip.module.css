@@ -4,9 +4,22 @@
 
 .tiles {
   display: grid;
-  grid-template-columns: 220px 220px 1fr;
+  /* T1.4 -- 4-tile layout adds a "Today P&L" tile.  Drops "Distribution"
+     to last fr-column at narrower widths via the wrap rules below. */
+  grid-template-columns: 200px 200px 200px 1fr;
   gap: 16px;
   align-items: stretch;
+}
+@media (max-width: 1100px) {
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .distribution { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .tile {
@@ -30,6 +43,39 @@
       var(--nrfi-soft-2),
       transparent 60%),
     var(--card);
+}
+
+/* T1.4 -- Today P&L tile.  Hero number gets a sign-aware tint so the
+   user reads "today profitable" / "today loss" at a glance.  Pending
+   bets show a small pulsing dot in the foot row to remind the user
+   of unresolved STRONG plays. */
+.plTile {
+  background:
+    radial-gradient(220px 140px at 100% 0%,
+      color-mix(in oklab, var(--primary) 18%, transparent),
+      transparent 60%),
+    var(--card);
+}
+.plPositive { color: var(--primary); }
+.plNegative { color: var(--destructive); }
+.plUnit {
+  font-size: 20px;
+  font-weight: 400;
+  margin-left: 3px;
+  opacity: 0.7;
+}
+.pendingDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--secondary);
+  margin-right: 5px;
+  animation: pendingPulse 2s ease-in-out infinite;
+}
+@keyframes pendingPulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
 }
 
 .big {

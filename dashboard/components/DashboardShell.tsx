@@ -183,9 +183,14 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
-    // Also poll on a timer (every 90s) so the same tab kept open during a
-    // game updates the result column the moment grading lands.
-    const id = window.setInterval(refresh, 90_000);
+    // Poll cadence: 30s on a current-or-future date (live games may be
+    // grading), 90s otherwise (historical view, no urgency).  T2.27 made
+    // grade-today fire on every cron; the 30s poll catches the grade
+    // within ~30s of the row updating in the CSV.  The previous 90s
+    // cadence was tuned for the era when grade only ran at midnight.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const isLive = (dataDateRef.current ?? "") >= todayIso;
+    const id = window.setInterval(refresh, isLive ? 30_000 : 90_000);
     return () => {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
@@ -245,7 +250,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         </div>
       </header>
 
-      <SummaryStrip rows={data.rows} />
+      <SummaryStrip rows={data.rows} details={data.details} />
 
       <RoiPanel initialDate={data.date} />
 
@@ -267,6 +272,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           totalCount={data.rows.length}
           loading={loading}
           thresholds={data.thresholds}
+          date={data.date}
         />
       </section>
 

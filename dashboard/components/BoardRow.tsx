@@ -1,9 +1,28 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { BoardRow, GameDetail, PickSide, PickStrength, PickThresholds } from "@/lib/types";
+import type { LiveGameState } from "@/lib/useLiveGameState";
 import { LambdaMeter } from "./LambdaMeter";
 import { GameDetails } from "./GameDetails";
 import styles from "./BoardRow.module.css";
+
+/** Returns true for `durationMs` after `value` changes.  Used by Tier 1.3
+ *  to flash a row when data updates (grade lands, pick flips, P&L
+ *  changes).  Initial render is NOT considered a change -- only
+ *  subsequent updates trigger the pulse. */
+function useRecentlyChanged<T>(value: T, durationMs: number = 2500): boolean {
+  const prev = useRef<T>(value);
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    if (Object.is(prev.current, value)) return;
+    prev.current = value;
+    setActive(true);
+    const id = window.setTimeout(() => setActive(false), durationMs);
+    return () => window.clearTimeout(id);
+  }, [value, durationMs]);
+  return active;
+}
 
 function toneClass(side: PickSide, strength: PickStrength): string {
   if (side === "NRFI") return strength === "STRONG" ? "nrfiStrong" : "nrfiLean";
@@ -148,20 +167,29 @@ function oddsForPick(side: PickSide, nrfi: string, yrfi: string): string {
 export function BoardRowItem({
   row,
   detail,
+  live,
   expanded,
   onToggle,
   thresholds,
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
+  live?: LiveGameState;
   expanded: boolean;
   onToggle: () => void;
   thresholds?: PickThresholds;
 }) {
   const tone = toneClass(row.pickSide, row.pickStrength);
 
+  // T1.3: pulse the row briefly when meaningful data changes -- grade
+  // landing, pick label flipping, or P&L updating.  We watch a tuple
+  // composed of the keys that are user-visible deltas so a noisy field
+  // (e.g., odds_captured_at) doesn't trigger a pulse.
+  const pulseKey = `${detail?.gradedResult ?? ""}|${row.pickLabel}|${detail?.profitLossUnits ?? ""}|${detail?.fiTotalRuns ?? ""}`;
+  const justChanged = useRecentlyChanged(pulseKey, 2500);
+
   return (
-    <div className={`${styles.row} ${styles[tone]} ${expanded ? styles.open : ""}`}>
+    <div className={`${styles.row} ${styles[tone]} ${expanded ? styles.open : ""} ${justChanged ? styles.rowJustChanged : ""}`}>
       <button
         type="button"
         className={styles.clickable}
@@ -194,6 +222,8 @@ export function BoardRowItem({
               homeRuns={detail.fiHomeRuns}
               totalRuns={detail.fiTotalRuns}
             />
+          ) : live && live.abstractGameState !== "Preview" ? (
+            <LiveStateBadge live={live} />
           ) : (
             <span className={styles.resultPending}>—</span>
           )}
@@ -493,6 +523,90 @@ function EdgeCell({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
       {sign}{pct.toFixed(1)}%
     </span>
   );
+}
+
+
+/** Live state badge -- shown in the result column for in-progress games
+ *  (Tier 1.2).  Shows current inning + score for live games, or "PRE" /
+ *  "WARMUP" / "DELAY" for pre-game states.  Replaces the "—" placeholder
+ *  so the user sees real-time game progress without waiting for the
+ *  cron's grade step to land.
+ *
+ *  Display rules:
+ *    Live + 1st inning   -> e.g.  "T1 0-0"  (live sweat)
+ *    Live + past 1st     -> e.g.  "B3 1-3"  (1st inning result + current)
+ *    Warmup / Pre-Game   -> "PRE-GAME"
+ *    Delayed / Postponed -> "DELAY"
+ *    Final (ungraded)    -> "FINAL · 1st 0-1"  (rare; cron should grade soon)
+ */
+function LiveStateBadge({ live }: { live: LiveGameState }) {
+  const state = live.abstractGameState;
+  const status = live.status;
+
+  // Pre-game: status like "Pre-Game", "Warmup", "Scheduled"
+  if (state === "Preview") {
+    if (status === "Warmup") {
+      return <span className={`${styles.liveBadge} ${styles.liveWarmup}`}>WARMUP</span>;
+    }
+    return <span className={`${styles.liveBadge} ${styles.livePre}`}>PRE-GAME</span>;
+  }
+
+  // Delays / postponements
+  if (status.toLowerCase().includes("delay")) {
+    return <span className={`${styles.liveBadge} ${styles.liveDelay}`}>DELAY</span>;
+  }
+
+  // Live in progress
+  if (state === "Live") {
+    const inn  = live.currentInning ?? 0;
+    const half = (live.inningState || "").toLowerCase();
+    // Compact half-inning code: T = top, B = bottom, M = middle, E = end
+    const halfCode =
+      half.startsWith("top")    ? "T" :
+      half.startsWith("bot")    ? "B" :
+      half.startsWith("mid")    ? "M" :
+      half.startsWith("end")    ? "E" : "·";
+    const score = `${live.awayScore}-${live.homeScore}`;
+
+    // First inning is special: this is what our model predicts on.
+    // Pulse the cell so the user notices the bet is currently being decided.
+    const isFirstInning = inn === 1;
+
+    return (
+      <span
+        className={`${styles.liveBadge} ${styles.liveLive} ${isFirstInning ? styles.live1stPulse : ""}`}
+        title={
+          `${live.away} @ ${live.home}\n` +
+          `${state} · ${live.inningState || "—"} of ${inn}\n` +
+          `Score: ${live.awayScore}-${live.homeScore}\n` +
+          (live.firstInningComplete && live.firstInningTotalRuns != null
+            ? `1st inning: ${live.firstInningAwayRuns}-${live.firstInningHomeRuns} (${live.firstInningTotalRuns} total runs) — ${live.firstInningTotalRuns === 0 ? "NRFI" : "YRFI"}`
+            : "1st inning still in progress")
+        }
+      >
+        <span className={styles.liveInning}>{halfCode}{inn}</span>
+        <span className={styles.liveScore}>{score}</span>
+      </span>
+    );
+  }
+
+  // Final but ungraded — rare; show 1st inning result if we have it
+  if (state === "Final") {
+    if (live.firstInningTotalRuns != null) {
+      const r = live.firstInningTotalRuns;
+      return (
+        <span
+          className={`${styles.liveBadge} ${styles.liveFinal}`}
+          title={`Final · 1st: ${live.firstInningAwayRuns}-${live.firstInningHomeRuns}`}
+        >
+          {`F · 1st ${r}r`}
+        </span>
+      );
+    }
+    return <span className={`${styles.liveBadge} ${styles.liveFinal}`}>FINAL</span>;
+  }
+
+  return <span className={styles.resultPending}>—</span>;
 }
 
 

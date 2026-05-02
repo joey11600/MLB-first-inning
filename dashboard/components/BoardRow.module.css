@@ -30,6 +30,28 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), 0 0 0 1px color-mix(in oklab, var(--primary) 20%, transparent);
 }
 
+/* T1.3: row pulse when data changes (grade lands, pick flips, P&L
+   updates).  Soft warm-brown glow that fades over 2.5s.  Calls out
+   the row briefly so the user notices an update without being
+   visually loud. */
+.rowJustChanged {
+  animation: rowJustChanged 2.5s cubic-bezier(0.16, 1, 0.3, 1) 1;
+}
+@keyframes rowJustChanged {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent);
+    background: var(--card);
+  }
+  10% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 35%, transparent);
+    background: color-mix(in oklab, var(--primary) 6%, var(--card));
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent);
+    background: var(--card);
+  }
+}
+
 /* Status gradient bleeding in from the right edge. The tone classes set
    the gradient color via --status-tone. */
 .row::after {
@@ -264,6 +286,80 @@
   display: inline-flex;
   align-items: center;
   min-width: 0;
+}
+
+/* T1.2 Live state badges (pre-game, in-progress, final-ungraded).
+   Replace the "—" placeholder for un-graded rows when MLB Stats API
+   has live data.  Each badge has a distinct tone so the user can
+   scan the slate's progress at a glance:
+     PRE-GAME / WARMUP -- subtle muted chip
+     LIVE              -- warm-brown, pulses gently for 1st inning
+     DELAY             -- amber dashed
+     FINAL (ungraded)  -- neutral, transient -- cron should grade soon
+*/
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.livePre {
+  border-style: dashed;
+  opacity: 0.75;
+}
+.liveWarmup {
+  background: color-mix(in oklab, var(--secondary) 14%, var(--muted));
+  border-color: color-mix(in oklab, var(--secondary) 40%, var(--border));
+  color: var(--secondary);
+}
+.liveDelay {
+  background: color-mix(in oklab, var(--secondary) 18%, var(--muted));
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--secondary) 50%, var(--border));
+  color: var(--secondary);
+}
+.liveLive {
+  background: color-mix(in oklab, var(--primary) 14%, var(--muted));
+  border-color: color-mix(in oklab, var(--primary) 38%, var(--border));
+  color: var(--primary);
+}
+.liveFinal {
+  background: color-mix(in oklab, var(--muted-foreground) 12%, var(--muted));
+  border-color: var(--border);
+  color: var(--foreground);
+}
+.liveInning {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.liveScore {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 11.5px;
+  color: var(--foreground);
+}
+
+/* 1st-inning live: pulse to draw the user's eye since the bet is
+   actively being decided.  Subtle so it's not annoying. */
+.live1stPulse {
+  animation: live1stPulse 2s ease-in-out infinite;
+}
+@keyframes live1stPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent); }
 }
 .resultPending {
   font-family: var(--font-mono);
