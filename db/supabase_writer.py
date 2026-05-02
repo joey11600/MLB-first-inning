@@ -339,19 +339,68 @@ def mirror_picks(rows: Iterable[dict], season: int) -> int:
     if not payloads:
         return 0
 
+    # T2.45 #5: per-batch retry + per-batch error isolation.
+    #
+    # Old behavior: a single try/except wrapped the entire batch loop.
+    # If batch 1 succeeded but batch 2 failed, we'd return 0 (losing
+    # the partial success from batch 1) AND skip every subsequent
+    # batch (3, 4, ...) -- a transient blip on one batch silently
+    # lost rows for the rest of the cycle.
+    #
+    # New behavior: each batch gets its own try/except + up-to-3
+    # attempts with simple linear backoff.  Persistent failures
+    # are recorded to system_errors so the dashboard's ops-health
+    # check surfaces them; the next batch still proceeds.  Returns
+    # the actual count successfully upserted, not 0-or-all.
     table = f"picks_{season}"
-    try:
-        BATCH = 200    # supabase-py default request limit comfort margin
-        total = 0
-        for i in range(0, len(payloads), BATCH):
-            batch = payloads[i:i + BATCH]
-            client.table(table).upsert(batch, on_conflict="date,game_pk").execute()
-            total += len(batch)
-        return total
-    except Exception as exc:  # noqa: BLE001
-        print(f"[supabase_writer] picks upsert failed ({len(payloads)} rows): {exc!r}",
-              file=sys.stderr)
-        return 0
+    BATCH        = 200    # supabase-py default request limit comfort margin
+    MAX_ATTEMPTS = 3
+    BACKOFFS_S   = (0.5, 1.5)    # before attempt 2 / 3
+    import time as _time
+    total = 0
+    for i in range(0, len(payloads), BATCH):
+        batch = payloads[i:i + BATCH]
+        last_exc: Exception | None = None
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                client.table(table).upsert(batch, on_conflict="date,game_pk").execute()
+                last_exc = None
+                total += len(batch)
+                break
+            except Exception as exc:    # noqa: BLE001
+                last_exc = exc
+                if attempt < MAX_ATTEMPTS:
+                    _time.sleep(BACKOFFS_S[attempt - 1])
+        if last_exc is not None:
+            # All retries exhausted for this batch.  Log + record + continue.
+            print(
+                f"[supabase_writer] picks upsert batch {i//BATCH + 1} "
+                f"({len(batch)} rows) failed after {MAX_ATTEMPTS} attempts: "
+                f"{last_exc!r}",
+                file=sys.stderr,
+            )
+            try:
+                # Inline insert (NOT recursive call to mirror_system_error
+                # -- that would risk feedback loops if Supabase itself is
+                # the failing target).
+                client.table("system_errors").insert({
+                    "captured_at_utc": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                    "date":            None,
+                    "step":            "supabase-mirror-picks",
+                    "exit_code":       1,
+                    "message":         (
+                        f"batch {i//BATCH + 1} of "
+                        f"{(len(payloads) + BATCH - 1) // BATCH}, "
+                        f"{len(batch)} rows: {last_exc!r}"
+                    )[:1500],
+                }).execute()
+            except Exception as rec_exc:    # noqa: BLE001 — last resort fail-open
+                print(
+                    f"[supabase_writer] could not record mirror failure to "
+                    f"system_errors: {rec_exc!r}",
+                    file=sys.stderr,
+                )
+    return total
 
 
 def mirror_pick_change(

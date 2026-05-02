@@ -18,6 +18,7 @@
 --   system_errors       — cron failure log (mirrors system_errors.csv)
 --   live_game_state     — real-time per-game inning/score (Phase 4 worker)
 --   odds_history        — per-scrape line history (Phase 5 multi-book)
+--   notifications_log   — Telegram-ping audit + dedup window source (T2.38)
 --
 -- Realtime publication: picks_2026, pick_changes, live_game_state are added
 -- so the dashboard can subscribe to row changes via Supabase Realtime.
@@ -243,6 +244,36 @@ CREATE INDEX IF NOT EXISTS idx_odds_history_game    ON odds_history (date, game_
 CREATE INDEX IF NOT EXISTS idx_odds_history_book    ON odds_history (sportsbook, captured_at DESC);
 
 -- =============================================================================
+-- notifications_log — Telegram-ping audit trail (T2.38).  Every Telegram
+-- delivery (or attempted delivery) writes one row here.  Two purposes:
+--
+--   1. Cross-runner dedup window.  Railway predictor and the GHA backup
+--      cron both call _notify_event_telegram; the dedup check queries this
+--      table for "any matching (event_type, event_key) within the last
+--      N minutes" before sending.  Without the table the dedup fail-opens
+--      and both runners ping → duplicate Telegram alerts.
+--
+--   2. Post-mortem audit.  Per-event delivery body + recipient count for
+--      debugging "why didn't I get a ping for game X" questions.
+--
+-- The dashboard does NOT subscribe to this table via Realtime.  It's
+-- written by tracker.py and queried back by tracker.py only.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS notifications_log (
+  id              BIGSERIAL PRIMARY KEY,
+  captured_at_utc TIMESTAMPTZ NOT NULL,
+  event_type      TEXT NOT NULL,    -- 'flip_to_strong' | 'graded_win' | 'pregame' | etc.
+  event_key       TEXT NOT NULL,    -- usually "<date>:<game_pk>:<extra>" for dedup
+  chat_id         TEXT,             -- the env var value at send time (CSV after T2.43)
+  body            TEXT,             -- truncated to 2000 chars; HTML-formatted
+  delivered       BOOLEAN DEFAULT FALSE
+);
+-- Hot path: dedup check is "WHERE event_type=X AND event_key=Y AND captured_at_utc >= now()-window"
+CREATE INDEX IF NOT EXISTS idx_notifications_dedup  ON notifications_log (event_type, event_key, captured_at_utc DESC);
+-- Audit path: "show me all pings in the last N hours"
+CREATE INDEX IF NOT EXISTS idx_notifications_recent ON notifications_log (captured_at_utc DESC);
+
+-- =============================================================================
 -- Realtime publication.  Tables added here push row changes to subscribed
 -- clients (the dashboard) within ~200ms.  Excludes odds_history because the
 -- dashboard doesn't need to subscribe to every odds scrape — it queries on
@@ -286,11 +317,12 @@ CREATE TRIGGER picks_2026_updated_at
 -- CREATE POLICY in Postgres is NOT idempotent (no IF NOT EXISTS), so we
 -- DROP POLICY IF EXISTS first to make this re-runnable.
 -- =============================================================================
-ALTER TABLE picks_2026      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pick_changes    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE system_errors   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE live_game_state ENABLE ROW LEVEL SECURITY;
-ALTER TABLE odds_history    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE picks_2026        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pick_changes      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_errors     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE live_game_state   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE odds_history      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications_log ENABLE ROW LEVEL SECURITY;
 
 -- anon SELECT-only
 DROP POLICY IF EXISTS picks_2026_anon_read       ON picks_2026;
@@ -303,6 +335,8 @@ DROP POLICY IF EXISTS live_game_state_anon_read  ON live_game_state;
 CREATE POLICY      live_game_state_anon_read  ON live_game_state  FOR SELECT TO anon USING (true);
 DROP POLICY IF EXISTS odds_history_anon_read     ON odds_history;
 CREATE POLICY      odds_history_anon_read     ON odds_history     FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS notifications_log_anon_read ON notifications_log;
+CREATE POLICY      notifications_log_anon_read ON notifications_log FOR SELECT TO anon USING (true);
 
 -- authenticated SELECT-only (Supabase Realtime sometimes resolves to
 -- the authenticated role even with an anon JWT in v2 of the JS client;
@@ -317,6 +351,8 @@ DROP POLICY IF EXISTS live_game_state_auth_read  ON live_game_state;
 CREATE POLICY      live_game_state_auth_read  ON live_game_state  FOR SELECT TO authenticated USING (true);
 DROP POLICY IF EXISTS odds_history_auth_read     ON odds_history;
 CREATE POLICY      odds_history_auth_read     ON odds_history     FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS notifications_log_auth_read ON notifications_log;
+CREATE POLICY      notifications_log_auth_read ON notifications_log FOR SELECT TO authenticated USING (true);
 
 -- Pin the trigger function's search_path so it's immune to attacks
 -- that mutate search_path before the function executes.

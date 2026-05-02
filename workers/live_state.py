@@ -124,6 +124,27 @@ def is_active_hour() -> bool:
     return now_h >= start or now_h < (end - 24)
 
 
+# T2.45 #3: record live-state worker failures to Supabase `system_errors`
+# so the dashboard's `/api/health` (and the planned ops-health card) can
+# surface a degraded worker without operators having to scrape Railway
+# logs.  Uses the worker's existing Supabase client directly rather than
+# pulling in db.supabase_writer -- saves an import + path mangle, and the
+# insert payload is identical.  Best-effort: any failure to record falls
+# through silently because the worker must keep polling regardless.
+def _record_step_failure(client: "Client", step: str, message: str) -> None:
+    try:
+        client.table("system_errors").insert({
+            "captured_at_utc": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "date":            todays_iso(),
+            "step":            step,
+            "exit_code":       1,    # workers don't have RCs; 1 = "logical failure"
+            "message":         (message or "")[:1500],
+        }).execute()
+    except Exception as exc:    # noqa: BLE001 — fail-open per worker contract
+        print(f"[live_state] _record_step_failure({step!r}) failed: {exc!r}",
+              file=sys.stderr)
+
+
 def fetch_slate(date_iso: str) -> list[dict]:
     """One call to MLB Stats API hydrating linescore so we get inning
     state + 1st-inning runs in a single round trip.  Returns a list
@@ -309,6 +330,10 @@ def run_cycle(client: Client, last_sigs: dict[str, tuple], debug: bool) -> tuple
             print(f"[live_state] {ts} ET  pushed {len(to_upsert):>2}/{len(rows):>2} games")
         except Exception as exc:    # noqa: BLE001
             print(f"[live_state] upsert failed: {exc!r}", file=sys.stderr)
+            _record_step_failure(
+                client, "live-state-upsert",
+                f"upsert {len(to_upsert)} rows failed: {exc!r}",
+            )
 
     all_final = all(r.get("abstract_game_state") == "Final" for r in rows)
     return (len(rows), len(to_upsert), all_final, rows)
@@ -356,6 +381,10 @@ def check_scratches(client, full_rows: list[dict]) -> int:
     except Exception as exc:    # noqa: BLE001
         print(f"[live_state] scratch check supabase select failed: {exc!r}",
               file=sys.stderr)
+        _record_step_failure(
+            client, "scratch-check-select",
+            f"picks_{season} select failed: {exc!r}",
+        )
         return 0
     our_rows = res.data or []
     if not our_rows:

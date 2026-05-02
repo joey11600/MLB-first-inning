@@ -215,8 +215,6 @@ function rowToGameDetail(r: PickRow): GameDetail {
         bb9:     num(r.away_bb9),
         hr9:     num(r.away_hr9),
         k9:      num(r.away_k9),
-        // First-inning specific cols aren't yet mirrored to Supabase; pass 0.
-        fiEra: 0, fiWhip: 0, fiIp: 0,
         quality: normalizeQuality(str(r.away_pitcher_q)),
       },
       offense: {
@@ -238,7 +236,6 @@ function rowToGameDetail(r: PickRow): GameDetail {
         bb9:     num(r.home_bb9),
         hr9:     num(r.home_hr9),
         k9:      num(r.home_k9),
-        fiEra: 0, fiWhip: 0, fiIp: 0,
         quality: normalizeQuality(str(r.home_pitcher_q)),
       },
       offense: {

@@ -899,7 +899,37 @@ def _send_telegram_html(text: str) -> bool:
         return False
 
     # Tolerate whitespace around commas; ignore empty entries.
-    chat_ids = [c.strip() for c in chat_ids_raw.split(",") if c.strip()]
+    raw_ids = [c.strip() for c in chat_ids_raw.split(",") if c.strip()]
+    if not raw_ids:
+        return False
+
+    # T2.45 #4: validate each chat_id against Telegram's accepted shape
+    # before we send.  Telegram chat_ids are signed 64-bit integers --
+    # positive for DMs, negative (with optional `-100` supergroup prefix)
+    # for groups/channels.  A malformed entry like "5285688562 garbage"
+    # or stray quotes survives the strip() above but produces an opaque
+    # 400 from sendMessage.  Filter early and emit a structured stderr
+    # warning so a misconfigured env var doesn't quietly degrade the
+    # broadcast.  The warning is one line per cycle so log volume stays
+    # sane even if the env var stays bad.
+    import re
+    _CID_RE = re.compile(r"^-?\d+$")
+    chat_ids:    list[str] = []
+    bad_entries: list[str] = []
+    for cid in raw_ids:
+        if _CID_RE.match(cid):
+            chat_ids.append(cid)
+        else:
+            bad_entries.append(cid)
+    if bad_entries:
+        print(
+            f"  [telegram] WARNING: ignoring malformed chat_id(s) in "
+            f"TELEGRAM_CHAT_ID env var: {bad_entries!r}.  "
+            f"Each entry must match /^-?\\d+$/ (e.g. '5285688562' for a "
+            f"DM, '-5115372935' for a group).  "
+            f"Continuing with {len(chat_ids)} valid recipient(s).",
+            file=sys.stderr,
+        )
     if not chat_ids:
         return False
 

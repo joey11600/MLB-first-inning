@@ -35,9 +35,6 @@ export interface PitcherStats {
   bb9: number | null;
   hr9: number | null;
   k9: number | null;
-  fiEra: number | null;
-  fiWhip: number | null;
-  fiIp: number | null;
   quality: DataQuality;
 }
 

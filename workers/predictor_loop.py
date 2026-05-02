@@ -119,6 +119,45 @@ def run(cmd: list[str], timeout_s: int, label: str) -> int:
     return rc
 
 
+# T2.45 #3: record Railway step failures to Supabase `system_errors` so
+# the dashboard's `/api/health` (and the planned ops-health card) can
+# surface a degraded predictor without operators having to scrape Railway
+# logs.  Mirrors the `record_err` convention from .github/workflows/daily.yml.
+#
+# Best-effort: this helper itself fail-opens.  A Supabase outage cannot
+# be allowed to escalate into a worker crash -- the worker must keep
+# polling regardless.  If the recorder errors, it logs to stderr and
+# returns silently so the cycle continues.
+def _record_step_failure(step: str, exit_code: int, message: str = "") -> None:
+    """Write one system_errors row for a failed predictor step.
+
+    `step`        — short label (e.g. "predict", "grade-today", "scrape-dk")
+    `exit_code`   — non-zero RC from `run()`; 124 means timeout
+    `message`     — short human-readable hint (rc-derived if empty)
+    """
+    if exit_code == 0:
+        return
+    try:
+        # Lazy import + path insert -- mirrors the pregame-alert step's
+        # pattern -- so the worker boots even if supabase-py is missing.
+        if str(REPO_ROOT) not in sys.path:
+            sys.path.insert(0, str(REPO_ROOT))
+        from db.supabase_writer import mirror_system_error
+        msg = message.strip() if message else (
+            "timeout" if exit_code == 124 else f"rc={exit_code}"
+        )
+        mirror_system_error(
+            captured_at_utc = datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            iso_date        = today_iso(),
+            step            = step,
+            exit_code       = exit_code,
+            message         = msg[:1500],
+        )
+    except Exception as exc:    # noqa: BLE001 — fail-open per worker contract
+        print(f"[predictor] _record_step_failure({step!r}, rc={exit_code}) "
+              f"failed: {exc!r}", file=sys.stderr, flush=True)
+
+
 # ---------------------------------------------------------------------------
 # Cycle steps
 # ---------------------------------------------------------------------------
@@ -235,30 +274,44 @@ def step_pregame_alert_check() -> int:
 def cycle() -> None:
     """Run one full cycle.  Each step's exit code is logged but only
     `predict` aborts on failure -- the others soft-fail so a transient
-    error in one piece doesn't kill the whole run."""
+    error in one piece doesn't kill the whole run.
+
+    T2.45 #3: every non-zero RC is also written to Supabase
+    `system_errors` so the dashboard surfaces a degraded predictor."""
     started = time.time()
     print(f"[predictor] === cycle start {datetime.now(ET).strftime('%H:%M:%S %Z')} ===", flush=True)
 
     # 1+2: grade yesterday + today (both soft-fail)
-    step_catch_up_grade_yesterday()
-    step_live_grade_today()
+    rc = step_catch_up_grade_yesterday()
+    if rc != 0:
+        _record_step_failure("grade-yesterday", rc)
+    rc = step_live_grade_today()
+    if rc != 0:
+        _record_step_failure("grade-today", rc)
 
     # 3: predict today (hard-fail)
     rc = step_predict_today()
     if rc != 0:
+        _record_step_failure("predict", rc)
         print(f"[predictor] predict failed (rc={rc}); skipping odds steps this cycle",
               file=sys.stderr, flush=True)
         return
 
     # 4: scrape DK (soft-fail)
-    step_scrape_dk()
+    rc = step_scrape_dk()
+    if rc != 0:
+        _record_step_failure("scrape-dk", rc)
 
     # 5: import odds (soft-fail; skipped if no CSV)
-    step_import_odds()
+    rc = step_import_odds()
+    if rc != 0:
+        _record_step_failure("import-odds", rc)
 
     # 6: T2.38 #2 pre-game alert sweep (soft-fail).  Run after odds
     # are imported so the message body has the real DK price/edge.
-    step_pregame_alert_check()
+    rc = step_pregame_alert_check()
+    if rc != 0:
+        _record_step_failure("pregame-alert", rc)
 
     dur = time.time() - started
     print(f"[predictor] === cycle end ({dur:.1f}s) ===", flush=True)

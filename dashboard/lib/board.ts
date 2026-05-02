@@ -216,9 +216,6 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
           bb9: toNumber(r.away_bb9),
           hr9: toNumber(r.away_hr9),
           k9: toNumber(r.away_k9),
-          fiEra: toNumber(r.away_fi_era),
-          fiWhip: toNumber(r.away_fi_whip),
-          fiIp: toNumber(r.away_fi_ip),
           quality: normalizeQuality(r.away_pitcher_q),
         },
         offense: {
@@ -253,9 +250,6 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
           bb9: toNumber(r.home_bb9),
           hr9: toNumber(r.home_hr9),
           k9: toNumber(r.home_k9),
-          fiEra: toNumber(r.home_fi_era),
-          fiWhip: toNumber(r.home_fi_whip),
-          fiIp: toNumber(r.home_fi_ip),
           quality: normalizeQuality(r.home_pitcher_q),
         },
         offense: {

@@ -618,22 +618,6 @@ function TeamCard({
         ]}
       />
 
-      {pitcher?.fiIp !== null && pitcher?.fiIp !== undefined && pitcher.fiIp > 0 && (
-        <>
-          <section className={styles.subHead}>
-            <span className="eyebrow">First-inning split</span>
-            <span className={styles.fiIp}>{pitcher.fiIp.toFixed(1)} IP</span>
-          </section>
-          <StatGrid
-            stats={[
-              { k: "FI·ERA", v: pitcher.fiEra },
-              { k: "FI·WHIP", v: pitcher.fiWhip, digits: 2 },
-            ]}
-            half
-          />
-        </>
-      )}
-
       <LineupPanel oppTeam={oppTeam} lineup={oppLineup} quality={oppLineupQuality} />
 
       <section className={styles.subHead}>
