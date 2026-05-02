@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCsv, toNumber } from "./csv";
+import { loadBoardFromSupabase } from "./board-supabase";
+import { isSupabaseConfigured } from "./supabase";
 import type {
   BoardResponse,
   BoardRow,
@@ -283,6 +285,46 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
 }
 
 export async function loadBoard(requestedIso: string | null): Promise<BoardResponse> {
+  // T2.31 — Phase 2 read-side cutover.  Try Supabase first; fall back
+  // to CSV reads when Supabase is unconfigured / unreachable / has no
+  // rows yet for the requested date (e.g. today's slate before the
+  // first cron run after secrets land).  This means:
+  //   - Local dev w/o env vars:           CSV (unchanged)
+  //   - Production w/ Supabase configured: Supabase for any date
+  //     migrated or written by the dual-write; CSV otherwise
+  //   - Today's slate before next cron:   CSV (graceful)
+  //
+  // Failures are silent — the function just falls through to CSV so a
+  // Supabase outage downgrades to "as fresh as the last Vercel build"
+  // rather than serving an error.  Same blast-radius as a stale CSV.
+  if (isSupabaseConfigured()) {
+    try {
+      const sb = await loadBoardFromSupabase(requestedIso);
+      if (sb && sb.rows.length > 0) {
+        // T2.31: merge availableDates from BOTH Supabase and the
+        // local CSVs so the date picker still includes any dates
+        // that exist on disk but haven't been mirrored yet (rare;
+        // mostly a Phase-1.5 transition concern).
+        const csvDates = await listBoardDates();
+        const seen = new Set<string>(sb.availableDates);
+        const merged = [...sb.availableDates];
+        for (const d of csvDates) {
+          if (!seen.has(d)) {
+            merged.push(d);
+            seen.add(d);
+          }
+        }
+        merged.sort().reverse();
+        return { ...sb, availableDates: merged };
+      }
+    } catch (err) {
+      // Log + fall through.  Matches the existing CSV path's "best
+      // effort" stance — never let the dashboard break on a data-
+      // layer hiccup.
+      console.warn("[board] Supabase read failed, falling back to CSV:", err);
+    }
+  }
+
   const available = await listBoardDates();
   const iso = requestedIso && available.includes(requestedIso)
     ? requestedIso

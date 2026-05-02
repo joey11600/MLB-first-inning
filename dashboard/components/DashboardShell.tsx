@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BoardResponse, BoardRow } from "@/lib/types";
+import { useSupabaseRealtime } from "@/lib/useSupabaseRealtime";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
 import { RoiPanel } from "./RoiPanel";
@@ -188,6 +189,12 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     // grade-today fire on every cron; the 30s poll catches the grade
     // within ~30s of the row updating in the CSV.  The previous 90s
     // cadence was tuned for the era when grade only ran at midnight.
+    //
+    // T2.31: with Phase 2's Supabase Realtime subscription wired below,
+    // the *primary* update path is push (sub-second).  Polling stays as
+    // a heartbeat fallback in case the WebSocket drops, the user is on
+    // a date that hasn't been mirrored to Supabase yet, or env vars
+    // aren't set (local dev w/o Supabase).
     const todayIso = new Date().toISOString().slice(0, 10);
     const isLive = (dataDateRef.current ?? "") >= todayIso;
     const id = window.setInterval(refresh, isLive ? 30_000 : 90_000);
@@ -198,6 +205,25 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // T2.31 / Phase 2 — Realtime subscription.  Fires a refetch the moment
+  // any picks_<season> or pick_changes row changes for the displayed
+  // date.  Auto-skipped on historical dates (nothing's mutating) and
+  // when the env vars are missing (back-compat for the CSV-only path).
+  // The hook itself manages the WebSocket lifecycle (subscribe / unsubscribe
+  // on date change + unmount).
+  useSupabaseRealtime({
+    date: data.date || null,
+    onChange: (table) => {
+      // live_game_state changes flow through the existing /api/live-state
+      // endpoint + useLiveGameState hook -- not the board API -- so we
+      // intentionally don't refetch the board for those.  Picks /
+      // pick_changes flips DO need a board refresh.
+      if (table === "live_game_state") return;
+      const d = dataDateRef.current;
+      if (d) void refetch(d);
+    },
+  });
 
   return (
     <>

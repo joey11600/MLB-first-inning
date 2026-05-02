@@ -273,3 +273,60 @@ CREATE TRIGGER picks_2026_updated_at
   BEFORE UPDATE ON picks_2026
   FOR EACH ROW
   EXECUTE FUNCTION trg_picks_2026_set_updated_at();
+
+-- =============================================================================
+-- Row-Level Security — Phase 2 prep.
+--
+-- The dashboard reads from Supabase using the anon key (or publishable key);
+-- without RLS, anon would have full DML access.  We enable RLS on every
+-- public table and grant anon + authenticated SELECT-only policies.
+-- service_role bypasses RLS automatically (Supabase default), so the
+-- migration script + tracker.py dual-write keep working.
+--
+-- CREATE POLICY in Postgres is NOT idempotent (no IF NOT EXISTS), so we
+-- DROP POLICY IF EXISTS first to make this re-runnable.
+-- =============================================================================
+ALTER TABLE picks_2026      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pick_changes    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_errors   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE live_game_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE odds_history    ENABLE ROW LEVEL SECURITY;
+
+-- anon SELECT-only
+DROP POLICY IF EXISTS picks_2026_anon_read       ON picks_2026;
+CREATE POLICY      picks_2026_anon_read       ON picks_2026       FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS pick_changes_anon_read     ON pick_changes;
+CREATE POLICY      pick_changes_anon_read     ON pick_changes     FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS system_errors_anon_read    ON system_errors;
+CREATE POLICY      system_errors_anon_read    ON system_errors    FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS live_game_state_anon_read  ON live_game_state;
+CREATE POLICY      live_game_state_anon_read  ON live_game_state  FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS odds_history_anon_read     ON odds_history;
+CREATE POLICY      odds_history_anon_read     ON odds_history     FOR SELECT TO anon USING (true);
+
+-- authenticated SELECT-only (Supabase Realtime sometimes resolves to
+-- the authenticated role even with an anon JWT in v2 of the JS client;
+-- granting both keeps Realtime working regardless of which role wins).
+DROP POLICY IF EXISTS picks_2026_auth_read       ON picks_2026;
+CREATE POLICY      picks_2026_auth_read       ON picks_2026       FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS pick_changes_auth_read     ON pick_changes;
+CREATE POLICY      pick_changes_auth_read     ON pick_changes     FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS system_errors_auth_read    ON system_errors;
+CREATE POLICY      system_errors_auth_read    ON system_errors    FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS live_game_state_auth_read  ON live_game_state;
+CREATE POLICY      live_game_state_auth_read  ON live_game_state  FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS odds_history_auth_read     ON odds_history;
+CREATE POLICY      odds_history_auth_read     ON odds_history     FOR SELECT TO authenticated USING (true);
+
+-- Pin the trigger function's search_path so it's immune to attacks
+-- that mutate search_path before the function executes.
+CREATE OR REPLACE FUNCTION trg_picks_2026_set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
