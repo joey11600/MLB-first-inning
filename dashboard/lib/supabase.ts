@@ -72,6 +72,16 @@ export function getServerSupabase(): SupabaseClient | null {
       // Identify ourselves in Supabase logs so we can tell dashboard
       // traffic apart from tracker.py + the migration script.
       headers: { "x-client-info": "nrfi-dashboard-server" },
+      // T2.35: force `cache: "no-store"` on every Supabase request so
+      // Next.js's data cache (which wraps the global fetch in server
+      // components) doesn't memoize PostgREST responses for the
+      // build's lifetime.  Without this, /api/board (Route Handler
+      // with explicit revalidate=0) served fresh data while / (page
+      // SSR) served stale data from the Vercel build moment.  We
+      // never want a cached Supabase row set on the dashboard --
+      // staleness is exactly what Realtime is supposed to fix.
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        fetch(input, { ...init, cache: "no-store" }),
     },
   });
   return _serverClient;
