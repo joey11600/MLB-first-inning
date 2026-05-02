@@ -21,7 +21,7 @@ inning) prediction system. Daily pipeline:
    `bet_placed=Y` when edge clears the 2% threshold.
 3. **Grade** — re-pulls box scores; writes `graded_result` (WIN/LOSS/PASS),
    first-inning runs, and `profit_loss_units` per row.
-4. **Display** — Next.js dashboard ([dashboard-pink-seven-64.vercel.app](https://dashboard-pink-seven-64.vercel.app))
+4. **Display** — Next.js dashboard ([nrfi-terminal.vercel.app](https://nrfi-terminal.vercel.app))
    reads the CSVs, renders the board with live odds chips + result badges +
    a "Why this pick?" panel showing LR feature contributions.
 
@@ -106,7 +106,7 @@ how few games clear both "odds captured" AND "edge ≥ 2%".
    │   useSupabaseRealtime → triggers refetch on change     │
    │   useLiveGameState → SELECT + Realtime subscribe       │
    │   PWA installable (manifest + sw.js + icons)           │
-   │   live URL: dashboard-pink-seven-64.vercel.app         │
+   │   live URL: nrfi-terminal.vercel.app         │
    └────────────────────────────────────────────────────────┘
 
    Backup / archival path (still running, kept as redundancy):
@@ -261,7 +261,7 @@ every 5 min, GHA backs it up hourly. Manual interventions:
 | Smoke-test predictor loop locally | `python workers/predictor_loop.py --once` |
 | Smoke-test live-state worker locally | `python workers/live_state.py --once --debug` |
 | Check parity (CSV vs Supabase) | `python -m db.supabase_writer` |
-| Check health | `curl https://dashboard-pink-seven-64.vercel.app/api/health` |
+| Check health | `curl https://nrfi-terminal.vercel.app/api/health` |
 | Run a one-off backtest | `python backtest.py --season 2026` |
 | Browse Supabase rows | https://supabase.com/dashboard/project/uubhwrmhlfnsvracdzbg |
 | View Railway worker logs | https://railway.com/project/51d66094-e55f-4281-90df-033f20246d75 |
@@ -324,7 +324,7 @@ git add <files>
 git commit -m "..."
 git push origin claude/mlb-inning-run-predictor-QyazL
 # Auto-deploy lands within ~60s. Verify with:
-#   curl -sL https://dashboard-pink-seven-64.vercel.app/ | grep -c "<your-marker>"
+#   curl -sL https://nrfi-terminal.vercel.app/ | grep -c "<your-marker>"
 ```
 
 **DO NOT run `vercel --prod` or `npx vercel --prod` directly** for code

@@ -36,7 +36,7 @@ git push origin claude/mlb-inning-run-predictor-QyazL
 
 # That's it. Vercel auto-deploys from the push within ~60 seconds.
 # You can verify by polling the live URL for an expected marker:
-#    curl -sL https://dashboard-pink-seven-64.vercel.app/ | grep -q "<marker>"
+#    curl -sL https://nrfi-terminal.vercel.app/ | grep -q "<marker>"
 ```
 
 **Do not run `vercel --prod` or `npx vercel --prod` directly for code
@@ -54,7 +54,7 @@ your build (an interleaved cron push can move the alias). Cheap check:
 
 ```bash
 # Look for a CSS class or string that only exists in your new code:
-curl -sL https://dashboard-pink-seven-64.vercel.app/ | grep -c "<my-marker>"
+curl -sL https://nrfi-terminal.vercel.app/ | grep -c "<my-marker>"
 # Should be > 0.  If it's 0, something raced you.
 ```
 

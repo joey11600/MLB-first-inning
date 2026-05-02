@@ -194,6 +194,22 @@ shifts). Bumped odds to `minmax(172px, 0.6fr)`, trimmed pick to
 room from the YRFI% number. At 1281px the odds column now lands at
 ~184px — comfortable for the dual-side chip with breathing room.
 
+### Changed — Production dashboard URL renamed
+
+User asked for a cleaner, more memorable production URL than the
+auto-generated `dashboard-pink-seven-64.vercel.app`.  Added a new
+Vercel domain alias **`nrfi-terminal.vercel.app`** to the
+`mlb-nrfi-yrfi` project and made it the primary URL going forward.
+
+The old `dashboard-pink-seven-64.vercel.app` URL stays live as a
+secondary alias so existing bookmarks / deep links / Telegram
+references don't break.  Both serve the same Vercel deployment;
+either resolves to the same SSR + Realtime stack.
+
+Updated all internal doc references (`CLAUDE.md`, `docs/KB.md`) to
+use the new URL.  The dashboard itself doesn't hardcode its URL
+anywhere meaningful — the bookmark/share text just gets shorter.
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |
