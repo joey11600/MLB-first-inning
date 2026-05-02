@@ -210,6 +210,50 @@ Updated all internal doc references (`CLAUDE.md`, `docs/KB.md`) to
 use the new URL.  The dashboard itself doesn't hardcode its URL
 anywhere meaningful — the bookmark/share text just gets shorter.
 
+### Fixed — Telegram pick-flip pings missing from Railway runs (T2.36 / `442fe4d`)
+
+User reported "the Telegram notifications are not live and it's already
+missed a couple."  Two compounding bugs:
+
+1. **Railway predictor service was missing TELEGRAM secrets.**  Phase 3
+   (Railway predictor every 5 min) was deployed earlier today with
+   `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` env vars but NOT
+   `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`.  Result: any flip
+   detected between hourly GHA cron firings produced zero pings.
+   `pick_changes` table for 2026-05-02 17:00 UTC showed 6+ actionable
+   flips in the past hour, all from Railway, all silent.
+
+2. **Duplicate flip rows from Railway + GHA racing.**  Both runners
+   write to the same Supabase `pick_changes` table when they detect
+   a flip relative to their own local CSV state.  Once Railway also
+   had the Telegram secrets, every flip would have fired 2-4 pings.
+
+Code fix (this commit, addresses #2):
+- `_notify_pick_flip_telegram` now queries Supabase for any prior
+  pick_changes row with the same `(date, game_pk, new_pick_label)`
+  within the last 5 minutes.  By the time the function runs,
+  `_record_pick_change` has already inserted THIS runner's row, so
+  `count >= 2` means another runner is ahead of us → skip.
+  Fail-OPEN on any error (network / module missing) so a transient
+  Supabase hiccup never silently drops a legitimate ping.
+- New `_flip_category(old, new)` helper classifies the flip into
+  `commit` / `demote` / `side` with appropriate emoji.
+- New `_format_flip_message` builds a richer HTML-formatted body:
+  category headline, P(NRFI)/P(YRFI) probability line, hyperlink
+  to the dashboard (`<a href="https://nrfi-terminal.vercel.app/?date=...">`).
+  Telegram parse_mode=HTML + disable_web_page_preview so URL
+  preview cards don't push content below the fold.
+- `DASHBOARD_URL` env var override (defaults to
+  `https://nrfi-terminal.vercel.app`) so preview deploys can point
+  at a non-prod URL.
+- `log_picks` callsite passes `game_pk` + `row_context` (with
+  nrfi_prob / yrfi_prob) so the notifier has dedup keys + body
+  context.
+
+User-facing manual step (#1 above): paste `TELEGRAM_BOT_TOKEN` +
+`TELEGRAM_CHAT_ID` into the Railway predictor service's Variables
+panel.  Same values as the existing GitHub Actions secrets.
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |
