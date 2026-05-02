@@ -707,6 +707,162 @@ Live verification: a manual `sendMessage` call (one round-trip per
 recipient) returned `ok=True message_id=24` to the personal chat
 and `ok=True message_id=25` to the Backfist Bets group.
 
+### Added — Multi-recipient Telegram broadcast (T2.43)
+
+Lets the same Telegram notifications fan out to multiple chats from
+a single env var.  Created a Telegram group named **"Backfist Bets"**
+so the operator can add friends and have them receive every alert,
+with no extra wiring per recipient.
+
+`tracker._send_telegram_html` now treats `TELEGRAM_CHAT_ID` as a
+**comma-separated CSV** instead of a single id.  Each entry can be:
+  • a positive int — DM to a person       (e.g. `5285688562`)
+  • a negative int — group / channel      (e.g. `-5115372935`)
+
+Per-recipient delivery loop with **soft fail**: one bad chat_id (bot
+kicked, chat blocked, etc.) does NOT prevent delivery to the others.
+Returns `True` if at least one delivery succeeded.  Back-compat: a
+single chat_id with no comma still works unchanged.
+
+The dedup framework from T2.38 (`notifications_log` Supabase table)
+is per-event-type, not per-recipient -- each of the 8 STRONG-only
+event types still fires at most once per dedup window, but the ping
+goes to all recipients atomically.
+
+Three env stores synced to `5285688562,-5115372935`:
+  - Railway predictor service (`MLB-first-inning`)
+  - Railway worker service (`worker`)
+  - GitHub Actions repo secret `TELEGRAM_CHAT_ID`
+
+The bot (`@nrfi_terminal_bot`) added to the "Backfist Bets" group.
+Live verified: a manual `sendMessage` returned `ok=True` to both
+the personal chat and the group.
+
+### Added — xERA disambiguation + per-feature hover tooltips (T2.44)
+
+User confusion case: looked at TEX@DET and saw "Home pitcher ERA
+2.340" in the Why-this-pick panel while the player card showed ERA
+4.20 -- read the lowercase "x" out of "xERA" as a typo.  The two
+numbers don't conflict: 2.340 is Statcast xERA (top model factor on
+the row, contribution -0.7165 toward NRFI), 4.20 is the raw season
+ERA on the card.
+
+Two unmissable fixes in `dashboard/components/GameDetails.tsx`:
+
+  1. Re-labeled `home_xera` / `away_xera` from "Home pitcher xERA"
+     to "Home pitcher xERA (Statcast)" in `prettyFeatureName`.
+
+  2. New `featureTooltip(name)` helper providing one-sentence
+     plain-English descriptions for every LR feature.  Wired as a
+     native `title=""` on each row's name span -- hover (desktop)
+     and long-press (mobile), no library, no JS.  xERA tooltip
+     explicitly calls out the Statcast vs raw-ERA distinction.
+
+Covers all ~30 features in the prettyFeatureName map: park rate,
+FIP, OBP/SLG/ISO top-3 splits, last-5/last-10 starter NRFI rates,
+ump zone NRFI rate, xERA, whiff-rank, ERA gap (T1/B1), pvt career
+NRFI, IP/start, weather inputs.
+
+### Added / Changed / Fixed — Post-audit hardening (T2.45)
+
+Five fixes synthesized from a three-agent audit (model+tracker,
+dashboard, workers+ops) plus per-claim verification against actual
+code.  Surface area: silent-failure detection + dead-UI cleanup.
+None of these change pick logic.
+
+#### Removed — dead First-inning split UI
+
+Both readers (`board.ts` CSV / `board-supabase.ts`) supplied
+0/null for `fiEra` / `fiWhip` / `fiIp`.  The picks_2026 schema
+doesn't have `fi_era` / `fi_whip` / `fi_ip` columns, and the
+Supabase reader hardcoded zeros.  `GameDetails.tsx` then
+conditionally rendered the section only when `fiIp > 0`, so it
+**never rendered for any row, ever**.
+
+Deleted from: `types.ts` (interface), `board.ts` +
+`board-supabase.ts` (readers), `GameDetails.tsx` (block),
+`GameDetails.module.css` (.fiIp class).  Net -32 LOC.
+
+If this feature is wanted in the future, the path is: backfill
+per-pitcher first-inning splits via MLB Stats API
+(`/api/v1/people/{id}/stats?stats=statSplits&group=pitching`) ->
+new columns `away_fi_era`/`home_fi_era` etc -> repopulate the
+type interface + readers + section.  ~4-6 hr.
+
+#### Added — notifications_log DDL in schema.sql
+
+The T2.38 dedup framework writes to `notifications_log` and the
+production Supabase project has the table (verified: 17 rows),
+but the DDL was never added to `db/schema.sql`.  A future fresh
+deploy on a new Supabase project would silently fail-open on
+dedup checks -> duplicate Telegram alerts everywhere.
+
+Added: `CREATE TABLE notifications_log (id, captured_at_utc,
+event_type, event_key, chat_id, body, delivered)`,
+`idx_notifications_dedup` on `(event_type, event_key,
+captured_at_utc DESC)` for the hot dedup query,
+`idx_notifications_recent` on `(captured_at_utc DESC)` for
+audit reads, RLS enable, anon + authenticated SELECT policies.
+Idempotent -- safe to re-run on the production project.
+
+#### Added — Railway worker errors -> system_errors
+
+GHA cron records every step's failure to `system_errors` via the
+`record_err` helper in `daily.yml`.  The Railway predictor +
+live-state workers logged failures only to stderr, so the
+dashboard's planned ops-health story showed "all green" while
+the worker was silently degraded.
+
+  - `workers/predictor_loop.py`: `_record_step_failure()` helper
+    lazy-imports `db.supabase_writer.mirror_system_error` (so the
+    worker boots even without supabase-py).  Wired into `cycle()`
+    for every non-zero RC: grade-yesterday, grade-today, predict,
+    scrape-dk, import-odds, pregame-alert.
+  - `workers/live_state.py`: `_record_step_failure()` reuses the
+    worker's existing Supabase client (saves an import).  Wired
+    into the live-state upsert path and the scratch-detector
+    `picks_<season>` select path.
+
+Both helpers fail-open per the worker resilience contract: a
+Supabase outage cannot escalate into a worker crash.
+
+#### Fixed — TELEGRAM_CHAT_ID format validation
+
+The T2.43 multi-recipient broadcast splits the env var on commas
+and trims whitespace, but never validated each entry's shape.  A
+malformed value like `"5285688562, , -5115372935"` or
+`"5285688562 garbage"` would survive the strip + filter and
+reach Telegram's API as an opaque 400.
+
+Added a `/^-?\d+$/` regex check in `tracker._send_telegram_html`;
+malformed entries are dropped with a structured stderr warning
+naming each rejected value, and broadcast continues to the valid
+recipients.  Bot DMs (positive int) and groups (negative int,
+with optional `-100` supergroup prefix) are both accepted.
+
+#### Fixed — picks upsert: per-batch retry + system_errors record
+
+Old behavior in `db.supabase_writer.mirror_picks`: a single
+try/except wrapped the whole batch loop, so if batch 1 succeeded
+(200 rows) but batch 2 failed, the function returned 0 (losing
+the partial success signal) AND skipped batches 3, 4, ...  A
+transient blip on one batch silently lost rows for the rest of
+the cycle.
+
+New behavior:
+  - Each batch gets its own try/except + up-to-3 attempts with
+    simple linear backoff (0.5s, 1.5s).
+  - Persistent batch failures inline-insert to `system_errors`
+    (NOT a recursive `mirror_system_error` call -- avoids a
+    feedback loop if Supabase itself is the failing target).
+  - Returns the actual count successfully upserted (no longer
+    all-or-nothing).
+  - Subsequent batches still proceed after a failed batch.
+
+Result: the dashboard's ops health surfaces real Supabase write
+degradation in near-real-time, and partial successes stop being
+silently retried-from-scratch on the next cycle.
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |
