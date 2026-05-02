@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NRFI Terminal — 512px maskable icon.
+  PWA "maskable" icons need their visible content inside a 80%
+  inner safe zone because Android applies arbitrary clip-paths
+  (circle, squircle, rounded square) and would chop a bleed-edge
+  design.  This variant has the diamond shrunk to 60% of the
+  canvas + extra background bleed so any masking still looks
+  intentional.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="NRFI">
+  <!-- Full-bleed background -- the OS will mask this; we want it
+       solid edge-to-edge so no slice of the icon shows transparency. -->
+  <rect width="512" height="512" fill="#07090b"/>
+
+  <!-- Halo, scaled to safe zone -->
+  <radialGradient id="halo" cx="0.5" cy="0.5" r="0.45">
+    <stop offset="0"   stop-color="#5dff9a" stop-opacity="0.18"/>
+    <stop offset="1"   stop-color="#5dff9a" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="256" cy="256" r="160" fill="url(#halo)"/>
+
+  <!-- Diamond confined to inner 60% (offset from edges = 102px) -->
+  <path d="M256 102 L410 256 L256 410 L102 256 Z"
+        fill="none"
+        stroke="#5dff9a"
+        stroke-width="14"
+        stroke-linejoin="round"/>
+  <path d="M256 170 L342 256 L256 342 L170 256 Z"
+        fill="none"
+        stroke="#ffb547"
+        stroke-width="5"
+        stroke-linejoin="round"
+        opacity="0.85"/>
+  <circle cx="256" cy="256" r="11" fill="#5dff9a"/>
+</svg>

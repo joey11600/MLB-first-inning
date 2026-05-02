@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "name": "NRFI Terminal",
+  "short_name": "NRFI",
+  "description": "MLB first-inning prediction terminal — Poisson model, pitcher × offense × park, slate-wide ranking board.",
+
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+
+  "background_color": "#07090b",
+  "theme_color": "#5dff9a",
+
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+
+  "shortcuts": [
+    {
+      "name": "Today's Slate",
+      "short_name": "Today",
+      "description": "Open the live slate",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bankroll History",
+      "short_name": "History",
+      "description": "Cumulative P&L + ROI",
+      "url": "/history",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ],
+
+  "categories": ["sports", "utilities", "finance"],
+  "lang": "en-US",
+  "dir": "ltr"
+}

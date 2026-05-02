@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NRFI Terminal — 192px PWA icon (Android home-screen / "any" purpose).
+  Bloomberg-terminal aesthetic: phosphor diamond mark over near-black,
+  with a thin amber inner inscription matching the dashboard's
+  --primary (#5dff9a) / --secondary (#ffb547) accents.
+
+  Geometry chosen so the diamond fills ~80% of the canvas with
+  generous gutter for OS-specific corner masking.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="NRFI">
+  <!-- Backdrop -->
+  <rect width="192" height="192" rx="36" fill="#07090b"/>
+
+  <!-- Faint phosphor halo -->
+  <radialGradient id="halo" cx="0.5" cy="0.5" r="0.55">
+    <stop offset="0"   stop-color="#5dff9a" stop-opacity="0.18"/>
+    <stop offset="0.55" stop-color="#5dff9a" stop-opacity="0.04"/>
+    <stop offset="1"   stop-color="#5dff9a" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="96" cy="96" r="78" fill="url(#halo)"/>
+
+  <!-- Diamond mark — uses the same M/path geometry as the in-app
+       brand mark (see DashboardShell.module.css .mark) but scaled. -->
+  <path d="M96 22 L170 96 L96 170 L22 96 Z"
+        fill="none"
+        stroke="#5dff9a"
+        stroke-width="6"
+        stroke-linejoin="round"/>
+
+  <!-- Inner amber inscription = the "1st inning" feature -->
+  <path d="M96 56 L136 96 L96 136 L56 96 Z"
+        fill="none"
+        stroke="#ffb547"
+        stroke-width="2.5"
+        stroke-linejoin="round"
+        opacity="0.85"/>
+
+  <!-- Phosphor pin at the centroid -->
+  <circle cx="96" cy="96" r="5" fill="#5dff9a"/>
+</svg>
