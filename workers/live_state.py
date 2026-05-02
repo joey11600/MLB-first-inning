@@ -283,6 +283,50 @@ def run_cycle(client: Client, last_sigs: dict[str, tuple], debug: bool) -> tuple
     return (len(rows), len(to_upsert), all_final)
 
 
+def check_ops_health(client) -> None:
+    """T2.38 #7: detect stalled predictor and ping the user via
+    Telegram.  Queries Supabase picks_<season> for the most recent
+    `updated_at` timestamp.  If it's >30 min old during active hours,
+    fire a one-shot stall alert (notifications_log dedup ensures at
+    most one alert per hour).  Self-deduped + soft-fail."""
+    try:
+        # Lazy import so this worker boots even if tracker / supabase_writer
+        # have an init failure.
+        import sys as _sys
+        from pathlib import Path as _P
+        repo_root = _P(__file__).resolve().parent.parent
+        if str(repo_root) not in _sys.path:
+            _sys.path.insert(0, str(repo_root))
+        from datetime import datetime as _dt, timedelta as _td
+        from tracker import _notify_ops_health_telegram
+
+        season = _dt.now(ET).year
+        res = (
+            client.table(f"picks_{season}")
+                  .select("updated_at")
+                  .order("updated_at", desc=True)
+                  .limit(1)
+                  .execute()
+        )
+        rows = res.data or []
+        if not rows:
+            return    # no picks ever -- can't gauge staleness
+        latest_iso = (rows[0] or {}).get("updated_at") or ""
+        if not latest_iso:
+            return
+        # Parse: "2026-05-02T16:38:00.735458+00:00" or with Z suffix
+        latest = _dt.fromisoformat(latest_iso.replace("Z", "+00:00"))
+        now    = _dt.now(latest.tzinfo)
+        age_m  = int((now - latest).total_seconds() / 60)
+        if age_m >= 30:
+            _notify_ops_health_telegram(age_m)
+    except Exception as exc:    # noqa: BLE001 — advisory only
+        # Don't even log -- ops health checks shouldn't pollute logs
+        # when supabase-py isn't installed in this image.
+        if "[debug]" in str(exc):
+            print(f"[live_state] ops_health check skipped: {exc!r}", file=sys.stderr)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -308,6 +352,11 @@ def main() -> None:
     last_sigs: dict[str, tuple] = {}
     last_iso_seen = todays_iso()
     running = True
+    # T2.38 #7: ops-health throttle.  Check at most every 10 cycles
+    # (~100 sec at 10s poll, ~50min at 5min quiet) to avoid pounding
+    # Supabase with health queries the user doesn't see anyway.
+    cycle_count = 0
+    HEALTH_EVERY_N_CYCLES = 10
 
     def handle_sig(*_a):
         nonlocal running
@@ -336,7 +385,14 @@ def main() -> None:
 
         seen, pushed, all_final = run_cycle(client, last_sigs, args.debug)
 
+        # T2.38 #7: throttled ops-health check.
+        cycle_count += 1
+        if cycle_count % HEALTH_EVERY_N_CYCLES == 0:
+            check_ops_health(client)
+
         if args.once:
+            # In --once mode also run health check so smoke tests cover it.
+            check_ops_health(client)
             print(f"[live_state] --once mode: seen={seen} pushed={pushed} all_final={all_final}")
             break
 

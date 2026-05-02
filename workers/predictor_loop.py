@@ -174,6 +174,64 @@ def step_import_odds() -> int:
     )
 
 
+def step_pregame_alert_check() -> int:
+    """T2.38 #2: scan today's STRONG bets for any whose first pitch is
+    inside the pre-game alert window (25-35 min from now in ET).  Ping
+    the user once per bet via notifications_log dedup.  Soft-fail."""
+    try:
+        # Import lazily so the worker boots even if tracker can't
+        # (e.g. supabase-py missing in a stripped image).
+        sys.path.insert(0, str(REPO_ROOT))
+        import csv
+        from datetime import datetime as _dt, timedelta as _td
+        from zoneinfo import ZoneInfo as _ZI
+        from tracker import _notify_strong_pregame_telegram
+
+        et = _ZI("America/New_York")
+        now_et = _dt.now(et)
+        today_iso = now_et.strftime("%Y-%m-%d")
+        # Sweep CSV for today's rows.  We could query Supabase too;
+        # CSV is fine because predict step at the start of this cycle
+        # just refreshed it.
+        picks_csv = REPO_ROOT / "data" / f"picks_{today_iso[:4]}.csv"
+        if not picks_csv.exists():
+            return 0
+        pinged = 0
+        with open(picks_csv, encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                if (r.get("date") or "") != today_iso:
+                    continue
+                if (r.get("pick_strength") or "").upper() != "STRONG":
+                    continue
+                if (r.get("bet_placed") or "").upper() != "Y":
+                    continue
+                # Parse "7:35 PM ET" -> ET datetime today.
+                tstr = (r.get("game_time_et") or "").replace(" ET", "").strip()
+                if ":" not in tstr:
+                    continue   # placeholder like "After Game 1"
+                try:
+                    t = _dt.strptime(tstr, "%I:%M %p")
+                    game_dt = now_et.replace(
+                        hour=t.hour, minute=t.minute, second=0, microsecond=0,
+                    )
+                except ValueError:
+                    continue
+                # Window: 25-35 min from now.  Guarantees one cycle hits
+                # it (predictor cron runs every 5 min, so window of 10
+                # min always overlaps at least one tick).
+                delta = game_dt - now_et
+                if _td(minutes=25) <= delta <= _td(minutes=35):
+                    minutes_to_first_pitch = int(delta.total_seconds() / 60)
+                    _notify_strong_pregame_telegram(r, minutes_to_first_pitch)
+                    pinged += 1
+        if pinged:
+            print(f"[predictor] [pregame] fired {pinged} pre-game alerts", flush=True)
+        return 0
+    except Exception as exc:    # noqa: BLE001 — advisory only
+        print(f"[predictor] [pregame] failed: {exc!r}", file=sys.stderr, flush=True)
+        return 1
+
+
 def cycle() -> None:
     """Run one full cycle.  Each step's exit code is logged but only
     `predict` aborts on failure -- the others soft-fail so a transient
@@ -197,6 +255,10 @@ def cycle() -> None:
 
     # 5: import odds (soft-fail; skipped if no CSV)
     step_import_odds()
+
+    # 6: T2.38 #2 pre-game alert sweep (soft-fail).  Run after odds
+    # are imported so the message body has the real DK price/edge.
+    step_pregame_alert_check()
 
     dur = time.time() - started
     print(f"[predictor] === cycle end ({dur:.1f}s) ===", flush=True)

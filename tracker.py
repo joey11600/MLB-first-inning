@@ -636,6 +636,49 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     },
                 )
 
+            # T2.38 #8: weather-flip alert on placed STRONG bets.
+            # Compare existing wx_* values to the new ones.  Fire if
+            # any of:  wind shifted >5 km/h, temp shifted >5°C, or
+            # humidity shifted >20pp.  Function self-dedups via
+            # notifications_log so we don't spam if cron tracks the
+            # underlying drift across multiple cycles.
+            try:
+                if (existing.get("bet_placed") or "").upper() == "Y" and \
+                   (existing.get("pick_strength") or "").upper() == "STRONG":
+                    def _f(x):
+                        try: return float(x or 0)
+                        except (ValueError, TypeError): return 0.0
+                    old_wind  = _f(existing.get("wx_wind_kmh"))
+                    new_wind  = _f(g.get("wx_wind_kmh"))
+                    old_temp  = _f(existing.get("wx_temp_c"))
+                    new_temp  = _f(g.get("wx_temp_c"))
+                    old_humid = _f(existing.get("wx_humidity"))
+                    new_humid = _f(g.get("wx_humidity"))
+                    deltas = []
+                    if abs(new_wind - old_wind) >= 5.0:
+                        deltas.append(f"wind {old_wind:.1f} → {new_wind:.1f} km/h")
+                    if abs(new_temp - old_temp) >= 5.0:
+                        deltas.append(f"temp {old_temp:.1f} → {new_temp:.1f}°C")
+                    if abs(new_humid - old_humid) >= 20.0:
+                        deltas.append(f"humidity {old_humid:.0f}% → {new_humid:.0f}%")
+                    if deltas:
+                        # Use the existing (locked) row for the notifier
+                        # since the pick_side / pick_strength / bet are
+                        # frozen there; the new_row's wx_* is what we're
+                        # alerting about.
+                        merged_row = dict(existing)
+                        merged_row.update({
+                            "wx_wind_kmh": g.get("wx_wind_kmh"),
+                            "wx_temp_c":   g.get("wx_temp_c"),
+                            "wx_humidity": g.get("wx_humidity"),
+                        })
+                        _notify_strong_weather_telegram(
+                            merged_row,
+                            "Significant change since bet: " + " · ".join(deltas),
+                        )
+            except Exception:    # noqa: BLE001 — advisory only
+                pass
+
             # If the game has already started (live or final), preserve
             # EVERYTHING the predictor would normally overwrite -- the
             # snapshot the user actually bet against has to stay frozen
@@ -794,6 +837,138 @@ def _is_strong_label(label: str) -> bool:
 _DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "https://nrfi-terminal.vercel.app").rstrip("/")
 
 
+# ---------------------------------------------------------------------------
+# Generalized Telegram notifier (T2.38)
+# ---------------------------------------------------------------------------
+#
+# Single send path for ALL notification types (flip / graded / voided /
+# pregame / CLV / weather / milestone / digest / ops).  Centralizes:
+#   - HTML body delivery via the bot API
+#   - Cross-runner dedup via the notifications_log Supabase table
+#   - Audit trail (every ping is recorded with full body)
+#
+# Each event has a stable type + key.  The (type, key) pair is unique
+# within the dedup window — so e.g. two Railway runs racing each other
+# both compute "STRONG bet ARI@CHC graded WIN" but only the first inserts
+# the row + sends the ping; the second sees a prior row and skips.
+
+# Dedup windows per event type.  A 0 means "fire every time" (no dedup).
+# These are minutes; the helper filters notifications_log by
+# captured_at_utc > now() - INTERVAL '<window>' minutes.
+_DEDUP_WINDOW_M: dict[str, int] = {
+    "flip_to_strong":       5,        # both runners detect within 5 min
+    "strong_graded":        24 * 60,  # at most one grade ping per day per game
+    "strong_voided":        24 * 60,  # one void ping per game
+    "strong_pregame":       6 * 60,   # one pregame ping per game per ~6h window
+    "strong_clv":           24 * 60,  # one CLV alert per bet per day
+    "strong_weather":       6 * 60,   # one weather alert per ~6h window
+    "bankroll_milestone":   90 * 24 * 60,  # near-permanent (3 months) per milestone
+    "daily_digest":         18 * 60,  # one digest per day
+    "ops_health":           60,       # at most one stall alert per hour
+}
+
+
+def _send_telegram_html(text: str) -> bool:
+    """Low-level send.  Returns True on success.  Catches every exception
+    so callers don't have to.  Fail-OPEN per the original notifier
+    contract: a Telegram outage must NEVER break the predictor."""
+    token   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
+    if not token or not chat_id:
+        return False
+    try:
+        import urllib.parse
+        body = urllib.parse.urlencode({
+            "chat_id":                  chat_id,
+            "text":                     text,
+            "parse_mode":               "HTML",
+            "disable_web_page_preview": "true",
+        }).encode("utf-8")
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        req = urllib.request.Request(
+            url, data=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+        return True
+    except Exception as exc:    # noqa: BLE001 — advisory only, swallow all
+        print(f"  [telegram] send failed: {exc!r}", file=sys.stderr)
+        return False
+
+
+def _notify_event_dedup_check(event_type: str, event_key: str) -> bool:
+    """Returns True if this (event_type, event_key) was ALREADY pinged
+    inside its dedup window.  Caller should skip if True.
+    Fail-OPEN: if the dedup query errors, return False so we still ping
+    rather than silently dropping a real signal."""
+    window_m = _DEDUP_WINDOW_M.get(event_type, 5)
+    if window_m <= 0:
+        return False    # zero window = fire every time
+    try:
+        from db.supabase_writer import _get_client
+        from datetime import timedelta as _td
+        client = _get_client()
+        if client is None:
+            return False    # Supabase not configured; can't dedup, so ping
+        cutoff = (datetime.utcnow() - _td(minutes=window_m)).isoformat() + "Z"
+        res = (
+            client.table("notifications_log")
+                  .select("id", count="exact", head=True)
+                  .eq("event_type", event_type)
+                  .eq("event_key",  event_key)
+                  .gte("captured_at_utc", cutoff)
+                  .execute()
+        )
+        return (getattr(res, "count", 0) or 0) > 0
+    except Exception:    # noqa: BLE001 — fail-open
+        return False
+
+
+def _notify_event_record(event_type: str, event_key: str, body: str, delivered: bool) -> None:
+    """Append one row to notifications_log for audit + future dedup.
+    Fail-silent: a missing log row is not a real failure (the user already
+    got the ping)."""
+    try:
+        from db.supabase_writer import _get_client
+        client = _get_client()
+        if client is None:
+            return
+        chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip() or None
+        client.table("notifications_log").insert({
+            "captured_at_utc": _now_utc(),
+            "event_type":      event_type,
+            "event_key":       event_key,
+            "chat_id":         chat_id,
+            "body":            (body or "")[:2000],   # cap; Telegram caps too
+            "delivered":       bool(delivered),
+        }).execute()
+    except Exception:    # noqa: BLE001
+        pass
+
+
+def _notify_event_telegram(event_type: str, event_key: str, body: str) -> bool:
+    """Top-level entry point.  Dedup → send → log.  Returns True if a
+    ping was actually delivered (False on env-var miss / dedup hit /
+    network error)."""
+    token   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
+    if not token or not chat_id:
+        return False
+    if _notify_event_dedup_check(event_type, event_key):
+        return False   # silent skip — another runner already pinged
+    ok = _send_telegram_html(body)
+    _notify_event_record(event_type, event_key, body, ok)
+    return ok
+
+
+def _dashboard_link(date_iso: str = "") -> str:
+    """Build the trailing 'View on dashboard →' anchor used in nearly
+    every notification body."""
+    qs = f"?date={date_iso}" if date_iso else ""
+    return f'<a href="{_DASHBOARD_URL}/{qs}">View on dashboard →</a>'
+
+
 def _flip_already_pinged_supabase(iso_date: str, game_pk: str, new_label: str) -> bool:
     """T2.36 cross-runner dedup.
 
@@ -926,40 +1101,11 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
                                 game_time: str, old_label: str, new_label: str,
                                 game_pk: str = "",
                                 row_context: dict | None = None) -> None:
-    """Best-effort Telegram ping on actionable pick flip.  Silent no-op
-    when env vars are unset; never raises.
-
-    T2.36 changes:
-      • Cross-runner dedup via Supabase (skip if another runner pinged
-        the same flip in last 5 min).
-      • Richer HTML-formatted message: category emoji, probability
-        context (when available), hyperlink to the dashboard.
-      • Optional `game_pk` + `row_context` parameters; backwards
-        compatible -- callers without them get the old simple format
-        without dedup.
-    """
-    token   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
-    if not token or not chat_id:
-        return
-
-    # T2.37: STRONG-only filter (user preference).  Only ping when the
-    # NEW state is STRONG NRFI or STRONG YRFI.  Skip everything else:
-    #   • PASS-variant churn (LINEUP/STARTER PENDING / NO EDGE / NO DATA)
-    #   • LEAN commits (LEAN NRFI / LEAN YRFI as final state)
-    #   • Demotes from STRONG to anything (the user already saw the
-    #     STRONG ping; the demote is just noise on their phone)
-    # Side flips that END at STRONG (e.g. STRONG NRFI → STRONG YRFI)
-    # still ping — those are high-impact signals.
+    """STRONG-only flip notifier (T2.37) using the unified
+    notifications_log dedup path (T2.38).  Backward-compatible signature."""
     if not _is_strong_label(new_label):
-        return
-
-    # T2.36: skip if another runner (Railway / GHA) already logged
-    # this flip in the last 5 min.
-    if _flip_already_pinged_supabase(iso_date, game_pk, new_label):
-        return
-
-    text = _format_flip_message(
+        return  # T2.37 STRONG-only filter
+    body = _format_flip_message(
         iso_date    = iso_date,
         away_team   = away_team,
         home_team   = home_team,
@@ -968,29 +1114,322 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
         new_label   = new_label,
         row_context = row_context,
     )
+    pk = game_pk or f"{away_team}@{home_team}"
+    event_key = f"flip_to_strong:{pk}:{(new_label or '').upper()}"
+    _notify_event_telegram("flip_to_strong", event_key, body)
 
+
+# ---------------------------------------------------------------------------
+# T2.38 — Additional STRONG-only Telegram event notifiers
+# ---------------------------------------------------------------------------
+#
+# All of these go through `_notify_event_telegram` which centralizes dedup
+# (via the notifications_log Supabase table) + send + audit logging.
+# Each function is a thin wrapper that builds the HTML body and picks the
+# event_type + event_key.
+
+
+def _notify_strong_graded_telegram(row: dict, today_record: tuple[int, int, int],
+                                    today_pl_units: float) -> None:
+    """STRONG bet graded WIN or LOSS.  Fires once per game.  Includes
+    today-so-far record + P&L for context.  No-op for PASS-variant
+    grades and for LEAN bets (those don't ping)."""
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    grade = (row.get("graded_result") or "").strip().upper()
+    if grade not in ("WIN", "LOSS"):
+        return
+
+    side       = (row.get("pick_side") or "").upper()
+    away       = (row.get("away_team") or "").upper()
+    home       = (row.get("home_team") or "").upper()
+    fi_a       = row.get("fi_away_runs")
+    fi_h       = row.get("fi_home_runs")
+    odds_col   = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+    price      = (row.get(odds_col) or "—").strip()
+    units      = (row.get("units_risked") or "1.0").strip()
+    pl         = (row.get("profit_loss_units") or "").strip()
+    iso_date   = (row.get("date") or "").strip()
+    game_pk    = (row.get("game_pk") or "").strip()
+
+    icon       = "✅" if grade == "WIN" else "❌"
+    score_line = (
+        f"1st inning: {fi_a}-{fi_h} ({(int(fi_a) + int(fi_h))} runs)"
+        if fi_a not in (None, "") and fi_h not in (None, "") else ""
+    )
+    pl_line = f"+{pl}u" if grade == "WIN" else f"{pl}u"
+
+    w, l, p = today_record
+    today_line = (
+        f"Today: {w}-{l}"
+        + (f"-{p}P" if p else "")
+        + f" · {today_pl_units:+.2f}u"
+    )
+
+    body = "\n".join([
+        f"{icon} <b>STRONG {side}</b> · {away} @ {home} · {grade}",
+        f"DK {price} · {units}u risked → <b>{pl_line}</b>",
+        score_line,
+        today_line,
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    event_key = f"strong_graded:{game_pk or (away + '@' + home)}"
+    _notify_event_telegram("strong_graded", event_key, body)
+
+
+def _notify_strong_voided_telegram(row: dict, reason: str) -> None:
+    """STRONG bet's game POSTPONED / SUSPENDED / CANCELLED before the 1st
+    inning completed.  Bet is voided; stake returned at DK.  Fires once
+    per game."""
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    side     = (row.get("pick_side") or "").upper()
+    away     = (row.get("away_team") or "").upper()
+    home     = (row.get("home_team") or "").upper()
+    units    = (row.get("units_risked") or "1.0").strip()
+    iso_date = (row.get("date") or "").strip()
+    game_pk  = (row.get("game_pk") or "").strip()
+
+    body = "\n".join([
+        f"⚠️ <b>STRONG {side}</b> bet voided",
+        f"{away} @ {home} · {reason.upper()}",
+        f"{units}u returned · no grade recorded",
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    event_key = f"strong_voided:{game_pk or (away + '@' + home)}"
+    _notify_event_telegram("strong_voided", event_key, body)
+
+
+def _notify_strong_pregame_telegram(row: dict, minutes_to_first_pitch: int) -> None:
+    """30-min-before-first-pitch reminder for STRONG bets.  Fires exactly
+    once per game per ~6h dedup window (covers a single pre-game
+    countdown — re-deploys shouldn't re-fire).  Caller is responsible
+    for filtering to bets in the right time window before invoking."""
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    side       = (row.get("pick_side") or "").upper()
+    away       = (row.get("away_team") or "").upper()
+    home       = (row.get("home_team") or "").upper()
+    game_time  = (row.get("game_time_et") or "TBD").strip()
+    odds_col   = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+    price      = (row.get(odds_col) or "—").strip()
+    edge_str   = (row.get("edge_on_pick") or "").strip()
+    edge_pct   = ""
     try:
-        import urllib.parse
-        body = urllib.parse.urlencode({
-            "chat_id":    chat_id,
-            "text":       text,
-            # HTML parse_mode unlocks <b>, <a href>, etc.
-            "parse_mode": "HTML",
-            # Don't show a giant URL preview card -- the link itself is
-            # already in the body, and the preview would push our
-            # actual content below the fold on small screens.
-            "disable_web_page_preview": "true",
-        }).encode("utf-8")
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        req = urllib.request.Request(
-            url, data=body,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            resp.read()   # discard body, we only care about the HTTP success
-    except Exception as exc:  # noqa: BLE001 -- swallow ALL errors; advisory only
-        print(f"  [telegram] notify failed for {away_team}@{home_team}: {exc!r}",
-              file=sys.stderr)
+        if edge_str:
+            edge_pct = f"+{float(edge_str)*100:.1f}%" if float(edge_str) >= 0 else f"{float(edge_str)*100:.1f}%"
+    except ValueError:
+        pass
+    units      = (row.get("units_risked") or "1.0").strip()
+    iso_date   = (row.get("date") or "").strip()
+    game_pk    = (row.get("game_pk") or "").strip()
+
+    body = "\n".join([
+        f"⏰ <b>{minutes_to_first_pitch} min</b> to first pitch",
+        f"<b>STRONG {side}</b> · {away} @ {home} · {game_time}",
+        f"DK {price}" + (f" · edge {edge_pct}" if edge_pct else "") + f" · {units}u",
+        "Last call to lock in the bet.",
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    event_key = f"strong_pregame:{game_pk or (away + '@' + home)}"
+    _notify_event_telegram("strong_pregame", event_key, body)
+
+
+def _notify_strong_clv_telegram(row: dict, opened_implied: float, closing_implied: float) -> None:
+    """Significant CLV move (>=5pp implied prob shift toward our pick)
+    on a placed STRONG bet.  Fires once per bet per day.  Positive CLV
+    means we beat the close → leading indicator of long-run +EV."""
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    side     = (row.get("pick_side") or "").upper()
+    away     = (row.get("away_team") or "").upper()
+    home     = (row.get("home_team") or "").upper()
+    iso_date = (row.get("date") or "").strip()
+    game_pk  = (row.get("game_pk") or "").strip()
+
+    delta_pp = (closing_implied - opened_implied) * 100
+    direction = "📈 toward us" if delta_pp >= 0 else "📉 away from us"
+
+    body = "\n".join([
+        f"💸 Sharp move on <b>STRONG {side}</b>",
+        f"{away} @ {home}",
+        f"Opened: {opened_implied*100:.1f}% · Now: {closing_implied*100:.1f}% ({delta_pp:+.1f}pp {direction})",
+        ("You beat the close 👍" if delta_pp >= 5 else "Market drifted; you locked at the better price."),
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    event_key = f"strong_clv:{game_pk or (away + '@' + home)}"
+    _notify_event_telegram("strong_clv", event_key, body)
+
+
+def _notify_strong_weather_telegram(row: dict, change_summary: str) -> None:
+    """Weather conditions changed materially after a STRONG bet was placed.
+    Informational — bet is locked at the original prediction, but the
+    underlying environment shifted.  Fires once per game per ~6h window."""
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    side     = (row.get("pick_side") or "").upper()
+    away     = (row.get("away_team") or "").upper()
+    home     = (row.get("home_team") or "").upper()
+    iso_date = (row.get("date") or "").strip()
+    game_pk  = (row.get("game_pk") or "").strip()
+
+    body = "\n".join([
+        f"🌬 Weather shift on <b>STRONG {side}</b>",
+        f"{away} @ {home}",
+        change_summary,
+        "(Bet locked; informational only — pick stays at the bet-time prediction.)",
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    event_key = f"strong_weather:{game_pk or (away + '@' + home)}"
+    _notify_event_telegram("strong_weather", event_key, body)
+
+
+def _notify_bankroll_milestone_telegram(milestone_units: int,
+                                         season_record: tuple[int, int, int],
+                                         season_pl_units: float,
+                                         hit_rate_pct: float) -> None:
+    """Season P&L crossed a unit milestone (±10u, ±25u, ±50u, ±100u).
+    Pseudo-permanent dedup (90-day window) so a milestone only fires
+    once even across long stretches."""
+    w, l, _p = season_record
+    icon = "🏆" if milestone_units >= 0 else "🥶"
+    sign = "+" if milestone_units >= 0 else ""
+    body = "\n".join([
+        f"{icon} Bankroll milestone: <b>{sign}{milestone_units}u</b>",
+        f"Season: {w}-{l} · {hit_rate_pct:.1f}% hit rate",
+        f"Net P&L: {season_pl_units:+.2f}u (real-odds + -110 fallback)",
+        "",
+        _dashboard_link(),
+    ])
+    event_key = f"bankroll_milestone:{milestone_units:+d}u"
+    _notify_event_telegram("bankroll_milestone", event_key, body)
+
+
+def _notify_daily_digest_telegram(iso_date: str,
+                                   today_record: tuple[int, int, int],
+                                   today_pl_units: float,
+                                   season_record: tuple[int, int, int],
+                                   season_pl_units: float,
+                                   tomorrow_games: int) -> None:
+    """Once-per-day end-of-slate wrap.  Fires after the last game of
+    `iso_date` is graded (or via a daily cron at ~1am ET)."""
+    w, l, p = today_record
+    sw, sl, _sp = season_record
+    body = "\n".join([
+        f"🌙 <b>{iso_date} wrap</b>",
+        f"Today: {w}-{l}" + (f"-{p}P" if p else "") + f" · <b>{today_pl_units:+.2f}u</b>",
+        f"Season: {sw}-{sl} · {(sw / max(sw + sl, 1)) * 100:.1f}% · {season_pl_units:+.2f}u",
+        f"Tomorrow: {tomorrow_games} games on the slate.",
+        "",
+        _dashboard_link(iso_date),
+    ])
+    event_key = f"daily_digest:{iso_date}"
+    _notify_event_telegram("daily_digest", event_key, body)
+
+
+def _aggregate_today_record(rows: list[dict], iso_date: str) -> tuple[tuple[int, int, int], float]:
+    """Sum (W, L, PASS) and P&L (units) for one slate date.  Used to
+    enrich graded-pick notifications with running-day context.
+    POSTPONED / SUSPENDED don't count.  Returns ((W, L, P), pl_units)."""
+    w = l = p = 0
+    pl = 0.0
+    for r in rows:
+        if (r.get("date") or "").strip() != iso_date:
+            continue
+        g = (r.get("graded_result") or "").strip().upper()
+        if g == "WIN":  w += 1
+        elif g == "LOSS": l += 1
+        elif g == "PASS": p += 1
+        try:
+            v = float((r.get("profit_loss_units") or "0") or 0)
+            pl += v
+        except (ValueError, TypeError):
+            pass
+    return (w, l, p), pl
+
+
+def _aggregate_season_record(rows: list[dict]) -> tuple[tuple[int, int, int], float, float]:
+    """Sum across the whole CSV: ((W, L, P), pl_units, hit_rate_pct).
+    Used by the bankroll-milestone notifier to enrich the message."""
+    w = l = p = 0
+    pl = 0.0
+    for r in rows:
+        g = (r.get("graded_result") or "").strip().upper()
+        if g == "WIN":  w += 1
+        elif g == "LOSS": l += 1
+        elif g == "PASS": p += 1
+        try:
+            v = float((r.get("profit_loss_units") or "0") or 0)
+            pl += v
+        except (ValueError, TypeError):
+            pass
+    bets = w + l
+    hit_rate = (w / bets * 100.0) if bets else 0.0
+    return (w, l, p), pl, hit_rate
+
+
+_BANKROLL_MILESTONES = [10, 25, 50, 75, 100, 150, 200, 300, 500]
+
+
+def _check_bankroll_milestone_after_grade(rows: list[dict]) -> None:
+    """Compute season P&L; fire a one-shot ping if it crossed any
+    standard milestone (positive or negative).  Notifications_log
+    dedup ensures each milestone fires at most once per 90-day window
+    so we don't spam if P&L oscillates over a threshold."""
+    season_record, season_pl, hit_rate = _aggregate_season_record(rows)
+    abs_pl = int(season_pl)   # truncate toward zero
+    sign = 1 if season_pl >= 0 else -1
+    abs_units = abs(abs_pl)
+    for m in _BANKROLL_MILESTONES:
+        if abs_units >= m:
+            milestone_signed = m * sign
+            _notify_bankroll_milestone_telegram(
+                milestone_signed, season_record, season_pl, hit_rate
+            )
+            # Don't break — we want to fire each crossed milestone the
+            # FIRST time it's crossed.  Dedup window prevents re-pings.
+        else:
+            break    # higher milestones not yet reached
+
+
+def _notify_ops_health_telegram(minutes_since_last_predict: int) -> None:
+    """Predictor / system health alert.  Fires when predictor hasn't
+    written to picks_<season> in `minutes_since_last_predict` >= 30 min
+    during active hours.  At-most-once-per-hour dedup so a sustained
+    outage doesn't spam the user every cycle."""
+    body = "\n".join([
+        "🚨 <b>Predictor stalled</b>",
+        f"Last successful Railway cycle was {minutes_since_last_predict} min ago.",
+        "Expected ≤6 min during active hours.",
+        "Check Railway logs / GHA workflow runs.",
+        "",
+        _dashboard_link(),
+    ])
+    # Use minute granularity in the key so the dedup window = 1h still
+    # lets us re-ping if the outage persists across an hour boundary.
+    bucket = (datetime.utcnow().minute // 30) * 30
+    event_key = f"ops_health:stalled:{datetime.utcnow().strftime('%Y%m%d%H')}{bucket:02d}"
+    _notify_event_telegram("ops_health", event_key, body)
 
 
 def _record_pick_change(*, iso_date: str, game_pk: str,
@@ -1241,6 +1680,8 @@ def grade_date(date_str: str, season: int) -> None:
                 graded_indices.append(idx)
                 print(f"{tag}  {detail} -- marked, not counted as a bet")
                 graded_n += 1
+                # T2.38 #3: STRONG bet voided ping (POSTPONED/SUSPENDED/CANCELLED).
+                _notify_strong_voided_telegram(rows[idx], detail)
                 continue
 
         if away_r is None or home_r is None:
@@ -1264,6 +1705,8 @@ def grade_date(date_str: str, season: int) -> None:
                     print(f"{tag}  stale-scheduled ({hours_past:.0f}h past slate) "
                           f"-- marking POSTPONED")
                     graded_n += 1
+                    # T2.38 #3: STRONG bet voided ping for stale-scheduled rainouts.
+                    _notify_strong_voided_telegram(rows[idx], "POSTPONED")
                     continue
                 print(f"{tag}  game not started yet -- skipping")
             elif state == "Live":
@@ -1309,10 +1752,51 @@ def grade_date(date_str: str, season: int) -> None:
         )
         graded_n += 1
 
+        # T2.38 #1: STRONG bet graded W/L ping.  Today's running record
+        # + P&L computed on the fly from `rows` (in-memory, no extra
+        # query).  Function self-filters non-STRONG / non-bet-placed
+        # rows so calling for every grade is safe.
+        today_record, today_pl = _aggregate_today_record(rows, iso_date)
+        _notify_strong_graded_telegram(rows[idx], today_record, today_pl)
+
     _write_rows(path, rows)
     # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the
     # rows that were actually graded in this call.
     _mirror_picks_to_supabase(season, [rows[i] for i in graded_indices])
+
+    # T2.38 #6: Bankroll milestone check.  Run AFTER all rows are
+    # graded for this date so the season total reflects the latest
+    # P&L.  Function self-dedups via notifications_log so it can be
+    # called every grade run without spamming.
+    if graded_n > 0:
+        _check_bankroll_milestone_after_grade(rows)
+
+    # T2.38 #4: Daily digest.  Fire when ALL of today's games are
+    # terminally graded (WIN/LOSS/PASS/POSTPONED/SUSPENDED) AND we're
+    # actually grading "today" (not backfilling).  Notifications_log
+    # 18h dedup means at most one digest per slate date.
+    iso_today_et = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    if iso_date == iso_today_et:
+        all_today = [r for r in rows if (r.get("date") or "").strip() == iso_date]
+        terminal = {"WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"}
+        if all_today and all(
+            (r.get("graded_result") or "").strip().upper() in terminal
+            for r in all_today
+        ):
+            today_record, today_pl = _aggregate_today_record(rows, iso_date)
+            season_record, season_pl, _hit = _aggregate_season_record(rows)
+            # We don't know tomorrow's slate count without an MLB API call;
+            # leave 0 — predictor cycle the next morning will fix the
+            # board.  Could enrich in a future revision.
+            _notify_daily_digest_telegram(
+                iso_date         = iso_date,
+                today_record     = today_record,
+                today_pl_units   = today_pl,
+                season_record    = season_record,
+                season_pl_units  = season_pl,
+                tomorrow_games   = 0,
+            )
+
     print(f"\n  Graded {graded_n} | Skipped {skipped_n} | Already done {already_n}")
     print(f"  CSV: {path}\n")
 
@@ -1514,6 +1998,22 @@ def _apply_odds_to_row(
     if (existing_bet_placed == "Y"
         and existing_market_nrfi
         and existing_market_yrfi):
+        # T2.38 #5: BEFORE the early-return, compute current implied
+        # probability vs `opened_*_odds` (locked at first scrape).  If
+        # the market shifted >=5pp toward the picked side on a STRONG
+        # bet, fire a CLV alert.  Notifications_log dedup ensures one
+        # ping per bet per day.  Doesn't update market_*_odds — those
+        # stay locked per T2.23 — purely informational.
+        if (row.get("pick_strength") or "").upper() == "STRONG":
+            picked_side = (row.get("pick_side") or "").upper()
+            opened_col  = "opened_nrfi_odds" if picked_side == "NRFI" else "opened_yrfi_odds"
+            fresh_odds  = nrfi_odds if picked_side == "NRFI" else yrfi_odds
+            opened_imp  = american_to_prob(row.get(opened_col, ""))
+            fresh_imp   = american_to_prob(fresh_odds)
+            if (opened_imp is not None and fresh_imp is not None
+                    and (fresh_imp - opened_imp) >= 0.05):
+                _notify_strong_clv_telegram(row, opened_imp, fresh_imp)
+
         # Locked.  Refresh book name (in case the import is from a
         # different sportsbook -- unlikely but harmless), and recompute
         # profit_loss_units (so a grade landing AFTER lock still gets

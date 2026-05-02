@@ -290,6 +290,94 @@ Pings that get filtered (silent):
 
 Tested against all 11 known label variants; all classified correctly.
 
+### Added — 8 new STRONG-only Telegram event types (T2.38)
+
+User asked: "implement all of those" referring to the 7 additional
+Telegram notification ideas brainstormed earlier (the user already
+restricted pings to STRONG-only via T2.37).
+
+This commit ships a unified notifier framework + 8 event types
+on top of the existing flip ping:
+
+  Shared infrastructure:
+    • New Supabase `notifications_log` table with RLS + indexes.
+      Records every (event_type, event_key, body, delivered) tuple
+      so future runs can dedup against it.  Migration applied.
+    • New `_notify_event_telegram(event_type, event_key, body)`
+      dispatcher in tracker.py.  Three-step flow per event:
+        1. Dedup query against notifications_log (window per event_type)
+        2. Send via _send_telegram_html (HTML body + suppressed preview)
+        3. Record to notifications_log for audit + future dedup
+      Fail-OPEN at every layer so a Supabase / Telegram outage never
+      silently drops a real signal AND never breaks the predictor.
+    • `_DEDUP_WINDOW_M` map per event_type:
+        flip_to_strong       5 min
+        strong_graded        24 h
+        strong_voided        24 h
+        strong_pregame       6 h
+        strong_clv           24 h
+        strong_weather       6 h
+        bankroll_milestone   90 days
+        daily_digest         18 h
+        ops_health           1 h
+
+  New event types (all STRONG-only, all with bet_placed=Y guards
+  except daily_digest / bankroll_milestone / ops_health):
+
+    #1 strong_graded     — fires when a STRONG bet is graded WIN/LOSS.
+       Body: ✅/❌ icon, side, score line, P&L, today record.
+       Trigger: tracker.grade_date final-grade branch.
+
+    #3 strong_voided     — fires on POSTPONED / SUSPENDED for a
+       STRONG bet.  Body: ⚠️ + units returned + no grade recorded.
+       Trigger: tracker.grade_date POSTPONED / stale-scheduled branches.
+
+    #6 bankroll_milestone — fires when season P&L crosses ±10/25/50/
+       75/100/150/200/300/500u.  Body: 🏆 + record + season P&L + hit rate.
+       Trigger: tracker.grade_date after any new grade lands.
+
+    #4 daily_digest      — once-per-slate end-of-day wrap.  Body: 🌙 +
+       today record + today P&L + season totals + tomorrow slate count.
+       Trigger: tracker.grade_date when ALL of today's games are
+       terminally graded AND the slate date == today ET.
+
+    #2 strong_pregame    — 30-min-before-first-pitch reminder for a
+       placed STRONG bet.  Body: ⏰ + DK price + edge + units + "last
+       call".  Trigger: predictor_loop.step_pregame_alert_check —
+       sweeps today's CSV after each cycle, fires when delta to first
+       pitch is in [25, 35] minutes.
+
+    #5 strong_clv        — fires when DK shifts ≥5pp toward our pick
+       on a placed STRONG bet (positive CLV signal).  Body: 💸 +
+       opened% → now% + delta.  Trigger:
+       tracker._apply_odds_to_row before the bet-time-lock early-return.
+       Doesn't update market_*_odds — those stay locked per T2.23.
+
+    #7 ops_health        — fires when predictor hasn't written to
+       picks_<season>.updated_at in ≥30 min.  Body: 🚨 + stall age +
+       "check Railway / GHA logs."  Trigger: live_state worker, every
+       10 cycles (~100s during games, ~50min during quiet hours).
+
+    #8 strong_weather    — fires when wx_wind_kmh shifts ≥5 km/h, or
+       wx_temp_c ≥5°C, or wx_humidity ≥20pp from the bet-time values
+       on a placed STRONG bet.  Body: 🌬 + summary + "informational
+       only — bet locked."  Trigger: tracker.log_picks when an existing
+       bet_placed=Y STRONG row is updated with materially different
+       wx_*.
+
+  Existing T2.36/T2.37 flip notifier was refactored to use the
+  unified dispatcher (no behavior change; just plumbing).
+
+Smoke test: dry-run rendered all 9 event types with realistic
+sample data; bodies parse correctly, hyperlinks well-formed,
+icons display properly, dedup keys are unique per (event_type,
+deterministic key).  AST parse clean across tracker.py +
+workers/live_state.py + workers/predictor_loop.py.
+
+The Railway predictor + live-state services already have
+TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID env vars (T2.36).  Next
+deploy picks up the new notifier code automatically.
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |
