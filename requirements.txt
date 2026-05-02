@@ -7,3 +7,16 @@ scipy>=1.11.0,<2.0
 numpy>=1.24.0,<3.0
 requests>=2.31.0,<3.0
 colorama>=0.4.6,<1.0
+
+# T2.30 / Phase 1.5: Supabase dual-write mirror.  tracker.py writes to
+# both picks_<season>.csv (existing) AND the Supabase picks_<season>
+# table (new) so the dashboard can flip from CSV reads to Supabase
+# Realtime in Phase 2 without a behavior change.
+#
+# Both deps are *optional*: when SUPABASE_URL / SUPABASE_SERVICE_KEY
+# env vars are unset (legacy local dev, GHA before secrets are added),
+# db/supabase_writer.py silently no-ops -- the predictor keeps working
+# off CSV alone.  Pinning major-version upper bounds for the same
+# reason as the rest of the file.
+supabase>=2.0.0,<3.0
+python-dotenv>=1.0.0,<2.0

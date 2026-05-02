@@ -213,6 +213,48 @@ def _read_rows(path: Path) -> list[dict]:
     return rows
 
 
+def _mirror_picks_to_supabase(season: int, rows: list[dict]) -> None:
+    """Phase 1.5 dual-write: mirror just-written pick rows to Supabase.
+    Silent no-op when SUPABASE_URL / SUPABASE_SERVICE_KEY env vars are
+    unset.  Wrapped here in tracker.py to swallow ALL errors -- the
+    CSV is the source of truth and a Supabase outage must never break
+    the predictor cron.  Pass only the rows that actually changed in
+    the current call (not the full picks_<season>.csv) so we don't
+    re-mirror 400+ unchanged rows on every refresh."""
+    if not rows:
+        return
+    try:
+        from db.supabase_writer import mirror_picks
+        mirror_picks(rows, season)
+    except Exception:
+        # mirror_picks already logs internally; this catches any
+        # import-time error (e.g. db package missing in a stripped-down
+        # deploy).  Predictor must keep running.
+        pass
+
+
+def _mirror_pick_change_to_supabase(*, captured_at: str, iso_date: str,
+                                     game_pk: str, away_team: str, home_team: str,
+                                     game_time: str, old_label: str,
+                                     new_label: str) -> None:
+    """Phase 1.5 dual-write: mirror a pick-change journal entry to
+    Supabase.  Same swallow-all contract as _mirror_picks_to_supabase."""
+    try:
+        from db.supabase_writer import mirror_pick_change
+        mirror_pick_change(
+            captured_at_utc = captured_at,
+            iso_date        = iso_date,
+            game_pk         = game_pk,
+            away_team       = away_team,
+            home_team       = home_team,
+            game_time_et    = game_time,
+            old_label       = old_label,
+            new_label       = new_label,
+        )
+    except Exception:
+        pass
+
+
 def _write_rows(path: Path, rows: list[dict]) -> None:
     """Atomic CSV write -- write to a temp file in the same directory, fsync,
     then os.replace() to swap.  Eliminates the "torn write" race where two
@@ -385,6 +427,10 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
 
     now = _now_utc()
     written = 0
+    # T2.30: track the just-built rows so we can mirror exactly the
+    # changed set to Supabase after the CSV write -- avoids re-pushing
+    # 400+ unchanged rows on every refresh.
+    mirrored_rows: list[dict] = []
 
     for g in results:
         side   = g["pick_side"]
@@ -648,8 +694,15 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             index[key] = len(rows) - 1
 
         written += 1
+        mirrored_rows.append(new_row)
 
     _write_rows(path, rows)
+    # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the
+    # rows touched by this call, never the full slate.  No-op when
+    # Supabase env vars are unset.  Errors are caught + logged --
+    # CSV is source of truth, predictor must not break on Supabase
+    # outages.
+    _mirror_picks_to_supabase(season, mirrored_rows)
     # T3.5: prune the pick-change log to the last 90 days on every
     # predictor run (cheap, idempotent, bounded growth).
     _prune_change_log(_change_log_path(), keep_days=90)
@@ -800,6 +853,20 @@ def _record_pick_change(*, iso_date: str, game_pk: str,
         # Don't let a logging failure break the predictor run.
         pass
 
+    # T2.30: dual-write to Supabase (Phase 1.5).  Best-effort mirror
+    # of the journal entry; CSV is the source of truth so a Supabase
+    # insert failure won't break anything.
+    _mirror_pick_change_to_supabase(
+        captured_at = captured_at,
+        iso_date    = iso_date,
+        game_pk     = game_pk,
+        away_team   = away_team,
+        home_team   = home_team,
+        game_time   = game_time or "",
+        old_label   = old_label,
+        new_label   = new_label,
+    )
+
 
 def _prune_change_log(path: Path, keep_days: int = 90) -> None:
     """T3.5: Trim data/pick_changes.csv to last N days so it stays bounded.
@@ -941,6 +1008,9 @@ def grade_date(date_str: str, season: int) -> None:
 
     now        = _now_utc()
     graded_n   = skipped_n = already_n = 0
+    # T2.30: track which row indices we mutated so we can mirror just
+    # those rows to Supabase after the CSV write (Phase 1.5 dual-write).
+    graded_indices: list[int] = []
 
     for idx, row in targets:
         tag = f"  {row['away_team']:>3} @ {row['home_team']:<3}"
@@ -989,6 +1059,7 @@ def grade_date(date_str: str, season: int) -> None:
                 rows[idx]["actual_result"] = detail.upper()
                 rows[idx]["graded_result"] = detail.upper()
                 rows[idx]["graded_at"]     = now
+                graded_indices.append(idx)
                 print(f"{tag}  {detail} -- marked, not counted as a bet")
                 graded_n += 1
                 continue
@@ -1010,6 +1081,7 @@ def grade_date(date_str: str, season: int) -> None:
                     rows[idx]["actual_result"] = "POSTPONED"
                     rows[idx]["graded_result"] = "POSTPONED"
                     rows[idx]["graded_at"]     = now
+                    graded_indices.append(idx)
                     print(f"{tag}  stale-scheduled ({hours_past:.0f}h past slate) "
                           f"-- marking POSTPONED")
                     graded_n += 1
@@ -1048,6 +1120,7 @@ def grade_date(date_str: str, season: int) -> None:
         # didn't count.  _calc_pnl is pure (no I/O) so safe inside the
         # grade loop.
         rows[idx]["profit_loss_units"] = _calc_pnl(rows[idx])
+        graded_indices.append(idx)
 
         outcome_tag = {"WIN": "W", "LOSS": "L", "PASS": "-"}.get(graded_result, "?")
         source_tag  = "" if state == "Final" else f" [from {state}]"
@@ -1058,6 +1131,9 @@ def grade_date(date_str: str, season: int) -> None:
         graded_n += 1
 
     _write_rows(path, rows)
+    # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the
+    # rows that were actually graded in this call.
+    _mirror_picks_to_supabase(season, [rows[i] for i in graded_indices])
     print(f"\n  Graded {graded_n} | Skipped {skipped_n} | Already done {already_n}")
     print(f"  CSV: {path}\n")
 
@@ -1429,6 +1505,9 @@ def import_odds(
     now = _now_utc()
     matched_n = unmatched_n = pk_matched_n = team_matched_n = time_matched_n = 0
     dates_covered: set[str] = set()
+    # T2.30: track which row indices got odds applied so we mirror
+    # exactly that subset to Supabase after the CSV write.
+    matched_indices: list[int] = []
 
     with open(odds_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -1492,6 +1571,7 @@ def import_odds(
                 rows[idx], nrfi_o, yrfi_o, book, min_edge,
                 units_lean, units_strong, now
             )
+            matched_indices.append(idx)
 
             r = rows[idx]
             bet_tag   = f"bet={'Y' if r['bet_placed']=='Y' else 'N'}"
@@ -1505,6 +1585,10 @@ def import_odds(
             matched_n += 1
 
     _write_rows(picks_path, rows)
+    # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the
+    # rows that just got odds applied -- typically the full slate
+    # for a given date rather than the entire CSV.
+    _mirror_picks_to_supabase(season, [rows[i] for i in matched_indices])
 
     # Re-read to count remaining odds gaps for dates covered
     if dates_covered:

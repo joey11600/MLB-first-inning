@@ -143,6 +143,14 @@ jobs:
           # no-op when unset, so this stays back-compat.
           TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          # T2.30 / Phase 1.5: Supabase dual-write.  When both vars are
+          # set, tracker.py mirrors every CSV write to the Supabase
+          # picks_<season> + pick_changes tables so the dashboard can
+          # cut over to Realtime reads in Phase 2 with no behavior
+          # change.  Silent no-op when unset (back-compat for any
+          # workflow that doesn't have the secrets configured yet).
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ACTION: predict
         run: |
           YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)
@@ -222,6 +230,11 @@ jobs:
         # (already-graded games stay graded, new ones get filled in).
         env:
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          # T2.30 / Phase 1.5: Supabase dual-write (see predict step
+          # above for full rationale).  Mirrors graded results to
+          # Supabase the moment they land in the CSV.
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ACTION: grade
         run: |
           TODAY=$(TZ='America/New_York' date +%m/%d/%Y)
