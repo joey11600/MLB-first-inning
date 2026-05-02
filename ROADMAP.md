@@ -27,7 +27,8 @@ Companion to:
 | 2026-05-02 | `442fe4d` + `6d23152` | **T2.36 + T2.37** — Telegram notifier upgrade (Supabase dedup, HTML format, dashboard hyperlink) + STRONG-only filter |
 | 2026-05-02 | `e80a0a1` | **T2.38** — 8 new STRONG-only Telegram event types: graded W/L, voided, pregame, CLV, weather, milestone, daily digest, ops health |
 | 2026-05-02 | `e5a0f84` | **T2.39** — Pitcher days-rest feature tested (4 variants on 2024↔2025) and rejected per ship rules; logged in KB.md |
-| 2026-05-02 | `<this commit>` | **T2.40 + T2.41** — Pre-game starter-scratch detector (Telegram alert on STRONG bets affected by a probable-pitcher change) + dedup window fix on `flip_to_strong` (5min → 24h, prevents Railway×GHA race-induced duplicate pings) |
+| 2026-05-02 | `2c55af5` | **T2.40 + T2.41** — Pre-game starter-scratch detector (Telegram alert on STRONG bets affected by a probable-pitcher change) + dedup window fix on `flip_to_strong` (5min → 24h, prevents Railway×GHA race-induced duplicate pings) |
+| 2026-05-02 | `<this commit>` | **T2.42** — Bankroll equity curve on `/history`: SVG line + drawdown shading + ATH marker + 6-stat panel (Bankroll, ATH, Max DD, Current DD, Vol, Sharpe). +1.4kB bundle. |
 
 End result: the dashboard is now an **installable PWA** receiving **sub-second Realtime push** of model predictions every 5 minutes (Railway predictor) and game state every 10 seconds (Railway live-state worker).
 
@@ -51,7 +52,7 @@ These improve money outcomes without touching the working model.
 
 | # | Status | Effort | Item |
 |---|---|---|---|
-| 6 | [ ] | 3 hr | **Bankroll equity curve** on `/history` page. All data in `picks_2026.profit_loss_units`; needs a chart layer (Recharts ~5kB). |
+| 6 | [shipped 2026-05-02 · T2.42] | 3 hr | **Bankroll equity curve** on `/history` page. Pure SVG (no charting lib). Equity line + drawdown shading + ATH watermark + 6-stat panel (Bankroll / ATH / Max DD / Current DD / Vol / Sharpe). +1.4kB bundle. See `EquityCurveChart` in `dashboard/components/HistoryView.tsx`. |
 | 7 | [ ] | 2–3 hr | **Live DK line-drift chip** per row. `opened_*_odds` + `clv_pct` already exist; just not surfaced. Shows "DK -135 → -150 (sharp move toward us)". |
 | 8 | [ ] | 2 hr | **Drawdown circuit breaker**. Auto-PASS all bets after N consecutive losses or % bankroll drawdown. |
 | 9 | [ ] | 3–4 hr | **Ops health card** on dashboard. Last predict cycle, last odds scrape, system_errors today, Railway worker status, parity check. |

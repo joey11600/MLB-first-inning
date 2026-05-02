@@ -130,13 +130,40 @@ export function HistoryView({ initial }: { initial: RoiResponse }) {
         </div>
       </section>
 
-      {/* Chart */}
+      {/* T2.42: Bankroll equity curve.  Pure cumulative line + drawdown
+          shading + peak marker + stats panel.  Goes above the daily
+          breakdown chart since this is the headline view of "where
+          does the bankroll stand?". */}
       <section className={styles.chartCard}>
         <div className={styles.chartHead}>
           <div>
-            <div className={styles.eyebrow}>Equity curve · daily</div>
+            <div className={styles.eyebrow}>Bankroll equity curve</div>
             <div className={styles.chartTitle}>
-              Cumulative P&L · daily +/− at -110
+              Cumulative units over time · drawdown vs all-time high
+            </div>
+          </div>
+          <div className={styles.legend}>
+            <span className={styles.legendItem}>
+              <span className={styles.legendLine} data-tone="equity" /> Equity
+            </span>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} data-tone="peak" /> All-time high
+            </span>
+            <span className={styles.legendItem}>
+              <span className={styles.legendSwatch} data-tone="drawdown" /> Drawdown
+            </span>
+          </div>
+        </div>
+        <EquityCurveChart days={days} />
+      </section>
+
+      {/* Daily P&L breakdown chart -- bars per day + cumulative line. */}
+      <section className={styles.chartCard}>
+        <div className={styles.chartHead}>
+          <div>
+            <div className={styles.eyebrow}>Daily breakdown</div>
+            <div className={styles.chartTitle}>
+              Per-day +/- at -110 with cumulative overlay
             </div>
           </div>
           <div className={styles.legend}>
@@ -219,6 +246,338 @@ export function HistoryView({ initial }: { initial: RoiResponse }) {
     </main>
   );
 }
+
+/* ------------- T2.42: bankroll equity curve ------------- */
+
+interface EquityStats {
+  peak: number;            // ATH cumulative value
+  peakDate: string | null; // ISO date of the ATH
+  trough: number;          // lowest cumulative value AFTER the peak (max DD low)
+  troughDate: string | null;
+  maxDrawdown: number;     // peak - trough  (positive number)
+  maxDrawdownPct: number;  // maxDrawdown / peak * 100  (NaN if peak <= 0)
+  currentDrawdown: number; // peak - latest cumulative
+  currentDrawdownPct: number;
+  daysAtAth: number;       // count of days where cum == running max
+  totalDays: number;
+  vol: number;             // stdev of daily P&L
+  sharpe: number;          // mean / stdev * sqrt(252) -- rough annualized
+}
+
+function computeEquityStats(days: DayRecord[]): EquityStats {
+  if (days.length === 0) {
+    return {
+      peak: 0, peakDate: null,
+      trough: 0, troughDate: null,
+      maxDrawdown: 0, maxDrawdownPct: 0,
+      currentDrawdown: 0, currentDrawdownPct: 0,
+      daysAtAth: 0, totalDays: 0,
+      vol: 0, sharpe: 0,
+    };
+  }
+
+  // Running peak per day -- once a day's cumulative exceeds the prior
+  // peak, that's a new ATH.
+  let runningPeak = -Infinity;
+  let runningPeakDate: string | null = null;
+  let maxDD = 0;          // largest peak-to-trough draw seen
+  let maxDDLow = 0;       // cumulative value at the bottom of that draw
+  let maxDDLowDate: string | null = null;
+  let daysAtAth = 0;
+
+  for (const d of days) {
+    if (d.cumulative > runningPeak) {
+      runningPeak = d.cumulative;
+      runningPeakDate = d.date;
+    }
+    const dd = runningPeak - d.cumulative;
+    if (dd > maxDD) {
+      maxDD = dd;
+      maxDDLow = d.cumulative;
+      maxDDLowDate = d.date;
+    }
+    if (d.cumulative === runningPeak) {
+      daysAtAth += 1;
+    }
+  }
+
+  const latest = days[days.length - 1].cumulative;
+  const currentDD = Math.max(0, runningPeak - latest);
+
+  // Sharpe-ish: per-day mean / stdev, annualized by sqrt(252)
+  // (semi-arbitrary -- baseball season is ~180 days and we pick on
+  // most of them, but √252 is the convention bettors recognize).
+  const dailyUnits = days.map((d) => d.units);
+  const mean = dailyUnits.reduce((a, b) => a + b, 0) / dailyUnits.length;
+  const variance =
+    dailyUnits.length > 1
+      ? dailyUnits.reduce((s, x) => s + (x - mean) ** 2, 0) / (dailyUnits.length - 1)
+      : 0;
+  const vol = Math.sqrt(variance);
+  const sharpe = vol > 0 ? (mean / vol) * Math.sqrt(252) : 0;
+
+  return {
+    peak:                runningPeak === -Infinity ? 0 : runningPeak,
+    peakDate:            runningPeakDate,
+    trough:              maxDDLow,
+    troughDate:          maxDDLowDate,
+    maxDrawdown:         maxDD,
+    maxDrawdownPct:      runningPeak > 0 ? (maxDD / runningPeak) * 100 : 0,
+    currentDrawdown:     currentDD,
+    currentDrawdownPct:  runningPeak > 0 ? (currentDD / runningPeak) * 100 : 0,
+    daysAtAth,
+    totalDays:           days.length,
+    vol,
+    sharpe,
+  };
+}
+
+
+function EquityCurveChart({ days }: { days: DayRecord[] }) {
+  if (days.length === 0) {
+    return <div className={styles.chartEmpty}>No graded days in this window.</div>;
+  }
+
+  const stats = computeEquityStats(days);
+
+  // Layout — slightly taller than PnlChart since this is the headline view.
+  const W = 1100;
+  const H = 320;
+  const padL = 56, padR = 12, padT = 16, padB = 36;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  // Y range pinned to include 0 so "where the bankroll started" is
+  // always visible, even if we've been profitable the whole window.
+  const cumMax = Math.max(0, stats.peak,    days[days.length - 1].cumulative);
+  const cumMin = Math.min(0, stats.trough,  days[0].cumulative);
+  const cumRange = cumMax - cumMin || 1;
+
+  const stepX = innerW / Math.max(days.length, 1);
+  const xFor = (i: number) => padL + (i + 0.5) * stepX;
+  const yFor = (v: number) => padT + innerH - ((v - cumMin) / cumRange) * innerH;
+  const yZero = yFor(0);
+
+  // Build the equity line path
+  const linePath = days
+    .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(d.cumulative).toFixed(1)}`)
+    .join(" ");
+
+  // Build the area-fill path (line down to baseline = 0, back to start)
+  const areaPath =
+    `M ${xFor(0).toFixed(1)} ${yZero.toFixed(1)} ` +
+    days.map((d, i) => `L ${xFor(i).toFixed(1)} ${yFor(d.cumulative).toFixed(1)}`).join(" ") +
+    ` L ${xFor(days.length - 1).toFixed(1)} ${yZero.toFixed(1)} Z`;
+
+  // Drawdown shading: for each point, draw a thin segment from the
+  // running peak DOWN to the current cumulative.  We render this as
+  // a single polygon: top edge follows the running-peak watermark,
+  // bottom edge follows the equity line.  Only fill where peak >
+  // current (i.e., we're in drawdown).
+  let runningPeak = -Infinity;
+  const peakLine: { x: number; y: number; v: number }[] = [];
+  for (let i = 0; i < days.length; i++) {
+    if (days[i].cumulative > runningPeak) runningPeak = days[i].cumulative;
+    peakLine.push({ x: xFor(i), y: yFor(runningPeak), v: runningPeak });
+  }
+  // Shade polygons -- one per contiguous drawdown segment so we don't
+  // shade the regions where equity == peak (no DD there).
+  const drawdownPolys: { d: string }[] = [];
+  let segStart = -1;
+  for (let i = 0; i < days.length; i++) {
+    const inDD = days[i].cumulative < peakLine[i].v;
+    if (inDD && segStart < 0) segStart = i;
+    if ((!inDD || i === days.length - 1) && segStart >= 0) {
+      const end = inDD ? i : i - 1;
+      const top = peakLine.slice(segStart, end + 1)
+        .map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" L ");
+      const bot = days.slice(segStart, end + 1).reverse()
+        .map((d, k) => {
+          const idx = end - k;
+          return `${xFor(idx).toFixed(1)} ${yFor(d.cumulative).toFixed(1)}`;
+        }).join(" L ");
+      drawdownPolys.push({ d: `M ${top} L ${bot} Z` });
+      segStart = -1;
+    }
+  }
+
+  // Y-axis ticks
+  const tickCount = 5;
+  const ticks = Array.from({ length: tickCount }).map((_, i) => {
+    const t = cumMin + (cumRange * i) / (tickCount - 1);
+    return { v: t, y: yFor(t) };
+  });
+
+  // X-axis labels — every Nth so they don't overlap
+  const labelEvery = Math.max(1, Math.ceil(days.length / 10));
+
+  // Find peak + current point for markers
+  const peakIdx = stats.peakDate
+    ? days.findIndex((d) => d.date === stats.peakDate)
+    : -1;
+  const lastIdx = days.length - 1;
+
+  return (
+    <>
+      <div className={styles.chartScroll}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className={styles.chartSvg}
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label="Bankroll equity curve with drawdown shading"
+        >
+          {/* Y-axis ticks + grid */}
+          {ticks.map((t, i) => (
+            <g key={i}>
+              <line x1={padL} x2={W - padR} y1={t.y} y2={t.y} className={styles.gridLine} />
+              <text x={padL - 8} y={t.y + 3} textAnchor="end" className={styles.axisText}>
+                {t.v >= 0 ? "+" : ""}{t.v.toFixed(0)}u
+              </text>
+            </g>
+          ))}
+
+          {/* Zero baseline (dashed) */}
+          <line x1={padL} x2={W - padR} y1={yZero} y2={yZero} className={styles.gridZero} />
+
+          {/* Drawdown polygons (red shading where equity is below ATH) */}
+          {drawdownPolys.map((p, i) => (
+            <path key={`dd-${i}`} d={p.d} className={styles.equityDrawdown} />
+          ))}
+
+          {/* Area fill below the equity line (green where above zero,
+              red where below).  Drawn FIRST so the line + DD shading
+              render on top. */}
+          <path d={areaPath} className={styles.equityArea} />
+
+          {/* Equity line */}
+          <path d={linePath} className={styles.equityLine} />
+
+          {/* Peak watermark line (dashed horizontal at ATH) */}
+          {stats.peak > 0 && (
+            <line
+              x1={padL}
+              x2={W - padR}
+              y1={yFor(stats.peak)}
+              y2={yFor(stats.peak)}
+              className={styles.equityPeakLine}
+            />
+          )}
+
+          {/* Peak marker (diamond) */}
+          {peakIdx >= 0 && (
+            <g>
+              <path
+                d={(() => {
+                  const x = xFor(peakIdx), y = yFor(stats.peak);
+                  return `M ${x} ${y - 6} L ${x + 6} ${y} L ${x} ${y + 6} L ${x - 6} ${y} Z`;
+                })()}
+                className={styles.equityPeakMarker}
+              />
+            </g>
+          )}
+
+          {/* Current point marker */}
+          {lastIdx >= 0 && (
+            <circle
+              cx={xFor(lastIdx)}
+              cy={yFor(days[lastIdx].cumulative)}
+              r={4}
+              className={styles.equityCurrentMarker}
+            />
+          )}
+
+          {/* X-axis date labels */}
+          {days.map((d, i) =>
+            i % labelEvery === 0 ? (
+              <text
+                key={i}
+                x={xFor(i)}
+                y={H - padB + 18}
+                textAnchor="middle"
+                className={styles.axisText}
+              >
+                {d.date.slice(5)}
+              </text>
+            ) : null,
+          )}
+        </svg>
+      </div>
+
+      {/* Stats panel below the chart */}
+      <div className={styles.equityStats}>
+        <div className={styles.equityStatCell}>
+          <div className={styles.equityStatLabel}>Bankroll</div>
+          <div
+            className={styles.equityStatBig}
+            data-tone={days[lastIdx].cumulative >= 0 ? "pos" : "neg"}
+          >
+            {days[lastIdx].cumulative >= 0 ? "+" : ""}
+            {days[lastIdx].cumulative.toFixed(2)}u
+          </div>
+          <div className={styles.equityStatSub}>
+            {stats.totalDays} {stats.totalDays === 1 ? "day" : "days"}
+          </div>
+        </div>
+        <div className={styles.equityStatCell}>
+          <div className={styles.equityStatLabel}>All-time high</div>
+          <div className={styles.equityStatBig} data-tone="pos">
+            {stats.peak >= 0 ? "+" : ""}{stats.peak.toFixed(2)}u
+          </div>
+          <div className={styles.equityStatSub}>
+            {stats.peakDate ? `on ${stats.peakDate.slice(5)}` : "—"}
+          </div>
+        </div>
+        <div className={styles.equityStatCell}>
+          <div className={styles.equityStatLabel}>Max drawdown</div>
+          <div
+            className={styles.equityStatBig}
+            data-tone={stats.maxDrawdown > 0 ? "neg" : "neutral"}
+          >
+            {stats.maxDrawdown > 0 ? "−" : ""}{stats.maxDrawdown.toFixed(2)}u
+          </div>
+          <div className={styles.equityStatSub}>
+            {stats.peak > 0 && stats.maxDrawdown > 0
+              ? `${stats.maxDrawdownPct.toFixed(1)}% of peak`
+              : "no drawdown"}
+          </div>
+        </div>
+        <div className={styles.equityStatCell}>
+          <div className={styles.equityStatLabel}>Current drawdown</div>
+          <div
+            className={styles.equityStatBig}
+            data-tone={stats.currentDrawdown > 0.001 ? "neg" : "pos"}
+          >
+            {stats.currentDrawdown > 0.001
+              ? `−${stats.currentDrawdown.toFixed(2)}u`
+              : "at ATH"}
+          </div>
+          <div className={styles.equityStatSub}>
+            {stats.daysAtAth} of {stats.totalDays} days at ATH
+          </div>
+        </div>
+        <div className={styles.equityStatCell}>
+          <div className={styles.equityStatLabel}>Volatility</div>
+          <div className={styles.equityStatBig}>
+            {stats.vol.toFixed(2)}u
+          </div>
+          <div className={styles.equityStatSub}>per-day stdev</div>
+        </div>
+        <div className={styles.equityStatCell}>
+          <div className={styles.equityStatLabel}>Sharpe (annualized)</div>
+          <div
+            className={styles.equityStatBig}
+            data-tone={stats.sharpe > 1 ? "pos" : stats.sharpe < 0 ? "neg" : "neutral"}
+          >
+            {stats.sharpe.toFixed(2)}
+          </div>
+          <div className={styles.equityStatSub}>×√252</div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 
 /* ------------- chart ------------- */
 

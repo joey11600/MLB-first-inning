@@ -607,6 +607,64 @@ What's deferred (could ship later):
 - Auto-trigger an immediate predictor re-run on scratch detection
   (currently the user just waits ≤5 min for the next Railway cycle).
 
+### Added — Bankroll equity curve on /history (T2.42)
+
+User picked Tier 2 #6 from `ROADMAP.md`.  Adds a dedicated equity-
+curve view above the existing daily-breakdown chart on the
+`/history` page.  Pure SVG, no new charting library.
+
+What's on screen:
+
+  • **Equity line** — bold phosphor-green stroke with a soft halo,
+    drawn over a translucent area fill below the line.  Y-axis pinned
+    to include zero so "where we started" is always visible.
+  • **All-time-high watermark** — dashed horizontal line at the peak
+    + a phosphor diamond marker at the date the peak occurred.
+  • **Drawdown shading** — red-tinted polygons rendered between the
+    running peak and the equity line wherever we're below ATH.  Each
+    contiguous drawdown segment is its own polygon so the shading
+    cleanly disappears when we're back at ATH.
+  • **Current-point marker** — solid dot at the latest cumulative
+    value.
+  • **Stats panel** under the chart, six cells:
+      Bankroll · All-time high · Max drawdown · Current drawdown ·
+      Volatility · Sharpe (annualized).
+    Sharpe uses per-day mean / stdev × √252 for the annualization
+    convention bettors recognize.  Max drawdown shown as both raw
+    units and % of peak.
+
+`computeEquityStats(days)` is a pure helper that computes:
+  - peak / peakDate / trough / troughDate
+  - maxDrawdown (units) + maxDrawdownPct
+  - currentDrawdown / currentDrawdownPct
+  - daysAtAth (count of days where cum == running peak)
+  - vol (per-day stdev) and sharpe (mean/vol × √252)
+
+Single-pass O(n) over the days array.
+
+Files:
+  - `dashboard/components/HistoryView.tsx` — new `EquityCurveChart`
+    component + `computeEquityStats` helper, inserted before the
+    existing `PnlChart`.  Renamed the daily chart's section from
+    "Equity curve · daily" → "Daily breakdown" since this new view
+    is the proper equity curve.
+  - `dashboard/components/HistoryView.module.css` — new classes
+    `.equityArea`, `.equityLine`, `.equityPeakLine`,
+    `.equityPeakMarker`, `.equityCurrentMarker`, `.equityDrawdown`,
+    `.equityStats`, `.equityStatCell`, `.equityStatLabel`,
+    `.equityStatBig`, `.equityStatSub`, plus legend-variant tokens
+    `.legendSwatch[data-tone="drawdown"]`, `.legendDot[data-tone="peak"]`,
+    `.legendLine[data-tone="equity"]`.  Stats panel collapses
+    6 → 3 cols at 980px and 6 → 2 cols at 600px.
+
+Bundle impact: `/history` route 5.3kB → 6.7kB (+1.4kB).  No new
+deps — pure SVG.
+
+The 7d / 30d / season window selector at the top of the page works
+unchanged; switching window re-fetches `/api/roi?window=...` and
+the equity chart recomputes with the narrower data set.  Stats
+re-derive automatically from the filtered rows.
+
 ### Operations / runtime services — current state
 
 | Service | Where | Cadence | What it does |
