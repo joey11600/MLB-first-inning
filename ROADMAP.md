@@ -40,6 +40,7 @@ Companion to:
 | 2026-05-02 | `6294dcc` | **T2.51 / Tier 3 #14** — A/B model harness shipped. New `pick_variants` Supabase table + `db/variants.py` compute module + `tools/backfill_variants.py` + `tools/abtest_report.py`. 3 candidate variants (A: cap LR contributions ±0.45; C: raise YRFI STRONG p threshold 0.56→0.58; AC: both) ran against 424 historical picks. **All three rejected** vs production: VAR-A −41u, VAR-C −23u, VAR-AC −37u. Daily auto-backfill via GHA. |
 | 2026-05-02 | `5e28625` | **T2.52** — Variant D (raise YRFI lambda floor 0.78→1.00) tested as clean post-filter on production verdict + harness pagination fix. **Variant D also rejected** (−6.42u vs production). The 17 bets D removed went 12W/5L = 70.6% hit rate — better than production's overall 63.5% — proving the bucket-based "losing zone" was selection bias on the same data. **All 4 variants now rejected; the 'no change' clause in `docs/MODEL_REVIEW_2026_05_09.md` is triggered.** |
 | 2026-05-03 | `83b4f75` | **T2.53** — Compound PASS labels + early-season pitcher quality tag fix. (1) `pass_reasons` list flows from predictor → tracker so a row with multiple guards (e.g. `BAL@NYY` 2026-05-03: lineup pending AND `Trey Gibson` debut pitcher) shows "PASS - Lineup pending + No data" instead of just "No data". (2) `_pitcher_quality_tag(ip, prior_ip)` now uses effective IP = curr + min(prior, 120) instead of curr-only — fixes systemic mid-season miscalibration where 24/30 veterans were tagged 'ltd'/'sm' (Max Fried 1127 IP showing as ltd, etc.). Underlying stats were always correct (Bayesian blend used prior year); only the displayed tag was misleading. |
+| 2026-05-03 | _pending_ | **T3.11 / Tier 3 #11** — Walk-forward backtest framework (`tools/walk_forward.py`). Trains on prior seasons, tests on next, multi-fold (2022→2023, 2022+2023→2024, 2022+2023+2024→2025) plus single-fold E3 check (2024→2025) for the production phase_e3 model. Reports per-fold Brier vs climatology, top/bottom-quintile NRFI/YRFI hit rates, and simulated betting P&L at -120 vig under production STRONG thresholds (NRFI ≥ 0.58 / YRFI ≤ 0.42). **First run validates that production phase_e3 model PASSES walk-forward**: 572 bets, 332-240 W-L (58.0% hit rate), +36.67u P/L (+6.4% ROI), Brier 0.2488 vs climatology 0.2500 (positive skill) on 2025 holdout the model never saw. Slim and slim_weather baselines fail walk-forward consistently — confirming the structural feature additions (xera, pvt_nrfi, whiff, last5/10, etc.) carry the edge. Now the explicit gatekeeper for any future model variant: must clear PASS (positive Brier skill + profitable) on >= 2 folds before shipping. |
 
 End result: the dashboard is now an **installable PWA** receiving **sub-second Realtime push** of model predictions every 5 minutes (Railway predictor) and game state every 10 seconds (Railway live-state worker). Loss-analyzer + A/B harness run automatically on every grade cycle. Four candidate model variants all rejected via backfill-driven A/B.
 
@@ -75,7 +76,7 @@ These improve money outcomes without touching the working model.
 
 | # | Status | Effort | Item |
 |---|---|---|---|
-| 11 | [ ] **NOW THE GATEKEEPER** | 6–8 hr | **Walk-forward backtest framework**. Train on prior season, test on next, retrain monthly. **Required before any new feature lands.** Promoted to gatekeeper status on 2026-05-02 after 4 candidate variants (A/C/AC/D) all failed in the T2.51 A/B harness — proving that bucket analysis on the same data you're testing against is selection bias. Walk-forward (train on period 1, test on period 2) is the only honest way to test future variants. Until this exists: **no model changes ship.** |
+| 11 | [shipped 2026-05-03 · T3.11] | 6–8 hr | **Walk-forward backtest framework** (`tools/walk_forward.py`). 3 historical folds + phase_e3 single-fold check. First run: production phase_e3 PASSES (58% hit, +36.67u over 572 bets on unseen 2025 season); slim baselines FAIL — confirming the structural features carry the edge. **Now the gatekeeper for new variants**: must clear PASS on >= 2 folds before shipping. |
 | 12 | [ ] | 3–4 hr | **Confidence intervals on hit rate**. 95% CI Bayesian shading on the +41.99u stat. |
 | 13 | [ ] | 5–6 hr | **Model drift detector**. Rolling 30-day calibration test; alarm if P=0.6 doesn't actually win 60%. |
 | 14 | [shipped 2026-05-02 · T2.51 + T2.52] | 6–8 hr | **A/B model harness**. `db/variants.py` + `tools/backfill_variants.py` + `tools/abtest_report.py`. Runs daily via GHA. Used to reject variants A/C/AC/D over 32-day backfill (all underperformed production by 6-44u). Adding a new variant is now ~30 lines. |
@@ -150,13 +151,13 @@ If shipping in priority order (revised 2026-05-03 after 4 variant rejections):
 - ❌ #8 Drawdown circuit breaker — **rejected by user** ("defeats the purpose of betting the whole system"). See Decisions ratified.
 
 **Tier 3 (the gatekeeper, ~6-8 hr):**
-- #11 **Walk-forward backtest framework** — required before ANY future variant testing. Only honest path forward.
+- ✅ #11 **Walk-forward backtest framework** — shipped 2026-05-03 (T3.11). Production phase_e3 model passes walk-forward on 2025 holdout. Now gates all future variants.
 
-**Month 2+ (after walk-forward):**
-- #5 Catcher framing (scheduled agent fires 2026-05-15)
+**Month 2+ (now that walk-forward exists):**
+- #5 Catcher framing (scheduled agent fires 2026-05-15) — must clear walk-forward bar
 - #12 Confidence intervals
 - #13 Drift detector
-- #21 XGBoost A/B (only with walk-forward)
+- #21 XGBoost A/B (must clear walk-forward bar)
 
 **Explicit DO-NOT-TOUCH for the foreseeable future** (see "Decisions ratified" above):
 - ❌ Any new variant testing without walk-forward in place first

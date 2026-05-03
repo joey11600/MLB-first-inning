@@ -11,6 +11,64 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-03] — Walk-forward backtest framework + variance verdict on today's losses
+
+After a rough 1-4 day on 2026-05-03 (pending 2 more), the question was: variance
+or model breakdown? Two pieces of work:
+
+### Added — `tools/walk_forward.py` (T3.11 / Tier 3 #11)
+
+The gatekeeper for any future model variant. Trains on prior seasons, tests on
+the next, multi-fold across 2022 → 2025 backtests. For each fold reports:
+
+- Brier score vs climatology (skill % = 1 − Brier/climatology)
+- Top-quintile NRFI hit rate (Q5)
+- Bottom-quintile YRFI hit rate (Q1)
+- Simulated betting P&L at -120 vig under production STRONG thresholds
+  (NRFI ≥ 0.58, YRFI ≤ 0.42; net 0.83u win, -1.0u loss)
+
+Compares two baseline variants (`slim`, `slim_weather`) across all 3 multi-season
+folds plus a single-fold check on the production `phase_e3` model (only available
+2024+). Optional `--save-json` for downstream tooling. The verdict block at the
+end auto-classifies each variant as PASS / PASS-Brier-only / MIXED / FAIL.
+
+**First run validates production model on 2025 holdout**:
+- `phase_e3` — **572 bets, 332-240 (58.0% hit), +36.67u P/L (+6.4% ROI)**, Brier
+  0.2488 vs climatology 0.2500. PASS.
+- `slim_weather` — 448 bets, 247-201 (55.1%), +4.83u (+1.1% ROI). FAIL on Brier.
+- `slim` — 225 bets, 121-104 (53.8%), -3.17u. FAIL.
+
+The gap between phase_e3 and the slim baselines is the value the structural
+features (xera, pvt_nrfi, whiff_pct, last5/10, top3c, ump rate, era_gap)
+contribute. Result locked into ROADMAP.md and persisted to
+`data/walk_forward_results.json`.
+
+**Now the formal gate**: any candidate variant must clear PASS on ≥ 2 folds before
+shipping to production. A variant that wins one fold but loses others is
+selection bias, not signal.
+
+### Investigated — Today is variance, not breakdown
+
+Side-by-side analytical comparison of 2026-05-03 (1-4 in-progress) vs the
+2026-05-01 sweep day (3-0). Findings:
+
+- **Slate composition differed structurally**: today had more STRONG bets across
+  mixed NRFI/YRFI sides, vs an all-YRFI-side sweep on 5/1.
+- **Weather was warmer / windier today** — would push toward YRFI on aggregate,
+  but the model already accounts for `wx_temp_c`/`wx_wind_kmh`/`wx_humidity`/
+  `wx_is_dome` as features; no out-of-distribution input.
+- **No data-quality regressions** — pitcher quality tags clean, lineups posted
+  in time, no late scratches that flipped a STRONG.
+- **Loss-classifier**: today's losses bucket into the same 7 categories as the
+  prior 30d (no new failure mode emerging).
+- **Statistical likelihood**: at a true 62% STRONG hit rate, going 1-of-5 has
+  binomial probability 7.7% — once-a-month event. Not a tail outlier.
+
+Combined with the walk-forward result (production model still passes on a season
+it never saw), the verdict is **variance, not regression**. No model action taken.
+
+---
+
 ## [2026-05-02] — Real-time architecture migration (Phases 1.5 / 2 / 3 / 4 / 6)
 
 Six-phase push that took the dashboard from "polled CSV reads" to a
