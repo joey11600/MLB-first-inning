@@ -40,6 +40,11 @@ Env vars:
   PREDICTOR_QUIET_S                (default 1800, used outside active hours)
   PREDICTOR_ACTIVE_HOURS_ET        (default "9-26", i.e. 9am ET to 2am ET)
   PREDICTOR_MIN_EDGE               (default "0.02", i.e. 2% LEAN edge gate)
+  PREDICTOR_SCRAPE_DK              (default "skip"; set to "enabled" to
+                                    actually run the DK scrape on Railway.
+                                    Default skip because DK's CDN blocks
+                                    Railway egress -- see T2.56 in CHANGELOG.
+                                    GHA's hourly cron handles scraping.)
 """
 
 from __future__ import annotations
@@ -220,7 +225,38 @@ def step_predict_today() -> int:
 
 
 def step_scrape_dk() -> int:
-    """Soft-fail: if DK is unreachable, last-known odds stay in CSV."""
+    """Soft-fail: if DK is unreachable, last-known odds stay in CSV.
+
+    T2.56: scrape-dk is DISABLED BY DEFAULT on Railway because DK's
+    sportsbook-nash CDN consistently times out non-residential IPs
+    (Railway egress sees 100% read-timeout failure rate -- 60+ errors
+    per day pre-fix).  T2.55 attempted a header-fingerprint upgrade
+    + transport switch (urllib -> requests with HTTP/1.1); didn't
+    help.  IP-level filtering is the actual cause.
+
+    Net effect of skipping: odds refresh cadence drops from "every
+    5 min when DK is reachable" to "hourly via GHA cron".  GHA's
+    IPs aren't blocked, so its scrapes succeed; Railway picks up
+    the fresh CSV on next deploy.  For 1st-inning markets, hourly
+    cadence is fine -- DK rarely moves the line meaningfully in
+    5-min windows, and the meaningful moves (lineup post, scratch)
+    happen on hourly-ish boundaries anyway.
+
+    Override: set PREDICTOR_SCRAPE_DK=enabled to re-enable (e.g. if
+    DK ever stops blocking Railway IPs, or for a non-Railway deploy
+    of this loop).
+    """
+    mode = os.environ.get("PREDICTOR_SCRAPE_DK", "skip").strip().lower()
+    if mode != "enabled":
+        # Silent no-op.  No system_errors row, no Telegram ops_health
+        # ping, just a single log line per cycle so the operator can
+        # verify the skip is intentional.
+        print(
+            "[predictor] [scrape-dk] skipped on Railway "
+            "(set PREDICTOR_SCRAPE_DK=enabled to override)",
+            flush=True,
+        )
+        return 0
     return run(
         ["python", "scrape_dk_odds.py"],
         TIMEOUT_SCRAPE, "scrape-dk",
