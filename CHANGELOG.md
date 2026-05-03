@@ -11,15 +11,17 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
-## [2026-05-03] — Walk-forward backtest framework + variance verdict on today's losses
+## [2026-05-03] — Walk-forward framework shipped + same-day audit + retraction
 
-After a rough 1-4 day on 2026-05-03 (pending 2 more), the question was: variance
-or model breakdown? Two pieces of work:
+After a rough 1-4 day on 2026-05-03 (eventually 1-of-5+), built the walk-forward
+framework, made an inflated claim, then audited it the same day after the user
+pushed back. Net result: framework exists, two variants honest, one variant
+(phase_e3) retracted pending point-in-time backfill.
 
 ### Added — `tools/walk_forward.py` (T3.11 / Tier 3 #11)
 
-The gatekeeper for any future model variant. Trains on prior seasons, tests on
-the next, multi-fold across 2022 → 2025 backtests. For each fold reports:
+Walk-forward backtest framework. Trains on prior seasons, tests on the next,
+multi-fold across 2022 → 2025. For each fold reports:
 
 - Brier score vs climatology (skill % = 1 − Brier/climatology)
 - Top-quintile NRFI hit rate (Q5)
@@ -27,45 +29,70 @@ the next, multi-fold across 2022 → 2025 backtests. For each fold reports:
 - Simulated betting P&L at -120 vig under production STRONG thresholds
   (NRFI ≥ 0.58, YRFI ≤ 0.42; net 0.83u win, -1.0u loss)
 
-Compares two baseline variants (`slim`, `slim_weather`) across all 3 multi-season
-folds plus a single-fold check on the production `phase_e3` model (only available
-2024+). Optional `--save-json` for downstream tooling. The verdict block at the
-end auto-classifies each variant as PASS / PASS-Brier-only / MIXED / FAIL.
+Compares two baseline variants (`slim`, `slim_weather`) across 3 multi-season
+folds plus a single-fold check on the production `phase_e3` model. Optional
+`--save-json`. Verdict block auto-classifies each variant PASS / PASS-Brier-only /
+MIXED / FAIL.
 
-**First run validates production model on 2025 holdout**:
-- `phase_e3` — **572 bets, 332-240 (58.0% hit), +36.67u P/L (+6.4% ROI)**, Brier
-  0.2488 vs climatology 0.2500. PASS.
-- `slim_weather` — 448 bets, 247-201 (55.1%), +4.83u (+1.1% ROI). FAIL on Brier.
-- `slim` — 225 bets, 121-104 (53.8%), -3.17u. FAIL.
+**Slim variants (LEAK-FREE — these results stand)**:
+- `slim_weather` — 3 folds, 448 bets, 247-201 (55.1%), +4.83u (+1.1% ROI). FAIL on Brier.
+- `slim` — 3 folds, 225 bets, 121-104 (53.8%), -3.17u (-1.4% ROI). FAIL.
 
-The gap between phase_e3 and the slim baselines is the value the structural
-features (xera, pvt_nrfi, whiff_pct, last5/10, top3c, ump rate, era_gap)
-contribute. Result locked into ROADMAP.md and persisted to
-`data/walk_forward_results.json`.
+### Retracted — `tools/walk_forward.py` `--include-e3` claim (T3.11-AUDIT)
 
-**Now the formal gate**: any candidate variant must clear PASS on ≥ 2 folds before
-shipping to production. A variant that wins one fold but loses others is
-selection bias, not signal.
+Initial run reported phase_e3 at 572 bets / 58.0% hit / +36.67u / +6.4% ROI on
+2024→2025 with positive Brier skill. Audited same day after user pushback and
+found feature leakage:
 
-### Investigated — Today is variance, not breakdown
+- `home_xera` / `away_xera` and `home_whiff_pct_rank` / `away_whiff_pct_rank`
+  are pulled from `data/statcast_pitcher_cache.json`, which is keyed by
+  `(season, pid)`. So every game in the 2025 backtest gets the pitcher's
+  END-OF-2025 xera and whiff_pct_rank — perfect future-data leakage.
 
-Side-by-side analytical comparison of 2026-05-03 (1-4 in-progress) vs the
-2026-05-01 sweep day (3-0). Findings:
+Removing those 4 features and re-running (`tools/walk_forward_leakfree.py`):
 
-- **Slate composition differed structurally**: today had more STRONG bets across
-  mixed NRFI/YRFI sides, vs an all-YRFI-side sweep on 5/1.
-- **Weather was warmer / windier today** — would push toward YRFI on aggregate,
-  but the model already accounts for `wx_temp_c`/`wx_wind_kmh`/`wx_humidity`/
-  `wx_is_dome` as features; no out-of-distribution input.
-- **No data-quality regressions** — pitcher quality tags clean, lineups posted
-  in time, no late scratches that flipped a STRONG.
-- **Loss-classifier**: today's losses bucket into the same 7 categories as the
-  prior 30d (no new failure mode emerging).
-- **Statistical likelihood**: at a true 62% STRONG hit rate, going 1-of-5 has
-  binomial probability 7.7% — once-a-month event. Not a tail outlier.
+| Phase E3 fold (2024 → 2025) | Bets | W-L  | Hit  | P/L     | ROI    | Brier skill |
+|---|---|---|---|---|---|---|
+| With leak (initial claim)    | 572  | 332-240 | 58.0% | +36.67u | +6.4%  | +0.46% ✅ |
+| Leak-free (audit)            | 471  | 252-219 | 53.5% | -9.00u  | -1.9%  | -0.59% ❌ |
 
-Combined with the walk-forward result (production model still passes on a season
-it never saw), the verdict is **variance, not regression**. No model action taken.
+The "phase_e3 PASSES walk-forward" claim is **retracted**. The model has not
+been validated on a clean walk-forward yet.
+
+The other 14 features per half are properly point-in-time (filtered by
+`date < target_date_iso` in `pitcher_last_n_first_inning`,
+`pitcher_vs_team_nrfi_rate`, `pitcher_role_features`, `current_season_top3_stats`).
+Umpire NRFI rates trained only on 2022+2023 (per `umpire_rates.json` metadata),
+so safe for use in 2024+ tests.
+
+### Live production data (unaffected by backtest leak — point-in-time in production)
+
+| Window | STRONG bets | W-L | Hit | P/L |
+|---|---|---|---|---|
+| Last 30d | 184 | 116-68 | 63.04% | +36.13u |
+| Last 14d | 75 | 48-27 | 64.0% | +15.32u |
+| Last 7d | 40 | 26-14 | 65.0% | +8.32u |
+| 2026-05-03 (today) | 5 | 1-4 | 20.0% | -3.35u |
+
+vs break-even at -110 (52.4%): z = 2.89, one-sided p = **0.0019**. Wilson 95% CI
+on true rate: 56.1% – 70.0%. So the model HAS real edge in live production; the
+backtest leak inflated the *measurement* of that edge but didn't fabricate it.
+
+### Verdict on today's 1-of-5(+) losing run
+
+Even at the WORST-case true rate (52.4%, zero edge), 1-of-5 STRONG bets has
+probability 15.9% — happens 1-in-6 days. At the point-estimate 63%, it's 6.6%
+(1-in-15). Today's pain is consistent with variance under any rate the data
+supports. No structural failure mode change in `loss_analysis` table buckets.
+**No model action taken**, but the walk-forward gatekeeper is not yet proven
+honest until the point-in-time backfill lands.
+
+### Followup committed (T3.11-AUDIT-FIX, pending)
+
+1. `tools/backfill_xera_whiff_pit.py` — recompute per-game cumulative xera and
+   whiff_pct_rank from per-pitch Statcast data, replacing the `(season, pid)` cache.
+2. Regenerate 2024 + 2025 backtest CSVs against the new cache.
+3. Re-run `tools/walk_forward.py --include-e3` for honest phase_e3 verdict.
 
 ---
 
