@@ -276,7 +276,11 @@ def main() -> None:
         # eligible.  Mirror production's PASS reason verbatim.
         prod_strength = (row.get("pick_strength") or "").upper()
         DATA_PASS = {"LINEUP PENDING", "STARTER PENDING", "NO DATA"}
-        from db.variants import VariantPick, _label_for, VARIANT_D_LAMBDA_FLOOR
+        from db.variants import (
+            VariantPick, _label_for, VARIANT_D_LAMBDA_FLOOR,
+            VARIANT_E_SKIP_P_LO, VARIANT_E_SKIP_P_HI,
+            VARIANT_F_THIN_QS, VARIANT_F_BOTH_LTD_SKIP,
+        )
         if prod_strength in DATA_PASS:
             forced = VariantPick(
                 pick_side="PASS",
@@ -302,6 +306,22 @@ def main() -> None:
         prod_side  = (row.get("pick_side") or "").upper()
         prod_lambd = _to_float(row.get("lambda_lr_total"), 1.0)
         prod_nrfi  = _to_float(row.get("nrfi_prob"), 0.5)
+        prod_yrfi  = _to_float(row.get("yrfi_prob"), 0.5)
+        # Mirror-production helper for clean variant fallback.  When the
+        # variant doesn't differ from production, we copy the recorded
+        # row verbatim (avoids any feature-reconstruction noise).
+        def _mirror_prod() -> VariantPick:
+            return VariantPick(
+                pick_side=prod_side or "PASS",
+                pick_strength=prod_strength or "NO EDGE",
+                pick_label=row.get("pick_label") or _label_for(
+                    prod_side or "PASS", prod_strength or "NO EDGE",
+                ),
+                nrfi_prob=prod_nrfi,
+                yrfi_prob=1.0 - prod_nrfi,
+            )
+
+        # Variant D: raise YRFI lambda floor 0.78 -> 1.00.
         if prod_side == "YRFI" and prod_lambd < VARIANT_D_LAMBDA_FLOOR:
             variants["D"] = VariantPick(
                 pick_side="PASS", pick_strength="LOW LAMBDA",
@@ -309,16 +329,42 @@ def main() -> None:
                 nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
             )
         else:
-            # Mirror production verbatim -- same pick, same strength,
-            # same prob.  Avoids border-line drift from recompute.
-            variants["D"] = VariantPick(
-                pick_side=prod_side or "PASS",
-                pick_strength=prod_strength or "NO EDGE",
-                pick_label=row.get("pick_label") or _label_for(prod_side or "PASS",
-                                                                prod_strength or "NO EDGE"),
-                nrfi_prob=prod_nrfi,
-                yrfi_prob=1.0 - prod_nrfi,
+            variants["D"] = _mirror_prod()
+
+        # Variant E (T2.59): skip soft-edge STRONG (P=0.60-0.62).
+        # Only fires when production is STRONG NRFI/YRFI.
+        prod_p_pick = (
+            prod_nrfi if prod_side == "NRFI"
+            else prod_yrfi if prod_side == "YRFI"
+            else 0.0
+        )
+        if (prod_strength == "STRONG"
+                and prod_side in ("NRFI", "YRFI")
+                and VARIANT_E_SKIP_P_LO <= prod_p_pick < VARIANT_E_SKIP_P_HI):
+            variants["E"] = VariantPick(
+                pick_side="PASS", pick_strength="NO EDGE",
+                pick_label="PASS - Soft edge skip (T2.59 variant E)",
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
             )
+        else:
+            variants["E"] = _mirror_prod()
+
+        # Variant F (T2.59): skip thin-sample pitcher matchups.
+        away_q = (row.get("away_pitcher_q") or "").lower()
+        home_q = (row.get("home_pitcher_q") or "").lower()
+        either_thin = (away_q in VARIANT_F_THIN_QS) or (home_q in VARIANT_F_THIN_QS)
+        both_ltd    = (away_q == "ltd") and (home_q == "ltd") and VARIANT_F_BOTH_LTD_SKIP
+        if (prod_strength == "STRONG"
+                and prod_side in ("NRFI", "YRFI")
+                and (either_thin or both_ltd)):
+            variants["F"] = VariantPick(
+                pick_side="PASS", pick_strength="NO EDGE",
+                pick_label=("PASS - Thin sample skip "
+                            f"(away_q={away_q}, home_q={home_q})"),
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+            )
+        else:
+            variants["F"] = _mirror_prod()
 
         for vname, pick in variants.items():
             would_bet, would_be_units = variant_would_bet(

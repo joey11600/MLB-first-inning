@@ -279,12 +279,13 @@ def main() -> None:
 
     prod_agg     = aggregate(prod_picks, var_lookup, None)
     variant_aggs = {
-        v: aggregate(prod_picks, var_lookup, v) for v in ("A", "C", "AC", "D")
+        v: aggregate(prod_picks, var_lookup, v)
+        for v in ("A", "C", "AC", "D", "E", "F")
     }
 
     print_summary(prod_agg, variant_aggs)
 
-    for v in ("A", "C", "AC", "D"):
+    for v in ("A", "C", "AC", "D", "E", "F"):
         diffs = disagreements(prod_picks, var_lookup, v)
         print_disagreements(diffs, v, args.top)
 

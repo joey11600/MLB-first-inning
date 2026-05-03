@@ -298,6 +298,20 @@ jobs:
           set +e
           python tools/backfill_variants.py 2>&1 || echo "::warning::backfill_variants failed (non-blocking)"
 
+      - name: Calibration drift monitor (T2.59)
+        if: steps.action.outputs.what == 'grade'
+        # Watches whether stated P(pick) matches actual hit rate per bucket
+        # over rolling windows.  Writes to system_errors when a bucket
+        # drifts >=7pp persistently (flagged in BOTH 14d AND 30d windows
+        # AND has >=30 bets per window).  Soft-fail.
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          python tools/calibration_monitor.py --alert 2>&1 \
+            || echo "::warning::calibration_monitor failed (non-blocking)"
+
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
         run: |

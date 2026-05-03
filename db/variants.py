@@ -26,7 +26,20 @@ Variants:
         low-lambda YRFI bets that lose money on aggregate.  This variant
         skips them (PASS - LOW LAMBDA) and only fires YRFI when the
         model projects >= 1 expected run.  No prob/threshold change;
-        only the floor.
+        only the floor.  REJECTED 2026-05-02 (-6.4u over 32d).
+  E   — Skip soft-edge STRONG (P=0.60-0.62) -- T2.59 hypothesis from
+        calibration drift monitor: the lower edge of the 0.60-0.65
+        bucket is where most of today's losses fell.  This variant
+        post-filters production: if STRONG and P(pick) in [0.60, 0.62),
+        demote to PASS - SOFT EDGE.  Tests whether trimming the
+        borderline STRONG zone improves W/L net of missed wins.
+  F   — Skip thin-sample pitcher matchups -- T2.59 hypothesis from
+        2026-05-03 losses: 4 of 5 STRONG losses involved at least one
+        'sm'/'avg' quality pitcher.  This variant post-filters
+        production: if STRONG and ANY pitcher is in {'sm', 'avg'} OR
+        BOTH pitchers are 'ltd', demote to PASS - DATA QUALITY.
+        Tests whether the model is overconfident on thin-data
+        matchups in aggregate.
 
 Each variant returns a `VariantPick` with the same shape as the production
 verdict so downstream P/L computation is identical.
@@ -57,6 +70,27 @@ VARIANT_A_CONTRIB_CAP = 0.45
 # Picks in the 0.42-0.44 band classify as YRFI LEAN -- bet only if edge
 # clears the 2% gate set by tracker._apply_odds_to_row.
 VARIANT_C_LEAN_YRFI_P = 0.42
+
+# Variant E: soft-edge band to skip.  When production's STRONG verdict
+# has the picked-side probability in this band, demote to PASS.  Chosen
+# narrow (0.60-0.62) because the broader 0.60-0.65 bucket is profitable
+# overall over 30 days (60% hit rate at -110 odds = +12% ROI); only the
+# very softest edge of that bucket may be miscalibrated.
+VARIANT_E_SKIP_P_LO = 0.60
+VARIANT_E_SKIP_P_HI = 0.62
+
+# Variant F: thin-sample qualities to skip.  These are the pitcher
+# quality flags emitted by `_pitcher_quality_tag` after T2.53:
+#   'live' -- effective IP >= 100  (full Bayesian-blend signal)
+#   'ltd'  -- effective IP >=  30  (usable but with shrinkage)
+#   'sm'   -- effective IP >=   1  (thin sample)
+#   'avg'  -- 0 IP                 (no usable data, league fallback)
+# Variant F skips STRONG bets when:
+#   - ANY pitcher is 'sm' or 'avg' (severe sample issue), OR
+#   - BOTH pitchers are 'ltd' (compounded thin samples)
+VARIANT_F_THIN_QS         = {"sm", "avg"}
+VARIANT_F_BOTH_LTD_SKIP   = True
+
 
 # Variant D lambda floor.  Raise from production's 0.78 to 1.00.
 # Empirical basis (2026-04-01 to 2026-05-02 STRONG YRFI bets):
