@@ -304,6 +304,80 @@ def _fmt(v, decimals: int = 3) -> str:
         return str(v)
 
 
+def _pick_lock_minutes() -> int:
+    """T2.58: how many minutes pre-game before we commit a STRONG pick
+    (set bet_placed=Y, freeze the verdict, fire the BET LOCKED Telegram).
+    Default 60 -- gives lineups + weather forecasts their final form
+    while leaving a buffer for late scratches.  Configurable via env."""
+    try:
+        return max(0, int(os.environ.get("PICK_LOCK_AT_MIN_PREGAME", "60")))
+    except (TypeError, ValueError):
+        return 60
+
+
+def _parse_game_time_et(game_time_et: str, iso_date: str):
+    """Parse a row's game_time_et like '7:05 PM ET' + iso_date 'YYYY-MM-DD'
+    into an ET-localized datetime.  Returns None when unparseable
+    (e.g. 'TBD', 'After Game 1', empty)."""
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    s = (game_time_et or "").strip()
+    if not s or ":" not in s:
+        return None
+    cleaned = s.replace("ET", "").strip()
+    for fmt in ("%I:%M %p", "%I:%M%p", "%H:%M"):
+        try:
+            t = datetime.strptime(cleaned, fmt)
+            return datetime.fromisoformat(iso_date).replace(
+                hour=t.hour, minute=t.minute, tzinfo=et,
+            )
+        except ValueError:
+            continue
+    return None
+
+
+def _is_inside_lock_window(game_time_et: str, iso_date: str,
+                           lock_min: int | None = None) -> bool:
+    """T2.58: True if `now` is within `lock_min` minutes of game start
+    (or after start, including post-game).  Used to gate the auto-bet
+    flag in `_apply_odds_to_row` so STRONG picks don't commit hours
+    in advance of game-time data being final.
+
+    Returns True when the row should be eligible for bet_placed=Y.
+    Returns False pre-lock (STRONG verdict stays advisory; the model
+    can still flip with fresh lineup / weather / pitcher data).
+    Returns True (defensively) when game_time_et is unparseable so
+    we don't accidentally lock a row out forever -- caller's other
+    guards will handle that case."""
+    if lock_min is None:
+        lock_min = _pick_lock_minutes()
+    game_dt = _parse_game_time_et(game_time_et, iso_date)
+    if game_dt is None:
+        # Fall back to "always lockable" to avoid blocking forever.
+        # Other guards (graded_result, etc.) handle stale rows.
+        return True
+    from zoneinfo import ZoneInfo
+    from datetime import timedelta
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    lock_cutoff = game_dt - timedelta(minutes=lock_min)
+    return now_et >= lock_cutoff
+
+
+def _pick_lock_at_iso(game_time_et: str, iso_date: str,
+                       lock_min: int | None = None) -> str:
+    """T2.58: Return the lock cutoff time as an ISO-8601 UTC string,
+    so the dashboard can render 'PENDING -- locks at HH:MM ET'.
+    Returns empty string when game_time_et is unparseable."""
+    if lock_min is None:
+        lock_min = _pick_lock_minutes()
+    game_dt = _parse_game_time_et(game_time_et, iso_date)
+    if game_dt is None:
+        return ""
+    from datetime import timedelta, timezone
+    lock_dt = (game_dt - timedelta(minutes=lock_min)).astimezone(timezone.utc)
+    return lock_dt.replace(tzinfo=None).isoformat(timespec="seconds") + "Z"
+
+
 def _pick_is_locked(existing: dict, iso_date: str) -> bool:
     """Decide whether the existing pick should be preserved across an
     intraday refresh.
@@ -899,6 +973,7 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # bet is already locked at the first commit so the re-ping adds
     # no value.
     "flip_to_strong":       24 * 60,
+    "strong_locked":        24 * 60,  # T2.58 -- bet lock alert, once per game per slate
     "strong_graded":        24 * 60,  # at most one grade ping per day per game
     "strong_voided":        24 * 60,  # one void ping per game
     "strong_pregame":       6 * 60,   # one pregame ping per game per ~6h window
@@ -1255,9 +1330,27 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
                                 game_pk: str = "",
                                 row_context: dict | None = None) -> None:
     """STRONG-only flip notifier (T2.37) using the unified
-    notifications_log dedup path (T2.38).  Backward-compatible signature."""
+    notifications_log dedup path (T2.38).  Backward-compatible signature.
+
+    T2.58: pre-lock STRONG flips are now SUPPRESSED.  Under the lock-
+    window model, a STRONG verdict at 9 AM is just an advisory
+    projection -- the pick is still PENDING and can still flip with
+    fresh lineup/weather data.  Firing a Telegram alert at that point
+    would tell the user "you have a STRONG bet" when actually nothing
+    is bet yet.  The canonical 'BET LOCKED' alert fires from
+    `_apply_odds_to_row` when bet_placed transitions to Y, which
+    happens inside the lock window with fully-final data.
+
+    Pre-lock flips still appear on the dashboard (the model's view of
+    where the pick is heading), they just don't ping Telegram.
+    """
     if not _is_strong_label(new_label):
         return  # T2.37 STRONG-only filter
+    # T2.58: suppress when outside lock window
+    if not _is_inside_lock_window(game_time, iso_date):
+        # Quiet pre-lock STRONG transitions on the dashboard side only.
+        # The canonical lock-time alert comes from _apply_odds_to_row.
+        return
     body = _format_flip_message(
         iso_date    = iso_date,
         away_team   = away_team,
@@ -1270,6 +1363,53 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
     pk = game_pk or f"{away_team}@{home_team}"
     event_key = f"flip_to_strong:{pk}:{(new_label or '').upper()}"
     _notify_event_telegram("flip_to_strong", event_key, body)
+
+
+def _notify_strong_locked_telegram(row: dict) -> None:
+    """T2.58: 'BET LOCKED' alert -- fires once per game per slate at the
+    moment bet_placed transitions to Y (inside the lock window with
+    final data).  This replaces the pre-lock flip-to-strong alert as
+    the user's canonical 'place this bet now' signal.
+
+    Includes price + would-be units + edge + dashboard link so the
+    operator can fire the bet on DK and confirm the matchup at a
+    glance.  Dedup is per-game per-day via notifications_log, so a
+    re-run of import_odds after lock doesn't re-ping."""
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    side       = (row.get("pick_side") or "").upper()
+    away       = (row.get("away_team") or "").upper()
+    home       = (row.get("home_team") or "").upper()
+    game_time  = (row.get("game_time_et") or "").strip()
+    iso_date   = (row.get("date") or "").strip()
+    game_pk    = (row.get("game_pk") or "").strip()
+
+    odds_col   = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+    price      = (row.get(odds_col) or "—").strip()
+    units      = (row.get("units_risked") or "1.0").strip()
+
+    edge_raw   = row.get("edge_on_pick")
+    edge_str   = ""
+    try:
+        edge_pct = float(edge_raw) * 100.0 if edge_raw not in (None, "") else None
+        if edge_pct is not None:
+            edge_str = f" · edge {'+' if edge_pct >= 0 else ''}{edge_pct:.1f}%"
+    except (TypeError, ValueError):
+        pass
+
+    body = "\n".join([
+        f"🔒 <b>BET LOCKED · STRONG {side}</b>",
+        f"{away} @ {home} · {game_time}",
+        f"DK {price} · {units}u{edge_str}",
+        "(Pick is committed -- model verdict frozen until grade.)",
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    event_key = f"strong_locked:{game_pk or (away + '@' + home)}"
+    _notify_event_telegram("strong_locked", event_key, body)
 
 
 # ---------------------------------------------------------------------------
@@ -2281,17 +2421,39 @@ def _apply_odds_to_row(
     # units_risked is always populated for NRFI/YRFI picks (per T2.3) so
     # post-mortem analysis can compute counterfactual P&L for any row
     # regardless of bet_placed.  PASS picks have no would-be stake.
+    # T2.58: gate the auto-bet flag on the lock window.  Prior behavior
+    # set bet_placed=Y as soon as a pick became STRONG -- which could be
+    # hours pre-game, before lineups/weather/scratches were final.  Real-
+    # world consequence (2026-05-03 ATL@COL): pick locked at STRONG YRFI
+    # at 12:30 PM, lambda dropped 0.008 by 12:42 PM, demoted to PASS,
+    # but user had already placed the bet.  Now: bet_placed=Y only fires
+    # within the lock window (default 60 min pre-game), giving the model
+    # one last cycle with fully-current data before committing.
+    iso_date_for_lock = (row.get("date") or "").strip()
+    game_time_for_lock = (row.get("game_time_et") or "").strip()
+    inside_lock = _is_inside_lock_window(game_time_for_lock, iso_date_for_lock)
+    # Capture pre-edit bet_placed so we can detect the N->Y transition
+    # below and fire the BET LOCKED Telegram alert exactly once per game.
+    pre_edit_bet_placed = (row.get("bet_placed") or "").strip().upper()
+
     if pick in ("NRFI", "YRFI"):
         would_be_units = units_strong if strength == "STRONG" else (
             units_lean if strength == "LEAN" else 0.0
         )
         if strength == "STRONG" and would_be_units > 0:
-            # Auto-bet on every STRONG play, no edge gate.
-            row["bet_placed"]   = "Y"
+            # T2.58: STRONG pre-lock = stake recorded but not bet.
+            #        STRONG inside lock window = commit.
+            if inside_lock:
+                row["bet_placed"]   = "Y"
+            else:
+                row["bet_placed"]   = "N"   # pending, will commit at lock
             row["units_risked"] = _fmt(would_be_units, 2)
         elif edge_pick is not None and edge_pick >= min_edge and would_be_units > 0:
-            # LEAN with edge above threshold -> bet.
-            row["bet_placed"]   = "Y"
+            # LEAN with edge above threshold -> bet (lock-gated too).
+            if inside_lock:
+                row["bet_placed"]   = "Y"
+            else:
+                row["bet_placed"]   = "N"
             row["units_risked"] = _fmt(would_be_units, 2)
         else:
             # LEAN below edge threshold -> skip but record the would-be stake.
@@ -2321,6 +2483,20 @@ def _apply_odds_to_row(
 
     # Compute P&L if graded
     row["profit_loss_units"] = _calc_pnl(row)
+
+    # T2.58: fire the BET LOCKED Telegram alert when bet_placed
+    # transitions from "" / "N" to "Y" on a STRONG pick.  Dedup via
+    # notifications_log strong_locked window means a re-run of
+    # import_odds after lock won't re-ping.  Fires exactly once per
+    # game per slate.
+    new_bet_placed = (row.get("bet_placed") or "").strip().upper()
+    if (pre_edit_bet_placed in ("", "N") and new_bet_placed == "Y"
+            and (row.get("pick_strength") or "").strip().upper() == "STRONG"):
+        try:
+            _notify_strong_locked_telegram(row)
+        except Exception:    # noqa: BLE001 — advisory only, never break import
+            pass
+
     return row
 
 

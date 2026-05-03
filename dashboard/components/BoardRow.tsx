@@ -30,7 +30,12 @@ function toneClass(side: PickSide, strength: PickStrength): string {
   return "passTone";
 }
 
-function pickLabelText(side: PickSide, strength: PickStrength): string {
+function pickLabelText(
+  side:        PickSide,
+  strength:    PickStrength,
+  preLock?:    boolean,
+  lockTimeStr?: string,
+): string {
   if (strength === "STARTER PENDING") return "STARTER PENDING";
   if (strength === "LINEUP PENDING")  return "LINEUP PENDING";
   if (strength === "LOW LAMBDA")      return "PASS · LOW λ";
@@ -39,7 +44,81 @@ function pickLabelText(side: PickSide, strength: PickStrength): string {
   // expanded GameDetails panel so the chip stays clean while the
   // user can drill in for the why.
   if (side === "PASS") return "PASS";
+  // T2.58: pre-lock STRONG / LEAN -> show as PENDING with countdown.
+  // The model's verdict still reads STRONG NRFI/YRFI underneath, but
+  // we don't commit (or display as actionable) until the lock window.
+  // This prevents the operator from placing a bet on a verdict that
+  // can still flip with fresh lineup / weather / scratch data.
+  if (preLock && (strength === "STRONG" || strength === "LEAN")) {
+    return lockTimeStr
+      ? `PENDING · LOCKS ${lockTimeStr}`
+      : `PENDING ${strength} ${side}`;
+  }
   return `${strength} ${side}`;
+}
+
+/** T2.58: parse a row's gameTimeEt + slate date into the lock cutoff
+ *  (game start - 60 min) as an ISO string in UTC.  Returns null when
+ *  the time string can't be parsed (TBD, "After Game 1", empty). */
+function computeLockAt(
+  gameTimeEt: string,
+  slateDate:  string,
+  lockMin:    number = 60,
+): Date | null {
+  if (!gameTimeEt || !slateDate || !gameTimeEt.includes(":")) return null;
+  // "1:35 PM ET" -> ["1:35", "PM"]; trim "ET" suffix.
+  const cleaned = gameTimeEt.replace(/\s*ET\s*$/, "").trim();
+  const m = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
+  if (!m) return null;
+  let hour = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const ap = (m[3] || "").toUpperCase();
+  if (ap === "PM" && hour < 12) hour += 12;
+  if (ap === "AM" && hour === 12) hour = 0;
+  // Build an ET-local date string then convert through Date by treating
+  // it as a US/Eastern wall-clock instant.  Cheapest reliable trick:
+  // use the offset of the user's locale by querying Intl.DateTimeFormat
+  // for the current ET offset (handles DST).
+  // Simpler approach: build a date string and add the ET offset.
+  const isoLocal = `${slateDate}T${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}:00`;
+  // Compute the US/Eastern UTC offset for that date (DST-aware).
+  const probe = new Date(`${slateDate}T12:00:00Z`);
+  const offMin = etOffsetMinutes(probe);
+  const gameUtcMs = Date.parse(isoLocal + "Z") + offMin * 60_000;
+  if (!Number.isFinite(gameUtcMs)) return null;
+  return new Date(gameUtcMs - lockMin * 60_000);
+}
+
+/** Returns the US/Eastern offset (in minutes; positive when ET is
+ *  EAST of UTC -- it's actually negative since ET is UTC-4/-5, but
+ *  we store as the value to ADD to a parsed-as-UTC ET wall clock to
+ *  get true UTC).  Reference impl uses Intl. */
+function etOffsetMinutes(at: Date): number {
+  // Format the date in America/New_York, parse the result back, take
+  // the difference.  Cleaner than hardcoding DST rules.
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  });
+  const parts = fmt.formatToParts(at);
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? "00";
+  // "year-month-dayThour:min:sec" reconstructed in ET wall clock
+  const etIso = `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}Z`;
+  const etAsUtcMs = Date.parse(etIso);
+  // Difference between actual UTC time and the "ET wall clock parsed as UTC"
+  // is the offset we need to add to convert a parsed-as-UTC ET wall clock
+  // back to true UTC.
+  return (at.getTime() - etAsUtcMs) / 60_000;
+}
+
+/** Format a lock Date as "HH:MM AM/PM ET" for the pickPill label. */
+function formatLockTime(d: Date): string {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric", minute: "2-digit", hour12: true,
+  });
+  return fmt.format(d) + " ET";
 }
 
 /** Human-readable explanation for NO DATA picks: which pitcher's stats
@@ -171,6 +250,7 @@ export function BoardRowItem({
   expanded,
   onToggle,
   thresholds,
+  slateDate,
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
@@ -178,6 +258,10 @@ export function BoardRowItem({
   expanded: boolean;
   onToggle: () => void;
   thresholds?: PickThresholds;
+  /** T2.58: slate date in YYYY-MM-DD form, threaded down so the
+   *  pre-lock countdown ("PENDING · LOCKS 2:10 PM ET") can be
+   *  computed client-side from gameTimeEt + slateDate. */
+  slateDate?: string;
 }) {
   const tone = toneClass(row.pickSide, row.pickStrength);
 
@@ -237,26 +321,46 @@ export function BoardRowItem({
         </span>
 
         <span className={styles.pickCell}>
-          <span
-            className={`${styles.pickPill} ${
-              (row.pickStrength === "STARTER PENDING"
-                || row.pickStrength === "LINEUP PENDING")
-                ? styles.pickPillPending
-                : ""
-            } ${row.pickStrength === "LOW LAMBDA" ? styles.pickPillLowLambda : ""}`}
-            title={
-              row.pickStrength === "LOW LAMBDA"
-                ? `Demoted from STRONG/LEAN YRFI: combined λ ${row.lambda.toFixed(2)} below the 0.78 floor (model expects too few total runs to bet YRFI confidently). Tested in backtest: floor adds ~+1.36u/season.`
-                : row.pickStrength === "NO DATA"
-                  ? noDataReason(detail)
-                  : undefined
-            }
-          >
-            <span className={styles.pickDot} aria-hidden />
-            <span className={styles.pickLabel}>
-              {pickLabelText(row.pickSide, row.pickStrength)}
-            </span>
-          </span>
+          {(() => {
+            // T2.58: pre-lock detection.  STRONG/LEAN picks before the
+            // 60-min-pre-game lock window display as PENDING with the
+            // countdown, even though the model's underlying verdict is
+            // already STRONG.  This matches the new server-side behavior:
+            // bet_placed=Y only fires inside the lock window, so the
+            // dashboard should signal "not yet committed" until then.
+            const lockAt = computeLockAt(row.gameTimeEt, slateDate ?? "");
+            const isPreLock =
+              lockAt !== null
+              && Date.now() < lockAt.getTime()
+              && (detail?.betPlaced || "") !== "Y"
+              && (row.pickStrength === "STRONG" || row.pickStrength === "LEAN");
+            const lockTimeStr = lockAt ? formatLockTime(lockAt) : "";
+            return (
+              <span
+                className={`${styles.pickPill} ${
+                  (row.pickStrength === "STARTER PENDING"
+                    || row.pickStrength === "LINEUP PENDING"
+                    || isPreLock)
+                    ? styles.pickPillPending
+                    : ""
+                } ${row.pickStrength === "LOW LAMBDA" ? styles.pickPillLowLambda : ""}`}
+                title={
+                  isPreLock
+                    ? `Model's current lean: ${row.pickStrength} ${row.pickSide}. Pick locks at ${lockTimeStr} (60 min pre-game). Until then, the verdict can still flip with fresh lineup / weather / scratch data, so DON'T bet yet.`
+                  : row.pickStrength === "LOW LAMBDA"
+                    ? `Demoted from STRONG/LEAN YRFI: combined λ ${row.lambda.toFixed(2)} below the 0.78 floor (model expects too few total runs to bet YRFI confidently). Tested in backtest: floor adds ~+1.36u/season.`
+                    : row.pickStrength === "NO DATA"
+                      ? noDataReason(detail)
+                      : undefined
+                }
+              >
+                <span className={styles.pickDot} aria-hidden />
+                <span className={styles.pickLabel}>
+                  {pickLabelText(row.pickSide, row.pickStrength, isPreLock, lockTimeStr)}
+                </span>
+              </span>
+            );
+          })()}
           <TentativeChip row={row} detail={detail} thresholds={thresholds} />
         </span>
 

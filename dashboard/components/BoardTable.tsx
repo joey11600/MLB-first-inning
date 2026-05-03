@@ -174,6 +174,7 @@ export function BoardTable({
                 return next;
               })}
               thresholds={thresholds}
+              slateDate={date ?? ""}
             />
           );
         })}
