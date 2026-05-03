@@ -1047,6 +1047,11 @@ def _send_telegram_html(text: str) -> bool:
     delivered    = 0
     failures: list[tuple[str, str]] = []   # (chat_id, error_str)
     for chat_id in chat_ids:
+        # T3.11-AUDIT: circuit breaker -- silently skip recipients with N+
+        # consecutive failures this process.  See comment at
+        # _TELEGRAM_TRIPPED_BREAKERS for trip semantics.
+        if _telegram_chat_is_disabled(chat_id):
+            continue
         try:
             body = urllib.parse.urlencode({
                 "chat_id":                  chat_id,
@@ -1061,11 +1066,13 @@ def _send_telegram_html(text: str) -> bool:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 resp.read()
             delivered += 1
+            _telegram_record_send_outcome(chat_id, success=True)
         except Exception as exc:    # noqa: BLE001 — per-recipient soft fail
             err = str(exc)
             print(f"  [telegram] send to {chat_id!r} failed: {exc!r}",
                   file=sys.stderr)
             failures.append((chat_id, err))
+            _telegram_record_send_outcome(chat_id, success=False)
 
     # T2.57: per-recipient failures hit system_errors so the Ops Health card
     # surfaces them within minutes.  notifications_log only tracks "at
@@ -1090,12 +1097,61 @@ def _send_telegram_html(text: str) -> bool:
 _TELEGRAM_FAILURE_LOG_TS: dict[tuple[str, str], float] = {}
 _TELEGRAM_FAILURE_LOG_INTERVAL_S = 3600    # 1 row per (chat, error-class) per hr
 
+# T3.11-AUDIT 2026-05-03: per-chat circuit breaker.  Once a chat_id has
+# failed N consecutive times within the same Railway process lifetime,
+# stop attempting AND stop writing system_errors rows.  Real-world
+# trigger: chat_id=-5115372935 produced 7 HTTP-400 errors in one
+# afternoon (bot kicked or lost messaging permission); the in-memory
+# 1-hr dedup let one row through per hour and the predictor kept
+# attempting every cycle.  Trip threshold = 3, which catches a
+# permanently-bad chat_id within ~30 min while still letting transient
+# Telegram outages (which fail then succeed) heal naturally.
+_TELEGRAM_CONSECUTIVE_FAILS:    dict[str, int]  = {}
+_TELEGRAM_TRIPPED_BREAKERS:     set[str]        = set()
+_TELEGRAM_BREAKER_TRIP_AT      = 3
+
+
+def _telegram_chat_is_disabled(chat_id: str) -> bool:
+    """Returns True if the per-chat circuit breaker has tripped this
+    process.  _send_telegram_html consults this before each attempt
+    so we silently skip known-dead recipients."""
+    return chat_id in _TELEGRAM_TRIPPED_BREAKERS
+
+
+def _telegram_record_send_outcome(chat_id: str, success: bool) -> None:
+    """Track consecutive failures per chat.  Trips the breaker after
+    `_TELEGRAM_BREAKER_TRIP_AT` consecutive failures.  Resets the
+    counter on any success."""
+    if success:
+        _TELEGRAM_CONSECUTIVE_FAILS.pop(chat_id, None)
+        # If a previously-tripped breaker recovers (rare; usually requires
+        # process restart), un-trip so future attempts resume.
+        _TELEGRAM_TRIPPED_BREAKERS.discard(chat_id)
+        return
+    n = _TELEGRAM_CONSECUTIVE_FAILS.get(chat_id, 0) + 1
+    _TELEGRAM_CONSECUTIVE_FAILS[chat_id] = n
+    if n >= _TELEGRAM_BREAKER_TRIP_AT and chat_id not in _TELEGRAM_TRIPPED_BREAKERS:
+        _TELEGRAM_TRIPPED_BREAKERS.add(chat_id)
+        print(
+            f"  [telegram] CIRCUIT BREAKER tripped for chat_id={chat_id!r} "
+            f"({n} consecutive failures).  Suppressing further send attempts "
+            f"AND system_errors writes for this chat until process restart.  "
+            f"Likely cause: bot kicked from group, lost messaging permission, "
+            f"or chat_id is wrong.  Check group membership / bot permissions.",
+            file=sys.stderr,
+        )
+
 
 def _log_telegram_failure(chat_id: str, err_str: str) -> None:
     """Write a row to system_errors when a Telegram send fails for a
-    specific recipient.  Rate-limited per (chat_id, error-class).
+    specific recipient.  Rate-limited per (chat_id, error-class) AND
+    suppressed entirely once the per-chat circuit breaker is tripped.
     Fail-silent: if the system_errors write itself errors, we already
     logged to stderr above."""
+    # Once the breaker has tripped, do not log -- the FIRST trip-line
+    # printed by _telegram_record_send_outcome is enough signal.
+    if _telegram_chat_is_disabled(chat_id):
+        return
     import time as _time
     # Error class = first 80 chars; covers Telegram's distinctive error
     # messages ("not enough rights", "chat not found", "bot was kicked
@@ -1109,8 +1165,6 @@ def _log_telegram_failure(chat_id: str, err_str: str) -> None:
     _TELEGRAM_FAILURE_LOG_TS[key] = now_ts
     try:
         from db.supabase_writer import mirror_system_error
-        # Mask the chat_id slightly so the message is readable but not
-        # leaking internal identifiers in casual log views.
         mirror_system_error(
             captured_at_utc = _now_utc(),
             iso_date        = (datetime.utcnow().date().isoformat()),

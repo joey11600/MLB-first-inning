@@ -358,10 +358,19 @@ def mirror_picks(rows: Iterable[dict], season: int) -> int:
     # code appends rows in chronological order, so "last" == "freshest"
     # -- if the same row got rebuilt twice in one call, the later
     # rebuild is the one we want to mirror anyway.
+    #
+    # T3.11-AUDIT 2026-05-03: coerce game_pk to str when building the
+    # dedupe key.  game_pk uses _passthrough (no type coercion), so two
+    # rows with the same logical game can arrive as ("2026-05-03", "812345")
+    # and ("2026-05-03", 812345) -- different Python tuples, same Postgres
+    # row.  Postgres then rejects the batch with SQLSTATE 21000 "ON CONFLICT
+    # DO UPDATE command cannot affect row a second time" -- 28 errors in
+    # the prior week traced to this exact mismatch.  str() is safe because
+    # game_pk is never None at this point (the caller filtered above).
     if len(payloads) > 1:
         deduped: dict[tuple, dict] = {}
         for p in payloads:
-            deduped[(p["date"], p["game_pk"])] = p
+            deduped[(p["date"], str(p["game_pk"]))] = p
         if len(deduped) != len(payloads):
             dropped = len(payloads) - len(deduped)
             print(

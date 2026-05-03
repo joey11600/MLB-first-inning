@@ -364,10 +364,23 @@ def cycle() -> None:
               file=sys.stderr, flush=True)
         return
 
-    # 4: scrape DK (soft-fail)
+    # 4: scrape DK (soft-fail).
+    #
+    # T3.11-AUDIT 2026-05-03: do NOT write scrape-dk failures to system_errors
+    # from the Railway predictor.  Per T2.56, Railway egress IPs are blocked
+    # by DK's CDN -- scrape attempts time out 100% of the time when
+    # PREDICTOR_SCRAPE_DK is overridden to "enabled".  GHA's hourly cron
+    # is the canonical source of odds; its scrape failures DO write to
+    # system_errors (legitimate signal).  86 noise rows in 7 days were
+    # cluttering the Ops Health card without surfacing actionable info.
     rc = step_scrape_dk()
     if rc != 0:
-        _record_step_failure("scrape-dk", rc)
+        # Log to stderr only -- visible in Railway logs, invisible in the
+        # dashboard's Ops Health card.  Set PREDICTOR_SCRAPE_DK=skip (the
+        # default) to suppress these too.
+        print(f"[predictor] [scrape-dk] failed (rc={rc}); GHA hourly cron "
+              f"is canonical, skipping system_errors write",
+              file=sys.stderr, flush=True)
 
     # 5: import odds (soft-fail; skipped if no CSV)
     rc = step_import_odds()
