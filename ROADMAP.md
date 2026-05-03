@@ -65,7 +65,7 @@ These improve money outcomes without touching the working model.
 |---|---|---|---|
 | 6 | [shipped 2026-05-02 · T2.42] | 3 hr | **Bankroll equity curve** on `/history` page. Pure SVG (no charting lib). Equity line + drawdown shading + ATH watermark + 6-stat panel (Bankroll / ATH / Max DD / Current DD / Vol / Sharpe). +1.4kB bundle. See `EquityCurveChart` in `dashboard/components/HistoryView.tsx`. |
 | 7 | [ ] | 2–3 hr | **Live DK line-drift chip** per row. `opened_*_odds` + `clv_pct` already exist; just not surfaced. Shows "DK -135 → -150 (sharp move toward us)". |
-| 8 | [ ] | 2 hr | **Drawdown circuit breaker**. Auto-PASS all bets after N consecutive losses or % bankroll drawdown. |
+| 8 | [rejected 2026-05-03] | — | **Drawdown circuit breaker**. User decision: "defeats the purpose of betting the whole system." Stop-loss locks in drawdowns by skipping the recovery window; whole-slate strategy treats variance as expected at 60-65% hit rate. See "Decisions ratified" below. |
 | 9 | [ ] | 3–4 hr | **Ops health card** on dashboard. Last predict cycle, last odds scrape, system_errors today, Railway worker status, parity check. |
 | 10 | [ ] | 2 hr | **Today's CLV summary** in summary strip. "Today CLV: +0.8pp avg" — leading indicator of model sharpness. |
 
@@ -131,6 +131,7 @@ don't waste time re-litigating settled questions.
 | **Pitcher days-rest is dead** | 2026-05-02 | 4 variants tested via `test_days_rest.py` on 2024↔2025 cross-validation: best (+rest_signed_gap) +8.2u (below +10u bar) AND regressed STRONG YRFI hit rate by 3.1pp on 2024→2025. Other 3 variants regressed −21u to −60u. Rest signal isn't separable from FIP/ERA/last-5 features. | Genuinely new feature engineering (e.g. rest × pitcher_FIP interaction, Tier 2 #10 in variant_backlog.md) clears the bar. |
 | **Daily park factor refresh is wasteful** | 2026-05-03 | Park factors use 3-year rolling windows; per-day movement is ~0.0005, well below the model's 0.02-0.05 signal threshold. Weekly cadence is correct. | Park structural changes mid-season (fence moved, humidor changed) — but those are once-per-decade events. |
 | **Telegram bet-sizing stays flat 1u STRONG / 0.5u LEAN** | Pre-2026-05-01 | User explicitly rejected Kelly / fractional / bankroll-aware sizing (CLAUDE.md "Money rules"). Kelly typically lifts ROI 10-20% but adds variance and contradicts user's "flat plays only" preference. | User changes their mind. Don't ship without explicit re-approval. |
+| **Drawdown circuit breaker is rejected** | 2026-05-03 | User decision: "that defeats the purpose of betting the whole system." Auto-PASS after N losses would lock in losses by skipping the recovery window. The whole-slate strategy treats variance as a feature, not a bug -- short streaks (good or bad) are expected at 60-65% hit rate and the model recovers in expectation. Premature stop-loss converts paper drawdowns into real ones. | User changes their mind. Don't ship without explicit re-approval. |
 
 ---
 
@@ -143,8 +144,8 @@ If shipping in priority order (revised 2026-05-03 after 4 variant rejections):
 - #7 **Live DK line-drift chip** (~2-3 hr) — already-stored `opened_*_odds` + `clv_pct`, just not surfaced.
 - #10 **CLV summary in summary strip** (~2 hr) — leading indicator of model sharpness.
 
-**Tier 2 (variance protection, ~2 hr):**
-- #8 **Drawdown circuit breaker** — auto-PASS bets after N losses or X% drawdown.
+**Tier 2 (variance protection):**
+- ❌ #8 Drawdown circuit breaker — **rejected by user** ("defeats the purpose of betting the whole system"). See Decisions ratified.
 
 **Tier 3 (the gatekeeper, ~6-8 hr):**
 - #11 **Walk-forward backtest framework** — required before ANY future variant testing. Only honest path forward.
@@ -161,6 +162,7 @@ If shipping in priority order (revised 2026-05-03 after 4 variant rejections):
 - ❌ Days-rest feature re-tests
 - ❌ Kelly / fractional sizing
 - ❌ Daily park factor refresh
+- ❌ Drawdown circuit breaker / stop-loss
 
 ---
 
