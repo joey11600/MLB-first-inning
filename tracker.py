@@ -969,7 +969,8 @@ def _send_telegram_html(text: str) -> bool:
 
     import urllib.parse
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    delivered = 0
+    delivered    = 0
+    failures: list[tuple[str, str]] = []   # (chat_id, error_str)
     for chat_id in chat_ids:
         try:
             body = urllib.parse.urlencode({
@@ -986,9 +987,67 @@ def _send_telegram_html(text: str) -> bool:
                 resp.read()
             delivered += 1
         except Exception as exc:    # noqa: BLE001 — per-recipient soft fail
+            err = str(exc)
             print(f"  [telegram] send to {chat_id!r} failed: {exc!r}",
                   file=sys.stderr)
+            failures.append((chat_id, err))
+
+    # T2.57: per-recipient failures hit system_errors so the Ops Health card
+    # surfaces them within minutes.  notifications_log only tracks "at
+    # least one delivery succeeded" -- pre-T2.57 a bot kicked from a group
+    # was invisible to ops because the personal chat kept succeeding.
+    # Confirmed via 2026-05-03 Backfist Bets: bot lost send-messages
+    # permission silently; user only noticed hours later.
+    #
+    # Rate-limited to once per (chat_id, error-class) per hour via a
+    # simple in-memory dedup so a persistent failure doesn't spam
+    # system_errors with hundreds of rows per day.
+    for cid, err_str in failures:
+        _log_telegram_failure(cid, err_str)
+
     return delivered > 0
+
+
+# T2.57: in-memory dedup so we don't spam system_errors with one row per
+# Telegram failure per cycle.  Keys: (chat_id, error_class).  Value: ts of
+# last write.  Cleared on process restart, which is fine -- on a clean
+# restart we WANT a fresh failure record.
+_TELEGRAM_FAILURE_LOG_TS: dict[tuple[str, str], float] = {}
+_TELEGRAM_FAILURE_LOG_INTERVAL_S = 3600    # 1 row per (chat, error-class) per hr
+
+
+def _log_telegram_failure(chat_id: str, err_str: str) -> None:
+    """Write a row to system_errors when a Telegram send fails for a
+    specific recipient.  Rate-limited per (chat_id, error-class).
+    Fail-silent: if the system_errors write itself errors, we already
+    logged to stderr above."""
+    import time as _time
+    # Error class = first 80 chars; covers Telegram's distinctive error
+    # messages ("not enough rights", "chat not found", "bot was kicked
+    # from", etc.) without storing per-attempt unique strings.
+    err_class = (err_str or "")[:80]
+    key = (chat_id, err_class)
+    now_ts = _time.time()
+    last = _TELEGRAM_FAILURE_LOG_TS.get(key, 0)
+    if now_ts - last < _TELEGRAM_FAILURE_LOG_INTERVAL_S:
+        return
+    _TELEGRAM_FAILURE_LOG_TS[key] = now_ts
+    try:
+        from db.supabase_writer import mirror_system_error
+        # Mask the chat_id slightly so the message is readable but not
+        # leaking internal identifiers in casual log views.
+        mirror_system_error(
+            captured_at_utc = _now_utc(),
+            iso_date        = (datetime.utcnow().date().isoformat()),
+            step            = "telegram-send",
+            exit_code       = 1,
+            message         = (
+                f"chat_id={chat_id} delivery failed: {err_str[:600]}"
+            )[:1500],
+        )
+    except Exception as exc:    # noqa: BLE001 — fail-silent per contract
+        print(f"  [telegram] failed to record failure to system_errors: "
+              f"{exc!r}", file=sys.stderr)
 
 
 def _notify_event_dedup_check(event_type: str, event_key: str) -> bool:
