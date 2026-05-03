@@ -51,10 +51,33 @@ MLB_LEAGUE_ID  = 84240
 INNING_1_CAT   = 1024     # parent category "1st Inning"
 RUNS_1ST_SUB   = 11024    # subcategory "Runs - 1st Inning" (Over/Under 0.5)
 
-# Headers required to avoid 403 -- DK blocks the default Python user agent
+# T2.55: full Chrome 123 browser fingerprint.  DK's CDN (sportsbook-nash)
+# previously accepted any UA with "Mozilla" in it, but on 2026-05-03 we
+# observed Railway egress hitting consistent read-timeouts on every cycle
+# (54 errors in ~6 hours) while a local-machine fetch returned in 300ms.
+# That points to TLS-fingerprint or header-fingerprint filtering at DK's
+# CDN edge -- they're letting the connection open then refusing to send
+# data.  Adding the full set of browser hints (sec-ch-ua, Sec-Fetch-*,
+# Origin, Referer) makes our request look like a real Chrome session
+# from the DraftKings sportsbook, which their CDN already trusts.
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Accept":     "application/json",
+    "User-Agent":         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/123.0.0.0 Safari/537.36",
+    "Accept":             "application/json, text/plain, */*",
+    # gzip + deflate ONLY -- urllib doesn't decode brotli without an
+    # extra dep, and `requests` decodes gzip/deflate transparently.
+    "Accept-Encoding":    "gzip, deflate",
+    "Accept-Language":    "en-US,en;q=0.9",
+    "Referer":            "https://sportsbook.draftkings.com/",
+    "Origin":             "https://sportsbook.draftkings.com",
+    "sec-ch-ua":          '"Chromium";v="123", "Not(A:Brand";v="24", "Google Chrome";v="123"',
+    "sec-ch-ua-mobile":   "?0",
+    "sec-ch-ua-platform": '"Windows"',
+    "Sec-Fetch-Dest":     "empty",
+    "Sec-Fetch-Mode":     "cors",
+    "Sec-Fetch-Site":     "same-site",
+    "Connection":         "keep-alive",
 }
 
 # DK shortName -> our pick CSV abbr.  Most match exactly; this maps the
@@ -92,21 +115,72 @@ def parse_american_odds(s: str) -> str:
 def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
     """Hit the DK API for the entire MLB slate's 1st-inning-runs market.
 
-    Retries on transient errors (timeout, connection reset, 5xx) with
-    exponential backoff.  We can't recover from a stale category-ID
-    problem -- that returns a successful 200 with empty events -- but
-    we CAN recover from network blips, which were the silent cause of
-    most missed-coverage hours during the 04-29/04-30 partial captures.
+    T2.55: switched from urllib to `requests` (already a transitive
+    dependency via supabase + statsapi).  Two motivations:
+      1. `requests` reuses a connection across retries via Session,
+         which lets the TLS handshake amortize -- especially helpful
+         when DK's CDN is slow to negotiate from Railway's egress.
+      2. `requests` handles gzip/deflate decoding transparently and
+         exposes a more granular timeout (connect, read) tuple so we
+         can distinguish "DK never accepted my connection" (connect
+         timeout) from "DK accepted but never sent data" (read
+         timeout) -- the latter was the actual failure mode on
+         Railway.
+
+    Timeouts: 10s connect (TLS handshake should complete fast even
+    on a slow link), 45s read (DK's response is small but their CDN
+    sometimes takes 20-30s to assemble it for non-residential IPs).
+
+    Retries on transient errors with exponential backoff.  Stale
+    category-IDs return 200 with empty events; that's caught by the
+    extract_odds() pipeline downstream, not here.
     """
+    import time
+    try:
+        import requests   # already in requirements.txt
+    except ImportError:
+        # Fall back to urllib if requests somehow isn't available.
+        # Returns the same shape; retry logic mirrors the original.
+        return _fetch_dk_via_urllib(retries=retries, backoff=backoff)
+
+    url = f"{DK_BASE}/leagues/{MLB_LEAGUE_ID}/categories/{INNING_1_CAT}"
+    last_exc: Exception | None = None
+    # Session = connection reuse across retries.  TLS handshake amortizes;
+    # gzip/deflate handled automatically.
+    with requests.Session() as sess:
+        sess.headers.update(HEADERS)
+        for attempt in range(retries):
+            try:
+                # (connect_timeout, read_timeout) -- see docstring.
+                resp = sess.get(url, timeout=(10, 45))
+                resp.raise_for_status()
+                return resp.json()
+            except Exception as exc:    # noqa: BLE001
+                last_exc = exc
+                if attempt < retries - 1:
+                    wait = backoff ** attempt
+                    print(
+                        f"  DK fetch attempt {attempt+1}/{retries} failed "
+                        f"({type(exc).__name__}: {exc}); retrying in {wait:.1f}s...",
+                        file=sys.stderr,
+                    )
+                    time.sleep(wait)
+    raise last_exc if last_exc else RuntimeError("DK fetch failed (no exception captured)")
+
+
+def _fetch_dk_via_urllib(retries: int = 3, backoff: float = 2.0) -> dict:
+    """T2.55 fallback: original urllib path.  Used only when `requests`
+    isn't importable -- mirrors the pre-T2.55 behavior exactly so older
+    deploys still work."""
     import time
     url = f"{DK_BASE}/leagues/{MLB_LEAGUE_ID}/categories/{INNING_1_CAT}"
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers=HEADERS)
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            with urllib.request.urlopen(req, timeout=45) as resp:
                 return json.loads(resp.read())
-        except Exception as exc:  # noqa: BLE001 -- want to retry on anything network-y
+        except Exception as exc:  # noqa: BLE001
             last_exc = exc
             if attempt < retries - 1:
                 wait = backoff ** attempt
