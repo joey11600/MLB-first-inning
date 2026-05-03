@@ -446,11 +446,33 @@ def _resolve_dh_g2_start(g1_pk: int, g2_pk: int) -> str | None:
 # Pitcher stat fetching
 # ---------------------------------------------------------------------------
 
-def _pitcher_quality_tag(ip: float) -> str:
-    """Quality label based on innings pitched in the reference season."""
-    if ip >= 80: return "live"
-    if ip >= 20: return "ltd"
-    if ip >= 1:  return "sm"
+def _pitcher_quality_tag(ip: float, prior_ip: float = 0.0) -> str:
+    """Quality label based on EFFECTIVE innings of evidence.
+
+    T2.53: was current-season-IP-only.  That broke catastrophically in
+    early/mid season -- e.g. on 2026-05-03 (32 days into the season),
+    Max Fried had ~30 IP for 2026 but 1127 career IP including 165 IP
+    in 2025.  Old logic tagged him "ltd" because curr_ip < 80; reality
+    is he has overwhelming evidence.  The Bayesian blend in
+    _blend_pitcher correctly uses prior-year data, so the stats fed to
+    the model are accurate -- but the quality TAG was misleading the
+    operator about data confidence.
+
+    New logic: tag based on `effective_ip = curr + min(prior, 120)`.
+    Prior-year IP only counts when >= 20 (matching the blend's prior
+    threshold).  Capped at 120 since we don't trust >2y of history
+    over current-year noise on a pitcher's recent change of stuff.
+
+    Tier thresholds calibrated to season-progress neutrality:
+      live (>=100 effective IP)  -- model has solid evidence
+      ltd  (>=30  effective IP)  -- usable but with shrinkage
+      sm   (>=1   effective IP)  -- thin sample
+      avg  (0)                   -- no usable data, league fallback
+    """
+    effective = ip + (min(prior_ip, 120.0) if prior_ip >= 20 else 0.0)
+    if effective >= 100: return "live"
+    if effective >= 30:  return "ltd"
+    if effective >= 1:   return "sm"
     return "avg"
 
 
@@ -598,7 +620,14 @@ def fetch_pitcher_stats(player_id: int | None, known_name: str, season: int) -> 
 
     if curr and curr["ip"] >= 1:
         blended = _blend_pitcher(curr, curr["ip"], extra_prior=prev)
-        quality = _pitcher_quality_tag(curr["ip"])
+        # T2.53: consider prior year's IP when grading quality so a
+        # mid-April Max Fried with 25 curr_IP + 165 prev_IP still tags
+        # "live" instead of "ltd".  Falls through to current-only when
+        # prior is missing or too thin.
+        quality = _pitcher_quality_tag(
+            curr["ip"],
+            prior_ip=(prev["ip"] if prev and prev.get("ip", 0) >= 20 else 0.0),
+        )
     elif prev and prev["ip"] >= 20:
         # Pitcher hasn't thrown in the new season yet - use prior year
         # with heavier league-avg regression (75% max trust for prior year)
@@ -2080,6 +2109,17 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             wx_temp_c=wx_temp, wx_wind_kmh=wx_wind, wx_is_dome=wx_dome,
         )
 
+        # T2.53: track ALL applicable PASS reasons so a row that hits
+        # multiple guards (e.g. lineup not posted AND a debut pitcher)
+        # surfaces both, not just the most-terminal one.  Old behavior
+        # silently overrode "LINEUP PENDING" with "NO DATA" when a
+        # pitcher_q was 'avg', hiding the lineup-pending fact from
+        # the operator.  Confirmed via 2026-05-03 BAL@NYY: lineup
+        # was empty AND Trey Gibson was a debut (avg quality), but
+        # the row showed only "PASS - No data" -- operator couldn't
+        # tell the lineup also wasn't posted.
+        pass_reasons: list[str] = []
+
         # Lineup-pending guard: lineup data drives top3c_obp / top3c_slg /
         # top3c_iso (the strongest offense features).  When lineups haven't
         # posted yet we substitute team-level full-season averages, which
@@ -2092,7 +2132,8 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # strictly more severe missing-data condition than LINEUP PENDING.
         if (pick_conf != "NO DATA"
                 and (away_top3c_source != "lineup" or home_top3c_source != "lineup")):
-            pick_side, pick_conf = "PASS", "LINEUP PENDING"
+            pick_side = "PASS"
+            pass_reasons.append("LINEUP PENDING")
 
         # T2.24 -- Differentiate "starter not announced" from "starter
         # announced but limited MLB stats" (rookie debut, recent call-up,
@@ -2107,27 +2148,37 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         #     MLB stats history is too thin for the model to draw a real
         #     prediction from.  Will NOT resolve unless the pitcher
         #     accumulates innings.  System will not bet either way.
-        #
-        # The previous code emitted STARTER PENDING for both cases, which
-        # mislead users into thinking the starter wasn't named when in
-        # fact it was a rookie debut.  Confirmed via 2026-05-01 HOU@BOS:
-        # Jake Bennett (id 687562, real player) was named as Boston's
-        # starter; statsapi returned 0 games across 2024/2025/2026.  Tonight
-        # is his MLB debut.  Old label: STARTER PENDING (wrong).  New
-        # label: NO DATA (truthful).
         if away_sp_q == "avg" or home_sp_q == "avg":
             def _name_announced(name: str) -> bool:
                 s = (name or "").strip().upper()
                 return bool(s) and s not in ("TBD", "TBA", "UNDECIDED", "UNKNOWN")
             away_unannounced = away_sp_q == "avg" and not _name_announced(game.get("away_pitcher_name", ""))
             home_unannounced = home_sp_q == "avg" and not _name_announced(game.get("home_pitcher_name", ""))
+            pick_side = "PASS"
             if away_unannounced or home_unannounced:
                 # At least one avg-quality pitcher has no name -> truly STARTER PENDING.
-                pick_side, pick_conf = "PASS", "STARTER PENDING"
+                pass_reasons.append("STARTER PENDING")
             else:
                 # All avg-quality pitchers have real names -> data is the issue.
                 # Both verdicts are PASS, but NO DATA is the truthful label.
-                pick_side, pick_conf = "PASS", "NO DATA"
+                pass_reasons.append("NO DATA")
+
+        # T2.53: collapse the list into a primary conf for `pick_strength`
+        # plus the full ordered list of reasons for label assembly.
+        # `pick_strength` stays a single token (so existing dashboard /
+        # filter / variant code that does `pick_strength == "LINEUP PENDING"`
+        # keeps working).  `pass_reasons` flows through to tracker.log_picks
+        # which composes the full compound label like "PASS - Lineup pending
+        # + No data" so the operator sees every applicable guard.
+        if pass_reasons:
+            # Stable order: LINEUP PENDING first (transient -- resolves on
+            # its own when the lineup posts).  STARTER PENDING / NO DATA
+            # are permanent for the day, surfaced after the transient one.
+            order = ["LINEUP PENDING", "STARTER PENDING", "NO DATA",
+                     "LOW LAMBDA", "NO EDGE"]
+            pass_reasons.sort(key=lambda r: order.index(r) if r in order else 99)
+            # Primary token = first in the ordered list (most actionable)
+            pick_conf = pass_reasons[0]
 
         results.append({
             "game_pk":       game["game_pk"],
@@ -2198,6 +2249,10 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "away_avg_ip_per_start":      away_avg_ip,
             "pick_side":     pick_side,
             "pick_conf":     pick_conf,
+            # T2.53: full ordered list of PASS reasons (empty for non-PASS
+            # rows or single-reason PASS where pick_conf already says it).
+            # Tracker.log_picks composes the compound label from this.
+            "pass_reasons":  list(pass_reasons),
             "away": {
                 "abbr":         away_ab,
                 "pitcher_id":   game["away_pitcher_id"],

@@ -440,16 +440,40 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
         hp     = g["home"]
 
         if side == "PASS":
-            if conf == "NO DATA":
-                label = "PASS - No data"
-            elif conf == "STARTER PENDING":
-                label = "PASS - Starter pending"
-            elif conf == "LINEUP PENDING":
-                label = "PASS - Lineup pending"
-            elif conf == "LOW LAMBDA":
-                label = "PASS - Low lambda"
+            # T2.53: when the predictor surfaces multiple PASS reasons
+            # (e.g. lineup pending AND a debut pitcher), compose a
+            # compound label like "PASS - Lineup pending + No data" so
+            # the operator sees every applicable guard.  Single-reason
+            # rows look identical to the pre-T2.53 output.
+            #
+            # `pass_reasons` is a list passed through from
+            # mlb_first_inning_predictor.predict_slate; falls back to
+            # the single-token `conf` if absent (older callers, or
+            # rows where classify_pick_lr produced PASS directly
+            # without going through the guards).
+            _LABELS = {
+                "NO DATA":         "No data",
+                "STARTER PENDING": "Starter pending",
+                "LINEUP PENDING":  "Lineup pending",
+                "LOW LAMBDA":      "Low lambda",
+                "NO EDGE":         "No edge",
+            }
+            reasons = g.get("pass_reasons") or []
+            if not reasons:
+                # Single-reason path -- use conf directly.
+                if conf == "NO DATA":
+                    label = "PASS - No data"
+                elif conf == "STARTER PENDING":
+                    label = "PASS - Starter pending"
+                elif conf == "LINEUP PENDING":
+                    label = "PASS - Lineup pending"
+                elif conf == "LOW LAMBDA":
+                    label = "PASS - Low lambda"
+                else:
+                    label = "PASS - No edge"
             else:
-                label = "PASS - No edge"
+                parts = [_LABELS.get(r, r.title()) for r in reasons]
+                label = "PASS - " + " + ".join(parts)
         else:
             label = f"{conf} {side}"
 
