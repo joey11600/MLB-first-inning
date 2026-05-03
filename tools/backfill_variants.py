@@ -276,8 +276,8 @@ def main() -> None:
         # eligible.  Mirror production's PASS reason verbatim.
         prod_strength = (row.get("pick_strength") or "").upper()
         DATA_PASS = {"LINEUP PENDING", "STARTER PENDING", "NO DATA"}
+        from db.variants import VariantPick, _label_for, VARIANT_D_LAMBDA_FLOOR
         if prod_strength in DATA_PASS:
-            from db.variants import VariantPick, _label_for
             forced = VariantPick(
                 pick_side="PASS",
                 pick_strength=prod_strength,
@@ -285,7 +285,40 @@ def main() -> None:
                 nrfi_prob=variants["A"].nrfi_prob,
                 yrfi_prob=variants["A"].yrfi_prob,
             )
-            variants = {"A": forced, "C": forced, "AC": forced}
+            variants = {k: forced for k in variants}
+
+        # T2.52 fix: Variant D as a CLEAN POST-FILTER on production's
+        # recorded verdict.  Avoids feature-reconstruction noise that
+        # causes border-line NRFI picks to flip due to small float
+        # differences (verified empirically: D-via-recompute showed
+        # disagreements on STRONG NRFI rows, which is impossible if
+        # lambda floor only applies to YRFI side).
+        #
+        # The CORRECT definition of variant D: "production's recipe but
+        # with lambda floor at 1.00".  Implementation: take production's
+        # pick + verdict + probability AS RECORDED, then if production
+        # would bet YRFI AND lambda_lr_total < 1.00, demote to
+        # PASS LOW LAMBDA.  Otherwise variant D == production.
+        prod_side  = (row.get("pick_side") or "").upper()
+        prod_lambd = _to_float(row.get("lambda_lr_total"), 1.0)
+        prod_nrfi  = _to_float(row.get("nrfi_prob"), 0.5)
+        if prod_side == "YRFI" and prod_lambd < VARIANT_D_LAMBDA_FLOOR:
+            variants["D"] = VariantPick(
+                pick_side="PASS", pick_strength="LOW LAMBDA",
+                pick_label=_label_for("PASS", "LOW LAMBDA"),
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+            )
+        else:
+            # Mirror production verbatim -- same pick, same strength,
+            # same prob.  Avoids border-line drift from recompute.
+            variants["D"] = VariantPick(
+                pick_side=prod_side or "PASS",
+                pick_strength=prod_strength or "NO EDGE",
+                pick_label=row.get("pick_label") or _label_for(prod_side or "PASS",
+                                                                prod_strength or "NO EDGE"),
+                nrfi_prob=prod_nrfi,
+                yrfi_prob=1.0 - prod_nrfi,
+            )
 
         for vname, pick in variants.items():
             would_bet, would_be_units = variant_would_bet(

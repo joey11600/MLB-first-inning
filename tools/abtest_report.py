@@ -61,12 +61,25 @@ def fetch_production(client: Any, season: int, since: str | None) -> list[dict]:
 
 
 def fetch_variants(client: Any, since: str | None) -> dict[tuple[str, str, str], dict]:
-    """Pull all pick_variants rows.  Indexed by (date, game_pk, variant_name)."""
-    q = client.table("pick_variants").select("*")
-    if since:
-        q = q.gte("date", since)
-    rows = q.execute().data or []
-    return {(r["date"], r["game_pk"], r["variant_name"]): r for r in rows}
+    """Pull all pick_variants rows.  Indexed by (date, game_pk, variant_name).
+    Paginates because Supabase default page size is 1000 and the table
+    grows past that within ~9 days (4 variants x ~14 picks per slate)."""
+    PAGE = 1000
+    all_rows: list[dict] = []
+    offset = 0
+    while True:
+        q = client.table("pick_variants").select("*")
+        if since:
+            q = q.gte("date", since)
+        q = q.range(offset, offset + PAGE - 1)
+        page = q.execute().data or []
+        if not page:
+            break
+        all_rows.extend(page)
+        if len(page) < PAGE:
+            break
+        offset += PAGE
+    return {(r["date"], r["game_pk"], r["variant_name"]): r for r in all_rows}
 
 
 def aggregate(picks: list[dict], variant_lookup: dict, variant_name: str | None) -> dict:
@@ -266,12 +279,12 @@ def main() -> None:
 
     prod_agg     = aggregate(prod_picks, var_lookup, None)
     variant_aggs = {
-        v: aggregate(prod_picks, var_lookup, v) for v in ("A", "C", "AC")
+        v: aggregate(prod_picks, var_lookup, v) for v in ("A", "C", "AC", "D")
     }
 
     print_summary(prod_agg, variant_aggs)
 
-    for v in ("A", "C", "AC"):
+    for v in ("A", "C", "AC", "D"):
         diffs = disagreements(prod_picks, var_lookup, v)
         print_disagreements(diffs, v, args.top)
 

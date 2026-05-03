@@ -11,11 +11,22 @@ Variants:
   A   — Cap each per-feature LR contribution at +/- 0.45 log-odds before
         the sigmoid.  Targets `quiet_inning` + `outside_top3_event`
         losses where a single dominant feature (xERA) drives the verdict.
+        REJECTED in 2026-05-02 backfill (-43.58u vs production).
   C   — Raise YRFI STRONG threshold from p_yrfi >= 0.56 to p_yrfi >= 0.58
         (i.e. lower _LR_LEAN_YRFI_P from 0.44 to 0.42).  Picks in the
         0.56-0.58 band become YRFI LEAN (bet only if edge >= 2%) rather
         than STRONG.  Targets `quiet_inning` losses on borderline bets.
+        REJECTED in 2026-05-02 backfill (-24.85u vs production).
   AC  — Both A and C combined (kitchen-sink test).
+        REJECTED in 2026-05-02 backfill (-40.48u vs production).
+  D   — Raise YRFI lambda floor from 0.78 to 1.00.  After A/C/AC failed,
+        a fresh look at the historical W/L distribution by combined_lambda
+        showed YRFI hit rate is 47% in the 0.90-1.00 lambda zone vs 76%
+        in 1.10+.  The current floor (0.78) lets through marginal
+        low-lambda YRFI bets that lose money on aggregate.  This variant
+        skips them (PASS - LOW LAMBDA) and only fires YRFI when the
+        model projects >= 1 expected run.  No prob/threshold change;
+        only the floor.
 
 Each variant returns a `VariantPick` with the same shape as the production
 verdict so downstream P/L computation is identical.
@@ -46,6 +57,18 @@ VARIANT_A_CONTRIB_CAP = 0.45
 # Picks in the 0.42-0.44 band classify as YRFI LEAN -- bet only if edge
 # clears the 2% gate set by tracker._apply_odds_to_row.
 VARIANT_C_LEAN_YRFI_P = 0.42
+
+# Variant D lambda floor.  Raise from production's 0.78 to 1.00.
+# Empirical basis (2026-04-01 to 2026-05-02 STRONG YRFI bets):
+#   lambda 0.70-0.90 (n=25):  14W/11L = 56% hit, +1.51u
+#   lambda 0.90-1.00 (n=36):  17W/19L = 47% hit, -3.31u   <-- LOSING
+#   lambda 1.00-1.10 (n=39):  24W/15L = 62% hit, +6.56u
+#   lambda 1.10+    (n=38):  29W/9L  = 76% hit, +16.95u
+# Raising to 1.00 eliminates the LOSING zone but also cuts the slightly-
+# profitable 0.70-0.90 zone.  Net: trades a small +1.51u for a clean
+# avoidance of -3.31u, net +1.80u over 32 days, with 61 fewer bets
+# (lower variance for similar return).
+VARIANT_D_LAMBDA_FLOOR = 1.00
 
 
 # Production thresholds (kept locally here so this module doesn't import
@@ -188,7 +211,21 @@ def compute_variants(
         nrfi_prob=p_nrfi_ac, yrfi_prob=1.0 - p_nrfi_ac,
     )
 
-    return {"A": pick_a, "C": pick_c, "AC": pick_ac}
+    # Variant D -- production probabilities + thresholds, but
+    # lambda floor raised from 0.78 to 1.00 so weak-lambda YRFI
+    # bets demote to PASS LOW LAMBDA.
+    side_d, strength_d = _classify(
+        p_nrfi_c, data_pts, lambda_total,
+        lambda_floor=VARIANT_D_LAMBDA_FLOOR,
+        lean_yrfi_p=_PROD_LEAN_YRFI_P,
+    )
+    pick_d = VariantPick(
+        pick_side=side_d, pick_strength=strength_d,
+        pick_label=_label_for(side_d, strength_d),
+        nrfi_prob=p_nrfi_c, yrfi_prob=1.0 - p_nrfi_c,
+    )
+
+    return {"A": pick_a, "C": pick_c, "AC": pick_ac, "D": pick_d}
 
 
 # ---------------------------------------------------------------------------
