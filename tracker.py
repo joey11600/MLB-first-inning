@@ -642,9 +642,19 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             # humidity shifted >20pp.  Function self-dedups via
             # notifications_log so we don't spam if cron tracks the
             # underlying drift across multiple cycles.
+            #
+            # T2.49 fix: also gate on `not _pick_is_locked(...)` so the
+            # alert ONLY fires while the bet is still pre-game.  Without
+            # this gate, the wx values keep drifting across the day after
+            # the game ends, the 6-hour dedup window expires, and a
+            # post-game refresh fires a "weather shift on STRONG YRFI
+            # BAL@NYY" ping for a game that finished hours ago.
+            # Confirmed via 2026-05-02 BAL@NYY (1:35 PM ET, graded LOSS):
+            # weather alerts continued firing past 7 PM ET.
             try:
                 if (existing.get("bet_placed") or "").upper() == "Y" and \
-                   (existing.get("pick_strength") or "").upper() == "STRONG":
+                   (existing.get("pick_strength") or "").upper() == "STRONG" and \
+                   not _pick_is_locked(existing, iso_date):
                     def _f(x):
                         try: return float(x or 0)
                         except (ValueError, TypeError): return 0.0
@@ -1344,6 +1354,14 @@ def _notify_strong_weather_telegram(row: dict, change_summary: str) -> None:
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
         return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    # T2.49: defense in depth -- never alert on a game that's already
+    # been graded (terminal) or postponed.  The call site in log_picks
+    # already gates on _pick_is_locked, but a future caller could forget
+    # this guard, so block it here too.  Cheap check; saves the user
+    # from "weather shift on a game that ended 5 hours ago" pings.
+    grade = (row.get("graded_result") or "").strip().upper()
+    if grade in ("WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"):
         return
     side     = (row.get("pick_side") or "").upper()
     away     = (row.get("away_team") or "").upper()
