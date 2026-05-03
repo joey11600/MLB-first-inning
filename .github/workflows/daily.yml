@@ -285,6 +285,19 @@ jobs:
           set +e
           python tools/analyze_losses.py 2>&1 || echo "::warning::analyze_losses failed (non-blocking)"
 
+      - name: Backfill variants A/C/AC (T2.51 A/B harness)
+        if: steps.action.outputs.what == 'grade'
+        # Re-runs the variant backfill after each grade cycle so the
+        # pick_variants table stays current with newly-graded rows.
+        # Default invocation skips already-done (date, game_pk, variant)
+        # tuples so steady-state cost is just the new picks.  Soft-fail.
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          python tools/backfill_variants.py 2>&1 || echo "::warning::backfill_variants failed (non-blocking)"
+
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
         run: |

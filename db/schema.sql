@@ -20,6 +20,7 @@
 --   odds_history        — per-scrape line history (Phase 5 multi-book)
 --   notifications_log   — Telegram-ping audit + dedup window source (T2.38)
 --   loss_analysis       — per-loss failure-mode classification (T2.48)
+--   pick_variants       — A/B harness shadow picks (T2.51)
 --
 -- Realtime publication: picks_2026, pick_changes, live_game_state are added
 -- so the dashboard can subscribe to row changes via Supabase Realtime.
@@ -323,6 +324,58 @@ CREATE INDEX IF NOT EXISTS idx_loss_analysis_mode_date ON loss_analysis (primary
 CREATE INDEX IF NOT EXISTS idx_loss_analysis_date     ON loss_analysis (date DESC);
 
 -- =============================================================================
+-- pick_variants — T2.51 A/B harness shadow picks.
+--
+-- For every game in picks_<season>, we store 3 SHADOW pick verdicts
+-- alongside the production verdict so we can compare in aggregate
+-- which model variant would have produced more P/L over the same
+-- slate.  Variants run the SAME LR model + calibrator as production
+-- but apply post-LR transformations:
+--
+--   A   — Cap each per-feature LR contribution at +/- 0.45 log-odds.
+--         Targets `quiet_inning` + `outside_top3_event` losses where
+--         a single dominant feature (xERA) drives the verdict.
+--   C   — Lower _LR_LEAN_YRFI_P 0.44 -> 0.42 (require p_yrfi >= 0.58
+--         instead of 0.56 for STRONG YRFI).  Targets `quiet_inning`.
+--   AC  — Both A and C combined (kitchen-sink test).
+--
+-- No real bets are placed for variants -- this is purely a
+-- counterfactual harness.  `would_be_units` and `profit_loss_units`
+-- are computed against the same market odds picks_2026 used.
+--
+-- Composite PK (date, game_pk, variant_name) so re-running the
+-- backfill is idempotent.  The backfill mirrors production's
+-- LINEUP/STARTER/NO DATA PASS guards onto variants so the A/B is
+-- a fair LR-vs-LR comparison and not "variants discover bets on
+-- lineup-pending games."
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS pick_variants (
+  date              DATE NOT NULL,
+  game_pk           TEXT NOT NULL,
+  variant_name      TEXT NOT NULL,    -- 'A' | 'C' | 'AC'
+  PRIMARY KEY (date, game_pk, variant_name),
+
+  away_team         TEXT,
+  home_team         TEXT,
+  pick_side         TEXT,
+  pick_strength     TEXT,
+  pick_label        TEXT,
+  nrfi_prob         REAL,
+  yrfi_prob         REAL,
+  would_be_units    REAL,
+  would_bet         BOOLEAN,
+  graded_result     TEXT,
+  fi_total_runs     INT,
+  profit_loss_units REAL,
+  classified_at     TIMESTAMPTZ DEFAULT NOW(),
+  graded_at         TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_pick_variants_date    ON pick_variants (date DESC);
+CREATE INDEX IF NOT EXISTS idx_pick_variants_variant ON pick_variants (variant_name, date DESC);
+CREATE INDEX IF NOT EXISTS idx_pick_variants_graded  ON pick_variants (variant_name, graded_result)
+  WHERE graded_result IS NOT NULL;
+
+-- =============================================================================
 -- Realtime publication.  Tables added here push row changes to subscribed
 -- clients (the dashboard) within ~200ms.  Excludes odds_history because the
 -- dashboard doesn't need to subscribe to every odds scrape — it queries on
@@ -373,6 +426,7 @@ ALTER TABLE live_game_state   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE odds_history      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loss_analysis     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pick_variants     ENABLE ROW LEVEL SECURITY;
 
 -- anon SELECT-only
 DROP POLICY IF EXISTS picks_2026_anon_read       ON picks_2026;
@@ -389,6 +443,8 @@ DROP POLICY IF EXISTS notifications_log_anon_read ON notifications_log;
 CREATE POLICY      notifications_log_anon_read ON notifications_log FOR SELECT TO anon USING (true);
 DROP POLICY IF EXISTS loss_analysis_anon_read   ON loss_analysis;
 CREATE POLICY      loss_analysis_anon_read   ON loss_analysis   FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS pick_variants_anon_read   ON pick_variants;
+CREATE POLICY      pick_variants_anon_read   ON pick_variants   FOR SELECT TO anon USING (true);
 
 -- authenticated SELECT-only (Supabase Realtime sometimes resolves to
 -- the authenticated role even with an anon JWT in v2 of the JS client;
@@ -407,6 +463,8 @@ DROP POLICY IF EXISTS notifications_log_auth_read ON notifications_log;
 CREATE POLICY      notifications_log_auth_read ON notifications_log FOR SELECT TO authenticated USING (true);
 DROP POLICY IF EXISTS loss_analysis_auth_read   ON loss_analysis;
 CREATE POLICY      loss_analysis_auth_read   ON loss_analysis   FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS pick_variants_auth_read   ON pick_variants;
+CREATE POLICY      pick_variants_auth_read   ON pick_variants   FOR SELECT TO authenticated USING (true);
 
 -- Pin the trigger function's search_path so it's immune to attacks
 -- that mutate search_path before the function executes.
