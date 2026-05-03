@@ -95,6 +95,28 @@ export function SummaryStrip({
   const plClass = pl > 0 ? styles.plPositive : pl < 0 ? styles.plNegative : "";
   const winRate = bets > 0 ? (wins / bets) * 100 : null;
 
+  // T2.54: Today's CLV summary -- average closing-line value across
+  // STRONG bets that have both opened + closing odds captured.  Positive
+  // CLV = market moved toward our pick by pickup time (we beat the
+  // close).  Long-run CLV correlates with model sharpness better than
+  // any single day's W/L.  Each clvPct is already (close_implied -
+  // open_implied) on the picked side, in raw probability; convert to
+  // percentage points for display.
+  let clvSum = 0;
+  let clvN   = 0;
+  for (const r of rows) {
+    if (!(r.pickSide === "NRFI" || r.pickSide === "YRFI")) continue;
+    if (r.pickStrength !== "STRONG") continue;
+    const d = lookupDetail(r);
+    if (!d) continue;
+    if (typeof d.clvPct !== "number" || !Number.isFinite(d.clvPct)) continue;
+    clvSum += d.clvPct;
+    clvN   += 1;
+  }
+  const clvAvgPp = clvN > 0 ? (clvSum / clvN) * 100 : null;
+  const clvSign = clvAvgPp == null ? "" : (clvAvgPp >= 0 ? "+" : "");
+  const clvClass = clvAvgPp == null ? "" : (clvAvgPp > 0 ? styles.plPositive : clvAvgPp < 0 ? styles.plNegative : "");
+
   return (
     <section className={styles.wrap} aria-label="Slate summary">
       <div className={styles.tiles}>
@@ -156,6 +178,30 @@ export function SummaryStrip({
             )}
           </div>
         </div>
+
+        {/* T2.54: Today's CLV.  Hidden when no STRONG bets have both
+            opened + closing odds captured (early in the slate, before
+            we've imported odds twice for any game).  Shown as avg pp
+            delta with the same +/- color treatment as P&L. */}
+        {clvAvgPp !== null && clvN > 0 && (
+          <div className={styles.tile} title={
+            `Closing-line value averaged across ${clvN} STRONG bet(s) `
+            + `today.  Positive = market moved toward our pick by close `
+            + `(we beat the close = sharp).  Long-run CLV correlates with `
+            + `model edge better than single-day W/L.`
+          }>
+            <div className="eyebrow">Today CLV</div>
+            <div className={`${styles.big} ${clvClass}`}>
+              {clvSign}{clvAvgPp.toFixed(2)}
+              <span className={styles.plUnit}>pp</span>
+            </div>
+            <div className={styles.foot}>
+              <span className={styles.footCell}>
+                avg over {clvN} STRONG bet{clvN === 1 ? "" : "s"}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className={styles.distribution}>
           <div className="eyebrow">Distribution</div>

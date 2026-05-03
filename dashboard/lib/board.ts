@@ -239,6 +239,11 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
                       : "") as "" | "Y" | "N",
       unitsRisked:    toNumber(r.units_risked),
       profitLossUnits: toNumber(r.profit_loss_units),
+      // T2.54: opened odds + CLV for line-drift display
+      openedNrfiOdds:   r.opened_nrfi_odds ?? "",
+      openedYrfiOdds:   r.opened_yrfi_odds ?? "",
+      openedCapturedAt: r.opened_captured_at ?? "",
+      clvPct:           toNumber(r.clv_pct),
       home: {
         team: r.home_team,
         pitcher: {

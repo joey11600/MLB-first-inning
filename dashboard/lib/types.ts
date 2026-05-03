@@ -105,6 +105,14 @@ export interface GameDetail {
   betPlaced:      "" | "Y" | "N";// Y = edge >= min_edge; N = below threshold; "" = no odds
   unitsRisked:    number | null;
   profitLossUnits: number | null;
+  // T2.54: opening odds + CLV for line-drift display.  Captured the
+  // first time we saw odds for this game; the delta from open to close
+  // tells the user whether the market is moving toward or away from
+  // their pick (and quantifies it as CLV in pp).
+  openedNrfiOdds:   string;      // American format; "" when never captured
+  openedYrfiOdds:   string;
+  openedCapturedAt: string;      // ISO timestamp; empty when no opened odds
+  clvPct:           number | null; // (close implied prob - open implied prob) on the picked side
   away: {
     team: string;
     pitcher: PitcherStats;

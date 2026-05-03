@@ -257,6 +257,11 @@ function rowToGameDetail(r: PickRow): GameDetail {
     })() as "" | "Y" | "N",
     unitsRisked:     num(r.units_risked),
     profitLossUnits: num(r.profit_loss_units),
+    // T2.54: opened odds + CLV for line-drift chip
+    openedNrfiOdds:   str(r.opened_nrfi_odds),
+    openedYrfiOdds:   str(r.opened_yrfi_odds),
+    openedCapturedAt: str(r.opened_captured_at),
+    clvPct:           num(r.clv_pct),
   };
 }
 

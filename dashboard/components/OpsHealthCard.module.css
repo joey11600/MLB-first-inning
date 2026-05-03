@@ -1,0 +1,248 @@
+/* T2.54 -- Ops health card.  Compact, pill-style; clickable to expand
+   into a per-step error breakdown and recent-error list. */
+
+.wrap {
+  margin: 12px 0 0;
+}
+
+.card {
+  /* button-as-card: full-width, single horizontal line of metrics */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  transition: border-color 200ms ease, background 200ms ease;
+  position: relative;
+  flex-wrap: wrap;
+}
+.card:hover {
+  border-color: color-mix(in oklab, var(--foreground) 12%, var(--border));
+}
+.card:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--primary) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.label {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+}
+
+.statusText {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sep {
+  opacity: 0.30;
+  font-size: 10px;
+}
+
+.metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.metricLabel {
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.metricValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 12px;
+}
+.metricBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--destructive) 15%, transparent);
+  color: var(--destructive);
+}
+.metricErrs .metricValue {
+  color: var(--destructive);
+}
+
+.detail {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.expandHint {
+  margin-left: auto;
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.refreshDot {
+  position: absolute;
+  top: 6px;
+  right: 30px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 1; }
+}
+
+/* Status-pill colors.  We tint the dot + statusText with `currentColor`
+   set via a per-status class so the same .dot rule renders different
+   colors automatically. */
+.statusOk        { color: var(--primary); }
+.statusOk .label,
+.statusOk .metricLabel { color: var(--muted-foreground); }
+.statusOk .statusText  { color: var(--primary); }
+
+.statusWarn      { color: #c9a227; }   /* amber */
+.statusWarn .statusText { color: #c9a227; }
+
+.statusDegraded  { color: var(--destructive); }
+.statusDegraded .statusText { color: var(--destructive); }
+
+.statusUnknown   { color: var(--muted-foreground); }
+.statusUnknown .statusText { color: var(--muted-foreground); }
+
+/* Expanded panel below the pill */
+.expand {
+  margin-top: 8px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow-1);
+  display: grid;
+  gap: 14px;
+}
+
+.section {
+  display: grid;
+  gap: 6px;
+}
+
+.allClear {
+  color: var(--muted-foreground);
+  font-style: italic;
+  font-size: 12.5px;
+}
+
+.stepList,
+.errList,
+.reasonList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.stepRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 8px;
+  background: color-mix(in oklab, var(--muted-foreground) 6%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.stepName {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+}
+.stepCount {
+  font-weight: 700;
+  color: var(--destructive);
+}
+
+.errRow {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  background: color-mix(in oklab, var(--destructive) 5%, transparent);
+  border-left: 2px solid color-mix(in oklab, var(--destructive) 35%, transparent);
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+.errMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+}
+.errStep {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 600;
+  color: var(--destructive);
+}
+.errTime {
+  color: var(--muted-foreground);
+}
+.errMessage {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: color-mix(in oklab, var(--foreground) 80%, var(--muted-foreground));
+  word-break: break-word;
+}
+
+.reasonRow {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.reasonRow::before {
+  content: "→ ";
+  color: color-mix(in oklab, var(--primary) 60%, var(--muted-foreground));
+  font-weight: 700;
+}
+
+/* Mobile -- compact pill layout (status + predict age only; rest
+   becomes secondary).  The card already wraps via flex-wrap; this
+   tightens spacing and hides the noisier metric labels. */
+@media (max-width: 600px) {
+  .card {
+    gap: 6px;
+    font-size: 11.5px;
+    padding: 8px 12px;
+  }
+  .metricLabel {
+    display: none;
+  }
+  .sep {
+    display: none;
+  }
+  .metric {
+    gap: 4px;
+  }
+  .metric::before {
+    content: "·";
+    opacity: 0.30;
+    font-size: 10px;
+    margin-right: 2px;
+  }
+}

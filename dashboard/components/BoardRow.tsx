@@ -467,6 +467,34 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
   const edgePct = detail.edgeOnPick != null ? detail.edgeOnPick * 100 : null;
   const edgeStr = edgePct == null ? "" : (edgePct >= 0 ? `+${edgePct.toFixed(1)}%` : `${edgePct.toFixed(1)}%`);
 
+  // T2.54: line-drift indicator.  Compare opened vs current odds on the
+  // PICKED side.  Direction interpretation depends on side because
+  // "shorter" odds mean different things for NRFI/YRFI:
+  //   - Open -130 -> current -150 (more juice, harder line, market
+  //     moving in our direction = sharp/agreeing)
+  //   - Open -130 -> current -110 (less juice, market moving away
+  //     from our pick = soft/disagreeing)
+  // We compute the implied-prob delta (positive = market moved
+  // toward our pick, negative = away).  Threshold 0.005 (0.5pp) so
+  // tiny noise doesn't trigger the arrow.
+  const openedPriceForPick = row.pickSide === "NRFI"
+    ? normalizeAmericanOdds(detail.openedNrfiOdds)
+    : normalizeAmericanOdds(detail.openedYrfiOdds);
+  let driftArrow = "";
+  let driftLabel = "";
+  if (openedPriceForPick && openedPriceForPick !== price) {
+    const oOpen = parseAmericanToImpliedProb(openedPriceForPick);
+    const oNow  = parseAmericanToImpliedProb(price);
+    if (oOpen != null && oNow != null) {
+      const delta = oNow - oOpen;            // positive = juice up
+      const ppDelta = delta * 100;            // express in pp
+      if (Math.abs(ppDelta) >= 0.5) {
+        driftArrow = ppDelta > 0 ? "↑" : "↓";
+        driftLabel = `${openedPriceForPick} → ${price} (${ppDelta >= 0 ? "+" : ""}${ppDelta.toFixed(1)}pp)`;
+      }
+    }
+  }
+
   return (
     <span
       className={`${styles.oddsChip} ${toneClass} ${skipClass}`}
@@ -476,6 +504,8 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
           : bet === "N"
             ? `Skipped: edge ${edgeStr || "below threshold"} on ${row.pickSide} @ ${price}`
             : `${row.pickSide} @ ${price}${edgeStr ? ` (edge ${edgeStr})` : ""}`)
+        + (driftLabel ? `\nLine drift: ${driftLabel}` : "")
+        + (detail.clvPct != null ? `\nCLV: ${(detail.clvPct * 100 >= 0 ? "+" : "")}${(detail.clvPct * 100).toFixed(2)}pp` : "")
         + ageSuffix
       }
     >
@@ -484,8 +514,36 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
         <span className={styles.oddsSideLabel}>{sideLabel}</span>
         <span className={styles.oddsPrice}>{price}</span>
       </span>
+      {/* T2.54: edge always inline so it shows on mobile (the standalone
+          .edgeCell is hidden ≤1280px).  Right next to the price, smaller
+          font + dimmer color to stay subordinate to the main odds. */}
+      {edgeStr && (
+        <span className={styles.oddsEdge} aria-label={`edge ${edgeStr}`}>
+          {edgeStr}
+        </span>
+      )}
+      {driftArrow && (
+        <span
+          className={`${styles.oddsDrift} ${driftArrow === "↑" ? styles.oddsDriftUp : styles.oddsDriftDown}`}
+          aria-label={`line moved ${driftArrow === "↑" ? "toward" : "away from"} our pick: ${driftLabel}`}
+        >
+          {driftArrow}
+        </span>
+      )}
     </span>
   );
+}
+
+/** Convert American odds like "-135" or "+115" to implied probability
+ *  (excludes vig).  Used for line-drift delta calc.  Returns null on
+ *  unparseable input. */
+function parseAmericanToImpliedProb(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const trimmed = s.trim().replace("−", "-");
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n === 0) return null;
+  if (n > 0) return 100 / (n + 100);
+  return -n / (-n + 100);
 }
 
 /** Format an ISO timestamp as a relative age ("47 min ago", "14 h ago",

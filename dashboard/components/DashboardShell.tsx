@@ -5,6 +5,7 @@ import type { BoardResponse, BoardRow } from "@/lib/types";
 import { useSupabaseRealtime } from "@/lib/useSupabaseRealtime";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
+import { OpsHealthCard } from "./OpsHealthCard";
 import { RoiPanel } from "./RoiPanel";
 import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
@@ -275,6 +276,8 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           <ThemeToggle />
         </div>
       </header>
+
+      <OpsHealthCard />
 
       <SummaryStrip rows={data.rows} details={data.details} />
 

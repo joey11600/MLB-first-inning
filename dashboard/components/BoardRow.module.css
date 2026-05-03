@@ -630,10 +630,39 @@
   top: -1px;
 }
 .oddsEdge {
+  /* T2.54: edge inline next to the price so mobile (where the
+     standalone .edgeCell is hidden ≤1280px) still sees the model's
+     advantage on the bet.  Subordinate to the price -- smaller font,
+     dimmer color -- so it doesn't compete visually with the odds. */
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 8%, transparent);
+  color: color-mix(in oklab, currentColor 75%, transparent);
+  white-space: nowrap;
+}
+
+/* T2.54: line-drift arrow.  Up = market moved toward our pick (sharper
+   line, market agreeing).  Down = market moved away (softer line). */
+.oddsDrift {
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11px;
+  font-weight: 700;
+  margin-left: 2px;
+  line-height: 1;
+}
+.oddsDriftUp {
+  /* "Sharp" move toward us -- nice green wash regardless of pick side */
+  color: color-mix(in oklab, var(--primary) 80%, var(--foreground));
+}
+.oddsDriftDown {
+  /* "Soft" move away -- muted color */
+  color: color-mix(in oklab, var(--muted-foreground) 80%, var(--foreground));
 }
 
 /* T2.18 — Pick-side tone-coded chip.  The base .oddsChip rendering is
