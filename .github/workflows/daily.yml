@@ -271,6 +271,20 @@ jobs:
             record_err "grade-today" "$?" "$(tail -c 400 grade_t_err.log)"
           fi
 
+      - name: Auto-classify new losses (T2.48)
+        if: steps.action.outputs.what == 'grade'
+        # Runs after grading completes.  analyze_losses.py is idempotent
+        # and skip-by-key, so already-classified losses are no-ops; only
+        # the just-graded LOSS rows get hit.  Soft-fail because the
+        # classifier is observability tooling -- a failure here must
+        # not break the daily grade workflow.
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          python tools/analyze_losses.py 2>&1 || echo "::warning::analyze_losses failed (non-blocking)"
+
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
         run: |
