@@ -19,6 +19,7 @@
 --   live_game_state     — real-time per-game inning/score (Phase 4 worker)
 --   odds_history        — per-scrape line history (Phase 5 multi-book)
 --   notifications_log   — Telegram-ping audit + dedup window source (T2.38)
+--   loss_analysis       — per-loss failure-mode classification (T2.48)
 --
 -- Realtime publication: picks_2026, pick_changes, live_game_state are added
 -- so the dashboard can subscribe to row changes via Supabase Realtime.
@@ -274,6 +275,54 @@ CREATE INDEX IF NOT EXISTS idx_notifications_dedup  ON notifications_log (event_
 CREATE INDEX IF NOT EXISTS idx_notifications_recent ON notifications_log (captured_at_utc DESC);
 
 -- =============================================================================
+-- loss_analysis — T2.48 per-loss failure-mode classification.
+--
+-- One row per (date, game_pk) where graded_result='LOSS', written by
+-- tools/analyze_losses.py.  Each loss is classified into a primary
+-- failure mode so we can aggregate "what's actually going wrong" across
+-- weeks instead of staring at individual losses one at a time.
+--
+-- Categories (mutually exclusive primary; non-primary matches go in
+-- secondary_modes JSONB):
+--   data_quality        — pick was made on 'avg' / sm pitcher_q or batting_q
+--   lineup_changed_late — actual top-3 batters in inning != recorded top-3
+--   outside_top3_event  — NRFI loss; HR or RBI from batter not in top-3
+--   pitcher_dominated   — YRFI loss; K rate >=40% of plate appearances
+--   sequencing          — YRFI loss; >=2 baserunners but DP/K-RISP killed it
+--   bunched_contact     — NRFI loss; legitimate hits clustered, no anomaly
+--   other               — fallback when no rule matches cleanly
+--
+-- Idempotent: re-running the analyzer on the same loss UPSERTs by
+-- (date, game_pk) so re-classification (after a classifier update)
+-- doesn't dupe rows.  Composite PK matches picks_2026 so joins are
+-- a one-to-one foreign-key-style read.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS loss_analysis (
+  date              DATE NOT NULL,
+  game_pk           TEXT NOT NULL,
+  PRIMARY KEY (date, game_pk),
+
+  away_team         TEXT,
+  home_team         TEXT,
+  pick_side         TEXT,        -- 'NRFI' | 'YRFI'
+  pick_strength     TEXT,        -- 'STRONG' | 'LEAN'
+  pick_prob         REAL,        -- model's confidence at pick time (max(nrfi_prob,yrfi_prob))
+  fi_total_runs     INT,         -- actual 1st-inning runs scored
+  units_lost        REAL,        -- positive number; profit_loss_units flipped to absolute
+
+  primary_mode      TEXT NOT NULL,  -- one of the categories above
+  secondary_modes   JSONB DEFAULT '[]'::jsonb,
+  notes             TEXT,           -- 1-2 sentence human-readable summary
+
+  classified_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Hot path: aggregate by primary_mode within a date window
+CREATE INDEX IF NOT EXISTS idx_loss_analysis_mode_date ON loss_analysis (primary_mode, date DESC);
+-- Recent-losses query
+CREATE INDEX IF NOT EXISTS idx_loss_analysis_date     ON loss_analysis (date DESC);
+
+-- =============================================================================
 -- Realtime publication.  Tables added here push row changes to subscribed
 -- clients (the dashboard) within ~200ms.  Excludes odds_history because the
 -- dashboard doesn't need to subscribe to every odds scrape — it queries on
@@ -323,6 +372,7 @@ ALTER TABLE system_errors     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE live_game_state   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE odds_history      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE loss_analysis     ENABLE ROW LEVEL SECURITY;
 
 -- anon SELECT-only
 DROP POLICY IF EXISTS picks_2026_anon_read       ON picks_2026;
@@ -337,6 +387,8 @@ DROP POLICY IF EXISTS odds_history_anon_read     ON odds_history;
 CREATE POLICY      odds_history_anon_read     ON odds_history     FOR SELECT TO anon USING (true);
 DROP POLICY IF EXISTS notifications_log_anon_read ON notifications_log;
 CREATE POLICY      notifications_log_anon_read ON notifications_log FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS loss_analysis_anon_read   ON loss_analysis;
+CREATE POLICY      loss_analysis_anon_read   ON loss_analysis   FOR SELECT TO anon USING (true);
 
 -- authenticated SELECT-only (Supabase Realtime sometimes resolves to
 -- the authenticated role even with an anon JWT in v2 of the JS client;
@@ -353,6 +405,8 @@ DROP POLICY IF EXISTS odds_history_auth_read     ON odds_history;
 CREATE POLICY      odds_history_auth_read     ON odds_history     FOR SELECT TO authenticated USING (true);
 DROP POLICY IF EXISTS notifications_log_auth_read ON notifications_log;
 CREATE POLICY      notifications_log_auth_read ON notifications_log FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS loss_analysis_auth_read   ON loss_analysis;
+CREATE POLICY      loss_analysis_auth_read   ON loss_analysis   FOR SELECT TO authenticated USING (true);
 
 -- Pin the trigger function's search_path so it's immune to attacks
 -- that mutate search_path before the function executes.
