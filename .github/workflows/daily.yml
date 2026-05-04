@@ -229,8 +229,26 @@ jobs:
 
           ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
           if [ -s "$ODDS_CSV" ]; then
-            echo "==> Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
-            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 2>import_err.log; then
+            # T4.3 (2026-05-04): EMERGENCY HALT.  Multi-variant walk-forward
+            # on truepit/leak-free 2022-2025 corpus showed the production LR
+            # is NOT consistently +EV across years.  Three-fold backtest:
+            #   2024->2025: +23u   2023->2024: -42u   2022->2023: +13u
+            # Net: -6u/2880 bets (-0.2% ROI).  Live 5-week sample (-2u to
+            # +0.7u depending on calibrator) confirms.  Cross-year transfer
+            # fails because MLB drifts year-to-year.  Halting STRONG bet
+            # placement until we ship a market-aware / sliding-window
+            # rebuild that proves +EV in 3-fold backtest.
+            #
+            # Mechanism: --min-edge 0.99 means no realistic model edge
+            # passes the threshold -> bet_placed stays "" for all rows.
+            # Predictions still run (dashboard stays useful for analysis);
+            # we just stop wagering until the rebuild is validated.
+            #
+            # Revert: replace 0.99 below with the new validated threshold
+            # (likely 0.05 for the rebuilt model) once 3-fold backtest
+            # ROI > +2.5% AND live shadow holds for 1+ week.
+            echo "==> [HALTED] Importing $ODDS_CSV with edge >= 99% (effectively pauses bets)..."
+            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.99 2>import_err.log; then
               record_err "import-odds" "$?" "$(tail -c 400 import_err.log)"
             fi
           else
@@ -385,8 +403,11 @@ jobs:
 
           ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
           if [ -s "$ODDS_CSV" ]; then
-            echo "==> [odds-only] Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
-            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 2>import_err.log; then
+            # T4.3 EMERGENCY HALT (see predict step for full rationale).
+            # Mirror the same --min-edge 0.99 here so the 5-min cron tick
+            # also can't place new bets while the rebuild is in flight.
+            echo "==> [odds-only HALTED] Importing $ODDS_CSV with edge >= 99% (paused)..."
+            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.99 2>import_err.log; then
               record_err "odds-only-import" "$?" "$(tail -c 400 import_err.log)"
             fi
           else
