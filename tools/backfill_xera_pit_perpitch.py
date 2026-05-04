@@ -64,25 +64,29 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # League constants for xwOBA-allowed -> xERA proxy.
 #
-# Empirical slope from real Statcast pitcher data (sampled 2024 leaderboard):
+# Empirical anchor (T3.12 followup #2): per-pitcher mean xwoba across all
+# 725 cached pitcher-season files (607 with >=100 batted balls):
 #
-#   xwOBA 0.260 -> xERA ~= 2.5    (excellent: e.g. Hader, Skubal)
-#   xwOBA 0.290 -> xERA ~= 3.5
-#   xwOBA 0.310 -> xERA ~= 4.20   (league avg)
-#   xwOBA 0.340 -> xERA ~= 5.0
-#   xwOBA 0.370 -> xERA ~= 6.0    (struggling)
+#   mean of means     = 0.3205    <-- LEAGUE_XWOBA anchor
+#   median of means   = 0.3187
+#   stdev of means    = 0.0319
+#   10th percentile   = 0.281    (elite pitchers)
+#   90th percentile   = 0.364    (struggling pitchers)
 #
-# Fit is approximately linear: slope = (6.0 - 2.5) / (0.370 - 0.260) = ~32
-# ERA per 1.000 xwOBA, anchored at LEAGUE_ERA when xwoba == LEAGUE_XWOBA.
+# So a "league-typical" pitcher has cum_xwoba ~= 0.32, which should map to
+# the league-typical xERA of ~4.20.  Anchoring at 0.3205 (empirical mean)
+# instead of the previous 0.310 corrects a ~1pp bias that was inflating
+# all truepit xera values by ~0.32 ERA units.
 #
-# This is a SIMPLIFICATION of MLB's official xERA formula (which uses
-# pitch-level expected_woba and adjusts for park/run-environment); for
-# variant validation the proxy is sufficient because rank-order across
-# pitchers is preserved.  We never claim the absolute value matches MLB's
-# published xERA -- only that "higher xwoba -> higher xera proxy."
-LEAGUE_XWOBA = 0.310
+# Slope: from real Statcast leaderboard data (top 10% pitchers around
+# xera 3.0, bottom 10% around 5.5, with corresponding xwoba 10/90
+# percentiles 0.281/0.364): (5.5 - 3.0) / (0.364 - 0.281) = ~30 ERA per
+# 1.000 xwoba unit.  Round to 30 for clarity.  Variance in the published
+# MLB formula is non-linear (uses individual batted-ball xwoba) but a
+# linear proxy with this slope preserves rank-order.
+LEAGUE_XWOBA = 0.3205
 LEAGUE_ERA   = 4.20
-ERA_PER_XWOBA = 32.0
+ERA_PER_XWOBA = 30.0
 
 NEUTRAL_PCT_RANK = 50
 LEAGUE_AVG_XERA  = 4.20
