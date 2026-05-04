@@ -236,6 +236,10 @@ def main():
     ap.add_argument("--out",
                     default="data/v2_perfect_2026/backtest_results.json",
                     help="Output JSON path")
+    ap.add_argument("--calibrator", default="v2",
+                    choices=["v2", "v3"],
+                    help="Which calibrator to apply (default: v2 = leaky-trained, "
+                         "production).  v3 = truepit-trained shadow.")
     args = ap.parse_args()
 
     end_dt = args.until or datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -244,14 +248,27 @@ def main():
     print(f"  Window: {args.since} -> {end_dt}")
     print("=" * 80)
 
-    # Load v2 production weights + calibrator -- UNCHANGED.
-    print("\n  Loading production v2 model + calibrator (read-only)...")
+    # Load v2 production LR weights -- UNCHANGED across all runs.
+    print("\n  Loading production v2 LR models (read-only)...")
     m_t1, m_b1 = P._load_lr_models()
-    cal = P._load_lr_calibrator()
     if m_t1 is None or m_b1 is None:
         sys.exit("LR models unavailable.")
-    print(f"    LR models loaded; calibrator range "
-          f"[{min(cal.rates):.4f}, {max(cal.rates):.4f}]")
+
+    # Load chosen calibrator.  v2 = production (leaky training corpus).
+    # v3 = existing shadow trained on 2024+2025 truepit (leak-free).
+    if args.calibrator == "v3":
+        from calibration import ProbCalibrator
+        cal_path = REPO_ROOT / "data" / "calibration_v3.json"
+        if not cal_path.exists():
+            sys.exit(f"Missing {cal_path} (v3 calibrator)")
+        cal = ProbCalibrator.load(cal_path)
+        print(f"    v3 calibrator loaded; range "
+              f"[{min(cal.rates):.4f}, {max(cal.rates):.4f}], "
+              f"trained on {cal.train_seasons}")
+    else:
+        cal = P._load_lr_calibrator()
+        print(f"    v2 calibrator loaded; range "
+              f"[{min(cal.rates):.4f}, {max(cal.rates):.4f}]")
 
     # Load truepit data
     truepit_path = REPO_ROOT / args.truepit
