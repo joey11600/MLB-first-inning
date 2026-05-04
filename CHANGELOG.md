@@ -135,6 +135,79 @@ in 2025 had no pitcher_id mapping.  These could understate the model's
 true leak-free signal.  But the qualitative conclusion (calibrator too
 conservative for YRFI bets, NRFI bets at break-even) is robust.
 
+### T4.1: catcher framing investigation -- REJECTED on walk-forward
+
+User accelerated the catcher framing investigation from the scheduled
+2026-05-15 remote agent to "do it now."  Built end-to-end pipeline:
+
+  tools/build_catcher_framing.py
+    Per-season catcher framing scores via per-pitch Statcast.  Filter to
+    "called" pitches (called_strike + ball, no swings) in the "shadow zone"
+    (within 4 inches of strike zone edge).  Per catcher: shadow_strike_rate
+    vs league baseline = framing_score.  Multiply by shadow_pitches =
+    extra_strikes.  Output: data/catcher_framing_cache.json (200+ catchers
+    over 2024+2025; ~700K pitches per season scanned).
+
+    NOTE: pybaseball.statcast_catcher_framing is broken (Savant changed
+    the CSV endpoint; returns HTML).  This script bypasses it via raw
+    per-pitch fetch + manual computation.
+
+  tools/extract_catchers_per_game.py
+    For each game, identify the FIRST-INNING catcher per side from the
+    per-pitch fielder_2 column.  Need this because catchers swap mid-game
+    and we predict the FIRST inning specifically.  Output:
+    data/cache/catchers_per_game.json (4,741 games for 2024+2025, 100%
+    coverage).
+
+  tools/backfill_catcher_framing_to_csvs.py
+    Joins framing + catchers caches into _truepit backtest CSVs.  Adds 6
+    columns: home/away_catcher_id, home/away_catcher_framing,
+    home/away_catcher_extra_strikes.
+
+  tools/test_catcher_framing.py
+    Walk-forward test: phase_e3 (16 features) vs phase_e4 (phase_e3 + 1
+    catcher framing feature per half) on 2024 truepit -> 2025 truepit.
+
+WALK-FORWARD RESULT (2024 truepit -> 2025 truepit):
+
+  Phase E.3 (no framing):  347 bets, 190-157, 54.8% hit, +1.33u, Brier 0.2511
+  Phase E.4 (+framing):    373 bets, 203-170, 54.4% hit, -0.83u, Brier 0.2518
+  Delta E.4 vs E.3:        -2.17u P/L, -0.33pp hit rate, +0.0007 Brier (worse)
+
+LR weights on the new feature:
+  T1 home_catcher_framing: +0.0092  (essentially zero, wrong sign)
+  B1 away_catcher_framing: -0.0445  (small, expected sign)
+
+VERDICT: REJECT catcher framing for the LR model.
+
+WHY IT FAILED:
+- Industry consensus puts catcher framing at ~10-20 runs/season for top
+  framers.  Spread evenly that's ~0.05 runs per first-inning -- well
+  below the model's signal floor.
+- The LR weight magnitudes confirm this: even the larger of the two
+  weights (-0.0445 standardized) is too small to meaningfully shift
+  predictions.
+- Single-fold walk-forward with -2.17u P/L is small-sample but consistent
+  with "near-zero true effect."  Multi-fold would only confirm the
+  rejection more confidently.
+
+CLOSES the catcher framing thread.  The scheduled remote agent for
+2026-05-15 should be cancelled (no longer needed; the question is
+answered).
+
+DELIVERABLES committed:
+  - data/catcher_framing_cache.json     (201 catchers, 2024+2025)
+  - data/cache/catchers_per_game.json   (4,741 games)
+  - data/backtests/*_truepit.csv        (with 6 new framing columns)
+  - tools/build_catcher_framing.py
+  - tools/extract_catchers_per_game.py
+  - tools/backfill_catcher_framing_to_csvs.py
+  - tools/test_catcher_framing.py
+
+The data + tools are reusable: if a future model architecture needs
+catcher framing for some other task (e.g. CLV prediction, lineup
+context), the pipeline is in place.
+
 ### Three followups complete (T3.12 #1-3, 2026-05-03 evening)
 
 #### Followup #1: refit calibrator on truepit corpus

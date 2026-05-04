@@ -607,6 +607,27 @@ candidate to date (+11u savings reproduced on both 30d 2026 and full
 Important to avoid retreading. From cross-validation across 2024/2025
 backtests, none of these improved out-of-sample Brier:
 
+- **Catcher framing** (T4.1, tested 2026-05-03 evening).  Built end-to-end
+  pipeline (`tools/build_catcher_framing.py` + `extract_catchers_per_game.py`
+  + `backfill_catcher_framing_to_csvs.py` + `test_catcher_framing.py`)
+  using per-pitch Statcast data with the standard "shadow zone" definition
+  for borderline pitches.  Walk-forward 2024→2025 truepit:
+
+    Phase E.3 (no framing):  347 bets, 190-157, 54.8% hit, +1.33u, Brier 0.2511
+    Phase E.4 (+framing):    373 bets, 203-170, 54.4% hit, -0.83u, Brier 0.2518
+    Delta: -2.17u P/L, -0.33pp hit, slightly worse Brier.
+
+  LR weights on the framing features:
+    T1 home_catcher_framing: +0.0092 (essentially zero, wrong sign)
+    B1 away_catcher_framing: -0.0445 (small, expected sign)
+
+  Conclusion: industry consensus says catcher framing is worth ~10-20
+  runs/season for top framers = ~0.05 runs per first-inning, well below
+  the model's signal floor.  The LR weight magnitudes confirm this.
+  Pre-emptively closes the scheduled remote agent for 2026-05-15.
+
+
+
 - Top-3 batter aggregates (prior-year and current-season)
 - Pitcher last-5 / last-10 NRFI history (informational only on dashboard)
 - Weather (temp / wind / humidity)
