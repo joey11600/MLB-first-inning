@@ -293,6 +293,15 @@ def main() -> None:
                 lambda_total=lambda_total,
                 lambda_floor=lambda_floor,
             )
+            # T3.19: also compute raw P(NRFI) here so Variant K can apply
+            # v3 calibrator without depending on the stored nrfi_prob_raw
+            # column (which only exists for rows predicted after T3.13).
+            # This makes K backfillable on the ENTIRE 2026 history --
+            # historical rows are no longer "K mirrors production".
+            from db.variants import _lr_predict_with_cap as _lr_no_cap
+            _p_t1_raw = _lr_no_cap(t1_feats, m_t1, cap=None)
+            _p_b1_raw = _lr_no_cap(b1_feats, m_b1, cap=None)
+            recomputed_nrfi_raw = (1.0 - _p_t1_raw) * (1.0 - _p_b1_raw)
         except Exception as exc:    # noqa: BLE001
             print(f"  [err] {date}/{gp} feature reconstruction failed: {exc!r}",
                   file=sys.stderr)
@@ -472,25 +481,27 @@ def main() -> None:
         else:
             variants["J"] = _mirror_prod()
 
-        # Variant K (T3.13): apply v3 calibrator (calibration_v3.json,
-        # fit on 2024+2025 truepit corpus) to nrfi_prob_raw, then re-classify
+        # Variant K (T3.13, refactored T3.19): apply v3 calibrator
+        # (calibration_v3.json, fit on 2024+2025 truepit corpus) to the
+        # raw P(NRFI) recomputed from features above, then re-classify
         # using production thresholds.  Tests "what would the model do
-        # under a leak-free calibrator?" Live shadow.  Requires raw probs
-        # to be present on the row (added 2026-05-03 via T3.13 schema
-        # migration).  Historical rows pre-T3.13 have raw=null and Variant
-        # K mirrors production for those.
-        nrfi_p_raw = _to_float(row.get("nrfi_prob_raw"), -1.0)
-        if VARIANT_K_USES_V3 and nrfi_p_raw >= 0.0:
-            # Lazy-load v3 calibrator (cached in module scope below)
+        # under a leak-free calibrator?"
+        #
+        # T3.19 change: uses recomputed raw probs (from feature
+        # reconstruction in compute_variants' input path) instead of the
+        # stored nrfi_prob_raw column.  This makes Variant K available
+        # for ALL 2026 historical rows -- not just those predicted after
+        # the T3.13 schema migration.  The result: real v2 vs v3
+        # divergence visible on every historical date in the dashboard's
+        # model toggle.
+        if VARIANT_K_USES_V3:
             cal_v3 = _load_v3_calibrator()
             if cal_v3 is not None:
-                p_v3 = cal_v3.predict(float(nrfi_p_raw))
+                p_v3 = cal_v3.predict(float(recomputed_nrfi_raw))
                 # Re-classify with production thresholds (0.58 / 0.42).
-                # We replicate _classify here without the data_pts/lambda
-                # gates because variant K is JUST about the calibrator;
-                # if production passed for data reasons (LINEUP PENDING,
-                # NO DATA, etc.) we already mirrored above.  At this point
-                # we only re-classify when production made a real verdict.
+                # If production passed for data reasons (LINEUP PENDING,
+                # NO DATA, STARTER PENDING) we already mirrored above and
+                # this branch is unreachable for those rows.
                 from db.variants import _PROD_STRONG_NRFI_P, _PROD_PASS_LO_P
                 if p_v3 >= _PROD_STRONG_NRFI_P:
                     side_k, strength_k = "NRFI", "STRONG"
@@ -506,7 +517,6 @@ def main() -> None:
             else:
                 variants["K"] = _mirror_prod()
         else:
-            # Pre-T3.13 row (no raw stored): mirror production
             variants["K"] = _mirror_prod()
 
         for vname, pick in variants.items():
