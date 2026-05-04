@@ -282,6 +282,7 @@ def main() -> None:
             VARIANT_F_THIN_QS, VARIANT_F_BOTH_LTD_SKIP,
             VARIANT_G_YRFI_BAND_LO, VARIANT_G_YRFI_BAND_HI,
             VARIANT_H_NRFI_THR,
+            VARIANT_J_YRFI_BAND_LO, VARIANT_J_YRFI_BAND_HI,
         )
         if prod_strength in DATA_PASS:
             forced = VariantPick(
@@ -420,6 +421,22 @@ def main() -> None:
             )
         else:
             variants["I"] = _mirror_prod()
+
+        # Variant J (T3.12 refinement): skip only the narrow 0.37-0.38
+        # calibrated-P(NRFI) sub-band on STRONG YRFI bets.  Refined from
+        # Variant G after the 2025 holdout test (tools/test_variant_g_2025.py)
+        # showed Variant G's full 0.37-0.40 band is mostly noise out-of-sample,
+        # but the 0.37-0.38 sub-band reproduces as a clear loser on both
+        # samples (combined: 24 bets, 7-17, 29% hit, -11.01u).
+        if (prod_strength == "STRONG" and prod_side == "YRFI"
+                and VARIANT_J_YRFI_BAND_LO <= prod_nrfi < VARIANT_J_YRFI_BAND_HI):
+            variants["J"] = VariantPick(
+                pick_side="PASS", pick_strength="NO EDGE",
+                pick_label="PASS - YRFI 0.37-0.38 sub-band (T3.12 variant J)",
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+            )
+        else:
+            variants["J"] = _mirror_prod()
 
         for vname, pick in variants.items():
             would_bet, would_be_units = variant_would_bet(

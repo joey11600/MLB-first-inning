@@ -120,9 +120,11 @@ VARIANT_F_BOTH_LTD_SKIP   = True
 # threshold change ships without walk-forward validation.
 
 # Variant G: skip the 0.37-0.40 calibrated-P(NRFI) "losing valley" on
-# STRONG YRFI bets.  29 historical bets at 12-17 (41.4%) = -6.26u; skipping
-# them lifts the remaining STRONG bookbook from +35.11u to +41.37u (+18%
-# ROI lift).  Tiny sample (n=29 skipped).
+# STRONG YRFI bets.  29 historical bets at 12-17 (41.4%) = -6.26u in the
+# 30d 2026 in-sample.  Tested out-of-sample on 2025 full season (Test 2 of
+# tools/test_variant_g_2025.py): only +1.00u on 558 bets, well within
+# noise.  Largely SELECTION BIAS -- the 0.38-0.40 sub-band that looked bad
+# on 2026 actually WINS on 2025.  See variant J for the refined version.
 VARIANT_G_YRFI_BAND_LO = 0.37
 VARIANT_G_YRFI_BAND_HI = 0.40
 
@@ -134,6 +136,29 @@ VARIANT_H_NRFI_THR     = 0.62
 
 # Variant I: G + H combined.  Counterfactual on 30d: -0.83u vs production.
 # Inherits H's regression; G's lift cancels it.  REJECT signal.
+
+# Variant J: refined version of G after the 2025 holdout test on
+# 2026-05-03.  Variant G's "0.37-0.40 valley" actually splits into two
+# very different halves on the 2025 holdout:
+#
+#                30d 2026 in-sample      2025 full-season out-of-sample
+#   [0.37,0.38)  9 bets,  22.2% hit,     15 bets,  33.3% hit
+#                -5.18u                  -5.83u                          <- LOSER on both
+#   [0.38,0.40)  20 bets, 50.0% hit,     19 bets,  68.4% hit
+#                -1.08u                  +4.83u                          <- mixed/noise
+#
+# The narrow 0.37-0.38 sub-band reproduces as a clear loser on both
+# independent samples.  Combined evidence: 24 bets, 7-17 (29% hit),
+# -11.01u total.  Variant J skips ONLY this sub-band.  This is the
+# strongest variant signal we have to date -- both samples agree.
+#
+# Still NOT shipped to production until walk-forward gate is honest
+# (xera/whiff per-game backfill pending; see T3.11-AUDIT in ROADMAP).
+# Walk-forward methodology requires retraining LR + calibrator on
+# leak-free corpus -- the current "leaky 2024 -> leaky 2025" is
+# production-shape but not strict walk-forward.
+VARIANT_J_YRFI_BAND_LO = 0.37
+VARIANT_J_YRFI_BAND_HI = 0.38
 
 
 # Variant D lambda floor.  Raise from production's 0.78 to 1.00.

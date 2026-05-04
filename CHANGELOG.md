@@ -49,21 +49,58 @@ Wired into `tools/abtest_report.py`.  Backfilled across all 405 graded
 
 **Variant G is the only profitable variant** in this harness round.
 
-### NOT shipped to production
+### Variant G partially fails 2025 holdout — Variant J emerges as the real signal
 
-The +6.27u Variant G result is **selection bias** at face value: the
-0.37-0.40 "losing valley" was identified by examining the same 30 days
-we just "validated" it against.  This is the trap that killed all 6
-prior variants (A/C/AC/D/E/F).  Walk-forward gate (`tools/walk_forward.py`)
-is the right test — and it is **currently broken** (per this morning's
-T3.11-AUDIT, the xera/whiff features in the historical backtest CSVs
-are leaky; per-game point-in-time backfill in
-`tools/backfill_xera_whiff_pit.py` needs to expand from prior-year-only
-to per-game cumulative before the gate is honest).
+Built `tools/test_variant_g_2025.py` to test Variant G out-of-sample by
+training LR + calibrator on 2024 only, then evaluating on 2025 full season.
+**Two methodology runs** because the leak-free run lost the calibrator
+range Variant G needs:
 
-**Until walk-forward returns clean PASS on >= 2 folds, no production
-threshold change ships.**  Variant G runs as a shadow pick only — its
-verdict is recorded in `pick_variants` for future evaluation.
+  Test 1 (leak-free 2024 -> leak-free 2025):   calibrator range
+                                               [0.44, 0.63] -- no STRONG
+                                               YRFI bets fire at all,
+                                               can't be tested.
+  Test 2 (leaky 2024 -> leaky 2025, mimics     calibrator range
+         production methodology):              [0.33, 0.67] -- 558
+                                               STRONG bets identified.
+
+Test 2 result: Variant G nets only **+1.00u over 558 bets** vs production's
++34.17u → +35.17u.  Well within noise.  The +6.27u in-sample lift WAS
+mostly selection bias.
+
+But Test 2 ALSO surfaced a real, narrower signal.  The 0.37-0.40 "valley"
+splits into two halves on 2025:
+
+  [0.37, 0.38)   15 bets,  5-10,  33% hit,  -5.83u   <-- real losing zone
+  [0.38, 0.40)   19 bets, 13-6,   68% hit,  +4.83u   <-- winning zone
+
+The 30d 2026 in-sample also showed [0.37, 0.38) as a clear loser (9 bets,
+2-7, 22% hit, -5.18u).  Combined across both independent samples:
+
+  24 bets skipped, 7-17 (29% hit), -11.01u total saved.
+
+### Added — Variant J (refined Variant G)
+
+`db/variants.py` + `tools/backfill_variants.py`.  Skips ONLY the
+0.37-0.38 calibrated-P(NRFI) sub-band on STRONG YRFI bets.  Backfilled
+across all 405 graded 2026 picks.
+
+  PROD          185 bets  115-68  62.2%   +35.11u
+  VAR-G         156 bets  103-51  66.0%   +41.38u  (in-sample +6.27u, 2025 +1.00u)
+  VAR-J         176 bets  113-61  64.2%   +40.30u  delta +5.19u  (2025 +5.83u)
+
+Variant J reproduces on BOTH 30d 2026 in-sample AND 2025 full-season
+holdout — the only variant tested to date that does so.
+
+### Still NOT shipped to production
+
+Variant J is the strongest candidate but still under the +10u-on->=2-folds
+shipping bar.  Walk-forward gate remains broken pending the per-game
+xera/whiff backfill (T3.11-AUDIT).  Variant J runs as a shadow pick only;
+production threshold remains P(NRFI) ≤ 0.42 for STRONG YRFI.
+
+If Variant J reproduces on a third independent sample (2024 holdout when
+the per-game backfill lands), ship.  Until then: shadow.
 
 ### Deferred (need walk-forward to validate)
 

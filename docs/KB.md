@@ -437,23 +437,60 @@ P/L days in 30 days are NRFI-leaning slates where the model over-bet YRFI.
 
 ### Variants tested in response (T3.12, 2026-05-03)
 
-Three new variants added to the A/B harness:
+Four new variants added to the A/B harness:
 
-- **Variant G** (`tools/backfill_variants.py` + `db/variants.py`): skip
-  STRONG YRFI in the 0.37-0.40 calibrated band.  30d backfill: kept 154
-  bets at 103-51 (66.9%), +41.37u P/L.  **+6.26u lift vs production**
-  (which was 115-68 at 62.8%, +35.11u).  Tiny sample (n=29 skipped); needs
-  walk-forward.
+- **Variant G**: skip STRONG YRFI in calibrated 0.37-0.40 band.
+  30d in-sample: +6.27u vs production (kept 156 at 66.0% hit, +41.38u).
+  **2025 full-season holdout (`tools/test_variant_g_2025.py` Test 2):
+  only +1.00u** — well within noise.  Largely SELECTION BIAS.
 - **Variant H**: tighten STRONG NRFI threshold from P(NRFI)≥0.58 to ≥0.62.
-  30d backfill: -7.09u vs production (REJECT — skips winners; NRFI bets
-  profit uniformly across 0.58-0.66 range).
-- **Variant I**: G + H combined.  30d backfill: -0.83u vs production
-  (REJECT — H's regression cancels G's lift).
+  30d in-sample: -7.08u vs production.  REJECT (skips winners).
+- **Variant I**: G + H combined.  30d in-sample: -0.82u.  REJECT.
+- **Variant J** (refined G after 2025 holdout): skip ONLY the narrow
+  0.37-0.38 sub-band on STRONG YRFI bets.  Reproduces on both samples:
+
+  | Sample              | Skipped bets | W-L  | Hit  | P/L saved |
+  |---------------------|-------------:|-----:|-----:|----------:|
+  | 30d 2026 in-sample  | 9            | 2-7  | 22%  | +5.18u    |
+  | 2025 full-season    | 15           | 5-10 | 33%  | +5.83u    |
+  | **Combined**        | **24**       | **7-17** | **29%** | **+11.01u** |
+
+  30d backfill P/L: production +35.11u → Variant J +40.30u (**+5.19u**).
+  Both samples agree the 0.37-0.38 sub-band is structurally weak.  This
+  is the strongest variant signal we have.
+
+### What we learned about Variant G's "0.37-0.40 valley"
+
+The 0.37-0.40 band actually splits into two very different sub-bands.
+On 2025 holdout:
+
+  - 0.37-0.38: 15 bets, 5-10, 33% hit, **-5.83u**  ← real losing zone
+  - 0.38-0.40: 19 bets, 13-6, 68% hit, **+4.83u**  ← winning zone
+
+The 30d 2026 in-sample showed both as losing.  The 2025 holdout shows
+0.37-0.38 still losing but 0.38-0.40 winning.  Variant G killed both
+indiscriminately, so its in-sample win was selection bias on the
+0.38-0.40 portion.  Variant J fixes this by skipping only the narrow
+0.37-0.38 zone that reproduces.
+
+### Why Test 1 (leak-free 2024 → leak-free 2025) couldn't validate
+
+The leak-free 2024-trained calibrator has rate range [0.4417, 0.6279]
+vs production's [0.3623, 0.6620].  Without the floor reaching down to
+0.36, NO STRONG YRFI bets fire (they all need calibrated P(NRFI) ≤ 0.42).
+So Variant G's 0.37-0.40 band has zero bets in this regime — can't be
+tested.  The calibrator's range depends on training-data composition,
+which depends on whether xera/whiff are leaky.  Test 2 uses the same
+"leaky 2024 → leaky 2025" methodology as production, which reproduces
+the production calibrator's range and lets us actually test the variant.
+Strict walk-forward requires per-game point-in-time xera/whiff (deferred).
 
 **Status: variants run as shadow picks only.**  Walk-forward gate is
 broken pending the per-game Statcast point-in-time backfill (T3.11-AUDIT;
 see `tools/backfill_xera_whiff_pit.py`).  No production threshold change
-ships until walk-forward is honest.
+ships until walk-forward is honest.  Variant J is the most-validated
+candidate to date (+11u savings reproduced on both 30d 2026 and full
+2025 season), but still under the +10u-on-≥2-leak-free-folds bar.
 
 ### Two larger fixes deferred
 
