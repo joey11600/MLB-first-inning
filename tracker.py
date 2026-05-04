@@ -1008,7 +1008,19 @@ def _send_telegram_html(text: str) -> bool:
         return False
 
     # Tolerate whitespace around commas; ignore empty entries.
-    raw_ids = [c.strip() for c in chat_ids_raw.split(",") if c.strip()]
+    # T3.13: also dedupe -- if the operator misconfigures the env var with
+    # the same chat_id twice (e.g. "12345,12345" or "12345, 12345"), we
+    # would otherwise broadcast the message to that chat twice, causing
+    # the user to see duplicates.  Preserve order via dict.fromkeys
+    # so the first occurrence wins.
+    seen: set[str] = set()
+    raw_ids: list[str] = []
+    for c in chat_ids_raw.split(","):
+        c = c.strip()
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        raw_ids.append(c)
     if not raw_ids:
         return False
 
