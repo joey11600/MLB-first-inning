@@ -203,11 +203,11 @@ def run_test(train_csv: Path, test_csv: Path, label: str):
 def main():
     BTS = REPO_ROOT / "data" / "backtests"
 
-    # Test 1: train on 2024 LEAK-FREE, test on 2025 LEAK-FREE  (cleanest)
+    # Test 1: train on 2024 LEAK-FREE (prior-year proxy), test on 2025 LEAK-FREE
     run_test(
         BTS / "backtest_2024-04-01_to_2024-09-30_leakfree.csv",
         BTS / "backtest_2025-04-01_to_2025-09-30_leakfree.csv",
-        "Test 1: leak-free 2024 -> leak-free 2025  (cleanest walk-forward)",
+        "Test 1: leak-free (prior-year proxy) 2024 -> leak-free 2025",
     )
 
     # Test 2: train on ORIGINAL 2024, test on ORIGINAL 2025 (matches production
@@ -218,6 +218,23 @@ def main():
         BTS / "backtest_2025-04-01_to_2025-09-30.csv",
         "Test 2: original (leaky) 2024 -> original (leaky) 2025  (matches prod methodology)",
     )
+
+    # Test 3: train on TRUE point-in-time 2024, test on TRUE point-in-time 2025
+    # (strict walk-forward; xera/whiff are cumulative-through-yesterday from
+    # per-pitch Statcast data, not season-aggregate or prior-year proxy)
+    truepit_2024 = BTS / "backtest_2024-04-01_to_2024-09-30_truepit.csv"
+    truepit_2025 = BTS / "backtest_2025-04-01_to_2025-09-30_truepit.csv"
+    if truepit_2024.exists() and truepit_2025.exists():
+        run_test(
+            truepit_2024, truepit_2025,
+            "Test 3: TRUE point-in-time 2024 -> 2025  (strict walk-forward)",
+        )
+    else:
+        print()
+        print("=" * 100)
+        print("  Test 3: TRUE point-in-time CSVs not yet built.")
+        print(f"    Run tools/backfill_xera_pit_perpitch.py first to generate them.")
+        print("=" * 100)
     return  # bypass the rest of the original main()
     fi_park = load_fi_park()
     BTS = REPO_ROOT / "data" / "backtests"
