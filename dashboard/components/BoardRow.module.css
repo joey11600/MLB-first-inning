@@ -541,10 +541,27 @@
 .yrfiStrong .pickLabel { color: var(--destructive); }
 
 /* "Starter pending" / "Lineup pending" -- dashed muted treatment.
-   Reads as data-quality halt, not model decision. */
+   Reads as data-quality halt, not model decision.
+
+   T3.22: when LINEUP PENDING rows have a clear tentative lean, the
+   row's effective tone class shifts to .nrfiLean / .yrfiLean (see
+   effectiveToneClass in BoardRow.tsx).  Those tone classes give the
+   pill a slight side-tinted background even while the dashed border
+   stays in place -- so the pill says "still tentative, but here's
+   which way the model is leaning."  The pickPillPending overrides
+   below preserve the dashed border and the muted PENDING prefix
+   color; the side-label gets its own tone-tinted span (see
+   .pickLabelLeanNrfi / .pickLabelLeanYrfi). */
 .pickPillPending {
-  background: var(--muted) !important;
   border-style: dashed !important;
+  border-color: color-mix(in oklab, var(--muted-foreground) 35%, var(--border)) !important;
+}
+/* When the row carries a tentative-lean tone (nrfiLean / yrfiLean),
+   leave the pill's background as the tone-tinted variant from the
+   tone class definitions above.  Plain pending (no lean) falls back
+   to the original muted background. */
+.passTone .pickPillPending {
+  background: var(--muted) !important;
   border-color: color-mix(in oklab, var(--muted-foreground) 35%, var(--border)) !important;
 }
 .pickPillPending .pickDot {
@@ -553,13 +570,59 @@
   animation: pendingPulse 2s ease-in-out infinite;
 }
 .pickPillPending .pickLabel {
-  color: var(--muted-foreground) !important;
+  color: var(--muted-foreground);
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
 }
 @keyframes pendingPulse {
   0%, 100% { opacity: 0.4; }
   50%      { opacity: 1; }
+}
+
+/* ============================================================
+   T3.22: structured pending label parts.
+
+   When the model has a clear tentative lean for a LINEUP PENDING
+   row, the pill renders three spans:
+     [PENDING]  [·]  [STRONG NRFI]
+       muted    sep    tone-tinted
+
+   This lets the side label inherit the row's tone (nrfiLean = green,
+   yrfiLean = warm red) without fighting the !important PENDING
+   styling above.  Specificity wins via the leaf-span classes.
+   ============================================================ */
+
+.pickLabelMuted {
+  color: var(--muted-foreground);
+  font-weight: 600;
+  letter-spacing: 0.10em;
+}
+
+.pickLabelSep {
+  color: color-mix(in oklab, var(--muted-foreground) 50%, transparent);
+  font-weight: 400;
+}
+
+.pickLabelLean {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  /* Inherit color from .pickLabelLeanNrfi / .pickLabelLeanYrfi below */
+  color: var(--foreground);
+}
+
+.pickLabelLeanNrfi {
+  color: var(--primary);
+  text-shadow: 0 0 6px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+
+.pickLabelLeanYrfi {
+  color: var(--destructive);
+  text-shadow: 0 0 6px color-mix(in oklab, var(--destructive) 30%, transparent);
 }
 
 /* LOW LAMBDA pill -- would-be YRFI demoted because lambda below floor.

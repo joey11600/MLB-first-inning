@@ -48,6 +48,15 @@ function pickLabelText(
   return `${strength} ${side}`;
 }
 
+/** True when the row should display the model's tentative lean inline.
+ *  We only do this for LINEUP PENDING (pitcher data is real, only the
+ *  hitters use team-fallback) -- STARTER PENDING has fallback on both
+ *  sides so the tentative would be too noisy to surface as a pickable
+ *  signal. */
+function shouldShowTentative(strength: PickStrength): boolean {
+  return strength === "LINEUP PENDING";
+}
+
 /** Parse a row's gameTimeEt + slate date into the lock cutoff (game
  *  start - 60 min) as a Date in UTC.  Returns null when the time
  *  string can't be parsed. */
@@ -220,9 +229,18 @@ function isActionableRow(side: PickSide, strength: PickStrength): boolean {
 }
 
 /** True for rows that should visually recede so actionable ones stand
- *  out -- PASS picks, lineup-pending, starter-pending. */
-function isRecedeRow(side: PickSide, strength: PickStrength): boolean {
+ *  out -- PASS picks, lineup-pending without a clear tentative lean,
+ *  starter-pending.  When we DO have a clear tentative lean, the row
+ *  is informative (the user can see which way the model is leaning
+ *  even before lineups post) so it shouldn't recede. */
+function isRecedeRow(
+  side:        PickSide,
+  strength:    PickStrength,
+  hasTentativeLean: boolean,
+): boolean {
   if (strength === "STRONG" && (side === "NRFI" || side === "YRFI")) return false;
+  // Tentative lean visible -> not recede (the row is conveying signal).
+  if (strength === "LINEUP PENDING" && hasTentativeLean) return false;
   return (
     side === "PASS" ||
     strength === "LINEUP PENDING" ||
@@ -231,6 +249,25 @@ function isRecedeRow(side: PickSide, strength: PickStrength): boolean {
     strength === "NO DATA" ||
     strength === "LOW LAMBDA"
   );
+}
+
+/** Effective tone class for the row.  Normally just toneClass(side,
+ *  strength).  When the row is LINEUP PENDING with a clear tentative
+ *  lean, swap to the lean's side tone (nrfiLean / yrfiLean) so the
+ *  right-side gradient + pill tint signal which way the model is
+ *  leaning, even though the pick isn't committed yet.  Pill keeps its
+ *  dashed border via .pickPillPending so it still reads as tentative.
+ */
+function effectiveToneClass(
+  side: PickSide,
+  strength: PickStrength,
+  tentative: { side: PickSide; strength: PickStrength } | null,
+): string {
+  if (strength === "LINEUP PENDING" && tentative) {
+    if (tentative.side === "NRFI") return "nrfiLean";
+    if (tentative.side === "YRFI") return "yrfiLean";
+  }
+  return toneClass(side, strength);
 }
 
 export function BoardRowItem({
@@ -264,9 +301,27 @@ export function BoardRowItem({
       ? { ...rawDetail, ...rawDetail.v3! }
       : rawDetail;
 
-  const tone       = toneClass(row.pickSide, row.pickStrength);
+  // T3.22: compute tentative lean once at the row level.  Only meaningful
+  // when LINEUP PENDING (pitcher real, hitters fallback).  Threaded down
+  // to PickPill (renders inline lean) and used here for tone + recede
+  // logic so the row visually signals which way the model is leaning.
+  const tentativeLean = shouldShowTentative(row.pickStrength)
+    ? classifyTentative(
+        row.nrfiPct / 100,
+        detail?.lambdaLrTotal ?? row.lambda,
+        thresholds,
+      )
+    : null;
+  const hasClearTentativeLean =
+    tentativeLean !== null && tentativeLean.side !== "PASS";
+
+  const tone = effectiveToneClass(
+    row.pickSide,
+    row.pickStrength,
+    hasClearTentativeLean ? tentativeLean : null,
+  );
   const actionable = isActionableRow(row.pickSide, row.pickStrength);
-  const recede     = isRecedeRow(row.pickSide, row.pickStrength);
+  const recede     = isRecedeRow(row.pickSide, row.pickStrength, hasClearTentativeLean);
 
   // T1.3: pulse the row when meaningful data changes (grade landing,
   // pick flipping, P&L update).  Watching a tuple keyed on the
@@ -326,12 +381,24 @@ export function BoardRowItem({
           ) : live && live.abstractGameState !== "Preview" ? (
             <LiveStateBadge live={live} />
           ) : (
-            <span className={styles.resultPending}>—</span>
+            // T3.22: pre-game state used to render as a static "—".  Now
+            // we surface time-to-first-pitch ("47m", "1h 23m", "PRE") so
+            // the operator can see when each game starts at a glance.
+            <PreGameBadge
+              gameTimeEt={row.gameTimeEt || detail?.gameTimeEt || ""}
+              slateDate={slateDate ?? ""}
+              live={live}
+            />
           )}
         </span>
 
         <span className={styles.pickCell}>
-          <PickPill row={row} detail={detail} slateDate={slateDate ?? ""} />
+          <PickPill
+            row={row}
+            detail={detail}
+            slateDate={slateDate ?? ""}
+            tentativeLean={tentativeLean}
+          />
           <OddsChip row={row} detail={detail} />
         </span>
 
@@ -365,15 +432,24 @@ export function BoardRowItem({
 }
 
 /** Pick pill + tooltip + pre-lock countdown.  Extracted from the inline
- *  IIFE in the prior version so the JSX above stays readable. */
+ *  IIFE in the prior version so the JSX above stays readable.
+ *
+ *  T3.22: when LINEUP PENDING and the model has a clear tentative lean,
+ *  render a structured label "PENDING · STRONG NRFI" with the side text
+ *  tone-tinted (green for NRFI, warm-red for YRFI) so the operator can
+ *  scan the slate and see which way every pending row is leaning before
+ *  the lineups post.  The pill keeps its dashed border and pending dot
+ *  so it still reads as tentative -- not a committed bet. */
 function PickPill({
   row,
   detail,
   slateDate,
+  tentativeLean,
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
   slateDate: string;
+  tentativeLean: { side: PickSide; strength: PickStrength } | null;
 }) {
   const lockAt = computeLockAt(row.gameTimeEt, slateDate);
   const isPreLock =
@@ -391,8 +467,21 @@ function PickPill({
       : "";
   const lowLambdaClass = row.pickStrength === "LOW LAMBDA" ? styles.pickPillLowLambda : "";
 
+  // Tentative lean is only rendered for LINEUP PENDING with a clear
+  // NRFI/YRFI lean.  STARTER PENDING is too noisy (pitcher fallback);
+  // a PASS tentative is no signal so we still show the plain pending pill.
+  const showTentative =
+    row.pickStrength === "LINEUP PENDING"
+    && tentativeLean !== null
+    && tentativeLean.side !== "PASS";
+  const leanSideClass = showTentative
+    ? (tentativeLean!.side === "NRFI" ? styles.pickLabelLeanNrfi : styles.pickLabelLeanYrfi)
+    : "";
+
   const titleText =
-    isPreLock
+    showTentative
+      ? `Model's tentative lean: ${tentativeLean!.strength} ${tentativeLean!.side} based on team-fallback batter stats. Will commit (or override) once MLB posts the actual lineup -- expand the row for more context.`
+    : isPreLock
       ? `Model's current lean: ${row.pickStrength} ${row.pickSide}. Pick locks at ${lockTimeStr} (60 min pre-game). Until then, the verdict can still flip with fresh lineup / weather / scratch data, so DON'T bet yet.`
     : row.pickStrength === "LOW LAMBDA"
       ? `Demoted from STRONG/LEAN YRFI: combined λ ${row.lambda.toFixed(2)} below the 0.78 floor (model expects too few total runs to bet YRFI confidently). Tested in backtest: floor adds ~+1.36u/season.`
@@ -407,7 +496,17 @@ function PickPill({
     >
       <span className={styles.pickDot} aria-hidden />
       <span className={styles.pickLabel}>
-        {pickLabelText(row.pickSide, row.pickStrength, isPreLock, lockTimeStr)}
+        {showTentative ? (
+          <>
+            <span className={styles.pickLabelMuted}>PENDING</span>
+            <span className={styles.pickLabelSep}>·</span>
+            <span className={`${styles.pickLabelLean} ${leanSideClass}`}>
+              {tentativeLean!.strength} {tentativeLean!.side}
+            </span>
+          </>
+        ) : (
+          pickLabelText(row.pickSide, row.pickStrength, isPreLock, lockTimeStr)
+        )}
       </span>
     </span>
   );
@@ -606,6 +705,83 @@ function LiveStateBadge({ live }: { live: LiveGameState }) {
   }
 
   return <span className={styles.resultPending}>—</span>;
+}
+
+
+/** PreGameBadge -- replaces the prior "—" em-dash placeholder for rows
+ *  that have no live state yet (most of the slate, most of the day).
+ *
+ *  Shows time-to-first-pitch as a compact mono countdown:
+ *    "47m"        for sub-hour
+ *    "1h 23m"     for hour-or-more
+ *    "PRE"        if we couldn't parse the game time
+ *    em-dash      if the game time has already passed but we still
+ *                 have no live data (odd state -- preserves prior
+ *                 behavior so we don't over-claim freshness)
+ *
+ *  Visual: same livePre dashed muted treatment used by LiveStateBadge,
+ *  so the State column reads as a single visual family across pre-game
+ *  / live / final states.  Re-evaluates Date.now() on every render --
+ *  the dashboard's 30s polling refresh updates the countdown for free.
+ */
+function PreGameBadge({
+  gameTimeEt,
+  slateDate,
+  live,
+}: {
+  gameTimeEt: string;
+  slateDate:  string;
+  live?:      LiveGameState;
+}) {
+  // If we have live data with abstractGameState=Preview, defer to
+  // LiveStateBadge so the WARMUP / DELAY / PRE-GAME variants render
+  // consistently when the API is reporting them.
+  if (live && live.abstractGameState === "Preview") {
+    return <LiveStateBadge live={live} />;
+  }
+
+  if (!gameTimeEt || !slateDate) {
+    return <span className={`${styles.liveBadge} ${styles.livePre}`}>PRE</span>;
+  }
+  const gameStart = computeLockAt(gameTimeEt, slateDate, 0);
+  if (!gameStart) {
+    return (
+      <span
+        className={`${styles.liveBadge} ${styles.livePre}`}
+        title={`First pitch ${gameTimeEt}`}
+      >
+        PRE
+      </span>
+    );
+  }
+
+  const ms = gameStart.getTime() - Date.now();
+  if (ms <= 0) {
+    // Game start has passed but we have no live state -- could mean the
+    // useLiveGameState hook hasn't picked it up yet, or the game is
+    // historical.  Fall back to the prior em-dash so we don't claim
+    // "PRE" on a game that's actually in progress somewhere.
+    return <span className={styles.resultPending}>—</span>;
+  }
+
+  const totalMin = Math.floor(ms / 60_000);
+  const hours = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  const text =
+    totalMin >= 1440
+      ? `${Math.floor(totalMin / 1440)}d`
+      : hours >= 1
+        ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`)
+        : `${Math.max(1, mins)}m`;
+
+  return (
+    <span
+      className={`${styles.liveBadge} ${styles.livePre}`}
+      title={`First pitch at ${gameTimeEt}`}
+    >
+      {text}
+    </span>
+  );
 }
 
 
