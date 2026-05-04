@@ -97,7 +97,7 @@ export function RoiPanel({
           <span className={styles.eyebrow}>Performance</span>
           <span className={styles.title}>
             {model === "v3"
-              ? "Bankroll @ DK · v3 shadow (showing v2 stats — v3 view coming soon)"
+              ? "Bankroll @ DK · v3 shadow"
               : "Bankroll @ DK"}
           </span>
           {view && (
