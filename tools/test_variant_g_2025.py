@@ -119,11 +119,28 @@ def pl(bets, skip_predicate):
 
 
 def bucket_yrfi(bets):
-    """Group STRONG YRFI bets into [0.36, 0.37), [0.37, 0.38), ..., [0.42, 0.43)."""
-    bands = [(0.36, 0.37), (0.37, 0.38), (0.38, 0.40), (0.40, 0.42), (0.42, 0.43)]
+    """Group STRONG YRFI bets into [0.30, 0.34), [0.34, 0.36), [0.36, 0.37),
+    [0.37, 0.38), [0.38, 0.40), [0.40, 0.42), [0.42, 0.43)."""
+    bands = [(0.30, 0.34), (0.34, 0.36), (0.36, 0.37), (0.37, 0.38),
+             (0.38, 0.40), (0.40, 0.42), (0.42, 0.43)]
     out = {b: [] for b in bands}
     for p, side, won in bets:
         if side != "YRFI":
+            continue
+        for lo, hi in bands:
+            if lo <= p < hi:
+                out[(lo, hi)].append((p, won))
+                break
+    return out
+
+
+def bucket_nrfi(bets):
+    """Group STRONG NRFI bets into [0.58, 0.60), [0.60, 0.62), [0.62, 0.64),
+    [0.64, 0.66), [0.66, 1.00)."""
+    bands = [(0.58, 0.60), (0.60, 0.62), (0.62, 0.64), (0.64, 0.66), (0.66, 1.00)]
+    out = {b: [] for b in bands}
+    for p, side, won in bets:
+        if side != "NRFI":
             continue
         for lo, hi in bands:
             if lo <= p < hi:
