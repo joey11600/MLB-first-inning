@@ -110,6 +110,10 @@ export function BoardTable({
 
   return (
     <div className={styles.wrap}>
+      {/* Post-redesign 6-col header.  Mirrors .clickable in
+          BoardRow.module.css.  Edge sort lives on the PICK header
+          since edge is now folded into the inline OddsChip in that
+          column; result sort lives on the STATE header. */}
       <div className={styles.headRow} role="row">
         <div>Time</div>
         <div>Matchup</div>
@@ -121,27 +125,21 @@ export function BoardTable({
           }`}
           aria-pressed={sortKey === "result"}
           title={sortKey === "result" ? "Sorted by result (click to reset)" : "Sort by result (W → L → PASS → PP → ungraded)"}
-          style={{ textAlign: "left" }}
         >
-          Result {sortKey === "result" ? "▾" : ""}
+          State {sortKey === "result" ? "▾" : ""}
         </button>
-        <div className={styles.right}>P(YRFI)</div>
-        <div>Pick</div>
-        <div>Odds</div>
         <button
           type="button"
           onClick={toggleEdgeSort}
-          className={`${styles.sortable} ${styles.right} ${
+          className={`${styles.sortable} ${
             sortKey === "edge" ? styles.sortableActive : ""
           }`}
           aria-pressed={sortKey === "edge"}
           title={sortKey === "edge" ? "Sorted by edge (click to reset)" : "Sort by edge (highest first)"}
         >
-          Edge {sortKey === "edge" ? "▾" : ""}
+          Pick {sortKey === "edge" ? "· edge ▾" : ""}
         </button>
-        <div>NRFI ←→ YRFI</div>
-        <div className={styles.right}>NRFI</div>
-        <div className={styles.right}>YRFI</div>
+        <div className={styles.distHead}>NRFI ←→ YRFI</div>
         <div></div>
       </div>
       <div

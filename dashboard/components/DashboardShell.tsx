@@ -11,8 +11,9 @@ import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
 import { Ticker } from "./Ticker";
 import { StatusLine } from "./StatusLine";
-import { ThemeToggle } from "./ThemeToggle";
 import { ModelToggle, usePersistedModel } from "./ModelToggle";
+import { TonightsActionCard } from "./TonightsActionCard";
+import { SettingsDropdown } from "./SettingsDropdown";
 import styles from "./DashboardShell.module.css";
 
 // T3.18: Filter persistence helpers.  We persist via TWO mechanisms:
@@ -235,56 +236,56 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       {/* Full-bleed sticky ticker, outside the max-width shell */}
       <Ticker rows={data.rows} date={data.date} />
       <main className={styles.shell}>
+      {/* Tightened single-row header.  Brand on the left, slate hero
+          centered, primary actions (model toggle + history) and the
+          settings dropdown on the right.  The MODEL meta block was
+          dropped because the ModelToggle pill itself shows current
+          state -- two surfaces saying the same thing was redundant.
+          ThemeToggle + NotifyToggle moved into SettingsDropdown. */}
       <header className={styles.header}>
         <div className={styles.brand}>
           <div className={styles.mark} aria-hidden />
           <div className={styles.brandText}>
             <div className={styles.brandTitle}>NRFI TERMINAL</div>
             <div className={styles.brandSub}>
-              FIRST-INNING INTELLIGENCE · POISSON · PITCHER × OFFENSE × PARK
+              FIRST-INNING INTELLIGENCE
             </div>
           </div>
         </div>
-        <div className={styles.meta}>
-          <div>
-            <div className="eyebrow">SLATE</div>
-            <div className={styles.slateDate}>
-              {formatDateHeader(data.date)}
-            </div>
+
+        <div className={styles.slateBlock}>
+          <div className="eyebrow">Slate</div>
+          <div className={styles.slateDate}>
+            {formatDateHeader(data.date)}
           </div>
-          <div>
-            <div className="eyebrow">GENERATED</div>
-            <div className={`num ${styles.metaValue}`}>
-              {data.generatedAt
-                ? `${new Date(data.generatedAt).toLocaleString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    month: "short",
-                    day: "2-digit",
-                    timeZone: "America/New_York",
-                  })} ET`
-                : "—"}
-            </div>
-          </div>
-          <div>
-            <div className="eyebrow">MODEL</div>
-            <div className={`num ${styles.metaValue}`}>
-              {model === "v2"
-                ? "LR-v2 · calibrated"
-                : "LR-v3 · shadow (experimental)"}
-            </div>
+          <div className={styles.slateMeta}>
+            Generated {formatRelativeTime(data.generatedAt)}
           </div>
         </div>
+
         <div className={styles.headerActions}>
           <ModelToggle model={model} onChange={setModel} />
           <a href="/history" className={styles.navLink} title="Bankroll history">
             <span className={styles.navLinkIcon} aria-hidden>▤</span>
             History
           </a>
-          <NotifyToggle />
-          <ThemeToggle />
+          <SettingsDropdown notifyToggle={<NotifyToggle />} />
         </div>
       </header>
+
+      {/* Post-redesign top-of-fold ordering:
+          1. TonightsActionCard -- "what should I bet tonight" (NEW, hero)
+          2. OpsHealthCard      -- system health surfaced if anything's wrong
+          3. SummaryStrip       -- retrospective today-stats tiles
+          4. RoiPanel           -- bankroll across 7d/30d/season
+          5. ControlPanel       -- date + filters
+          6. (changes / board / status)
+       */}
+      <TonightsActionCard
+        rows={data.rows}
+        details={data.details}
+        model={model}
+      />
 
       <OpsHealthCard />
 
@@ -439,4 +440,20 @@ function formatDateHeader(iso: string): string {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+/** Format a generated-at timestamp as a human relative time:
+ *    "2m ago", "47m ago", "3h ago", "1d ago"
+ *  Replaces the previous absolute "11:42 ET" rendering -- relative
+ *  is more useful at a glance ("freshness") and degrades gracefully
+ *  for stale slates.  Falls back to em-dash on null/unparseable. */
+function formatRelativeTime(iso: string | null): string {
+  if (!iso) return "—";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "—";
+  const ageSec = Math.max(0, (Date.now() - t) / 1000);
+  if (ageSec < 60)    return "just now";
+  if (ageSec < 3600)  return `${Math.round(ageSec / 60)}m ago`;
+  if (ageSec < 86400) return `${Math.round(ageSec / 3600)}h ago`;
+  return `${Math.round(ageSec / 86400)}d ago`;
 }

@@ -6,18 +6,61 @@ import type {
   DataQuality,
   GameDetail,
   OffenseStats,
+  PickThresholds,
   PitcherStats,
   PickSide,
   PickStrength,
 } from "@/lib/types";
 import { LambdaMeter } from "./LambdaMeter";
+import {
+  classifyTentative,
+  parseAmericanToImpliedProb,
+} from "./BoardRow";
 import styles from "./GameDetails.module.css";
 
-export function GameDetails({ row, detail }: { row: BoardRow; detail: GameDetail | undefined }) {
+/** GameDetails — expanded row drawer.
+ *
+ *  Post-redesign: hosts the contextual annotations that used to render
+ *  inline on the row (tentative lean while LINEUP PENDING, v3 model
+ *  disagreement, line-drift open→current).  The row stays clean; the
+ *  context lives one click away.
+ *
+ *  Props:
+ *    row        — effective row (v3-spread-applied if model="v3" and v3 data present)
+ *    detail     — effective detail (same v3-spread treatment)
+ *    rawRow     — original BoardRow before any v3 spread (for v3-vs-v2 comparison)
+ *    rawDetail  — original GameDetail before v3 spread
+ *    thresholds — classifier thresholds from the predictor; falls back to defaults
+ *    model      — "v2" (production) or "v3" (shadow)
+ */
+export function GameDetails({
+  row,
+  detail,
+  rawRow,
+  rawDetail,
+  thresholds,
+  model = "v2",
+}: {
+  row:        BoardRow;
+  detail:     GameDetail | undefined;
+  rawRow?:    BoardRow;
+  rawDetail?: GameDetail | undefined;
+  thresholds?: PickThresholds;
+  model?:     "v2" | "v3";
+}) {
   const hasDetail = Boolean(detail);
 
   return (
     <div className={styles.wrap}>
+      <NoticeStack
+        row={row}
+        detail={detail}
+        rawRow={rawRow}
+        rawDetail={rawDetail}
+        thresholds={thresholds}
+        model={model}
+      />
+
       <div className={styles.topGrid}>
         <div className={styles.projCol}>
           <ProjectionPanel row={row} detail={detail} />
@@ -763,4 +806,254 @@ function initialsFromName(name: string | undefined): string {
   if (parts.length === 0) return "—";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+
+/* ============================================================
+   NoticeStack -- contextual annotations that used to clutter the
+   row inline.  Each notice is conditionally rendered:
+     - TentativeLeanNotice: when LINEUP/STARTER PENDING with a
+       computable lean
+     - V3DisagreementNotice: when model=v3 and v3 disagrees with v2
+     - V3MissingNotice: when model=v3 but the row has no v3 data
+     - LineDriftNotice: when opened odds differ from current,
+       showing whether the market moved toward or away from the pick
+   None of these block the main details panel; if all conditions
+   are false the stack renders nothing.
+   ============================================================ */
+
+function NoticeStack({
+  row,
+  detail,
+  rawRow,
+  rawDetail,
+  thresholds,
+  model,
+}: {
+  row:        BoardRow;
+  detail:     GameDetail | undefined;
+  rawRow?:    BoardRow;
+  rawDetail?: GameDetail | undefined;
+  thresholds?: PickThresholds;
+  model:      "v2" | "v3";
+}) {
+  const showTentative =
+    row.pickStrength === "LINEUP PENDING";
+  const showV3Disagree =
+    model === "v3" && rawRow?.v3?.disagreesWithV2 === true;
+  const showV3Missing =
+    model === "v3" && rawRow !== undefined && rawRow.v3 === undefined;
+
+  // Line drift on the picked side -- only meaningful when we have an
+  // opened price for that side AND the price has actually moved.
+  const driftPick =
+    row.pickSide === "NRFI" || row.pickSide === "YRFI"
+      ? row.pickSide
+      : null;
+  const driftOpenRaw =
+    driftPick === "NRFI"
+      ? detail?.openedNrfiOdds
+      : driftPick === "YRFI"
+        ? detail?.openedYrfiOdds
+        : "";
+  const driftCurrentRaw =
+    driftPick === "NRFI"
+      ? detail?.marketNrfiOdds
+      : driftPick === "YRFI"
+        ? detail?.marketYrfiOdds
+        : "";
+  const showDrift = Boolean(
+    driftPick
+    && driftOpenRaw
+    && driftCurrentRaw
+    && driftOpenRaw !== driftCurrentRaw,
+  );
+
+  if (!showTentative && !showV3Disagree && !showV3Missing && !showDrift) {
+    return null;
+  }
+
+  return (
+    <div className={styles.noticeStack}>
+      {showTentative && (
+        <TentativeLeanNotice
+          row={row}
+          detail={detail}
+          thresholds={thresholds}
+        />
+      )}
+      {showV3Disagree && rawRow && (
+        <V3DisagreementNotice
+          v2Label={rawRow.pickLabel}
+          v3Label={rawRow.v3!.pickLabel}
+          v2Side={rawRow.pickSide}
+          v3Side={rawRow.v3!.pickSide}
+        />
+      )}
+      {showV3Missing && (
+        <V3MissingNotice />
+      )}
+      {showDrift && driftPick && (
+        <LineDriftNotice
+          pickSide={driftPick}
+          openOdds={driftOpenRaw || ""}
+          currentOdds={driftCurrentRaw || ""}
+          clvPct={detail?.clvPct ?? null}
+        />
+      )}
+    </div>
+  );
+}
+
+/** TentativeLeanNotice -- shown when the row is LINEUP PENDING but the
+ *  model can compute a lean from team-fallback batter stats.  Tells
+ *  the operator what the model would say IF the lineup were posted,
+ *  visually marked as tentative so it never reads as a committed pick. */
+function TentativeLeanNotice({
+  row,
+  detail,
+  thresholds,
+}: {
+  row: BoardRow;
+  detail: GameDetail | undefined;
+  thresholds: PickThresholds | undefined;
+}) {
+  const pNrfi  = row.nrfiPct / 100;
+  const lambda = detail?.lambdaLrTotal ?? row.lambda;
+  const t      = classifyTentative(pNrfi, lambda, thresholds);
+
+  if (t.side === "PASS") return null;
+
+  const sideClass = t.side === "NRFI" ? styles.noticeNrfi : styles.noticeYrfi;
+  const arrow = t.side === "NRFI" ? "→ NRFI" : "→ YRFI";
+
+  return (
+    <div className={`${styles.notice} ${sideClass}`}>
+      <span className={styles.noticeDot} aria-hidden />
+      <div className={styles.noticeBody}>
+        <div className={styles.noticeHead}>
+          <span className={styles.noticeEyebrow}>Tentative lean</span>
+          <span className={styles.noticeStrong}>{t.strength} {arrow}</span>
+        </div>
+        <div className={styles.noticeMeta}>
+          Based on team-fallback batter stats.  Will commit (or override)
+          once MLB posts the lineup.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** V3DisagreementNotice -- shown in v3 view when v3's verdict differs
+ *  from v2's production verdict on this game.  Quiet, side-by-side
+ *  presentation so the operator can compare without alarm. */
+function V3DisagreementNotice({
+  v2Label,
+  v3Label,
+  v2Side,
+  v3Side,
+}: {
+  v2Label: string;
+  v3Label: string;
+  v2Side:  PickSide;
+  v3Side:  PickSide;
+}) {
+  return (
+    <div className={`${styles.notice} ${styles.noticeShadow}`}>
+      <span className={styles.noticeDot} data-tone="shadow" aria-hidden />
+      <div className={styles.noticeBody}>
+        <div className={styles.noticeHead}>
+          <span className={styles.noticeEyebrow}>v3 disagreement</span>
+        </div>
+        <div className={styles.noticeMeta}>
+          v3 (experimental) says{" "}
+          <span className={styles.noticeInlineSide} data-side={v3Side.toLowerCase()}>
+            {v3Label}
+          </span>
+          ; v2 (production, your real picks) says{" "}
+          <span className={styles.noticeInlineSide} data-side={v2Side.toLowerCase()}>
+            {v2Label}
+          </span>
+          .
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** V3MissingNotice -- shown when v3 view is selected but this row has
+ *  no shadow data (pre-T3.13 row, before nrfi_prob_raw was stored).
+ *  Tells the operator they're seeing v2 verdict as a fallback. */
+function V3MissingNotice() {
+  return (
+    <div className={`${styles.notice} ${styles.noticeShadow}`}>
+      <span className={styles.noticeDot} data-tone="shadow" aria-hidden />
+      <div className={styles.noticeBody}>
+        <div className={styles.noticeHead}>
+          <span className={styles.noticeEyebrow}>v3 unavailable</span>
+        </div>
+        <div className={styles.noticeMeta}>
+          No shadow data for this game (predicted before T3.13 nrfi_prob_raw
+          column landed).  Showing v2 verdict as a fallback.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** LineDriftNotice -- shows whether the market moved toward our pick
+ *  (sharp / agreeing) or away (soft / disagreeing) between the open
+ *  and the current price.  Quantified in implied-probability points. */
+function LineDriftNotice({
+  pickSide,
+  openOdds,
+  currentOdds,
+  clvPct,
+}: {
+  pickSide:    "NRFI" | "YRFI";
+  openOdds:    string;
+  currentOdds: string;
+  clvPct:      number | null;
+}) {
+  const pOpen = parseAmericanToImpliedProb(openOdds);
+  const pNow  = parseAmericanToImpliedProb(currentOdds);
+  if (pOpen == null || pNow == null) return null;
+
+  const ppDelta = (pNow - pOpen) * 100;          // positive = toward us
+  if (Math.abs(ppDelta) < 0.5) return null;     // sub-half-pp = noise
+
+  const towardUs = ppDelta > 0;
+  const arrow    = towardUs ? "↑" : "↓";
+  const tone     = towardUs ? styles.noticeSharp : styles.noticeSoft;
+  const reading  = towardUs
+    ? "Market moved TOWARD our pick — you beat the close."
+    : "Market moved AWAY from our pick — line softened on us.";
+
+  return (
+    <div className={`${styles.notice} ${tone}`}>
+      <span className={styles.noticeDot} aria-hidden>{arrow}</span>
+      <div className={styles.noticeBody}>
+        <div className={styles.noticeHead}>
+          <span className={styles.noticeEyebrow}>Line drift · {pickSide}</span>
+          <span className={`num ${styles.noticeStrong}`}>
+            {openOdds} → {currentOdds}
+            <span className={styles.noticeDelta}>
+              ({ppDelta >= 0 ? "+" : ""}{ppDelta.toFixed(1)}pp)
+            </span>
+          </span>
+        </div>
+        <div className={styles.noticeMeta}>
+          {reading}
+          {clvPct != null && (
+            <>
+              {" "}CLV on close:{" "}
+              <span className={`num ${styles.noticeCLV}`} data-tone={clvPct >= 0 ? "sharp" : "soft"}>
+                {clvPct >= 0 ? "+" : ""}{(clvPct * 100).toFixed(2)}pp
+              </span>.
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

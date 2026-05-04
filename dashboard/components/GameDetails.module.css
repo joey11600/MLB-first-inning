@@ -6,6 +6,171 @@
   font-family: var(--font-sans);
 }
 
+/* ============================================================
+   NoticeStack -- contextual annotations that the row used to render
+   inline (tentative lean, v3 disagreement, line drift).  Stacked at
+   the top of the details panel so they read as scannable callouts
+   rather than inline chip soup.
+   ============================================================ */
+
+.noticeStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--card) 85%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Tone-tinted variants pull a soft color from the matching token. */
+.noticeNrfi {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  background:
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--primary) 6%, var(--card)) 0%,
+      var(--card) 60%);
+}
+.noticeYrfi {
+  border-color: color-mix(in oklab, var(--destructive) 35%, var(--border));
+  background:
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--destructive) 6%, var(--card)) 0%,
+      var(--card) 60%);
+}
+.noticeShadow {
+  border-color: color-mix(in oklab, var(--accent-cyan) 35%, var(--border));
+  background:
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--accent-cyan) 5%, var(--card)) 0%,
+      var(--card) 60%);
+}
+.noticeSharp {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  background:
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--primary) 5%, var(--card)) 0%,
+      var(--card) 60%);
+}
+.noticeSoft {
+  border-color: color-mix(in oklab, var(--muted-foreground) 25%, var(--border));
+  background: var(--card);
+}
+
+.noticeDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  margin-top: 5px;
+  background: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 10px;
+  text-align: center;
+  color: var(--foreground);
+  /* When the dot is used as a glyph (drift arrows), let the content
+     ride alongside the colored shape -- override flex sizing so the
+     text doesn't get clipped. */
+}
+.noticeNrfi .noticeDot {
+  background: var(--primary);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--primary) 50%, transparent);
+}
+.noticeYrfi .noticeDot {
+  background: var(--destructive);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--destructive) 50%, transparent);
+}
+.noticeShadow .noticeDot {
+  background: var(--accent-cyan);
+}
+.noticeSharp .noticeDot {
+  background: transparent;
+  color: var(--primary);
+  box-shadow: none;
+}
+.noticeSoft .noticeDot {
+  background: transparent;
+  color: var(--muted-foreground);
+  box-shadow: none;
+}
+
+.noticeBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.noticeHead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.noticeEyebrow {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.noticeStrong {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.noticeNrfi   .noticeStrong { color: var(--primary); }
+.noticeYrfi   .noticeStrong { color: var(--destructive); }
+
+.noticeMeta {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.45rem;
+  color: var(--muted-foreground);
+  letter-spacing: 0.005em;
+}
+
+.noticeInlineSide {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.noticeInlineSide[data-side="nrfi"] { color: var(--primary); }
+.noticeInlineSide[data-side="yrfi"] { color: var(--destructive); }
+.noticeInlineSide[data-side="pass"] { color: var(--secondary); }
+
+.noticeDelta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-left: 6px;
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+
+.noticeCLV {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.noticeCLV[data-tone="sharp"] { color: var(--primary); }
+.noticeCLV[data-tone="soft"]  { color: var(--destructive); }
+
 .topGrid {
   display: grid;
   grid-template-columns: 1.1fr 1fr 0.9fr;

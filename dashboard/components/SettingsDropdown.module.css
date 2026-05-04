@@ -1,0 +1,156 @@
+/* ============================================================
+   SettingsDropdown
+   Gear icon trigger + popover menu for secondary header actions.
+   The trigger lives in the header alongside ModelToggle + History;
+   the popover floats below-right anchored to the trigger.
+   ============================================================ */
+
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+.trigger {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.trigger:hover {
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--foreground) 30%, var(--border));
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.triggerOpen {
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
+  background: color-mix(in oklab, var(--primary) 10%, var(--card));
+}
+
+/* ===========================
+   Popover menu
+   =========================== */
+
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 280px;
+  padding: 14px 16px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow:
+    var(--shadow-2),
+    0 0 0 1px color-mix(in oklab, var(--foreground) 4%, transparent);
+  z-index: 50;
+  animation: settingsFade 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes settingsFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuEyebrow {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-bottom: 10px;
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 0;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+.menuRow:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.menuLabel {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground);
+  letter-spacing: 0.02em;
+}
+
+.menuControl {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.menuFoot {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+.menuFootLink {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.menuFootLink:hover {
+  color: var(--primary);
+}
+
+.menuFootLink:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ===========================
+   Responsive
+   =========================== */
+
+@media (max-width: 640px) {
+  .menu {
+    /* on narrow viewports the dropdown can clip the right edge of the
+       viewport; pin to the right with a small inset and let the menu
+       extend left as needed */
+    right: 0;
+    min-width: 240px;
+    max-width: calc(100vw - 32px);
+  }
+}

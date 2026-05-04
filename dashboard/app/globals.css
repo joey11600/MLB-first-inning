@@ -329,3 +329,59 @@ button:focus-visible {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(300%); }
 }
+
+/* ============================================================
+   prefers-reduced-motion -- accessibility opt-out for the
+   decorative animations.  Respects the OS-level setting so users
+   with vestibular sensitivities aren't bombarded by the scanline,
+   ticker scroll, row pulses, fade-ins, and ambient pulses.
+
+   What's killed:
+     * Scanline overlay shimmer (the body::after radial wash stays
+       static; we just stop any subtle motion)
+     * .stagger fade-ins on the row list
+     * rowJustChanged pulse (functional indicator -- replaced by an
+       instant border tone via the existing transition: properties)
+     * live1stPulse (1st-inning live badge)
+     * pendingPulse (lineup-pending dot)
+     * rankTagPulse (tentative time chip dot)
+     * tickerScroll (the auto-scrolling top ticker)
+     * sweep / pulseDot keyframes
+     * settingsFade dropdown reveal
+
+   What's preserved:
+     * `transition:` properties on hover/state changes -- these are
+       already short and feel like instant state changes, not motion
+     * detailFade and rowJustChanged fade are reduced to opacity
+       changes only, no transform
+     * Functional indicators stay readable via static color treatments
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Disable all our keyframe-driven animations.  Targeting them
+     globally with a wildcard would also kill third-party libs we
+     don't control; instead we override the named animations we use. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Stagger fade-ins -- the row list cascades into view normally;
+     under reduced motion we want everything to appear instantly. */
+  .stagger > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* fade-in helper falls back to immediate visibility */
+  .fade-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

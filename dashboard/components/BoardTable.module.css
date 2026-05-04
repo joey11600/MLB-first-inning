@@ -2,27 +2,23 @@
   margin-top: 12px;
 }
 
+/* ============================================================
+   Header row -- mirrors .clickable in BoardRow.module.css.
+   When changing widths here, update the body grid in lock-step
+   or the column rhythm desyncs.
+
+   Post-redesign 6-col rhythm:
+     TIME | MATCHUP | STATE | PICK | DIST | EXPAND
+   ============================================================ */
 .headRow {
   display: grid;
-  /* Mirrors .clickable in BoardRow.module.css.  When changing widths here,
-     update the body grid in lock-step or the column rhythm desyncs.
-     Odds gets its own column (T2.18) -- previously crammed inside PICK.
-     T2.29 rebalance: odds min bumped to 172 (PASS-row chip natural
-     width is ~160 + breathing); compensated by shaving 2-6px off the
-     fixed-width tracks so the total min-width budget is unchanged.
-     See comment in .clickable for the full width budget. */
   grid-template-columns:
-    74px                  /* time */
-    minmax(114px, 0.5fr)  /* matchup */
-    64px                  /* result */
-    52px                  /* P(YRFI) */
-    minmax(240px, 0.95fr) /* pick pill + tentative chip */
-    minmax(172px, 0.6fr)  /* odds chip (DK N -130 · Y +100) */
-    58px                  /* edge % */
-    minmax(90px, 0.3fr)   /* lambda meter */
-    72px                  /* NRFI % */
-    72px                  /* YRFI % */
-    60px;                 /* caret affordance */
+    74px                   /* TIME */
+    minmax(120px, 0.5fr)   /* MATCHUP */
+    80px                   /* STATE */
+    minmax(280px, 1fr)     /* PICK -- pill + inline odds chip */
+    minmax(220px, 0.6fr)   /* DIST -- segmented NRFI<->YRFI bar */
+    64px;                  /* EXPAND */
   align-items: center;
   padding: 10px 24px 8px;
   font-family: var(--font-sans);
@@ -31,26 +27,31 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted-foreground);
-  gap: 12px;
+  gap: 14px;
   font-weight: 600;
 }
 
 .right { text-align: right; }
+.distHead {
+  /* Center-align the DIST header label since the body bar is
+     symmetric around the 50/50 mid-mark. */
+  text-align: center;
+}
 
-/* Sortable header cell -- styled like a button but visually mirrors the
-   plain headers around it.  Active state uses a soft warm-brown chip. */
+/* Sortable header cell -- styled like a button, visually mirrors plain
+   headers around it.  Active state uses a soft warm-brown chip. */
 .sortable {
   background: transparent;
   border: 0;
   padding: 0;
   margin: 0;
-  text-align: right;
+  text-align: left;
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
   color: inherit;
   cursor: pointer;
-  transition: color 160ms ease;
+  transition: color 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sortable:hover { color: var(--foreground); }
 .sortable:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 3px; }
@@ -61,7 +62,7 @@
 
 .body {
   display: block;
-  transition: opacity 200ms ease;
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dim { opacity: 0.4; pointer-events: none; }
@@ -96,8 +97,8 @@
   color: var(--muted-foreground);
 }
 
-/* Hide the desktop header when the row layout collapses (sync with the
-   .clickable breakpoint in BoardRow.module.css). */
-@media (max-width: 1280px) {
+/* Hide the desktop header when the row layout collapses (sync with
+   the .clickable breakpoint in BoardRow.module.css). */
+@media (max-width: 1180px) {
   .headRow { display: none; }
 }
