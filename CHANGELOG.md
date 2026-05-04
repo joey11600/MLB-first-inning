@@ -102,6 +102,62 @@ production threshold remains P(NRFI) ≤ 0.42 for STRONG YRFI.
 If Variant J reproduces on a third independent sample (2024 holdout when
 the per-game backfill lands), ship.  Until then: shadow.
 
+### Update — strict walk-forward via per-pitch backfill (T3.12 Test 3)
+
+After 728 pitchers fetched via `tools/backfill_xera_pit_perpitch.py`,
+producing leak-free `backtest_*_truepit.csv` (cumulative-through-yesterday
+xwOBA-derived xera + cross-pitcher whiff_pct_rank from raw per-pitch Statcast):
+
+| Test | Methodology | STRONG YRFI bets | STRONG NRFI bets | Variant J lift |
+|---|---|---|---|---|
+| Test 1 (prior-year proxy 2024 → 2025) | leak-free but conservative | 0 | 413 | +0u (no YRFI to filter) |
+| Test 2 (leaky 2024 → leaky 2025) | matches production methodology | 172 (60% hit) | 386 (68% hit) | +1u (G), +5.83u (J) |
+| Test 3 (TRUE point-in-time 2024 → 2025) | strict walk-forward | **0** | **329 (54% hit)** | +0u (no YRFI to filter) |
+
+**Result: under strict walk-forward, Variant J cannot be tested because
+the model produces ZERO STRONG YRFI bets.  Calibrator range is [0.4583,
+0.6357], floor is 0.05+ ABOVE the 0.42 YRFI threshold.**
+
+But the bigger finding is that **STRONG NRFI bets, which are 68% hit
+under leaky walk-forward, drop to 54% under strict walk-forward** —
+roughly coin-flip at -110 odds.  The production model's apparent profit
+edge is largely an artifact of feature leakage in the training data.
+
+Variant J is now formally REJECTED because:
+- Cannot reproduce on strict walk-forward (no STRONG YRFI bets exist)
+- The premise (skipping a "losing band" within YRFI bets) only applies
+  to the leaky-data calibrator, not to a genuinely-trained model
+
+Methodology caveats documented in `docs/KB.md` "Headline finding" section:
+the xwOBA→xERA proxy is simplified vs MLB's official formula, the
+whiff_pct_rank computation uses 200-swing minimum, and 240 pitcher-rows
+in 2025 had no pitcher_id mapping.  These could understate the model's
+true leak-free signal.  But the qualitative conclusion (calibrator too
+conservative for YRFI bets, NRFI bets at break-even) is robust.
+
+### What this means for the broader project
+
+The roadmap's Variant J line item is closed REJECTED.  The deeper
+question now is: **does the production model have any real edge once
+calibrator leakage is fixed?**  Three paths forward:
+
+1. **Refit production calibrator on leak-free corpus** — use truepit
+   2024 + 2025 to fit the calibrator (vs current 2025+2026 leaky data).
+   Production model would become more conservative; fewer STRONG bets
+   per slate but each more confident.
+2. **Investigate methodology suspicion** — improve the xwOBA→xERA
+   proxy (use MLB's official formula instead of linear slope) and
+   redo Test 3 to confirm the break-even result isn't a methodology
+   artifact.
+3. **Accept the finding and adjust expectations** — the model has
+   a small real edge inflated by leaky training data into a larger
+   apparent edge.  Live betting at flat 1u stakes assumes the apparent
+   edge; if real edge is half of that, downside risk is substantial.
+
+These are the actual next steps.  None ship tonight.
+
+---
+
 ### Deferred (need walk-forward to validate)
 
 - **Refit calibrator** on a leak-free corpus to widen the 0.36-0.66 range.

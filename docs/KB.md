@@ -435,6 +435,57 @@ distinguish "today's slate is NRFI-leaning" from "today's slate is
 YRFI-leaning" — it predicts ~47% NRFI every single day.  6 of the 7 worst
 P/L days in 30 days are NRFI-leaning slates where the model over-bet YRFI.
 
+### THE HEADLINE FINDING — Strict walk-forward (T3.12 Test 3, 2026-05-03)
+
+After per-pitch xera/whiff backfill (`tools/backfill_xera_pit_perpitch.py`)
+producing data/backtests/backtest_*_truepit.csv with cumulative-through-
+yesterday xwOBA-derived xera + cross-pitcher whiff_pct_rank rebuilt from
+raw Statcast, ran Test 3 of `tools/test_variant_g_2025.py`:
+
+  Train: backtest_2024-*_truepit.csv (true point-in-time)
+  Test:  backtest_2025-*_truepit.csv (true point-in-time)
+
+Result:
+
+  Calibrator range : [0.4583, 0.6357]   (vs production [0.3623, 0.6620])
+  STRONG bets identified: 329 -- ALL NRFI, ZERO YRFI
+  Hit rate         : 179-150 = 54.4%
+  P/L              : -0.83u over 329 bets
+
+**Two huge implications:**
+
+1. **Under strict walk-forward, the model produces NO STRONG YRFI bets at all.**
+   The calibrator's floor doesn't reach down to the 0.42 YRFI threshold.
+   Every STRONG YRFI bet in production is likely an artifact of leaky
+   training data inflating the calibrator's range.
+
+2. **STRONG NRFI bets are break-even under strict walk-forward** (54.4%
+   at -110 = roughly break-even).  Compare:
+     Leaky walk-forward (Test 2):    NRFI 67.9% hit rate, profitable
+     True walk-forward (Test 3):     NRFI 54.4% hit rate, ~break-even
+   That's a -13.5pp drop in NRFI hit rate when xera/whiff leakage is removed.
+
+The model's profitable production edge appears to be LARGELY calibrator-
+driven, not signal-driven.  When training data is genuinely leak-free,
+the model's edge mostly disappears.
+
+**CAVEATS** (the truepit methodology may be over-conservative):
+- xwoba -> xera proxy uses a simplified linear slope (32 ERA/xwoba)
+  rather than MLB's official xERA formula, which is non-linear and
+  uses individual batted-ball xwoba (not aggregate)
+- whiff_pct_rank uses cross-pitcher per-date sort with min 200 swings
+  (matches Savant's documented threshold) but may differ slightly
+- Some pitchers had partial-season fetches (240 missing pid rows)
+- 2024 -> 2025 has known year-over-year drift (pitch-clock effects,
+  pitcher quality tier shifts)
+
+But the QUALITATIVE finding stands: under strict walk-forward, the
+calibrator is structurally too conservative to produce STRONG YRFI bets,
+and STRONG NRFI bets are no better than coin-flip.
+
+**Variant J is moot.**  It targeted a calibrated P(NRFI) band that
+doesn't exist under strict walk-forward.
+
 ### Variants tested in response (T3.12, 2026-05-03)
 
 Four new variants added to the A/B harness:
