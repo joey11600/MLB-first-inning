@@ -991,11 +991,56 @@ _DEDUP_WINDOW_M: dict[str, int] = {
 }
 
 
-def _send_telegram_html(text: str) -> bool:
+# T3.15: per-chat event-type routing.  Some chats only want a SUBSET of
+# alert types -- e.g. the Backfist Bets supergroup is for sharing
+# confirmed bets + outcomes, not internal pick-flip noise.  Other chats
+# (the operator's personal DM) want everything.
+#
+# Format: chat_id (str) -> set of event_types allowed.  "*" means all
+# events.  Chats not listed default to "all events" (backwards-compat).
+#
+# 2026-05-04: per user request, Backfist Bets gets ONLY the two
+# "user-actionable, fully confirmed" events:
+#   - strong_locked:  fires at the 60-min lock window when lineup is
+#                     posted, pitcher quality is real, weather is final.
+#                     This IS the "bet confirmed with 100% accurate data"
+#                     moment.
+#   - strong_graded:  fires when the W/L result is in.
+# Everything else (flip_to_strong, pregame, weather changes, scratches,
+# CLV, daily digest, ops health, bankroll milestones) is suppressed for
+# the supergroup -- those are internal-monitoring signals not relevant
+# for sharing.
+_SUPERGROUP_CHAT_ID         = "-1003953933618"
+_SUPERGROUP_ALLOWED_EVENTS  = frozenset({"strong_locked", "strong_graded"})
+
+# Per-chat event routes.  Add new entries here when adding new chat_ids.
+_TELEGRAM_EVENT_ROUTES: dict[str, frozenset[str]] = {
+    _SUPERGROUP_CHAT_ID: _SUPERGROUP_ALLOWED_EVENTS,
+}
+
+
+def _chat_should_receive_event(chat_id: str, event_type: str | None) -> bool:
+    """Return True if this chat_id should receive the given event_type.
+    Chats without a route entry default to "receive everything"
+    (backwards-compatible)."""
+    if event_type is None:
+        return True    # legacy callers that don't pass event_type get everything
+    allowed = _TELEGRAM_EVENT_ROUTES.get(chat_id)
+    if allowed is None:
+        return True    # unrouted chat == everything
+    return event_type in allowed
+
+
+def _send_telegram_html(text: str, *, event_type: str | None = None) -> bool:
     """Low-level send.  Fans out to ALL chat_ids in `TELEGRAM_CHAT_ID`
     (comma-separated CSV).  Each chat_id can be:
       • a positive int  — DM to a person      (e.g. 5285688562)
       • a negative int  — group / channel     (e.g. -1001234567890)
+
+    `event_type` (T3.15): when provided, chat_ids configured in
+    _TELEGRAM_EVENT_ROUTES are filtered to only those that allow the
+    given event type.  Chats without a route entry receive everything
+    (backwards-compat).
 
     Returns True if at least one delivery succeeded.  Each recipient
     is independently attempted; one bad chat_id (e.g. bot kicked from
@@ -1068,6 +1113,11 @@ def _send_telegram_html(text: str) -> bool:
         # consecutive failures this process.  See comment at
         # _TELEGRAM_TRIPPED_BREAKERS for trip semantics.
         if _telegram_chat_is_disabled(chat_id):
+            continue
+        # T3.15: per-chat event-type routing.  Skip recipients that
+        # don't subscribe to this event_type (e.g. Backfist Bets only
+        # gets strong_locked + strong_graded).
+        if not _chat_should_receive_event(chat_id, event_type):
             continue
         try:
             body = urllib.parse.urlencode({
@@ -1256,7 +1306,7 @@ def _notify_event_telegram(event_type: str, event_key: str, body: str) -> bool:
         return False
     if _notify_event_dedup_check(event_type, event_key):
         return False   # silent skip — another runner already pinged
-    ok = _send_telegram_html(body)
+    ok = _send_telegram_html(body, event_type=event_type)
     _notify_event_record(event_type, event_key, body, ok)
     return ok
 
