@@ -1,16 +1,17 @@
 /**
  * Aggregate W-L record and P&L from the season picks CSV.
  *
- * Phase 1: assumes a flat -110 line (the standard MLB juice baseline).  At
- * -110 you risk 1 unit to win 0.909, so:
- *   WIN  -> +0.909 units
- *   LOSS -> -1.000 units
- *   PASS / POSTPONED / ungraded -> 0 units (no bet placed)
+ * Source of truth for P&L: the `profit_loss_units` column on each row,
+ * which the predictor + tracker compute from REAL DraftKings odds at
+ * bet-placement time (T2.27).  Audit 2026-05-04: 99.5% of placed bets
+ * have profit_loss_units populated -- the -110 fallback below is only
+ * used for the rare row whose DK odds weren't captured (e.g. very early
+ * morning slates before the odds-scrape runs, or postponed games).
  *
- * Break-even hit rate at -110 is 52.38%.  Anything above that is profit.
- *
- * Phase 2 (future) will read the per-row market_nrfi_odds / market_yrfi_odds
- * columns when populated and use the actual bet price instead of -110.
+ * The 52.38% break-even rate is kept as an INFORMATIONAL THRESHOLD --
+ * the hit rate at which a -110-equivalent bet would break even -- so
+ * the dashboard's "hit-rate-by-zone" chart can show whether each zone
+ * clears that bar.  It is NOT a P/L assumption.
  */
 
 import fs from "node:fs/promises";
@@ -19,13 +20,17 @@ import { parseCsv } from "./csv";
 import type { PickSide, PickStrength } from "./types";
 
 // ---------------------------------------------------------------------------
-// Constants -- payout assumptions for Phase 1
+// Constants -- fallbacks used only when profit_loss_units is missing.
+// In practice 99.5%+ of placed bets have real DK-derived P/L stored.
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_ODDS_AMERICAN = -110;
-export const DEFAULT_WIN_PROFIT_UNITS = 100 / 110;       // = 0.9091
-export const DEFAULT_LOSS_UNITS       = -1.0;
-export const DEFAULT_BREAK_EVEN_RATE  = 110 / 210;       // = 0.5238
+export const DEFAULT_ODDS_AMERICAN     = -110;
+export const DEFAULT_WIN_PROFIT_UNITS  = 100 / 110;       // = 0.9091
+export const DEFAULT_LOSS_UNITS        = -1.0;
+// Break-even hit rate threshold (informational reference for the
+// hit-rate-by-zone chart, NOT a P/L computation).  At -110 odds the
+// bet breaks even when hit rate = 52.38%.
+export const DEFAULT_BREAK_EVEN_RATE   = 110 / 210;       // = 0.5238
 
 // ---------------------------------------------------------------------------
 // Types

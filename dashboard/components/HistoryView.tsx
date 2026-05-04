@@ -163,7 +163,7 @@ export function HistoryView({ initial }: { initial: RoiResponse }) {
           <div>
             <div className={styles.eyebrow}>Daily breakdown</div>
             <div className={styles.chartTitle}>
-              Per-day +/- at -110 with cumulative overlay
+              Per-day +/- (DK odds) with cumulative overlay
             </div>
           </div>
           <div className={styles.legend}>
@@ -198,7 +198,7 @@ export function HistoryView({ initial }: { initial: RoiResponse }) {
           <div>
             <div className={styles.eyebrow}>Hit rate by pick zone</div>
             <div className={styles.chartTitle}>
-              Wins / bets per zone vs the {(52.4).toFixed(1)}% break-even at -110
+              Wins / bets per zone vs {(52.4).toFixed(1)}% break-even threshold
             </div>
           </div>
         </div>
@@ -861,8 +861,9 @@ function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
         );
       })}
       <div className={styles.zoneFoot}>
-        Vertical mark = {(breakEven * 100).toFixed(1)}% break-even at -110.  Bars right of the
-        line are profitable on the long run; left of it are net losers.
+        Vertical mark = {(breakEven * 100).toFixed(1)}% break-even threshold (the -110-equivalent hit
+        rate at which a bet zone breaks even).  Bars right of the line are profitable in expectation;
+        left of it are net losers.  Actual P/L uses real DK odds when captured.
       </div>
     </div>
   );

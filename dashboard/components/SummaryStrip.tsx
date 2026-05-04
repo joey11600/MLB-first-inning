@@ -67,8 +67,10 @@ export function SummaryStrip({
   // T1.4 Today's running P&L tile.  Computed from the details map so it
   // updates live as polling fetches fresh data.  Only counts rows with
   // graded WIN/LOSS results (PASS picks contribute 0 to record, blank
-  // graded means in-progress).  Uses profit_loss_units when populated
-  // (real bet at real price after T2.27), else flat -110 fallback.
+  // graded means in-progress).  P/L source: profit_loss_units (real DK
+  // odds, populated for 99.5% of placed bets per T2.27).  Flat -110
+  // fallback is a defensive backstop for the rare row that was graded
+  // before its DK odds got captured -- not a primary path.
   function lookupDetail(r: BoardRow): GameDetail | undefined {
     return (
       (r.gamePk && details[r.gamePk]) ||

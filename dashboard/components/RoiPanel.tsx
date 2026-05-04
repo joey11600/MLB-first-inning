@@ -45,7 +45,7 @@ export function RoiPanel({ initialDate, model = "v2" }: { initialDate: string; m
         <div className={styles.headLeft}>
           <span className={styles.eyebrow}>Performance</span>
           <span className={styles.title}>
-            {model === "v3" ? "Bankroll @ -110 · v3 shadow (showing v2 stats — v3 view coming soon)" : "Bankroll @ -110"}
+            {model === "v3" ? "Bankroll @ DK · v3 shadow (showing v2 stats — v3 view coming soon)" : "Bankroll @ DK"}
           </span>
           {data && (
             <span className={styles.range}>
