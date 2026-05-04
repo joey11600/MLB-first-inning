@@ -1,0 +1,63 @@
+/* T3.17 -- v2 / v3 model toggle, pill-style */
+
+.toggle {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 2px;
+  gap: 2px;
+  font-family: inherit;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: inherit;
+  transition: background 150ms ease, color 150ms ease;
+}
+.option:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+.option.active {
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--foreground);
+}
+
+.optionLabel {
+  font-variant-numeric: tabular-nums;
+}
+
+.optionTag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted-foreground) 18%, transparent);
+  color: var(--muted-foreground);
+}
+.option.active .optionTag {
+  background: color-mix(in oklab, var(--primary) 25%, transparent);
+  color: var(--foreground);
+}
+.optionTagShadow {
+  background: color-mix(in oklab, var(--secondary) 25%, transparent);
+  color: var(--secondary);
+}
+.option.active .optionTagShadow {
+  background: color-mix(in oklab, var(--secondary) 38%, transparent);
+}

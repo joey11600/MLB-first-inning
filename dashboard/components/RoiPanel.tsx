@@ -12,7 +12,7 @@ const WINDOWS: { key: RoiWindow; label: string }[] = [
 
 const BREAK_EVEN = 110 / 210; // 0.5238
 
-export function RoiPanel({ initialDate }: { initialDate: string }) {
+export function RoiPanel({ initialDate, model = "v2" }: { initialDate: string; model?: "v2" | "v3" }) {
   const [window, setWindow] = useState<RoiWindow>("30d");
   const [data, setData]     = useState<RoiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,11 @@ export function RoiPanel({ initialDate }: { initialDate: string }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const url = `/api/roi?window=${window}${initialDate ? `&date=${initialDate}` : ""}`;
+    // T3.17 follow-up: when in v3 mode, pass model=v3 so the server can
+    // aggregate pick_variants K rows instead of picks_2026 rows.
+    // Currently /api/roi ignores the param -- v3 perf surfacing is
+    // pending the server-side variant-aware aggregation work.
+    const url = `/api/roi?window=${window}${initialDate ? `&date=${initialDate}` : ""}${model === "v3" ? "&model=v3" : ""}`;
     fetch(url, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((j: RoiResponse | null) => {
@@ -33,14 +37,16 @@ export function RoiPanel({ initialDate }: { initialDate: string }) {
     return () => {
       cancelled = true;
     };
-  }, [window, initialDate]);
+  }, [window, initialDate, model]);
 
   return (
     <section className={styles.wrap}>
       <header className={styles.head}>
         <div className={styles.headLeft}>
           <span className={styles.eyebrow}>Performance</span>
-          <span className={styles.title}>Bankroll @ -110</span>
+          <span className={styles.title}>
+            {model === "v3" ? "Bankroll @ -110 · v3 shadow (showing v2 stats — v3 view coming soon)" : "Bankroll @ -110"}
+          </span>
           {data && (
             <span className={styles.range}>
               {data.startDate} → {data.endDate}

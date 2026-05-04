@@ -12,6 +12,7 @@ import { ChangeBanner } from "./ChangeBanner";
 import { Ticker } from "./Ticker";
 import { StatusLine } from "./StatusLine";
 import { ThemeToggle } from "./ThemeToggle";
+import { ModelToggle, usePersistedModel } from "./ModelToggle";
 import styles from "./DashboardShell.module.css";
 
 // T3.18: Filter persistence helpers.  We persist via TWO mechanisms:
@@ -61,6 +62,9 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   const [data, setData] = useState<BoardResponse>(initial);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  // T3.17: v2/v3 model toggle (Variant K shadow tracking).  v2 is the
+  // production calibrator and source-of-truth; v3 is experimental shadow.
+  const [model, setModel] = usePersistedModel();
 
   // Hydrate filters once on mount from URL params + localStorage.
   // (Done in an effect so SSR-rendered HTML doesn't read window.)
@@ -264,10 +268,15 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           </div>
           <div>
             <div className="eyebrow">MODEL</div>
-            <div className={`num ${styles.metaValue}`}>LR-v2 · calibrated</div>
+            <div className={`num ${styles.metaValue}`}>
+              {model === "v2"
+                ? "LR-v2 · calibrated"
+                : "LR-v3 · shadow (experimental)"}
+            </div>
           </div>
         </div>
         <div className={styles.headerActions}>
+          <ModelToggle model={model} onChange={setModel} />
           <a href="/history" className={styles.navLink} title="Bankroll history">
             <span className={styles.navLinkIcon} aria-hidden>▤</span>
             History
@@ -279,9 +288,9 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
 
       <OpsHealthCard />
 
-      <SummaryStrip rows={data.rows} details={data.details} />
+      <SummaryStrip rows={data.rows} details={data.details} model={model} />
 
-      <RoiPanel initialDate={data.date} />
+      <RoiPanel initialDate={data.date} model={model} />
 
       <ControlPanel
         dates={data.availableDates}
@@ -302,6 +311,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           loading={loading}
           thresholds={data.thresholds}
           date={data.date}
+          model={model}
         />
       </section>
 

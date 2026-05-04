@@ -40,18 +40,29 @@ const BUCKETS: Bucket[] = [
 export function SummaryStrip({
   rows,
   details = {},
+  model = "v2",
 }: {
   rows: BoardRow[];
   details?: Record<string, GameDetail>;
+  /** T3.17: when "v3", count picks + grades from row.v3 / detail.v3
+   *  instead of v2.  Rows without v3 data fall back to v2. */
+  model?: "v2" | "v3";
 }) {
+  // T3.17: helper -- pull pickSide/pickStrength from the right side
+  // (v2 or v3-fallback-to-v2) for every row.
+  const effectivePickSide = (r: BoardRow): BoardRow["pickSide"] =>
+    model === "v3" && r.v3 ? r.v3.pickSide : r.pickSide;
+  const effectivePickStrength = (r: BoardRow): BoardRow["pickStrength"] =>
+    model === "v3" && r.v3 ? r.v3.pickStrength : r.pickStrength;
+
   const avgLambda =
     rows.length === 0 ? 0 : rows.reduce((a, r) => a + r.lambda, 0) / rows.length;
   const maxLambda =
     rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.lambda));
   const minLambda =
     rows.length === 0 ? 0 : Math.min(...rows.map((r) => r.lambda));
-  const nrfiCnt = rows.filter((r) => r.pickSide === "NRFI").length;
-  const yrfiCnt = rows.filter((r) => r.pickSide === "YRFI").length;
+  const nrfiCnt = rows.filter((r) => effectivePickSide(r) === "NRFI").length;
+  const yrfiCnt = rows.filter((r) => effectivePickSide(r) === "YRFI").length;
 
   // T1.4 Today's running P&L tile.  Computed from the details map so it
   // updates live as polling fetches fresh data.  Only counts rows with
@@ -73,16 +84,20 @@ export function SummaryStrip({
   let losses = 0;
   let pl = 0;
   for (const r of rows) {
-    if (r.pickStrength === "STRONG" && (r.pickSide === "NRFI" || r.pickSide === "YRFI")) {
+    const eside     = effectivePickSide(r);
+    const estrength = effectivePickStrength(r);
+    if (estrength === "STRONG" && (eside === "NRFI" || eside === "YRFI")) {
       strongPicks += 1;
     }
-    const d = lookupDetail(r);
-    const g = d?.gradedResult;
+    const d        = lookupDetail(r);
+    // T3.17: when in v3 mode, read graded outcome from detail.v3
+    const useV3D   = model === "v3" && d?.v3 !== undefined;
+    const g        = useV3D ? d!.v3!.gradedResult         : d?.gradedResult;
+    const realPl   = useV3D ? d!.v3!.profitLossUnits      : d?.profitLossUnits;
     if (g === "WIN" || g === "LOSS") {
       bets += 1;
       if (g === "WIN") wins += 1;
       else losses += 1;
-      const realPl = d?.profitLossUnits;
       if (typeof realPl === "number" && Number.isFinite(realPl)) {
         pl += realPl;
       } else {

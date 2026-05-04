@@ -244,13 +244,14 @@ function oddsForPick(side: PickSide, nrfi: string, yrfi: string): string {
 }
 
 export function BoardRowItem({
-  row,
-  detail,
+  row: rawRow,
+  detail: rawDetail,
   live,
   expanded,
   onToggle,
   thresholds,
   slateDate,
+  model = "v2",
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
@@ -262,7 +263,30 @@ export function BoardRowItem({
    *  pre-lock countdown ("PENDING · LOCKS 2:10 PM ET") can be
    *  computed client-side from gameTimeEt + slateDate. */
   slateDate?: string;
+  /** T3.17: which calibrator's verdict to render.  v2 = production
+   *  (default); v3 = experimental shadow.  When v3 is selected and
+   *  the row has Variant K data, the pick fields (side/strength/
+   *  label/probs) and graded outcome fields (graded_result/units/
+   *  P&L) come from v3 instead of v2.  Rows without v3 data fall
+   *  back to v2 transparently. */
+  model?: "v2" | "v3";
 }) {
+  // T3.17: synthesize an "effective" row + detail that pull pick + grading
+  // fields from v3 when the toggle is on AND v3 data is present.  Using
+  // shallow-spread keeps the rest of the row (game_pk, gameTimeEt, etc.)
+  // intact and lets the existing JSX read everything off `row` / `detail`
+  // unchanged.
+  const useV3        = model === "v3" && rawRow.v3 !== undefined;
+  const useV3Detail  = useV3 && rawDetail?.v3 !== undefined;
+  const v3Disagrees  = useV3 && rawRow.v3?.disagreesWithV2 === true;
+  const noV3Data     = model === "v3" && rawRow.v3 === undefined;
+  const row: BoardRow = useV3
+    ? { ...rawRow, ...rawRow.v3! }
+    : rawRow;
+  const detail: GameDetail | undefined =
+    rawDetail && useV3Detail
+      ? { ...rawDetail, ...rawDetail.v3! }
+      : rawDetail;
   const tone = toneClass(row.pickSide, row.pickStrength);
 
   // T1.3: pulse the row briefly when meaningful data changes -- grade
@@ -361,6 +385,25 @@ export function BoardRowItem({
               </span>
             );
           })()}
+          {/* T3.17: model-toggle annotations.  Tiny badge after the pick
+              pill to flag (a) v3 disagrees with v2, or (b) no v3 shadow
+              data exists for this row (pre-K date or pre-T3.13 row). */}
+          {v3Disagrees && (
+            <span
+              className={styles.v3Badge}
+              title={`v3 (experimental) says ${rawRow.v3!.pickLabel}; v2 (production) says ${rawRow.pickLabel}.`}
+            >
+              ≠ v2
+            </span>
+          )}
+          {noV3Data && (
+            <span
+              className={styles.v3Badge}
+              title="No v3 shadow data for this game (pre-2026-05-04 row, before nrfi_prob_raw was stored). Showing v2 verdict."
+            >
+              v2 only
+            </span>
+          )}
           <TentativeChip row={row} detail={detail} thresholds={thresholds} />
         </span>
 
