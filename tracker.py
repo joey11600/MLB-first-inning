@@ -996,8 +996,13 @@ _DEDUP_WINDOW_M: dict[str, int] = {
 # confirmed bets + outcomes, not internal pick-flip noise.  Other chats
 # (the operator's personal DM) want everything.
 #
-# Format: chat_id (str) -> set of event_types allowed.  "*" means all
-# events.  Chats not listed default to "all events" (backwards-compat).
+# Format: chat_id (str) -> {"events": frozenset, "thread_id": str|None}
+# - events:    set of event_types allowed; chats not listed default
+#              to "all events" (backwards-compat)
+# - thread_id: optional Forum Topic id (for Telegram supergroups with
+#              Topics enabled).  Pass-through to sendMessage's
+#              message_thread_id parameter so messages land in a
+#              specific topic instead of General.
 #
 # 2026-05-04: per user request, Backfist Bets gets ONLY the two
 # "user-actionable, fully confirmed" events:
@@ -1010,12 +1015,21 @@ _DEDUP_WINDOW_M: dict[str, int] = {
 # CLV, daily digest, ops health, bankroll milestones) is suppressed for
 # the supergroup -- those are internal-monitoring signals not relevant
 # for sharing.
+#
+# T3.16 (later 2026-05-04): supergroup messages route to the
+# "1st Inning Model" forum topic (thread_id=2), not the supergroup's
+# General channel.  Discovered via getUpdates -- the operator had posted
+# in topic_id=2 which is the only custom topic in the group.
 _SUPERGROUP_CHAT_ID         = "-1003953933618"
 _SUPERGROUP_ALLOWED_EVENTS  = frozenset({"strong_locked", "strong_graded"})
+_SUPERGROUP_THREAD_ID       = "2"   # "1st Inning Model" topic in Backfist Bets
 
 # Per-chat event routes.  Add new entries here when adding new chat_ids.
-_TELEGRAM_EVENT_ROUTES: dict[str, frozenset[str]] = {
-    _SUPERGROUP_CHAT_ID: _SUPERGROUP_ALLOWED_EVENTS,
+_TELEGRAM_EVENT_ROUTES: dict[str, dict] = {
+    _SUPERGROUP_CHAT_ID: {
+        "events":    _SUPERGROUP_ALLOWED_EVENTS,
+        "thread_id": _SUPERGROUP_THREAD_ID,
+    },
 }
 
 
@@ -1025,10 +1039,23 @@ def _chat_should_receive_event(chat_id: str, event_type: str | None) -> bool:
     (backwards-compatible)."""
     if event_type is None:
         return True    # legacy callers that don't pass event_type get everything
-    allowed = _TELEGRAM_EVENT_ROUTES.get(chat_id)
-    if allowed is None:
+    route = _TELEGRAM_EVENT_ROUTES.get(chat_id)
+    if route is None:
         return True    # unrouted chat == everything
+    allowed = route.get("events")
+    if allowed is None:
+        return True
     return event_type in allowed
+
+
+def _chat_thread_id(chat_id: str) -> str | None:
+    """Return the Forum Topic thread_id for this chat_id, or None if
+    the chat doesn't use topic routing.  Pass-through to sendMessage's
+    `message_thread_id` parameter."""
+    route = _TELEGRAM_EVENT_ROUTES.get(chat_id)
+    if route is None:
+        return None
+    return route.get("thread_id")
 
 
 def _send_telegram_html(text: str, *, event_type: str | None = None) -> bool:
@@ -1119,13 +1146,20 @@ def _send_telegram_html(text: str, *, event_type: str | None = None) -> bool:
         # gets strong_locked + strong_graded).
         if not _chat_should_receive_event(chat_id, event_type):
             continue
+        # T3.16: per-chat Forum Topic routing.  Supergroups with topics
+        # enabled need message_thread_id to land in a specific topic
+        # instead of General.
+        thread_id = _chat_thread_id(chat_id)
         try:
-            body = urllib.parse.urlencode({
+            payload: dict[str, str] = {
                 "chat_id":                  chat_id,
                 "text":                     text,
                 "parse_mode":               "HTML",
                 "disable_web_page_preview": "true",
-            }).encode("utf-8")
+            }
+            if thread_id:
+                payload["message_thread_id"] = thread_id
+            body = urllib.parse.urlencode(payload).encode("utf-8")
             req = urllib.request.Request(
                 url, data=body,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
