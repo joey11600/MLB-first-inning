@@ -63,6 +63,127 @@
   letter-spacing: -0.02em;
   color: var(--foreground);
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* T3.24: shadow badge in v3 page title */
+.titleBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  background: color-mix(in oklab, var(--accent-cyan) 14%, var(--card));
+  border: 1px solid color-mix(in oklab, var(--accent-cyan) 35%, var(--border));
+  border-radius: 999px;
+  letter-spacing: 0.16em;
+}
+
+/* T3.24: right-side cluster grouping the model-switch link + window toggle */
+.headRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.modelSwitchLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  background: var(--card);
+  text-decoration: none;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.modelSwitchLink:hover {
+  color: var(--accent-cyan);
+  border-color: color-mix(in oklab, var(--accent-cyan) 50%, var(--border));
+  background: color-mix(in oklab, var(--accent-cyan) 8%, var(--card));
+}
+.modelSwitchLink:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* T3.24: shell variant for v3 -- subtle accent-cyan edge tint at the top
+   so the page chrome itself signals "this is shadow data" without
+   shouting.  Matches the title badge tone. */
+.shellV3 {
+  position: relative;
+}
+.shellV3::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--accent-cyan) 60%, transparent) 35%,
+    color-mix(in oklab, var(--accent-cyan) 60%, transparent) 65%,
+    transparent 100%
+  );
+  z-index: 50;
+}
+
+/* T3.24: v3 shadow banner -- quiet informational note above the tiles */
+.v3Banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 18px;
+  border: 1px solid color-mix(in oklab, var(--accent-cyan) 35%, var(--border));
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--accent-cyan) 6%, var(--card)) 0%,
+      var(--card) 60%);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.v3BannerDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--accent-cyan) 50%, transparent);
+  flex: 0 0 auto;
+  margin-top: 5px;
+}
+.v3BannerBody strong {
+  color: var(--foreground);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.v3BannerLink {
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+.v3BannerLink:hover {
+  color: color-mix(in oklab, var(--accent-cyan) 80%, var(--foreground));
 }
 
 .windowToggle {

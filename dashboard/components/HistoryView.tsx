@@ -16,7 +16,17 @@ interface DayRecord {
   cumulative: number;  // running total
 }
 
-export function HistoryView({ initial }: { initial: RoiResponse }) {
+/** T3.24: v2 (production) vs v3 (Variant K shadow) history.  The page
+ *  is the same UI driven by different /api/roi data, but the chrome
+ *  and a top banner make it unambiguous which model the operator is
+ *  looking at -- v3 is shadow / informational, v2 is the bookkeeper. */
+export function HistoryView({
+  initial,
+  model = "v2",
+}: {
+  initial: RoiResponse;
+  model?: "v2" | "v3";
+}) {
   const [data, setData]     = useState<RoiResponse>(initial);
   const [window, setWindow] = useState<RoiWindow>(initial.window);
   const [loading, setLoading] = useState(false);
@@ -26,12 +36,23 @@ export function HistoryView({ initial }: { initial: RoiResponse }) {
     setWindow(w);
     setLoading(true);
     try {
-      const res = await fetch(`/api/roi?window=${w}`, { cache: "no-store" });
+      const url = `/api/roi?window=${w}${model === "v3" ? "&model=v3" : ""}`;
+      const res = await fetch(url, { cache: "no-store" });
       if (res.ok) setData((await res.json()) as RoiResponse);
     } finally {
       setLoading(false);
     }
   }
+
+  const isV3 = model === "v3";
+  const otherUrl    = isV3 ? "/history" : "/history/v3";
+  const otherLabel  = isV3 ? "View production (v2)" : "View v3 shadow";
+  const eyebrowText = isV3
+    ? "Performance · Variant K shadow"
+    : "Performance · daily breakdown";
+  const titleText   = isV3
+    ? "Bankroll history · v3 shadow"
+    : "Bankroll history";
 
   // Derive per-day records from cumulativePL.  Daily = cum[i] - cum[i-1].
   const days = useMemo<DayRecord[]>(() => {
@@ -60,35 +81,65 @@ export function HistoryView({ initial }: { initial: RoiResponse }) {
   const tableRows = [...days].reverse();
 
   return (
-    <main className={styles.shell}>
+    <main className={`${styles.shell} ${isV3 ? styles.shellV3 : ""}`}>
       <header className={styles.header}>
         <div className={styles.headLeft}>
           <a href="/" className={styles.backLink} aria-label="Back to slate board">
             <span aria-hidden>◂</span> Slate
           </a>
           <div>
-            <div className={styles.eyebrow}>Performance · daily breakdown</div>
-            <h1 className={styles.title}>Bankroll history</h1>
+            <div className={styles.eyebrow}>{eyebrowText}</div>
+            <h1 className={styles.title}>
+              {titleText}
+              {isV3 && <span className={styles.titleBadge}>shadow</span>}
+            </h1>
           </div>
         </div>
-        <div className={styles.windowToggle} role="tablist" aria-label="Time window">
-          {WINDOWS.map((w) => (
-            <button
-              key={w.key}
-              role="tab"
-              aria-selected={window === w.key}
-              onClick={() => changeWindow(w.key)}
-              className={`${styles.windowBtn} ${
-                window === w.key ? styles.windowBtnActive : ""
-              }`}
-              type="button"
-              disabled={loading}
-            >
-              {w.label}
-            </button>
-          ))}
+        <div className={styles.headRight}>
+          <a
+            href={otherUrl}
+            className={styles.modelSwitchLink}
+            title={isV3
+              ? "Switch back to the production v2 history (real bookkeeping)"
+              : "View the experimental v3 (Variant K) shadow history"}
+          >
+            {otherLabel} <span aria-hidden>›</span>
+          </a>
+          <div className={styles.windowToggle} role="tablist" aria-label="Time window">
+            {WINDOWS.map((w) => (
+              <button
+                key={w.key}
+                role="tab"
+                aria-selected={window === w.key}
+                onClick={() => changeWindow(w.key)}
+                className={`${styles.windowBtn} ${
+                  window === w.key ? styles.windowBtnActive : ""
+                }`}
+                type="button"
+                disabled={loading}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
+
+      {/* T3.24: v3 shadow banner -- always visible on the v3 history
+          page so the operator never confuses it with the real
+          production numbers.  Quiet, informational; not an alarm. */}
+      {isV3 && (
+        <div className={styles.v3Banner} role="note">
+          <span className={styles.v3BannerDot} aria-hidden />
+          <div className={styles.v3BannerBody}>
+            <strong>Variant K · v3 calibrator shadow.</strong>{" "}
+            These numbers show what would have happened if v3 (leak-free
+            2024+2025 truepit calibrator) had been the production model.
+            Your real bookkeeping, Telegram alerts, and bankroll live on
+            v2 at <a href="/history" className={styles.v3BannerLink}>/history</a>.
+          </div>
+        </div>
+      )}
 
       {/* Summary tiles */}
       <section className={styles.tiles}>

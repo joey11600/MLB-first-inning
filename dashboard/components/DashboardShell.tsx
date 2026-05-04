@@ -265,7 +265,17 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
 
         <div className={styles.headerActions}>
           <ModelToggle model={model} onChange={setModel} />
-          <a href="/history" className={styles.navLink} title="Bankroll history">
+          {/* T3.24: History link follows the active model toggle so the
+              operator lands on the matching screen.  v2 -> /history
+              (production bookkeeping); v3 -> /history/v3 (Variant K
+              shadow). */}
+          <a
+            href={model === "v3" ? "/history/v3" : "/history"}
+            className={styles.navLink}
+            title={model === "v3"
+              ? "v3 shadow bankroll history"
+              : "Bankroll history (production)"}
+          >
             <span className={styles.navLinkIcon} aria-hidden>▤</span>
             History
           </a>
