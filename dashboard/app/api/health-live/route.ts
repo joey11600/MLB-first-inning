@@ -91,15 +91,25 @@ export async function GET() {
     }));
   } catch { /* swallow */ }
 
-  // Group error counts by step
+  // T3.14: informational steps -- not actual failures.  Surfaced in the
+  // expanded card under a separate "Notices" section instead of counting
+  // against the error count or escalating health status.  Currently:
+  //   - "calibration-drift": T2.59 monitor flags persistent prediction-vs-
+  //     actual drift in a P(pick) bucket.  Often a positive signal (model
+  //     is conservative) rather than a malfunction.
+  const INFO_STEPS = new Set<string>(["calibration-drift"]);
+  const noticeRows  = recentErrors.filter(e => INFO_STEPS.has(e.step));
+  const errorRows   = recentErrors.filter(e => !INFO_STEPS.has(e.step));
+
+  // Group error counts by step (errors only, no notices)
   const errorCountsByStep: Record<string, number> = {};
-  for (const e of recentErrors) {
+  for (const e of errorRows) {
     errorCountsByStep[e.step] = (errorCountsByStep[e.step] ?? 0) + 1;
   }
 
   // Errors in the last hour (more recent than the 24h window)
   const hourCutoff = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
-  const errorsLastHour = recentErrors.filter(e => e.capturedAtUtc >= hourCutoff).length;
+  const errorsLastHour = errorRows.filter(e => e.capturedAtUtc >= hourCutoff).length;
 
   // 4. Compute staleness
   const minutesSince = (iso: string | null): number | null => {
@@ -150,11 +160,14 @@ export async function GET() {
       lastWorkerAt,
       minutesSincePredict: minSinceP,
       minutesSinceWorker:  minSinceW,
-      errorsLast24h:       recentErrors.length,
+      errorsLast24h:       errorRows.length,
       errorsLastHour,
       errorCountsByStep,
       // Cap response size; UI only shows the top-5 most recent
-      recentErrors: recentErrors.slice(0, 5),
+      recentErrors:        errorRows.slice(0, 5),
+      // T3.14: informational notices, NOT errors.  e.g. calibration-drift.
+      noticesLast24h:      noticeRows.length,
+      recentNotices:       noticeRows.slice(0, 5),
     },
     { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } },
   );

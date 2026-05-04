@@ -40,6 +40,9 @@ interface HealthResponse {
   errorsLastHour:       number;
   errorCountsByStep:    Record<string, number>;
   recentErrors:         ErrorRow[];
+  // T3.14: informational notices (e.g. calibration-drift) -- NOT errors.
+  noticesLast24h?:      number;
+  recentNotices?:       ErrorRow[];
 }
 
 const POLL_MS = 30_000;
@@ -66,7 +69,13 @@ function formatWorkerAge(iso: string | null): string {
 
 export function OpsHealthCard() {
   const [data, setData] = useState<HealthResponse | null>(null);
+  // T3.14: track whether the user has manually toggled the card.  If the
+  // status flips degraded/warn we auto-open the card so errors are
+  // visible without clicking; once the user manually closes it the
+  // auto-open is sticky-disabled until status returns to "ok" and goes
+  // bad again.
   const [open, setOpen] = useState(false);
+  const [userClosed, setUserClosed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -89,6 +98,22 @@ export function OpsHealthCard() {
     return () => clearInterval(id);
   }, [refresh]);
 
+  // T3.14: auto-open on non-ok status so errors are visible at-a-glance.
+  // Skip if the user already closed it (sticky until status flips back
+  // to ok and out again).
+  useEffect(() => {
+    if (!data) return;
+    const isBad = data.status !== "ok" || data.errorsLast24h > 0;
+    if (isBad && !open && !userClosed) {
+      setOpen(true);
+    }
+    if (!isBad && userClosed) {
+      // Status recovered -- reset the userClosed flag so the next bad
+      // event auto-opens again.
+      setUserClosed(false);
+    }
+  }, [data, open, userClosed]);
+
   if (!data) {
     return (
       <section className={styles.wrap}>
@@ -103,7 +128,7 @@ export function OpsHealthCard() {
 
   const { status, reasons, minutesSincePredict, lastWorkerAt,
           errorsLastHour, errorsLast24h, errorCountsByStep,
-          recentErrors } = data;
+          recentErrors, noticesLast24h = 0, recentNotices = [] } = data;
 
   const statusClass =
     status === "ok"       ? styles.statusOk
@@ -125,7 +150,17 @@ export function OpsHealthCard() {
       <button
         type="button"
         className={`${styles.card} ${statusClass}`}
-        onClick={() => setOpen(o => !o)}
+        onClick={() => {
+          setOpen(o => {
+            const next = !o;
+            // If the user is manually closing while errors are present,
+            // mark userClosed so we don't keep auto-popping it back open.
+            if (!next && (status !== "ok" || errorsLast24h > 0)) {
+              setUserClosed(true);
+            }
+            return next;
+          });
+        }}
         aria-expanded={open}
         aria-label={`System status: ${statusLabel}. ${reasons.join(". ")}`}
         title={reasons.length > 0 ? reasons.join(" · ") : "All systems normal"}
@@ -200,6 +235,24 @@ export function OpsHealthCard() {
           ) : (
             <div className={styles.section}>
               <span className={styles.allClear}>No errors in last 24 hours.</span>
+            </div>
+          )}
+          {noticesLast24h > 0 && recentNotices.length > 0 && (
+            <div className={styles.section}>
+              <div className="eyebrow">Informational notices ({noticesLast24h})</div>
+              <ul className={styles.errList}>
+                {recentNotices.map((e, i) => (
+                  <li key={`notice-${e.capturedAtUtc}-${i}`} className={styles.errRow}>
+                    <span className={styles.errMeta}>
+                      <span className={styles.errStep}>{e.step}</span>
+                      <span className={styles.errTime}>
+                        {formatAge(Math.floor((Date.now() - Date.parse(e.capturedAtUtc)) / 60000))}
+                      </span>
+                    </span>
+                    <span className={styles.errMessage}>{e.message || "(no detail)"}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           {reasons.length > 0 && (
