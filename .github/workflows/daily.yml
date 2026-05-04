@@ -374,6 +374,27 @@ jobs:
             echo "==> [odds-only] No DK odds CSV for $TODAY_ISO -- skipping import."
           fi
 
+          # T2.65b: live game-state poll fallback.
+          #
+          # workers/live_state.py is normally a long-running Railway worker
+          # that polls MLB Stats API every 10s and upserts to Supabase
+          # live_game_state.  When Railway is healthy, that worker keeps
+          # the dashboard's live game state (inning/score) fresh sub-second.
+          # When Railway dies (observed 2026-05-03 -> 24+ hour outage with
+          # no detection), the dashboard goes silent on live state.
+          #
+          # This 5-min --once fallback gives us GitHub-Actions-driven backup
+          # coverage: even if Railway stays dead indefinitely, the dashboard
+          # never goes more than ~5-10 min without a live-state refresh.
+          # Latency is worse than Railway (10s -> 5min), but it's a guaranteed
+          # baseline.  When Railway is healthy, it'll keep updating in
+          # parallel and the user sees Railway's faster updates; the GH
+          # tick just no-ops when there's nothing changed.
+          echo "==> [odds-only] Running live_state.py --once (Railway fallback)..."
+          if ! python workers/live_state.py --once 2>livestate_err.log; then
+            record_err "odds-only-livestate" "$?" "$(tail -c 400 livestate_err.log)"
+          fi
+
       - name: Calibration drift monitor (T2.59)
         if: steps.action.outputs.what == 'grade'
         # Watches whether stated P(pick) matches actual hit rate per bucket
