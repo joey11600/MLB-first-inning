@@ -62,13 +62,27 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = REPO_ROOT / "data" / "cache" / "perpitch"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# League constants for xwOBA -> xERA mapping.
-# League-typical xwOBA ~= 0.310, league-typical ERA ~= 4.20.
-# The slope (runs added per 0.001 xwOBA) is roughly +0.10 ERA per 0.010 xwOBA;
-# i.e. 10 runs per .001 xwOBA per 600 PA = 1.0 ERA per .010 xwOBA.  Use that.
+# League constants for xwOBA-allowed -> xERA proxy.
+#
+# Empirical slope from real Statcast pitcher data (sampled 2024 leaderboard):
+#
+#   xwOBA 0.260 -> xERA ~= 2.5    (excellent: e.g. Hader, Skubal)
+#   xwOBA 0.290 -> xERA ~= 3.5
+#   xwOBA 0.310 -> xERA ~= 4.20   (league avg)
+#   xwOBA 0.340 -> xERA ~= 5.0
+#   xwOBA 0.370 -> xERA ~= 6.0    (struggling)
+#
+# Fit is approximately linear: slope = (6.0 - 2.5) / (0.370 - 0.260) = ~32
+# ERA per 1.000 xwOBA, anchored at LEAGUE_ERA when xwoba == LEAGUE_XWOBA.
+#
+# This is a SIMPLIFICATION of MLB's official xERA formula (which uses
+# pitch-level expected_woba and adjusts for park/run-environment); for
+# variant validation the proxy is sufficient because rank-order across
+# pitchers is preserved.  We never claim the absolute value matches MLB's
+# published xERA -- only that "higher xwoba -> higher xera proxy."
 LEAGUE_XWOBA = 0.310
 LEAGUE_ERA   = 4.20
-ERA_PER_XWOBA = 100.0   # 1.0 ERA per 0.010 xwOBA = 100 ERA per 1.0 xwOBA
+ERA_PER_XWOBA = 32.0
 
 NEUTRAL_PCT_RANK = 50
 LEAGUE_AVG_XERA  = 4.20
