@@ -62,6 +62,19 @@ on:
     - cron: "0 2 * * *"    # 10pm EDT / 9pm EST  -- final pre-lock for west-coast
     - cron: "30 3 * * *"   # 11:30pm EDT / 10:30pm EST  -- nightly grade
     - cron: "45 4 * * 1"   # 12:45am EDT / 11:45pm EST Sun -- weekly recal
+    # T2.65 (Option C lock-event capture): 5-min odds-only ticks during
+    # prime game hours.  The hourly predict crons above scrape DK + import
+    # at the top of each hour, but a game whose first pitch is at e.g.
+    # 5:40 PM ET locks at 4:40 PM ET -- the 4pm cron (4:00 PM ET) runs
+    # BEFORE the lock window opens, and the 5pm cron (5:00 PM ET) runs
+    # 20 min AFTER lock.  If the 5pm cron fails (cron lag, DK transient
+    # error), the next chance is 6pm -- 80 min after lock, by which time
+    # the game is mid-1st-inning and we've missed the window entirely.
+    #
+    # Adding 5-min granularity caps the lock-to-odds-capture latency at
+    # ~5 min worst-case.  Skipping minute 0 (where the hourly predict
+    # already runs) avoids concurrency-group collisions.
+    - cron: "5,10,15,20,25,30,35,40,45,50,55 17-23,0-3 * * *"   # every 5min, 1pm-11pm ET
   workflow_dispatch:
     inputs:
       action:
@@ -115,6 +128,10 @@ jobs:
               ;;
             "45 4 * * 1")
               echo "what=recalibrate" >> "$GITHUB_OUTPUT"
+              ;;
+            "5,10,15,20,25,30,35,40,45,50,55 17-23,0-3 * * *")
+              # T2.65: 5-min odds-only tick (Option C lock-event capture).
+              echo "what=odds-only" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "what=${MANUAL:-predict}" >> "$GITHUB_OUTPUT"
@@ -297,6 +314,65 @@ jobs:
         run: |
           set +e
           python tools/backfill_variants.py 2>&1 || echo "::warning::backfill_variants failed (non-blocking)"
+
+      - name: Run odds-only capture (T2.65 lock-event tick)
+        if: steps.action.outputs.what == 'odds-only'
+        # T2.65 / Option C: lightweight odds-capture tick fired every 5
+        # min during prime game hours (see cron above for rationale).
+        # Skips predict and grade steps -- those are owned by the hourly
+        # predict cron.  Just scrape DK, run --import-odds, commit if
+        # data changed.
+        #
+        # The --import-odds command iterates picks_2026 and applies
+        # odds + bet_placed=Y to any STRONG row that's inside its
+        # lock window (60 min pre-game).  By running every 5 min, the
+        # worst-case lock-to-odds-capture latency is ~5 min instead of
+        # the prior up-to-60 min (or unbounded if the hourly cron
+        # errors).
+        env:
+          ALERT_WEBHOOK_URL:    ${{ secrets.ALERT_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ACTION: odds-only
+        run: |
+          TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
+          NOW_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # Same record_err helper as the predict step.  Defined inline
+          # because shell functions don't persist across steps.
+          record_err() {
+            local STEP="$1"; local CODE="$2"; local MSG="$3"
+            mkdir -p data
+            if [ ! -f data/system_errors.csv ]; then
+              echo "captured_at_utc,date,step,exit_code,message" > data/system_errors.csv
+            fi
+            local SAFE_MSG=$(echo "$MSG" | tr ',' ';' | tr '"' "'" | head -c 400)
+            echo "$NOW_UTC,$TODAY_ISO,$STEP,$CODE,\"$SAFE_MSG\"" >> data/system_errors.csv
+            echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
+          }
+
+          echo "==> [odds-only] Scraping DraftKings odds for $TODAY_ISO..."
+          set +e
+          python scrape_dk_odds.py 2>scrape_err.log
+          DK_RC=$?
+          set -e
+          if [ "$DK_RC" -eq 2 ]; then
+            record_err "odds-only-scrape" "$DK_RC" "DK API IDs likely stale"
+          elif [ "$DK_RC" -ne 0 ]; then
+            record_err "odds-only-scrape" "$DK_RC" "$(tail -c 400 scrape_err.log)"
+          fi
+
+          ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
+          if [ -s "$ODDS_CSV" ]; then
+            echo "==> [odds-only] Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
+            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 2>import_err.log; then
+              record_err "odds-only-import" "$?" "$(tail -c 400 import_err.log)"
+            fi
+          else
+            echo "==> [odds-only] No DK odds CSV for $TODAY_ISO -- skipping import."
+          fi
 
       - name: Calibration drift monitor (T2.59)
         if: steps.action.outputs.what == 'grade'
