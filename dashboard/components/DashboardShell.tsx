@@ -289,9 +289,18 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
 
       <OpsHealthCard />
 
-      <SummaryStrip rows={data.rows} details={data.details} model={model} />
+      {/* T3.21: SummaryStrip slimmed -- no longer needs details since
+          P&L/CLV moved into RoiPanel.  RoiPanel now receives rows +
+          details so its TODAY window can aggregate locally without
+          a server round-trip. */}
+      <SummaryStrip rows={data.rows} model={model} />
 
-      <RoiPanel initialDate={data.date} model={model} />
+      <RoiPanel
+        initialDate={data.date}
+        rows={data.rows}
+        details={data.details}
+        model={model}
+      />
 
       <ControlPanel
         dates={data.availableDates}

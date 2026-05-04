@@ -1,7 +1,23 @@
 "use client";
 
-import type { BoardRow, GameDetail } from "@/lib/types";
+import type { BoardRow } from "@/lib/types";
 import styles from "./SummaryStrip.module.css";
+
+/* ============================================================
+   T3.21: SummaryStrip slimmed.
+
+   Previously had 4 tiles: Games today, Avg λ, Today P&L, Today CLV
+   (conditional), plus the distribution row.  The Today P&L and
+   Today CLV tiles moved into RoiPanel's new TODAY window option so
+   the operator no longer has to mentally segregate "today" from
+   "30d window" stats -- they're all in one consolidated card.
+
+   What's left here is the slate-shape summary: how many games are
+   on tonight's board, what the average expected first-inning runs
+   look like, and how the picks distribute across the three zones
+   (Strong NRFI / Pass / Strong YRFI).  Pure descriptive stats; no
+   P&L.
+   ============================================================ */
 
 interface Bucket {
   key: string;
@@ -10,10 +26,6 @@ interface Bucket {
   test: (r: BoardRow) => boolean;
 }
 
-// Only three zones now -- LEAN tier was eliminated when we collapsed
-// thresholds (LEAN_*_P = STRONG_*_P) per the user's "STRONG plays only"
-// direction.  Keep the bucket array short so the distribution UI shows
-// 3 meaningful slices instead of 5 with two always-zero columns.
 const BUCKETS: Bucket[] = [
   {
     key: "strong-nrfi",
@@ -39,21 +51,17 @@ const BUCKETS: Bucket[] = [
 
 export function SummaryStrip({
   rows,
-  details = {},
   model = "v2",
 }: {
   rows: BoardRow[];
-  details?: Record<string, GameDetail>;
-  /** T3.17: when "v3", count picks + grades from row.v3 / detail.v3
-   *  instead of v2.  Rows without v3 data fall back to v2. */
+  /** T3.17 model toggle.  Distribution counts are computed from
+   *  effective row.pickSide/pickStrength so the strip respects the
+   *  toggle for v3 mode.  No P&L lives here anymore -- that's
+   *  consolidated into RoiPanel. */
   model?: "v2" | "v3";
 }) {
-  // T3.17: helper -- pull pickSide/pickStrength from the right side
-  // (v2 or v3-fallback-to-v2) for every row.
   const effectivePickSide = (r: BoardRow): BoardRow["pickSide"] =>
     model === "v3" && r.v3 ? r.v3.pickSide : r.pickSide;
-  const effectivePickStrength = (r: BoardRow): BoardRow["pickStrength"] =>
-    model === "v3" && r.v3 ? r.v3.pickStrength : r.pickStrength;
 
   const avgLambda =
     rows.length === 0 ? 0 : rows.reduce((a, r) => a + r.lambda, 0) / rows.length;
@@ -63,76 +71,6 @@ export function SummaryStrip({
     rows.length === 0 ? 0 : Math.min(...rows.map((r) => r.lambda));
   const nrfiCnt = rows.filter((r) => effectivePickSide(r) === "NRFI").length;
   const yrfiCnt = rows.filter((r) => effectivePickSide(r) === "YRFI").length;
-
-  // T1.4 Today's running P&L tile.  Computed from the details map so it
-  // updates live as polling fetches fresh data.  Only counts rows with
-  // graded WIN/LOSS results (PASS picks contribute 0 to record, blank
-  // graded means in-progress).  P/L source: profit_loss_units (real DK
-  // odds, populated for 99.5% of placed bets per T2.27).  Flat -110
-  // fallback is a defensive backstop for the rare row that was graded
-  // before its DK odds got captured -- not a primary path.
-  function lookupDetail(r: BoardRow): GameDetail | undefined {
-    return (
-      (r.gamePk && details[r.gamePk]) ||
-      details[`${r.away}@${r.home}#${r.gameNumber || 1}`] ||
-      details[`${r.away}@${r.home}`]
-    );
-  }
-  const DEFAULT_WIN = 100 / 110;       // 0.909
-  const DEFAULT_LOSS = -1.0;
-  let strongPicks = 0;
-  let bets = 0;     // graded WIN/LOSS (any side)
-  let wins = 0;
-  let losses = 0;
-  let pl = 0;
-  for (const r of rows) {
-    const eside     = effectivePickSide(r);
-    const estrength = effectivePickStrength(r);
-    if (estrength === "STRONG" && (eside === "NRFI" || eside === "YRFI")) {
-      strongPicks += 1;
-    }
-    const d        = lookupDetail(r);
-    // T3.17: when in v3 mode, read graded outcome from detail.v3
-    const useV3D   = model === "v3" && d?.v3 !== undefined;
-    const g        = useV3D ? d!.v3!.gradedResult         : d?.gradedResult;
-    const realPl   = useV3D ? d!.v3!.profitLossUnits      : d?.profitLossUnits;
-    if (g === "WIN" || g === "LOSS") {
-      bets += 1;
-      if (g === "WIN") wins += 1;
-      else losses += 1;
-      if (typeof realPl === "number" && Number.isFinite(realPl)) {
-        pl += realPl;
-      } else {
-        pl += g === "WIN" ? DEFAULT_WIN : DEFAULT_LOSS;
-      }
-    }
-  }
-  const ungraded = strongPicks - bets;   // STRONG bets still pending
-  const plSign = pl >= 0 ? "+" : "";
-  const plClass = pl > 0 ? styles.plPositive : pl < 0 ? styles.plNegative : "";
-  const winRate = bets > 0 ? (wins / bets) * 100 : null;
-
-  // T2.54: Today's CLV summary -- average closing-line value across
-  // STRONG bets that have both opened + closing odds captured.  Positive
-  // CLV = market moved toward our pick by pickup time (we beat the
-  // close).  Long-run CLV correlates with model sharpness better than
-  // any single day's W/L.  Each clvPct is already (close_implied -
-  // open_implied) on the picked side, in raw probability; convert to
-  // percentage points for display.
-  let clvSum = 0;
-  let clvN   = 0;
-  for (const r of rows) {
-    if (!(r.pickSide === "NRFI" || r.pickSide === "YRFI")) continue;
-    if (r.pickStrength !== "STRONG") continue;
-    const d = lookupDetail(r);
-    if (!d) continue;
-    if (typeof d.clvPct !== "number" || !Number.isFinite(d.clvPct)) continue;
-    clvSum += d.clvPct;
-    clvN   += 1;
-  }
-  const clvAvgPp = clvN > 0 ? (clvSum / clvN) * 100 : null;
-  const clvSign = clvAvgPp == null ? "" : (clvAvgPp >= 0 ? "+" : "");
-  const clvClass = clvAvgPp == null ? "" : (clvAvgPp > 0 ? styles.plPositive : clvAvgPp < 0 ? styles.plNegative : "");
 
   return (
     <section className={styles.wrap} aria-label="Slate summary">
@@ -159,66 +97,6 @@ export function SummaryStrip({
             <span className="num">{maxLambda.toFixed(3)}</span>
           </div>
         </div>
-
-        <div className={`${styles.tile} ${styles.plTile}`}>
-          <div className="eyebrow">Today P&amp;L</div>
-          <div className={`${styles.big} ${plClass}`}>
-            {plSign}{pl.toFixed(2)}
-            <span className={styles.plUnit}>u</span>
-          </div>
-          <div className={styles.foot}>
-            {bets > 0 ? (
-              <>
-                <span className={styles.footCell}>
-                  <span className={styles.tinyDot} data-tone="nrfi" />
-                  {wins}-{losses}
-                </span>
-                {winRate !== null && (
-                  <span className={styles.footCell}>
-                    <span className="num">{winRate.toFixed(0)}%</span>
-                  </span>
-                )}
-                {ungraded > 0 && (
-                  <span className={styles.footCell}>
-                    <span className={styles.pendingDot} aria-hidden />
-                    {ungraded} pending
-                  </span>
-                )}
-              </>
-            ) : ungraded > 0 ? (
-              <span className={styles.footCell}>
-                <span className={styles.pendingDot} aria-hidden />
-                {ungraded} STRONG pending
-              </span>
-            ) : (
-              <span className={styles.footCell}>no bets graded yet</span>
-            )}
-          </div>
-        </div>
-
-        {/* T2.54: Today's CLV.  Hidden when no STRONG bets have both
-            opened + closing odds captured (early in the slate, before
-            we've imported odds twice for any game).  Shown as avg pp
-            delta with the same +/- color treatment as P&L. */}
-        {clvAvgPp !== null && clvN > 0 && (
-          <div className={styles.tile} title={
-            `Closing-line value averaged across ${clvN} STRONG bet(s) `
-            + `today.  Positive = market moved toward our pick by close `
-            + `(we beat the close = sharp).  Long-run CLV correlates with `
-            + `model edge better than single-day W/L.`
-          }>
-            <div className="eyebrow">Today CLV</div>
-            <div className={`${styles.big} ${clvClass}`}>
-              {clvSign}{clvAvgPp.toFixed(2)}
-              <span className={styles.plUnit}>pp</span>
-            </div>
-            <div className={styles.foot}>
-              <span className={styles.footCell}>
-                avg over {clvN} STRONG bet{clvN === 1 ? "" : "s"}
-              </span>
-            </div>
-          </div>
-        )}
 
         <div className={styles.distribution}>
           <div className="eyebrow">Distribution</div>

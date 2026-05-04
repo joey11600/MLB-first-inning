@@ -1,29 +1,77 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { BoardRow, GameDetail } from "@/lib/types";
 import type { RoiResponse, RoiWindow, ZoneRoi } from "@/lib/roi";
+import { aggregateTodayRoi, aggregateTodayClv } from "@/lib/roi-today";
 import styles from "./RoiPanel.module.css";
 
+/* ============================================================
+   T3.21: consolidated performance card.
+
+   Replaces the prior split where SummaryStrip carried a "Today P&L"
+   tile and RoiPanel showed only 7d/30d/season -- the operator had
+   to mentally segregate "today" from "window" stats.
+
+   New: TODAY is just another option in the window toggle.  When
+   selected, the panel reads rows + details from props and aggregates
+   locally (no /api/roi round-trip).  Other windows keep fetching
+   from the server.  Today's CLV summary is hosted inside the today
+   view (also moved out of SummaryStrip).
+   ============================================================ */
+
 const WINDOWS: { key: RoiWindow; label: string }[] = [
-  { key: "7d",     label: "Last 7d" },
+  { key: "today",  label: "Today"    },
+  { key: "7d",     label: "Last 7d"  },
   { key: "30d",    label: "Last 30d" },
-  { key: "season", label: "Season" },
+  { key: "season", label: "Season"   },
 ];
 
-const BREAK_EVEN = 110 / 210; // 0.5238
+interface RoiPanelProps {
+  initialDate: string;
+  /** T3.21: rows + details so the TODAY window can aggregate
+   *  client-side without a server round-trip. */
+  rows:        BoardRow[];
+  details:     Record<string, GameDetail>;
+  model?:      "v2" | "v3";
+}
 
-export function RoiPanel({ initialDate, model = "v2" }: { initialDate: string; model?: "v2" | "v3" }) {
-  const [window, setWindow] = useState<RoiWindow>("30d");
+export function RoiPanel({
+  initialDate,
+  rows,
+  details,
+  model = "v2",
+}: RoiPanelProps) {
+  const [window, setWindow] = useState<RoiWindow>("today");
   const [data, setData]     = useState<RoiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
+  // Today's CLV is computed once per rows/details change; only shown
+  // when at least one STRONG bet has both opened + closing odds.
+  const todayClv = useMemo(
+    () => aggregateTodayClv(rows, details),
+    [rows, details],
+  );
+
+  // TODAY window: compute locally from props.  Recomputes whenever
+  // rows / details / model change so realtime grade updates show up
+  // immediately without re-fetching anything.
+  const todayData = useMemo<RoiResponse | null>(() => {
+    if (window !== "today") return null;
+    if (!initialDate) return null;
+    return aggregateTodayRoi(rows, details, model, initialDate);
+  }, [window, rows, details, model, initialDate]);
+
+  // 7d / 30d / season windows: fetch from /api/roi.  TODAY is handled
+  // above; we skip fetching when it's selected.
   useEffect(() => {
+    if (window === "today") {
+      setData(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
-    // T3.17 follow-up: when in v3 mode, pass model=v3 so the server can
-    // aggregate pick_variants K rows instead of picks_2026 rows.
-    // Currently /api/roi ignores the param -- v3 perf surfacing is
-    // pending the server-side variant-aware aggregation work.
     const url = `/api/roi?window=${window}${initialDate ? `&date=${initialDate}` : ""}${model === "v3" ? "&model=v3" : ""}`;
     fetch(url, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -39,29 +87,50 @@ export function RoiPanel({ initialDate, model = "v2" }: { initialDate: string; m
     };
   }, [window, initialDate, model]);
 
+  // Effective render data: today's local agg or server fetch.
+  const view = window === "today" ? todayData : data;
+
   return (
     <section className={styles.wrap}>
       <header className={styles.head}>
         <div className={styles.headLeft}>
           <span className={styles.eyebrow}>Performance</span>
           <span className={styles.title}>
-            {model === "v3" ? "Bankroll @ DK · v3 shadow (showing v2 stats — v3 view coming soon)" : "Bankroll @ DK"}
+            {model === "v3"
+              ? "Bankroll @ DK · v3 shadow (showing v2 stats — v3 view coming soon)"
+              : "Bankroll @ DK"}
           </span>
-          {data && (
+          {view && (
             <span className={styles.range}>
-              {data.startDate} → {data.endDate}
-              {data.daysIncluded > 0 && (
+              {window === "today"
+                ? <>Tonight&rsquo;s slate</>
+                : <>{view.startDate} → {view.endDate}</>}
+              {view.daysIncluded > 0 && window !== "today" && (
                 <>
                   {" · "}
                   <span className={styles.rangeStrong}>
-                    {data.gradedPicks} graded picks
+                    {view.gradedPicks} graded picks
                   </span>{" "}
-                  across {data.daysIncluded}{" "}
-                  {data.daysIncluded === 1 ? "day" : "days"}
-                  {data.totalPicks > data.gradedPicks && (
+                  across {view.daysIncluded}{" "}
+                  {view.daysIncluded === 1 ? "day" : "days"}
+                  {view.totalPicks > view.gradedPicks && (
                     <span className={styles.rangePending}>
                       {" "}
-                      ({data.totalPicks - data.gradedPicks} pending)
+                      ({view.totalPicks - view.gradedPicks} pending)
+                    </span>
+                  )}
+                </>
+              )}
+              {window === "today" && view.totalPicks > 0 && (
+                <>
+                  {" · "}
+                  <span className={styles.rangeStrong}>
+                    {view.gradedPicks} graded
+                  </span>
+                  {view.totalPicks > view.gradedPicks && (
+                    <span className={styles.rangePending}>
+                      {" "}
+                      ({view.totalPicks - view.gradedPicks} pending)
                     </span>
                   )}
                 </>
@@ -86,22 +155,28 @@ export function RoiPanel({ initialDate, model = "v2" }: { initialDate: string; m
       </header>
 
       <div className={`${styles.body} ${loading ? styles.loading : ""}`}>
-        <TotalCard total={data?.total} />
+        <TotalCard
+          total={view?.total}
+          window={window}
+          clv={window === "today" ? todayClv : null}
+        />
         <div className={styles.zoneGrid}>
-          {(data?.betZones ?? []).map((z) => (
+          {(view?.betZones ?? []).map((z) => (
             <ZoneCard key={z.label} zone={z} />
           ))}
-          {data && data.betZones.length === 0 && (
+          {view && view.betZones.length === 0 && (
             <div className={styles.emptyZone}>
-              No graded bets in this window yet.
+              {window === "today"
+                ? "No graded bets tonight yet."
+                : "No graded bets in this window yet."}
             </div>
           )}
         </div>
 
-        {data && data.passZones.length > 0 && (
+        {view && view.passZones.length > 0 && (
           <div className={styles.passRow}>
             <span className={styles.passEyebrow}>No-bet calls</span>
-            {data.passZones.map((z) => (
+            {view.passZones.map((z) => (
               <span key={z.label} className={styles.passChip}>
                 <span className={styles.passChipLabel}>{z.label}</span>
                 <span className={styles.passChipCount}>{z.picks}</span>
@@ -114,19 +189,48 @@ export function RoiPanel({ initialDate, model = "v2" }: { initialDate: string; m
   );
 }
 
-function TotalCard({ total }: { total: ZoneRoi | undefined }) {
+function TotalCard({
+  total,
+  window,
+  clv,
+}: {
+  total:  ZoneRoi | undefined;
+  window: RoiWindow;
+  clv:    { avgPp: number; n: number } | null;
+}) {
   if (!total) {
     return <div className={`${styles.totalCard} ${styles.totalCardEmpty}`} />;
   }
   const tone = totalTone(total);
+  const subText = total.bets > 0
+    ? `units across ${total.bets} graded bets (${total.wins}W-${total.losses}L)`
+    : window === "today"
+      ? "no bets graded yet today"
+      : "no graded bets in this window";
+
+  // Third stat slot: window-specific.  TODAY shows the day's CLV
+  // (moved out of SummaryStrip); other windows show edge vs the
+  // -110 break-even rate, the existing reference.
+  const thirdLabel = window === "today" ? "Tonight CLV" : "vs break-even";
+  const thirdValue =
+    window === "today"
+      ? (clv == null ? "—" : signedPpText(clv.avgPp / 100))
+      : (Number.isNaN(total.edgeVsBreakEven)
+          ? "—"
+          : signedPctText(total.edgeVsBreakEven));
+  const thirdTone: "win" | "loss" | "neutral" =
+    window === "today"
+      ? (clv == null ? "neutral" : clv.avgPp > 0.5 ? "win" : clv.avgPp < -0.5 ? "loss" : "neutral")
+      : tone;
+
   return (
     <div className={`${styles.totalCard} ${styles[`totalCard_${tone}`]}`}>
       <div className={styles.totalLeft}>
-        <span className={styles.totalEyebrow}>Net P&amp;L · bet zones only</span>
-        <span className={styles.totalUnits}>{formatUnits(total.unitsPL)}</span>
-        <span className={styles.totalSub}>
-          units across {total.bets} graded bets ({total.wins}W-{total.losses}L)
+        <span className={styles.totalEyebrow}>
+          Net P&amp;L · bet zones only
         </span>
+        <span className={styles.totalUnits}>{formatUnits(total.unitsPL)}</span>
+        <span className={styles.totalSub}>{subText}</span>
       </div>
       <div className={styles.totalRight}>
         <Stat
@@ -141,13 +245,9 @@ function TotalCard({ total }: { total: ZoneRoi | undefined }) {
           variant="num"
         />
         <Stat
-          label="vs break-even"
-          value={
-            Number.isNaN(total.edgeVsBreakEven)
-              ? "—"
-              : signedPctText(total.edgeVsBreakEven)
-          }
-          tone={tone}
+          label={thirdLabel}
+          value={thirdValue}
+          tone={thirdTone}
           variant="num"
         />
       </div>
@@ -253,6 +353,13 @@ function signedPctText(p: number): string {
   if (Number.isNaN(p)) return "—";
   const sign = p >= 0 ? "+" : "";
   return `${sign}${(p * 100).toFixed(1)}pp`;
+}
+
+/** Format a probability already in 0..1 as signed percentage points. */
+function signedPpText(p: number): string {
+  if (!Number.isFinite(p)) return "—";
+  const sign = p >= 0 ? "+" : "";
+  return `${sign}${(p * 100).toFixed(2)}pp`;
 }
 
 /**

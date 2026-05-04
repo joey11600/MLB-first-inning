@@ -36,7 +36,13 @@ export const DEFAULT_BREAK_EVEN_RATE   = 110 / 210;       // = 0.5238
 // Types
 // ---------------------------------------------------------------------------
 
-export type RoiWindow = "7d" | "30d" | "season";
+/** RoiWindow -- which time slice the panel is showing.  T3.21 added
+ *  "today" so the consolidated performance card can show today's
+ *  realized P/L alongside 7d / 30d / season.  The server-side
+ *  loadRoi ignores "today" (it's computed client-side from rows +
+ *  details that DashboardShell already has in memory); see
+ *  lib/roi-today.ts for the client-side aggregator. */
+export type RoiWindow = "today" | "7d" | "30d" | "season";
 
 export interface ZoneRoi {
   /** "STRONG NRFI" | "LEAN NRFI" | "PASS" | "LEAN YRFI" | "STRONG YRFI" */
@@ -176,12 +182,18 @@ export async function loadRoi(
   refDateIso?: string,
 ): Promise<RoiResponse> {
   const today = (refDateIso || isoToday()).slice(0, 10);
+  // T3.21: "today" is normally computed client-side via aggregateTodayRoi
+  // (RoiPanel routes to the local aggregator when window === "today"),
+  // but if the server is called with it we honor it as a 1-day window
+  // ending today so /api/roi?window=today still produces sensible data.
   const startDate =
-    window === "7d"
-      ? isoMinusDays(7)
-      : window === "30d"
-        ? isoMinusDays(30)
-        : `${today.slice(0, 4)}-01-01`;
+    window === "today"
+      ? today
+      : window === "7d"
+        ? isoMinusDays(7)
+        : window === "30d"
+          ? isoMinusDays(30)
+          : `${today.slice(0, 4)}-01-01`;
 
   const empty: RoiResponse = {
     window,
