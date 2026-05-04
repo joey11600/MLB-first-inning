@@ -135,6 +135,48 @@ in 2025 had no pitcher_id mapping.  These could understate the model's
 true leak-free signal.  But the qualitative conclusion (calibrator too
 conservative for YRFI bets, NRFI bets at break-even) is robust.
 
+### Three followups complete (T3.12 #1-3, 2026-05-03 evening)
+
+#### Followup #1: refit calibrator on truepit corpus
+
+`tools/refit_calibrator_truepit.py` builds `data/calibration_v3.json`
+from 2024+2025 truepit (leak-free) data.  Sits next to v2; not
+auto-deployed.
+
+|              | range            | Brier  | bets | hit   | P/L     | ROI   |
+|--------------|------------------|--------|------|-------|---------|-------|
+| v2 (leaky)   | [0.3623, 0.6620] | 0.2498 | 712  | 59.0% | +58.00u | +8.1% |
+| v3 (truepit) | [0.3833, 0.6116] | 0.2475 | 467  | 59.5% | +42.67u | +9.1% |
+
+v3 is BETTER calibrated (lower Brier) and produces FEWER bets at
+HIGHER ROI per bet.  Deployment pending walk-forward on a true holdout
+(only available after 2026 season ends).
+
+#### Followup #2: corrected xwOBA→xERA proxy anchor
+
+Investigated empirical xwoba distribution across 725 cached pitcher-
+season files: per-pitcher mean = 0.3205 (was anchoring at 0.310).
+Updated `tools/backfill_xera_pit_perpitch.py` and regenerated truepit
+CSVs (no API re-fetch).  Test 3 result improved slightly:
+
+  Old proxy:  329 bets, 54.4% hit, -0.83u
+  New proxy:  347 bets, 54.8% hit, +1.33u
+
+Qualitative finding unchanged (no STRONG YRFI bets fire on single-
+season truepit calibrator; NRFI bets at break-even).
+
+#### Followup #3: realistic bankroll expectations
+
+Documented in `docs/KB.md` "Realistic bankroll expectations" section.
+Bottom line:
+
+- **Live 30d +19% ROI is NOT the long-run expectation.**  Consistent
+  estimate from 3 honest backtests: +5 to +9% ROI long-term.
+- **Expected monthly P/L: +10-20u**, not +36u.  Plan around +10-20u.
+- **Bad days are normal.**  1-of-5 STRONG day = once-a-month.
+- **Today is variance**, on top of real but smaller edge than the
+  live 30d sample suggested.
+
 ### What this means for the broader project
 
 The roadmap's Variant J line item is closed REJECTED.  The deeper

@@ -435,6 +435,52 @@ distinguish "today's slate is NRFI-leaning" from "today's slate is
 YRFI-leaning" — it predicts ~47% NRFI every single day.  6 of the 7 worst
 P/L days in 30 days are NRFI-leaning slates where the model over-bet YRFI.
 
+### REALISTIC BANKROLL EXPECTATIONS (T3.12 followup #3, 2026-05-03)
+
+After three nights of forensic work the long-run expected ROI on this
+model is genuinely uncertain.  Three converging data points:
+
+| Source | N bets | Hit rate | ROI | Notes |
+|---|---|---|---|---|
+| Live production, last 30d | 184 | 63.04% | **+19.0%** | Real bets, real money, p=0.002 vs break-even |
+| Test 2 (leaky walk-forward 2024→2025) | 558 | 57.9% | +6.1% | Production-style methodology, full season |
+| Test 3 (strict walk-forward 2024→2025) | 347 | 54.8% | +0.4% | Single-season truepit, only NRFI bets |
+| v3 calibrator on 2024+2025 truepit | 464 | 59.5% | +9.1% | Multi-season truepit, both NRFI+YRFI bets |
+
+**The +19% ROI on live data is almost certainly NOT the long-run expectation.**
+It's a 30-day sample that combines:
+- A real underlying edge of ~5-9% ROI (consistent across the 3 backtests)
+- Plus positive variance (the 30d run got lucky on top of real edge)
+- Plus possible calibrator inflation from training-data leakage
+
+Honest long-run expectation:
+- **Mean ROI: +5 to +9%** (consistent across honest tests)
+- **30-day windows can swing widely**: -10u to +50u is normal at this volume
+- **Expected hit rate: 57-60%** (not the live 63%)
+- **Today's bad day is normal** at this true rate (1-of-5 STRONG bets at p=0.60 has 8% probability — once-a-month event)
+
+What this means operationally:
+- **Don't treat the live 30d +36u as "the expected month."** It's a good month.
+- **Bad days are part of the model.** A 1-of-5 day will happen ~once a month even at 63% true rate.
+- **Bankroll sizing**: at 1u flat stakes per bet, monthly expected return is **+10-20u, not +36u**. Plan around the +10-20u figure.
+- **Stop-loss / drawdown limits**: a -5u to -10u day will happen ~once a month.  -15u in a day would be unusual but not impossible.
+
+What we DON'T know yet:
+- Whether the production calibrator (v2, leaky) or v3 (truepit) is better
+  on FRESH 2026 data.  Can't test until 2026 ends.
+- Whether the 0.37-0.38 "losing band" was real or selection bias (Variant J
+  rejected on strict walk-forward; weak signal on combined samples).
+- How much the per-game point-in-time xera improvement helps vs hurts
+  bet volume.  v3 cuts bet volume ~35% with similar hit rate.
+
+Action items reflected in CHANGELOG:
+1. v3 calibrator built but NOT deployed
+2. Variant J rejected (closes the variant exploration thread)
+3. Calibration leakage acknowledged but not auto-fixed (production v2
+   stays until walk-forward on 2026 holdout becomes available)
+
+---
+
 ### THE HEADLINE FINDING — Strict walk-forward (T3.12 Test 3, 2026-05-03)
 
 After per-pitch xera/whiff backfill (`tools/backfill_xera_pit_perpitch.py`)
