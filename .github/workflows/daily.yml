@@ -317,11 +317,16 @@ jobs:
 
       - name: Run odds-only capture (T2.65 lock-event tick)
         if: steps.action.outputs.what == 'odds-only'
-        # T2.65 / Option C: lightweight odds-capture tick fired every 5
-        # min during prime game hours (see cron above for rationale).
-        # Skips predict and grade steps -- those are owned by the hourly
-        # predict cron.  Just scrape DK, run --import-odds, commit if
-        # data changed.
+        # T2.65 / Option C: lightweight tick fired every 5 min during
+        # prime game hours (see cron above for rationale).  Does:
+        #   1. T2.65c: live grade today's slate (catches NRFI/YRFI hits
+        #      within ~5min of the 1st inning ending, not 30-90min after
+        #      via the unreliable hourly predict cron).
+        #   2. Scrape DK + --import-odds (caps lock-to-odds latency at
+        #      ~5min instead of up-to-60min).
+        #   3. T2.65b: live_state.py --once fallback (Railway worker backup).
+        # Skips the heavy predict step -- that stays owned by the hourly
+        # predict cron, which also re-runs grade-today as belt-and-suspenders.
         #
         # The --import-odds command iterates picks_2026 and applies
         # odds + bet_placed=Y to any STRONG row that's inside its
@@ -352,6 +357,20 @@ jobs:
             echo "$NOW_UTC,$TODAY_ISO,$STEP,$CODE,\"$SAFE_MSG\"" >> data/system_errors.csv
             echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
           }
+
+          # T2.65c: live grade tick.  When a game's 1st inning completes
+          # mid-slate (e.g. NRFI hits at 7:08 PM), the dashboard should
+          # show WIN/LOSS within ~5 min, not wait for the next hourly
+          # predict cron -- which on GitHub's free runners has been
+          # observed firing 30-90 min late, leaving the user staring
+          # at an ungraded row while their bet has clearly resolved.
+          # grade_date is idempotent + fast: it skips games whose 1st
+          # inning isn't complete yet, so calling on every 5-min tick
+          # is safe.  Runs FIRST so a DK scrape outage doesn't block it.
+          echo "==> [odds-only] Live-grading completed 1st innings for $TODAY_ISO..."
+          if ! python mlb_first_inning_predictor.py --date "$TODAY_ISO" --grade 2>grade_err.log; then
+            record_err "odds-only-grade" "$?" "$(tail -c 400 grade_err.log)"
+          fi
 
           echo "==> [odds-only] Scraping DraftKings odds for $TODAY_ISO..."
           set +e
