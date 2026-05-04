@@ -161,6 +161,27 @@ VARIANT_J_YRFI_BAND_LO = 0.37
 VARIANT_J_YRFI_BAND_HI = 0.38
 
 
+# Variant K (T3.13, 2026-05-03 evening): apply v3 calibrator
+# (data/calibration_v3.json, fit on 2024+2025 truepit corpus) instead
+# of the production v2 calibrator (calibration_v2.json, fit on 2025+2026
+# leaky data).  See T3.12 followup #1 in CHANGELOG.
+#
+# Thresholds unchanged from production: P(NRFI) >= 0.58 -> STRONG NRFI,
+# P(NRFI) <= 0.42 -> STRONG YRFI.  Only the calibrator changes.
+#
+# Requires nrfi_prob_raw to be present on the row (added 2026-05-03 via
+# T3.13 schema migration).  Historical rows pre-T3.13 have raw=null and
+# Variant K mirrors production for those.
+#
+# On the 2024+2025 truepit corpus (in-sample for v3, out-of-sample for v2):
+#   v2 (production): 712 bets,  59.0% hit, +58.00u, +8.1% ROI
+#   v3 (truepit):    467 bets,  59.5% hit, +42.67u, +9.1% ROI
+# Lower volume but higher ROI per bet.  Live shadow tracking on 2026
+# data starts when nrfi_prob_raw begins flowing into Supabase (next
+# predictor cycle after T3.13 deploy).
+VARIANT_K_USES_V3 = True   # toggle to disable shadow if v3 is broken
+
+
 # Variant D lambda floor.  Raise from production's 0.78 to 1.00.
 # Empirical basis (2026-04-01 to 2026-05-02 STRONG YRFI bets):
 #   lambda 0.70-0.90 (n=25):  14W/11L = 56% hit, +1.51u

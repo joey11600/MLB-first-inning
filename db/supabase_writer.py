@@ -239,6 +239,9 @@ PICKS_CONVERTERS: dict[str, Any] = {
     "combined_lambda": _to_float,
     "lambda_lr_t1":    _to_float, "lambda_lr_b1":    _to_float, "lambda_lr_total": _to_float,
     "nrfi_prob":       _to_float, "yrfi_prob":       _to_float,
+    # T3.13: raw uncalibrated LR outputs preserved for Variant K
+    # (alternate calibrator shadow testing, e.g. v3 truepit calibrator).
+    "nrfi_prob_raw":   _to_float, "yrfi_prob_raw":   _to_float,
     "over_1_5_prob":   _to_float, "under_1_5_prob":  _to_float,
 
     # Pick decision

@@ -2089,15 +2089,21 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # gives the user transparency into what's driving each verdict.
         top_factors_t1 = _lr_feature_contributions(t1_feats, m_t1, _T1_EXPECTED_FEATURES, top_n=5) if m_t1 else []
         top_factors_b1 = _lr_feature_contributions(b1_feats, m_b1, _B1_EXPECTED_FEATURES, top_n=5) if m_b1 else []
-        lr_nrfi  = (1.0 - p_t1_run) * (1.0 - p_b1_run)
+        lr_nrfi_raw  = (1.0 - p_t1_run) * (1.0 - p_b1_run)
         # Convert each half's run-probability into expected runs (Poisson lambda)
         # so the dashboard can show projections in the same units the user is
         # used to:  P(>=1 run) = 1 - e^-lambda  =>  lambda = -ln(1 - P(>=1 run))
         lambda_t1 = -math.log(max(1e-9, 1.0 - p_t1_run))
         lambda_b1 = -math.log(max(1e-9, 1.0 - p_b1_run))
         lambda_lr_total = lambda_t1 + lambda_b1
-        lr_nrfi = cal.predict(lr_nrfi)
+        # T3.13: persist raw + calibrated separately so downstream can replay
+        # alternate calibrators (e.g. Variant K in db/variants.py uses raw +
+        # calibration_v3 to compare v3 vs v2 production calibrator).  Keeping
+        # raw at predict-time avoids the lossy calibrator-inversion path.
+        lr_nrfi = cal.predict(lr_nrfi_raw)
         nrfi_p, yrfi_p = lr_nrfi, 1.0 - lr_nrfi
+        nrfi_p_raw = lr_nrfi_raw
+        yrfi_p_raw = 1.0 - lr_nrfi_raw
         # T4.3: pass weather context into the classifier so the lambda
         # floor scales appropriately (hot/windy = higher floor; dome =
         # neutralized).  Reuse the values already computed above.
@@ -2191,6 +2197,10 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             # pre-computed probabilities and pick (used by tracker and display)
             "nrfi_prob":     nrfi_p,
             "yrfi_prob":     yrfi_p,
+            # T3.13: raw (uncalibrated) probs persisted so Variant K can
+            # apply alternate calibrators post-hoc (e.g. v3 truepit calibrator)
+            "nrfi_prob_raw": nrfi_p_raw,
+            "yrfi_prob_raw": yrfi_p_raw,
             "over_1_5_prob": over15p,
             "under_1_5_prob":1.0 - over15p,
             # LR-derived expected runs per half-inning (for "Slate Projections"

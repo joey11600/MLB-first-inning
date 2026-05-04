@@ -43,6 +43,11 @@ FIELDS = [
     # LR-v3 two-stage expected runs per half (for Slate Projections display)
     "lambda_lr_t1", "lambda_lr_b1", "lambda_lr_total",
     "nrfi_prob", "yrfi_prob", "over_1_5_prob", "under_1_5_prob",
+    # T3.13: raw (uncalibrated) probs preserved alongside calibrated ones
+    # so Variant K (db/variants.py) can apply alternate calibrators
+    # (e.g. calibration_v3.json) post-hoc.  Old rows pre-T3.13 will have
+    # blanks here; Variant K mirrors production for those.
+    "nrfi_prob_raw", "yrfi_prob_raw",
     "pick_side", "pick_strength", "pick_label",
     "blended_inputs",
     "created_at",

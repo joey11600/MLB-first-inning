@@ -103,6 +103,39 @@ def _to_float(v: Any, default: float) -> float:
         return default
 
 
+# T3.13: lazy-load + cache the v3 calibrator (truepit-trained) for Variant K
+_V3_CAL = None
+_V3_CAL_LOADED = False
+def _load_v3_calibrator():
+    """Lazy-loaded ProbCalibrator for Variant K shadow.  Returns None if
+    data/calibration_v3.json is missing (graceful degradation -- Variant K
+    falls back to mirroring production)."""
+    global _V3_CAL, _V3_CAL_LOADED
+    if _V3_CAL_LOADED:
+        return _V3_CAL
+    _V3_CAL_LOADED = True
+    import json
+    cal_path = REPO_ROOT / "data" / "calibration_v3.json"
+    if not cal_path.exists():
+        print(f"  [warn] {cal_path} not found; Variant K will mirror production",
+              file=sys.stderr)
+        return None
+    try:
+        from calibration import ProbCalibrator
+        with open(cal_path, encoding="utf-8") as f:
+            d = json.load(f)
+        _V3_CAL = ProbCalibrator(
+            bin_centers   = d["centers"],
+            bin_rates     = d["rates"],
+            train_n       = d.get("train_n", 0),
+            train_seasons = d.get("train_seasons", []),
+        )
+        return _V3_CAL
+    except Exception as exc:    # noqa: BLE001
+        print(f"  [warn] failed to load v3 calibrator: {exc!r}", file=sys.stderr)
+        return None
+
+
 def reconstruct_feats(row: dict) -> tuple[list[float], list[float]]:
     """Build (t1_feats, b1_feats) in the canonical order expected by
     the LR models, from a stored picks row."""
@@ -283,6 +316,7 @@ def main() -> None:
             VARIANT_G_YRFI_BAND_LO, VARIANT_G_YRFI_BAND_HI,
             VARIANT_H_NRFI_THR,
             VARIANT_J_YRFI_BAND_LO, VARIANT_J_YRFI_BAND_HI,
+            VARIANT_K_USES_V3,
         )
         if prod_strength in DATA_PASS:
             forced = VariantPick(
@@ -437,6 +471,43 @@ def main() -> None:
             )
         else:
             variants["J"] = _mirror_prod()
+
+        # Variant K (T3.13): apply v3 calibrator (calibration_v3.json,
+        # fit on 2024+2025 truepit corpus) to nrfi_prob_raw, then re-classify
+        # using production thresholds.  Tests "what would the model do
+        # under a leak-free calibrator?" Live shadow.  Requires raw probs
+        # to be present on the row (added 2026-05-03 via T3.13 schema
+        # migration).  Historical rows pre-T3.13 have raw=null and Variant
+        # K mirrors production for those.
+        nrfi_p_raw = _to_float(row.get("nrfi_prob_raw"), -1.0)
+        if VARIANT_K_USES_V3 and nrfi_p_raw >= 0.0:
+            # Lazy-load v3 calibrator (cached in module scope below)
+            cal_v3 = _load_v3_calibrator()
+            if cal_v3 is not None:
+                p_v3 = cal_v3.predict(float(nrfi_p_raw))
+                # Re-classify with production thresholds (0.58 / 0.42).
+                # We replicate _classify here without the data_pts/lambda
+                # gates because variant K is JUST about the calibrator;
+                # if production passed for data reasons (LINEUP PENDING,
+                # NO DATA, etc.) we already mirrored above.  At this point
+                # we only re-classify when production made a real verdict.
+                from db.variants import _PROD_STRONG_NRFI_P, _PROD_PASS_LO_P
+                if p_v3 >= _PROD_STRONG_NRFI_P:
+                    side_k, strength_k = "NRFI", "STRONG"
+                elif p_v3 < _PROD_PASS_LO_P:
+                    side_k, strength_k = "YRFI", "STRONG"
+                else:
+                    side_k, strength_k = "PASS", "NO EDGE"
+                variants["K"] = VariantPick(
+                    pick_side=side_k, pick_strength=strength_k,
+                    pick_label=_label_for(side_k, strength_k) + " (v3 calibrator)",
+                    nrfi_prob=p_v3, yrfi_prob=1.0 - p_v3,
+                )
+            else:
+                variants["K"] = _mirror_prod()
+        else:
+            # Pre-T3.13 row (no raw stored): mirror production
+            variants["K"] = _mirror_prod()
 
         for vname, pick in variants.items():
             would_bet, would_be_units = variant_would_bet(
