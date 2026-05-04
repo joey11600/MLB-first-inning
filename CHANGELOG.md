@@ -11,6 +11,78 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-03] — Variants G/H/I added to A/B harness after worst-day deep dive (T3.12)
+
+After 2-6 record on 8 placed bets (-4.55u, worst day in 30 by 3.4×), forensic
+analysis surfaced four structural insights documented in `docs/KB.md`'s new
+"Known structural limitations" section:
+
+1. Calibrator `data/calibration_v2.json` clamps P(NRFI) to [0.3623, 0.6620]
+2. Within the YRFI band, 0.37-0.40 is a "losing valley" (41% hit, -6.26u/30d)
+3. NRFI bets win 71%, YRFI bets win 60% (11pp gap, but 2.7× more YRFI volume)
+4. Model can't see slate-context — predicts ~47% NRFI every day regardless of
+   actual slate-wide NRFI rate (which swings 10%-75%)
+
+### Added — three new A/B harness variants (`db/variants.py` + `tools/backfill_variants.py`)
+
+- **Variant G**: skip STRONG YRFI in calibrated 0.37-0.40 band
+- **Variant H**: tighten STRONG NRFI threshold from P(NRFI)≥0.58 to ≥0.62
+- **Variant I**: G + H combined
+
+Wired into `tools/abtest_report.py`.  Backfilled across all 405 graded
+2026 STRONG picks (`--reclassify --since 2026-04-04`).
+
+### 30-day backfill verdict
+
+| Variant | Bets | W-L | Hit | P/L | Δ vs PROD |
+|---|---|---|---|---|---|
+| **PROD** | 185 | 115-68 | 62.2% | **+35.11u** | — |
+| **VAR-G** ✅ | 156 | 103-51 | 66.0% | **+41.38u** | **+6.27u** |
+| VAR-E | 160 | 101-57 | 63.1% | +33.56u | -1.55u |
+| VAR-I (G+H) | 144 | 93-49 | 64.6% | +34.29u | -0.82u |
+| VAR-D | 166 | 102-63 | 61.4% | +28.89u | -6.22u |
+| VAR-H ❌ | 173 | 105-66 | 60.7% | +28.03u | -7.08u |
+| VAR-C ❌ | 146 | 84-60 | 57.5% | +15.36u | -19.75u |
+| VAR-AC ❌ | 115 | 59-55 | 51.3% | -1.84u | -36.95u |
+| VAR-F ❌ | 5 | 2-3 | 40.0% | -1.55u | -36.67u |
+| VAR-A ❌ | 135 | 69-65 | 51.1% | -2.75u | -37.86u |
+
+**Variant G is the only profitable variant** in this harness round.
+
+### NOT shipped to production
+
+The +6.27u Variant G result is **selection bias** at face value: the
+0.37-0.40 "losing valley" was identified by examining the same 30 days
+we just "validated" it against.  This is the trap that killed all 6
+prior variants (A/C/AC/D/E/F).  Walk-forward gate (`tools/walk_forward.py`)
+is the right test — and it is **currently broken** (per this morning's
+T3.11-AUDIT, the xera/whiff features in the historical backtest CSVs
+are leaky; per-game point-in-time backfill in
+`tools/backfill_xera_whiff_pit.py` needs to expand from prior-year-only
+to per-game cumulative before the gate is honest).
+
+**Until walk-forward returns clean PASS on >= 2 folds, no production
+threshold change ships.**  Variant G runs as a shadow pick only — its
+verdict is recorded in `pick_variants` for future evaluation.
+
+### Deferred (need walk-forward to validate)
+
+- **Refit calibrator** on a leak-free corpus to widen the 0.36-0.66 range.
+- **Add slate-context features** (slate-mean P(NRFI), count of high-quality
+  starters, etc.) so the model can express slate-wide NRFI lean.
+
+### Telegram + Railway operational fixes (separate, this evening)
+
+Updated Railway predictor + worker `TELEGRAM_CHAT_ID` to new supergroup id
+(-5115372935 → -1003953933618 after Telegram migrated the Backfist Bets
+group from regular group to supergroup).  Bot still requires manual
+"Send Messages" permission grant in Telegram (cannot be set via API).
+GitHub Actions secret update typed; pending user 2FA confirmation.
+Added `PREDICTOR_SCRAPE_DK=skip` env var on predictor service to suppress
+known-noise scrape-dk failures (T2.56 was already the documented default).
+
+---
+
 ## [2026-05-03] — Walk-forward framework shipped + same-day audit + retraction
 
 After a rough 1-4 day on 2026-05-03 (eventually 1-of-5+), built the walk-forward

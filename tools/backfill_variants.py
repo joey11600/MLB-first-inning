@@ -280,6 +280,8 @@ def main() -> None:
             VariantPick, _label_for, VARIANT_D_LAMBDA_FLOOR,
             VARIANT_E_SKIP_P_LO, VARIANT_E_SKIP_P_HI,
             VARIANT_F_THIN_QS, VARIANT_F_BOTH_LTD_SKIP,
+            VARIANT_G_YRFI_BAND_LO, VARIANT_G_YRFI_BAND_HI,
+            VARIANT_H_NRFI_THR,
         )
         if prod_strength in DATA_PASS:
             forced = VariantPick(
@@ -365,6 +367,59 @@ def main() -> None:
             )
         else:
             variants["F"] = _mirror_prod()
+
+        # Variant G (T3.12): skip STRONG YRFI in the calibrated 0.37-0.40
+        # "losing valley".  The calibrator's range is [0.3623, 0.6620],
+        # so STRONG YRFI bets cluster between 0.36 and 0.43.  Within that
+        # window, the 0.37-0.40 band has 41% hit rate / -6.26u over 30d
+        # while floor (0.36-0.37) and ceiling (0.40-0.42) bands win at
+        # 65-68%.  Targets the "neither floor nor ceiling" cases where the
+        # calibrator nudged upward (so it's not at the YRFI-most-confident
+        # floor) but the raw model wasn't ceiling-bound either.
+        if (prod_strength == "STRONG" and prod_side == "YRFI"
+                and VARIANT_G_YRFI_BAND_LO <= prod_nrfi < VARIANT_G_YRFI_BAND_HI):
+            variants["G"] = VariantPick(
+                pick_side="PASS", pick_strength="NO EDGE",
+                pick_label="PASS - YRFI losing valley (T3.12 variant G)",
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+            )
+        else:
+            variants["G"] = _mirror_prod()
+
+        # Variant H (T3.12): tighten STRONG NRFI threshold to P(NRFI)>=0.62
+        # (was 0.58).  Demotes NRFI bets in the 0.58-0.62 band to PASS.
+        # Pre-empts a worry that borderline NRFI bets near the production
+        # threshold are weak; backfill says they aren't (NRFI bets profit
+        # uniformly across the 0.58-0.66 range).  Variant runs as a
+        # rejection signal so the dashboard can surface "we tested this,
+        # it lost".
+        if (prod_strength == "STRONG" and prod_side == "NRFI"
+                and prod_nrfi < VARIANT_H_NRFI_THR):
+            variants["H"] = VariantPick(
+                pick_side="PASS", pick_strength="NO EDGE",
+                pick_label="PASS - NRFI threshold tightened (T3.12 variant H)",
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+            )
+        else:
+            variants["H"] = _mirror_prod()
+
+        # Variant I (T3.12): G + H combined.
+        if (prod_strength == "STRONG" and prod_side == "YRFI"
+                and VARIANT_G_YRFI_BAND_LO <= prod_nrfi < VARIANT_G_YRFI_BAND_HI):
+            variants["I"] = VariantPick(
+                pick_side="PASS", pick_strength="NO EDGE",
+                pick_label="PASS - YRFI losing valley (T3.12 variant I)",
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+            )
+        elif (prod_strength == "STRONG" and prod_side == "NRFI"
+                and prod_nrfi < VARIANT_H_NRFI_THR):
+            variants["I"] = VariantPick(
+                pick_side="PASS", pick_strength="NO EDGE",
+                pick_label="PASS - NRFI threshold tightened (T3.12 variant I)",
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+            )
+        else:
+            variants["I"] = _mirror_prod()
 
         for vname, pick in variants.items():
             would_bet, would_be_units = variant_would_bet(

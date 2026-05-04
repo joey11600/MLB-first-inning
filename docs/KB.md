@@ -380,6 +380,94 @@ ledger format; downstream `/api/health` parses it.
 
 ---
 
+## Known structural limitations (post-2026-05-03 deep dive — T3.12)
+
+After the worst single-day loss in 30 days (-4.55u, 2-6 record on 8 placed
+bets) the slate was forensically deconstructed.  Findings worth preserving
+here so future sessions don't blame "today is variance" without checking:
+
+### 1. The calibrator clamps the prediction range
+
+`data/calibration_v2.json` was fit on 2025+2026 raw model outputs vs
+actual outcomes.  Its rate range is **[0.3623, 0.6620]**, meaning:
+
+- The model can never output P(NRFI) below 0.3623 (= P(YRFI) above 0.6377)
+- The model can never output P(NRFI) above 0.6620
+
+So **every STRONG YRFI bet at the calibration floor looks identical in the
+log** — the model can't distinguish "weakly leans YRFI" from "strongly
+leans YRFI" once both raw signals fall below 0.353 (the lowest training
+bin's input edge).  21% of all 30d STRONG YRFI bets (29/135) hit this
+exact floor.
+
+### 2. Within-band hit-rate non-monotonicity
+
+STRONG YRFI hit rate by calibrated P(NRFI) bucket (last 30d):
+
+| P(NRFI) band | n | W-L | Hit | P/L |
+|---|---|---|---|---|
+| [0.36, 0.37) | 31 | 21-10 | **67.7%** | **+8.92u** ← floor (good) |
+| [0.37, 0.38) | 9 | 2-7 | 22.2% | -5.18u ← losing |
+| [0.38, 0.40) | 20 | 10-10 | 50.0% | -1.08u ← losing |
+| [0.40, 0.42) | 63 | 41-22 | **65.1%** | **+14.85u** ← ceiling (good) |
+| [0.42, 0.43) | 11 | 6-5 | 54.5% | +0.45u |
+
+The 0.37-0.40 "losing valley" is the band where the calibrator pulled the
+raw signal up off the floor but the raw model wasn't ceiling-bound either.
+Hypothesis: this is the "weak edge" zone where the model is least confident.
+
+### 3. NRFI vs YRFI hit-rate gap
+
+| Side | 30d N graded | W-L | Hit |
+|---|---|---|---|
+| **NRFI** | 49 | 35-14 | **71.4%** |
+| **YRFI** | 133 | 80-53 | **60.2%** |
+
+11pp gap.  Model places 2.7× more YRFI bets than NRFI bets despite the
+lower hit rate.  Asymmetric thresholds may be appropriate but require
+walk-forward validation.
+
+### 4. Slate-context blindness
+
+Per-day model `mean(P(NRFI))` ranges 0.43-0.50 across 29 days, while
+**actual NRFI rate** ranges 10%-75%.  The model is structurally unable to
+distinguish "today's slate is NRFI-leaning" from "today's slate is
+YRFI-leaning" — it predicts ~47% NRFI every single day.  6 of the 7 worst
+P/L days in 30 days are NRFI-leaning slates where the model over-bet YRFI.
+
+### Variants tested in response (T3.12, 2026-05-03)
+
+Three new variants added to the A/B harness:
+
+- **Variant G** (`tools/backfill_variants.py` + `db/variants.py`): skip
+  STRONG YRFI in the 0.37-0.40 calibrated band.  30d backfill: kept 154
+  bets at 103-51 (66.9%), +41.37u P/L.  **+6.26u lift vs production**
+  (which was 115-68 at 62.8%, +35.11u).  Tiny sample (n=29 skipped); needs
+  walk-forward.
+- **Variant H**: tighten STRONG NRFI threshold from P(NRFI)≥0.58 to ≥0.62.
+  30d backfill: -7.09u vs production (REJECT — skips winners; NRFI bets
+  profit uniformly across 0.58-0.66 range).
+- **Variant I**: G + H combined.  30d backfill: -0.83u vs production
+  (REJECT — H's regression cancels G's lift).
+
+**Status: variants run as shadow picks only.**  Walk-forward gate is
+broken pending the per-game Statcast point-in-time backfill (T3.11-AUDIT;
+see `tools/backfill_xera_whiff_pit.py`).  No production threshold change
+ships until walk-forward is honest.
+
+### Two larger fixes deferred
+
+- **Refit calibrator on a leak-free corpus** (2024+2025 backtests, after
+  per-game xera/whiff backfill).  Goal: widen the rate range so the model
+  can express stronger conviction than 0.36-0.66.  Blocked on the same
+  walk-forward fix.
+- **Add slate-context features**: e.g. slate-mean predicted P(NRFI) as a
+  per-game feature, or count of high-quality starters across the slate.
+  Requires full LR retrain.  Defer to Tier 5 / catcher-framing remote
+  agent if it lands.
+
+---
+
 ## What's NOT in the model (already tested, didn't help)
 
 Important to avoid retreading. From cross-validation across 2024/2025

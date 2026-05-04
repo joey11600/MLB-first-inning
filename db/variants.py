@@ -92,6 +92,50 @@ VARIANT_F_THIN_QS         = {"sm", "avg"}
 VARIANT_F_BOTH_LTD_SKIP   = True
 
 
+# -----------------------------------------------------------------------------
+# T3.12 (post-2026-05-03 deep-dive): variants G / H / I.
+# -----------------------------------------------------------------------------
+#
+# Background: a 30-day analysis of STRONG YRFI bets revealed a non-monotonic
+# hit-rate pattern across the calibrated P(NRFI) range, with a clear "losing
+# valley" in the 0.37-0.40 band.  The calibrator (`data/calibration_v2.json`)
+# floors P(NRFI) at 0.3623 and ceilings at 0.6620, so all STRONG YRFI bets
+# come in tightly clustered between 0.36 and 0.43.  Within that window:
+#
+#   P(NRFI) band     n      W-L     hit       P/L
+#   [0.36, 0.37)     31    21-10    67.7%    +8.92u    <-- floor (good)
+#   [0.37, 0.38)      9     2-7     22.2%    -5.18u    <-- losing
+#   [0.38, 0.40)     20    10-10    50.0%    -1.08u    <-- losing
+#   [0.40, 0.42)     63    41-22    65.1%   +14.85u    <-- ceiling (good)
+#   [0.42, 0.43)     11     6-5     54.5%    +0.45u
+#
+# The 0.37-0.40 band is producing -6.26u over 30 days while both ends are
+# profitable.  Hypothesis: this is the "borderline YRFI" zone where the
+# calibrator pulls upward (so it's NOT at the floor) but the raw model
+# wasn't strongly YRFI-confident either.  The neither-fish-nor-fowl band.
+#
+# Walk-forward gate is currently broken (xera/whiff leakage; see T3.11-AUDIT
+# in ROADMAP).  Until that's fixed and the per-game Statcast backfill lands,
+# these variants run as SHADOW PICKS in the harness only.  No production
+# threshold change ships without walk-forward validation.
+
+# Variant G: skip the 0.37-0.40 calibrated-P(NRFI) "losing valley" on
+# STRONG YRFI bets.  29 historical bets at 12-17 (41.4%) = -6.26u; skipping
+# them lifts the remaining STRONG bookbook from +35.11u to +41.37u (+18%
+# ROI lift).  Tiny sample (n=29 skipped).
+VARIANT_G_YRFI_BAND_LO = 0.37
+VARIANT_G_YRFI_BAND_HI = 0.40
+
+# Variant H: tighten STRONG NRFI threshold from P(NRFI) >= 0.58 to >= 0.62.
+# Counterfactual on 30d: skips 12 NRFI bets worth +7.09u -- regresses P/L
+# by -7.09u.  Logged as a confirmed REJECT signal (NRFI bets are profitable
+# across the entire 0.58-0.66 range; tightening kills winners).
+VARIANT_H_NRFI_THR     = 0.62
+
+# Variant I: G + H combined.  Counterfactual on 30d: -0.83u vs production.
+# Inherits H's regression; G's lift cancels it.  REJECT signal.
+
+
 # Variant D lambda floor.  Raise from production's 0.78 to 1.00.
 # Empirical basis (2026-04-01 to 2026-05-02 STRONG YRFI bets):
 #   lambda 0.70-0.90 (n=25):  14W/11L = 56% hit, +1.51u
