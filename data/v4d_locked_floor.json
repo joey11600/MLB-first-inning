@@ -1,0 +1,63 @@
+{
+  "locked_floor": 1.0,
+  "design_window": "2026-04-01 -> 2026-04-15",
+  "sweep_results": [
+    {
+      "floor": 0.7,
+      "n_strong": 93,
+      "n_yrfi": 71,
+      "n_demoted": 0,
+      "n_kept": 93,
+      "kept_record": "60-33",
+      "kept_pl": 21.54,
+      "demoted_record": "0-0",
+      "demoted_pl": 0.0,
+      "production_pl": 21.54,
+      "production_record": "60-33",
+      "net_change_vs_prod": 0.0
+    },
+    {
+      "floor": 0.78,
+      "n_strong": 93,
+      "n_yrfi": 71,
+      "n_demoted": 1,
+      "n_kept": 92,
+      "kept_record": "59-33",
+      "kept_pl": 20.631,
+      "demoted_record": "1-0",
+      "demoted_pl": 0.909,
+      "production_pl": 21.54,
+      "production_record": "60-33",
+      "net_change_vs_prod": -0.909
+    },
+    {
+      "floor": 0.85,
+      "n_strong": 93,
+      "n_yrfi": 71,
+      "n_demoted": 8,
+      "n_kept": 85,
+      "kept_record": "56-29",
+      "kept_pl": 21.904,
+      "demoted_record": "4-4",
+      "demoted_pl": -0.364,
+      "production_pl": 21.54,
+      "production_record": "60-33",
+      "net_change_vs_prod": 0.364
+    },
+    {
+      "floor": 1.0,
+      "n_strong": 93,
+      "n_yrfi": 71,
+      "n_demoted": 36,
+      "n_kept": 57,
+      "kept_record": "42-15",
+      "kept_pl": 23.178,
+      "demoted_record": "18-18",
+      "demoted_pl": -1.638,
+      "production_pl": 21.54,
+      "production_record": "60-33",
+      "net_change_vs_prod": 1.638
+    }
+  ],
+  "fitted_at": "2026-05-04T19:18:44Z"
+}

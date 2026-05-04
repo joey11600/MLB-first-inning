@@ -136,6 +136,113 @@ def _load_v3_calibrator():
         return None
 
 
+# T4-V4: lazy-load v4a Platt + v4b weighted-isotonic calibrators + v4d
+# locked-floor.  All four loaders return None on missing-file -- variants
+# gracefully degrade to mirror production rather than crashing the
+# backfill if any candidate's setup hasn't been run yet.
+
+_V4A_CAL = None
+_V4A_CAL_LOADED = False
+def _load_v4a_calibrator():
+    global _V4A_CAL, _V4A_CAL_LOADED
+    if _V4A_CAL_LOADED:
+        return _V4A_CAL
+    _V4A_CAL_LOADED = True
+    cal_path = REPO_ROOT / "data" / "calibration_v4a_platt.json"
+    if not cal_path.exists():
+        print(f"  [warn] {cal_path} not found; v4-platt will mirror production",
+              file=sys.stderr)
+        return None
+    try:
+        from tools.v4_calibrators import PlattCalibrator
+        _V4A_CAL = PlattCalibrator.load(cal_path)
+        return _V4A_CAL
+    except Exception as exc:    # noqa: BLE001
+        print(f"  [warn] failed to load v4a calibrator: {exc!r}", file=sys.stderr)
+        return None
+
+
+_V4B_CAL = None
+_V4B_CAL_LOADED = False
+def _load_v4b_calibrator():
+    global _V4B_CAL, _V4B_CAL_LOADED
+    if _V4B_CAL_LOADED:
+        return _V4B_CAL
+    _V4B_CAL_LOADED = True
+    cal_path = REPO_ROOT / "data" / "calibration_v4b_recency.json"
+    if not cal_path.exists():
+        print(f"  [warn] {cal_path} not found; v4-recency will mirror production",
+              file=sys.stderr)
+        return None
+    try:
+        from tools.v4_calibrators import WeightedProbCalibrator
+        _V4B_CAL = WeightedProbCalibrator.load(cal_path)
+        return _V4B_CAL
+    except Exception as exc:    # noqa: BLE001
+        print(f"  [warn] failed to load v4b calibrator: {exc!r}", file=sys.stderr)
+        return None
+
+
+_V4D_FLOOR = None
+_V4D_FLOOR_LOADED = False
+def _load_v4d_locked_floor() -> float | None:
+    global _V4D_FLOOR, _V4D_FLOOR_LOADED
+    if _V4D_FLOOR_LOADED:
+        return _V4D_FLOOR
+    _V4D_FLOOR_LOADED = True
+    import json
+    cal_path = REPO_ROOT / "data" / "v4d_locked_floor.json"
+    if not cal_path.exists():
+        print(f"  [warn] {cal_path} not found; v4-floor will mirror production",
+              file=sys.stderr)
+        return None
+    try:
+        with open(cal_path, encoding="utf-8") as f:
+            d = json.load(f)
+        _V4D_FLOOR = float(d["locked_floor"])
+        return _V4D_FLOOR
+    except Exception as exc:    # noqa: BLE001
+        print(f"  [warn] failed to load v4d locked floor: {exc!r}", file=sys.stderr)
+        return None
+
+
+# T4-V4 candidate C: asymmetric thresholds.  Pre-registered direction +
+# motivation BEFORE running the backfill.
+#
+# THEORETICAL MOTIVATION (locked at commit time, not adjusted by data):
+#
+# Production thresholds are symmetric in calibrated probability space:
+#   strongNrfiP = 0.56  (P(NRFI) >= 0.56  -> STRONG NRFI)
+#   passLoP     = 0.44  (P(NRFI) <  0.44  -> STRONG YRFI)
+#
+# Three theoretical pulls argue for asymmetry, all in the same direction:
+#
+# 1. Vig asymmetry.  Per the T3.18 odds audit, DK applies slightly higher
+#    vig to the YRFI side than the NRFI side -- at -110/-110 advertised
+#    these average closer to -118/-105 in practice.  Higher vig on YRFI
+#    means YRFI bets must hit a higher rate to break even -> we should
+#    require MORE model confidence before betting YRFI -> tighter passLoP.
+#
+# 2. Calibration sample-size asymmetry.  v3 calibrator's bins on the
+#    low-P(NRFI) side (which produce STRONG YRFI verdicts) carry FEWER
+#    training samples than the high-side bins, because base-rate NRFI
+#    is ~52%.  Fewer samples = noisier rate estimate = higher decision
+#    uncertainty in the YRFI region -> we should require MORE confidence
+#    before betting that side -> tighter passLoP.
+#
+# 3. Base-rate distance.  STRONG NRFI at p=0.56 is only 4pp from base
+#    rate (~0.52), while STRONG YRFI at p=0.44 is 8pp from base rate
+#    (closer-to-tail).  If model confidence at the same |distance from
+#    base| is symmetric, NRFI threshold should be looser, YRFI tighter.
+#
+# Locked direction: TIGHTER YRFI (passLoP 0.44 -> 0.42), modestly LOOSER
+# NRFI (strongNrfiP 0.56 -> 0.55).  We do NOT iterate these values based
+# on design data -- the 1pp/2pp shifts are conservative and committed
+# here so the test is not "find the best threshold pair".
+V4_ASYM_STRONG_NRFI_P = 0.55
+V4_ASYM_PASS_LO_P     = 0.42
+
+
 def reconstruct_feats(row: dict) -> tuple[list[float], list[float]]:
     """Build (t1_feats, b1_feats) in the canonical order expected by
     the LR models, from a stored picks row."""
@@ -518,6 +625,114 @@ def main() -> None:
                 variants["K"] = _mirror_prod()
         else:
             variants["K"] = _mirror_prod()
+
+        # ====================================================================
+        # T4-V4 candidate variants -- shadow only, never touched by production.
+        # ====================================================================
+        from db.variants import _PROD_STRONG_NRFI_P, _PROD_PASS_LO_P
+
+        # If production passed for data reasons (LINEUP PENDING / STARTER
+        # PENDING / NO DATA), all v4 variants must mirror that pass too --
+        # same logic as variants A-K.  Cheaper to just mirror production
+        # in that case rather than re-classify.
+        in_data_pass = prod_strength in DATA_PASS
+
+        # ---- v4-platt: Platt calibrator + production thresholds -----------
+        if in_data_pass:
+            variants["v4-platt"] = _mirror_prod()
+        else:
+            cal_v4a = _load_v4a_calibrator()
+            if cal_v4a is None:
+                variants["v4-platt"] = _mirror_prod()
+            else:
+                p_v4a = cal_v4a.predict(float(recomputed_nrfi_raw))
+                if p_v4a >= _PROD_STRONG_NRFI_P:
+                    side_x, strength_x = "NRFI", "STRONG"
+                elif p_v4a < _PROD_PASS_LO_P:
+                    side_x, strength_x = "YRFI", "STRONG"
+                else:
+                    side_x, strength_x = "PASS", "NO EDGE"
+                variants["v4-platt"] = VariantPick(
+                    pick_side=side_x, pick_strength=strength_x,
+                    pick_label=_label_for(side_x, strength_x) + " (v4 Platt cal)",
+                    nrfi_prob=p_v4a, yrfi_prob=1.0 - p_v4a,
+                )
+
+        # ---- v4-recency: weighted isotonic + production thresholds --------
+        if in_data_pass:
+            variants["v4-recency"] = _mirror_prod()
+        else:
+            cal_v4b = _load_v4b_calibrator()
+            if cal_v4b is None:
+                variants["v4-recency"] = _mirror_prod()
+            else:
+                p_v4b = cal_v4b.predict(float(recomputed_nrfi_raw))
+                if p_v4b >= _PROD_STRONG_NRFI_P:
+                    side_x, strength_x = "NRFI", "STRONG"
+                elif p_v4b < _PROD_PASS_LO_P:
+                    side_x, strength_x = "YRFI", "STRONG"
+                else:
+                    side_x, strength_x = "PASS", "NO EDGE"
+                variants["v4-recency"] = VariantPick(
+                    pick_side=side_x, pick_strength=strength_x,
+                    pick_label=_label_for(side_x, strength_x) + " (v4 recency cal)",
+                    nrfi_prob=p_v4b, yrfi_prob=1.0 - p_v4b,
+                )
+
+        # ---- v4-asym: production calibrator + asymmetric thresholds -------
+        # Uses the production-recorded calibrated nrfi_prob.  Re-classify
+        # under the locked asymmetric thresholds (V4_ASYM_STRONG_NRFI_P /
+        # V4_ASYM_PASS_LO_P).  We do NOT recompute the calibration here;
+        # the variant tests "what if production used asymmetric cutoffs?"
+        # not "what if production used a different calibrator + asymmetric".
+        if in_data_pass:
+            variants["v4-asym"] = _mirror_prod()
+        else:
+            if prod_nrfi >= V4_ASYM_STRONG_NRFI_P:
+                side_x, strength_x = "NRFI", "STRONG"
+            elif prod_nrfi < V4_ASYM_PASS_LO_P:
+                side_x, strength_x = "YRFI", "STRONG"
+            else:
+                side_x, strength_x = "PASS", "NO EDGE"
+            variants["v4-asym"] = VariantPick(
+                pick_side=side_x, pick_strength=strength_x,
+                pick_label=_label_for(side_x, strength_x) +
+                           f" (v4 asym {V4_ASYM_STRONG_NRFI_P}/{V4_ASYM_PASS_LO_P})",
+                nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+            )
+
+        # ---- v4-floor: production verdict + locked YRFI lambda floor ------
+        # Same post-filter pattern as variant D, but using the floor value
+        # locked by the design-window sweep (tools/sweep_lambda_floor_v4d.py
+        # writes data/v4d_locked_floor.json).  We do NOT re-sweep here.
+        #
+        # IMPORTANT: read lambda from combined_lambda with lambda_lr_total
+        # as a secondary fallback.  The Supabase picks_2026 mirror has
+        # lambda_lr_total NULL on most rows (only 106/255 holdout rows
+        # populated as of T4-V4 phase 1), but combined_lambda is fully
+        # populated (200/200 design, 255/255 holdout).  The existing
+        # variant D uses prod_lambd which reads lambda_lr_total ONLY and
+        # silently mirrors production when that column is NULL -- this
+        # is a known pre-existing issue with variant D that we do not
+        # fix here per scope.  The sweep that locked our 1.00 floor
+        # (tools/sweep_lambda_floor_v4d.py) used the same combined_lambda
+        # fallback, so this matches the sweep semantics exactly.
+        v4d_floor = _load_v4d_locked_floor()
+        prod_lambd_combined = _to_float(
+            row.get("lambda_lr_total") or row.get("combined_lambda"),
+            default=1.0,
+        )
+        if in_data_pass or v4d_floor is None:
+            variants["v4-floor"] = _mirror_prod()
+        else:
+            if prod_side == "YRFI" and prod_lambd_combined < v4d_floor:
+                variants["v4-floor"] = VariantPick(
+                    pick_side="PASS", pick_strength="LOW LAMBDA",
+                    pick_label=f"PASS - Low lambda (v4 floor {v4d_floor:.2f})",
+                    nrfi_prob=prod_nrfi, yrfi_prob=1.0 - prod_nrfi,
+                )
+            else:
+                variants["v4-floor"] = _mirror_prod()
 
         for vname, pick in variants.items():
             would_bet, would_be_units = variant_would_bet(
