@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getBrowserSupabase, isSupabaseConfigured } from "./supabase";
+import { todayEtIso } from "./date";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 
 export interface LiveGameState {
@@ -62,8 +63,9 @@ export function useLiveGameState(date: string | null, intervalMs: number = 30_00
   // Branch A: Supabase Realtime (push-based, sub-second).
   useEffect(() => {
     if (!date) return;
-    const todayIso = new Date().toISOString().slice(0, 10);
-    if (date < todayIso) return;
+    // ET-aware so late-evening games still subscribe after 8 PM ET when
+    // UTC has already rolled to tomorrow.
+    if (date < todayEtIso()) return;
     if (!isSupabaseConfigured()) return;
 
     const sb = getBrowserSupabase();
@@ -146,8 +148,7 @@ export function useLiveGameState(date: string | null, intervalMs: number = 30_00
   useEffect(() => {
     if (!date) return;
     if (isSupabaseConfigured()) return;   // Realtime path handles it
-    const todayIso = new Date().toISOString().slice(0, 10);
-    if (date < todayIso) return;
+    if (date < todayEtIso()) return;
 
     let cancelled = false;
     let timer: number | null = null;

@@ -11,6 +11,81 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-05] — Audit handoff fixes (first-inning grading, ET dates, board parity, cron auth)
+
+Six review findings from the full-codebase audit closed in one pass.
+Plan from [docs/HANDOFF_FIXES_2026-05-05.md](./docs/HANDOFF_FIXES_2026-05-05.md).
+
+### Fixed
+
+- **First-inning completion (P1)** — strict completion rule applied
+  identically in `tracker._fetch_first_inning`, `workers/live_state.py`
+  `parse_game`, and `dashboard/app/api/live-state/route.ts`: `Final`
+  OR `currentInning >= 2` OR `currentInning == 1 AND inningState ==
+  "End"`.  B1 / Middle-of-1 are no longer treated as complete.
+  `tracker.grade_date` now also gates normal grading on the new
+  `result["complete"]` flag, including the postponed/suspended
+  fall-through, so a 0-0 in-progress B1 can no longer be graded NRFI
+  before the home half ends.
+- **ET-aware "today" (P2)** — new `dashboard/lib/date.ts` exposes
+  `todayEtIso()` / `etIsoFromDate()` via
+  `Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" })`.
+  Adopted in `useLiveGameState`, `useSupabaseRealtime`,
+  `DashboardShell` (live polling cadence), `lib/roi.ts` (server-side
+  `isoToday`), and `app/api/health-live/route.ts` (replaced the buggy
+  `toLocaleString → new Date → toISOString` round-trip).  Late-evening
+  ET slates no longer disable Realtime/polling/ROI windows after 8 PM
+  ET when UTC has rolled to tomorrow.
+- **Supabase board parity (P2)** — `dashboard/lib/board-supabase.ts`:
+  row order and `BoardRow.lambda` now use `combined_lambda` first
+  (with `lambda_lr_total` fallback for legacy rows), matching the
+  predictor's CSV board output and the CSV-fallback read path.
+- **Cron auth (P2)** — `/api/cron/predict` and `/api/cron/grade` now
+  REQUIRE `CRON_SECRET` (500 if unset, 401 on Bearer mismatch); the
+  `x-vercel-cron-signature`-only fallback is removed because that
+  header is unauthenticated and trivially spoofable.  `/api/run-job`
+  now requires `RUN_JOB_SECRET` whenever `GITHUB_TOKEN` is configured
+  (no more open-by-default fallback for a workflow_dispatch trigger).
+- **Stale defensive lock self-unlock (P3)** — `tracker.log_picks`:
+  `created_at` removed from the locked-row `allow_update` set.  A row
+  locked solely by the stale-`created_at` defensive rule can no
+  longer self-unlock by refreshing its own timestamp on the next
+  predictor run.
+
+### Deferred
+
+- **Mojibake pitcher names (P3)** — `Cristopher Sánchez` /
+  `Randy Vásquez` still flagged by `verify_data.py`.  Held for a
+  separate pass; the handoff explicitly cautions against rewriting
+  the ledger without first auditing Supabase + dashboard data
+  mirrors and identifying the encoding source.
+- **Branch-name discrepancy** in `AGENTS.md` (`Codex/...` vs
+  `claude/...`).  Held until reconciled with whichever branch Vercel
+  + GitHub Actions are actually watching.
+
+### Verified
+
+- `python -m py_compile tracker.py workers/live_state.py
+  mlb_first_inning_predictor.py` — clean.
+- `cd dashboard && npm run build` — clean (no TS errors, all routes
+  built).
+- `python verify_data.py` — same pre-existing P3 mojibake FAIL only.
+- `python mlb_first_inning_predictor.py --summary --last 10` —
+  loads, prints expected season-to-date summary.
+
+### Deploy notes
+
+- `/api/cron/predict` and `/api/cron/grade` now 500 (rather than
+  silently fall through) when `CRON_SECRET` is unset on the Vercel
+  project.  Verify the env var is configured before relying on the
+  Vercel cron path; the GitHub Actions native `schedule:` trigger
+  remains the primary path either way.
+- Same caveat for `RUN_JOB_SECRET` once `GITHUB_TOKEN` is set on the
+  Vercel project: the dashboard's manual run button will 401 until
+  both are configured.
+
+---
+
 ## [2026-05-04] — T4.2 priors-pooling deployed + full diagnostic stack (T4.2 → T4.10)
 
 **The big one.** Root-caused the 2026-05-03 -4.56u disaster, deployed

@@ -310,14 +310,20 @@ def parse_game(g: dict, date_iso: str) -> Optional[dict]:
         else None
     )
 
-    # The 1st inning is "complete" when:
+    # First-inning completion rule (must match tracker._fetch_first_inning
+    # and dashboard/app/api/live-state/route.ts).  The 1st inning is
+    # complete when:
     #   - game is Final (always), OR
-    #   - we're in inning 2+ (top or otherwise), OR
-    #   - we're in B1 / End of 1 / Middle of 1 (the half-inning beyond T1)
+    #   - we're in inning 2 or later, OR
+    #   - we're in inning 1 AND inningState == "End" (top + bottom done)
+    # B1 / Middle of 1 are NOT complete.  In B1 the home team is still
+    # hitting and a YRFI run can still cross even when the score is 0-0;
+    # treating those states as "complete" was the old bug that let the
+    # grader lock NRFI on an in-progress 0-0 B1.
     fi_complete = (
         abstract == "Final"
         or (isinstance(cur_inning, int) and cur_inning >= 2)
-        or (cur_inning == 1 and inn_state in ("End", "Middle", "Bottom"))
+        or (cur_inning == 1 and inn_state == "End")
     )
 
     # T2.40: pull current probable_pitcher info per side so check_scratches

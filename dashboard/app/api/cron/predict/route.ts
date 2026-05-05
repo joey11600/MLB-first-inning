@@ -9,10 +9,13 @@
  *
  * Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` on
  * every cron request (see https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs).
- * If CRON_SECRET is unset on the project, we fall back to checking
- * for the `x-vercel-cron-signature` header which Vercel sets on
- * every internal cron invocation -- enough to keep arbitrary internet
- * traffic from triggering workflow runs.
+ * `CRON_SECRET` is REQUIRED -- there is no fallback.  The previous
+ * implementation accepted any request with a non-empty
+ * `x-vercel-cron-signature` header when CRON_SECRET was unset, but
+ * that header is not authenticated and any client can send it, which
+ * exposed GitHub workflow_dispatch via this endpoint to arbitrary
+ * traffic.  Misconfigured deploys now 500 instead of silently allowing
+ * unauthenticated dispatches.
  *
  * Triggers the same `predict` action the dashboard's manual button
  * fires -- runs the predictor, scrapes DK odds, imports them, and
@@ -32,15 +35,22 @@ const WORKFLOW_FILE = "daily.yml";
 const TARGET_BRANCH = process.env.TARGET_BRANCH || "claude/mlb-inning-run-predictor-QyazL";
 
 export async function GET(req: Request) {
-  // Vercel Cron auth: prefer Bearer token comparison, fall back to the
-  // signature header it always sets on internal cron invocations.
-  const auth   = req.headers.get("authorization") ?? "";
-  const sig    = req.headers.get("x-vercel-cron-signature") ?? "";
+  // Vercel Cron auth: require Bearer token equal to CRON_SECRET.  No
+  // fallback.  If the env var isn't set we fail closed so a
+  // misconfigured deploy doesn't accept arbitrary internet traffic.
   const secret = process.env.CRON_SECRET;
-  const ok =
-    (secret && auth === `Bearer ${secret}`) ||
-    (!secret && sig.length > 0);
-  if (!ok) {
+  if (!secret) {
+    return NextResponse.json(
+      {
+        error:
+          "Server is missing CRON_SECRET env var. Configure it in Vercel " +
+          "project settings; this endpoint refuses requests until set.",
+      },
+      { status: 500 },
+    );
+  }
+  const auth = req.headers.get("authorization") ?? "";
+  if (auth !== `Bearer ${secret}`) {
     return NextResponse.json(
       { error: "Unauthorized -- this endpoint is for Vercel cron only." },
       { status: 401 },

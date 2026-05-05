@@ -127,15 +127,20 @@ export async function GET(request: Request) {
       const absState = g.status?.abstractGameState ?? "";
       const curInning = ls.currentInning ?? null;
       const innState = ls.inningState ?? "";
-      // T1 is "complete" once we're past it -- inning >= 2, OR inning 1
-      // and inningState is "Bottom" (T1 complete) or "End" / "Middle"
-      // beyond the bottom of 1.
+      // First-inning completion rule (must match
+      // workers/live_state.py and tracker._fetch_first_inning).
+      //   - Final -> complete
+      //   - currentInning >= 2 -> complete
+      //   - currentInning === 1 AND inningState === "End" -> complete
+      //   - anything else (including B1 / Middle of 1) -> NOT complete
+      // Treating B1 / Middle of 1 as complete is the bug that grades a
+      // 0-0 in-progress bottom-1 as NRFI before the home half ends.
       const firstInningComplete =
         absState === "Final" ||
         (typeof curInning === "number" && curInning >= 2) ||
         (typeof curInning === "number" &&
           curInning === 1 &&
-          (innState === "End" || innState === "Middle" || innState === "Bottom"));
+          innState === "End");
       games.push({
         gamePk:           g.gamePk ?? 0,
         away:             g.teams?.away?.team?.abbreviation ?? "?",

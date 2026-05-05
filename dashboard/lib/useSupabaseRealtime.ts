@@ -26,6 +26,7 @@
 
 import { useEffect, useRef } from "react";
 import { getBrowserSupabase, isSupabaseConfigured } from "./supabase";
+import { todayEtIso } from "./date";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface Options {
@@ -64,8 +65,9 @@ export function useSupabaseRealtime({
     // We only subscribe for "today or future" so historical browsing
     // doesn't burn an idle WebSocket.
     if (!date) return;
-    const todayIso = new Date().toISOString().slice(0, 10);
-    if (date < todayIso) return;
+    // ET-aware so late-evening games still get realtime updates after
+    // 8 PM ET when UTC has already rolled to tomorrow.
+    if (date < todayEtIso()) return;
 
     const sb = getBrowserSupabase();
     if (!sb) return;

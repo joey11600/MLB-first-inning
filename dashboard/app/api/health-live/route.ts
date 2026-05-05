@@ -126,10 +126,16 @@ export async function GET() {
   let oldestAwaitingMinutes: number | null = null;
   try {
     // Compute today's ET date the same way Python's
-    // datetime.now(ET).strftime("%Y-%m-%d") would.
-    const etDateStr = new Date(now.toLocaleString("en-US", {
+    // datetime.now(ET).strftime("%Y-%m-%d") would.  `en-CA` formats as
+    // YYYY-MM-DD natively, so this is just the ET calendar day -- no
+    // double-conversion through toISOString (which silently treats the
+    // locale-string as local time and re-rolls to UTC).
+    const etDateStr = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/New_York",
-    })).toISOString().slice(0, 10);
+      year:  "numeric",
+      month: "2-digit",
+      day:   "2-digit",
+    }).format(now);
 
     // SELECT live games that have finished their 1st inning today.
     // Column is `fi_complete` in Supabase (the dashboard's TS interface

@@ -113,14 +113,24 @@ async function safeRead(p: string): Promise<string | null> {
   }
 }
 
+// MLB slates are organized by ET calendar day.  Using UTC here would skip
+// the current ET slate after 8 PM ET (when UTC has already rolled to
+// tomorrow), so the ROI window misses live results until ~midnight ET.
+const ET_DATE_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
+  return ET_DATE_FMT.format(new Date());
 }
 
 function isoMinusDays(days: number): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
+  return ET_DATE_FMT.format(d);
 }
 
 function emptyZone(label: string, side: PickSide, strength: PickStrength): ZoneRoi {

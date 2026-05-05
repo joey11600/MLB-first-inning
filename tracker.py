@@ -803,8 +803,6 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             # odds-import flows handle their own fields outside this path.
             if _pick_is_locked(existing, iso_date):
                 # Allowed to refresh post-lockout:
-                #   - created_at timestamp (so the user can see "this row
-                #     was last touched at..." even after lock)
                 #   - lineup JSON (purely informational; the dashboard uses
                 #     this to show WHO the pitcher faced.  Doesn't affect
                 #     the pick or any model inputs the user bet against.)
@@ -819,8 +817,15 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 # to "PASS - Low lambda" once the classifier learns to
                 # distinguish the demotion reason.  Real bets (NRFI/YRFI)
                 # still freeze hard since money is on the line.
+                #
+                # NOTE: `created_at` is intentionally NOT in this set.
+                # _pick_is_locked() uses created_at >12h as defensive
+                # lock #2 -- if a row was locked solely by that rule (e.g.
+                # unparseable game_time_et, no terminal grade), refreshing
+                # created_at would self-unlock it on the next predictor
+                # run.  Add a separate `updated_at` field if a "last
+                # touched" timestamp is needed.
                 allow_update = {
-                    "created_at",
                     "home_lineup_json", "away_lineup_json",
                     "game_time_et",
                 }
@@ -2097,6 +2102,9 @@ def _fetch_first_inning(game_pk: int) -> dict:
       detail       - detailed state string (e.g. "Postponed")
       away_runs    - int or None
       home_runs    - int or None
+      complete     - bool: True only when the entire 1st inning (both
+                     halves) is finished -- the rule applied everywhere
+                     that grades or surfaces "1st inning done".
 
     NOTE: MLB's `game` endpoint sometimes lags on postponements -- it can
     keep returning "Scheduled" for hours after MLB has officially called
@@ -2104,6 +2112,17 @@ def _fetch_first_inning(game_pk: int) -> dict:
     immediately.  When we get an inconsistent "Scheduled / no innings
     played" response, we double-check via the schedule endpoint and
     promote the postponement signal if we find one there.
+
+    First-inning completion rule (must match workers/live_state.py and
+    dashboard/app/api/live-state/route.ts):
+      * abstractGameState == "Final" -> complete
+      * currentInning >= 2 -> complete
+      * currentInning == 1 AND inningState == "End" -> complete
+      * anything else (including B1 / Middle of 1) -> NOT complete.
+    A 0-0 score during B1 is NOT a completed inning -- the home team is
+    still batting and a YRFI run can still cross.  The previous rule
+    treated B1 / Middle of 1 as complete, which let the grader lock in
+    NRFI before the home half finished.
     """
     try:
         data = statsapi.get("game", {
@@ -2111,21 +2130,28 @@ def _fetch_first_inning(game_pk: int) -> dict:
             "fields": (
                 "gameData,status,abstractGameState,detailedState,"
                 "datetime,officialDate,"
-                "liveData,linescore,innings,num,home,away,runs"
+                "liveData,linescore,innings,num,home,away,runs,"
+                "currentInning,inningState"
             ),
         })
     except Exception as exc:
-        return {"state": "ERROR", "detail": str(exc), "away_runs": None, "home_runs": None}
+        return {
+            "state": "ERROR", "detail": str(exc),
+            "away_runs": None, "home_runs": None,
+            "complete": False,
+        }
 
     status = data.get("gameData", {}).get("status", {})
     state  = status.get("abstractGameState", "")
     detail = status.get("detailedState", "")
 
-    innings = (
+    linescore = (
         data.get("liveData", {})
             .get("linescore", {})
-            .get("innings", [])
     )
+    innings    = linescore.get("innings", []) or []
+    cur_inning = linescore.get("currentInning")
+    inn_state  = linescore.get("inningState", "") or ""
 
     away_r = home_r = None
     if innings:
@@ -2159,7 +2185,22 @@ def _fetch_first_inning(game_pk: int) -> dict:
         except Exception:
             pass  # fallback failure is non-fatal; we just keep the original state
 
-    return {"state": state, "detail": detail, "away_runs": away_r, "home_runs": home_r}
+    # Authoritative 1st-inning completion check.  Strict by design:
+    # treat B1 / Middle of 1 as IN PROGRESS, not complete, even if the
+    # current score is 0-0 (the home team is still hitting).
+    complete = (
+        state == "Final"
+        or (isinstance(cur_inning, int) and cur_inning >= 2)
+        or (cur_inning == 1 and inn_state == "End")
+    )
+
+    return {
+        "state": state,
+        "detail": detail,
+        "away_runs": away_r,
+        "home_runs": home_r,
+        "complete": bool(complete),
+    }
 
 
 def grade_date(date_str: str, season: int) -> None:
@@ -2225,9 +2266,16 @@ def grade_date(date_str: str, season: int) -> None:
         # 1st-inning result is already determined and the bet should
         # be graded as a normal W/L -- not marked SUSPENDED-no-bet.
         # Only treat it as terminal-no-bet when the 1st inning never
-        # completed.
+        # completed.  We use the strict completion flag here too so a
+        # game suspended in B1/M1 (where MLB might report home_r as 0
+        # before the bottom half is over) is correctly marked SUSPENDED
+        # instead of falling through to a wrong NRFI grade.
         if detail in ("Postponed", "Suspended", "Cancelled"):
-            if away_r is not None and home_r is not None:
+            if (
+                away_r is not None
+                and home_r is not None
+                and bool(result.get("complete"))
+            ):
                 # 1st inning was finished -- fall through to normal grading.
                 # Don't return; we'll grade the W/L below.
                 print(f"{tag}  {detail} but 1st inning complete ({away_r}-{home_r}) -- grading normally")
@@ -2242,7 +2290,13 @@ def grade_date(date_str: str, season: int) -> None:
                 _notify_strong_voided_telegram(rows[idx], detail)
                 continue
 
-        if away_r is None or home_r is None:
+        # First-inning completion gate.  We require BOTH the run totals to
+        # exist AND the 1st inning itself to be over (Final / inning >= 2 /
+        # End of 1).  Without this gate a live B1 with a 0-0 score reads
+        # as away_r=0, home_r=0 and would be permanently graded NRFI before
+        # the home half of the 1st actually ended.
+        is_complete = bool(result.get("complete"))
+        if away_r is None or home_r is None or not is_complete:
             # First inning not yet complete -- decide why
             if state in ("Preview", "Scheduled"):
                 # If the slate's calendar date is more than ~18h in the past

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BoardResponse, BoardRow } from "@/lib/types";
 import { useSupabaseRealtime } from "@/lib/useSupabaseRealtime";
+import { todayEtIso } from "@/lib/date";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
 import { OpsHealthCard } from "./OpsHealthCard";
@@ -202,7 +203,9 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     // a heartbeat fallback in case the WebSocket drops, the user is on
     // a date that hasn't been mirrored to Supabase yet, or env vars
     // aren't set (local dev w/o Supabase).
-    const todayIso = new Date().toISOString().slice(0, 10);
+    // ET-aware so the live polling cadence stays on for late-evening
+    // ET games after 8 PM ET (when UTC has rolled to tomorrow).
+    const todayIso = todayEtIso();
     const isLive = (dataDateRef.current ?? "") >= todayIso;
     const id = window.setInterval(refresh, isLive ? 30_000 : 90_000);
     return () => {

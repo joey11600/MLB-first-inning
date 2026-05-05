@@ -7,10 +7,11 @@
  * 2-3 hours late on average -- e.g. "30 3 * * *" / 11:30 PM ET grade
  * actually fired at 06:25 UTC = 2:25 AM ET).
  *
- * Auth: same pattern as /api/cron/predict -- prefer
- * `Authorization: Bearer <CRON_SECRET>`, fall back to the
- * `x-vercel-cron-signature` header that Vercel sets on internal
- * cron invocations.
+ * Auth: same pattern as /api/cron/predict -- requires
+ * `Authorization: Bearer <CRON_SECRET>`.  CRON_SECRET is REQUIRED;
+ * a missing env var returns 500 rather than falling open to any
+ * request bearing the `x-vercel-cron-signature` header (which is
+ * unauthenticated and trivially spoofable).
  */
 
 import { NextResponse } from "next/server";
@@ -25,13 +26,21 @@ const WORKFLOW_FILE = "daily.yml";
 const TARGET_BRANCH = process.env.TARGET_BRANCH || "claude/mlb-inning-run-predictor-QyazL";
 
 export async function GET(req: Request) {
-  const auth   = req.headers.get("authorization") ?? "";
-  const sig    = req.headers.get("x-vercel-cron-signature") ?? "";
+  // CRON_SECRET required; no fallback to x-vercel-cron-signature (which
+  // is unauthenticated and any client can set).
   const secret = process.env.CRON_SECRET;
-  const ok =
-    (secret && auth === `Bearer ${secret}`) ||
-    (!secret && sig.length > 0);
-  if (!ok) {
+  if (!secret) {
+    return NextResponse.json(
+      {
+        error:
+          "Server is missing CRON_SECRET env var. Configure it in Vercel " +
+          "project settings; this endpoint refuses requests until set.",
+      },
+      { status: 500 },
+    );
+  }
+  const auth = req.headers.get("authorization") ?? "";
+  if (auth !== `Bearer ${secret}`) {
     return NextResponse.json(
       { error: "Unauthorized -- this endpoint is for Vercel cron only." },
       { status: 401 },

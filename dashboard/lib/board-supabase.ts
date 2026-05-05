@@ -9,7 +9,9 @@
  *
  * Behaviour parity with the CSV path:
  *   - rows are sorted by combined_lambda DESC so the highest-action
- *     games come first (mirrors the predictor's board CSV ordering)
+ *     games come first (mirrors the predictor's board CSV ordering),
+ *     and the BoardRow.lambda value is read from combined_lambda
+ *     (with lambda_lr_total fallback for legacy rows)
  *   - details map keys: game_pk (canonical), away@home#N (DH-aware
  *     fallback), away@home (legacy single-game fallback)
  *   - empty array for missing JSON columns (lineup, top factors)
@@ -166,11 +168,15 @@ function rowToBoardRow(r: PickRow, rank: number): BoardRow {
     rank,
     away:           str(r.away_team),
     home:           str(r.home_team),
-    // Match the predictor's board.csv "lambda" column.  For LR-v3
-    // (current model) lambda_lr_total is the production lambda; legacy
-    // rows pre-LR-v3 may only have combined_lambda.  Prefer LR total
-    // when present, else combined_lambda, else 0.
-    lambda:         num(r.lambda_lr_total ?? r.combined_lambda),
+    // Parity with the CSV board path: the predictor writes
+    // `combined_lambda` into the board CSV's "lambda" column for locked
+    // rows (see mlb_first_inning_predictor.py: `lam_lk =
+    // locked.get("combined_lambda")`).  The previous implementation
+    // preferred lambda_lr_total here, so the live (Supabase) dashboard
+    // disagreed with archived board CSVs and the CSV-fallback path.
+    // Stick to combined_lambda; fall back to lambda_lr_total only for
+    // legacy rows that pre-date combined_lambda.
+    lambda:         num(r.combined_lambda ?? r.lambda_lr_total),
     pickSide:       normalizePickSide(str(r.pick_side)),
     pickStrength:   normalizePickStrength(str(r.pick_strength)),
     pickLabel:      str(r.pick_label),
@@ -409,14 +415,16 @@ export async function loadBoardFromSupabase(
     ? requestedIso
     : available[0];
 
-  // Pull every pick row for the slate.  Order by lambda_lr_total DESC
-  // (with combined_lambda fallback for legacy rows) so the row order
-  // matches the predictor's board.csv "rank" output.
+  // Pull every pick row for the slate.  Order by combined_lambda DESC so
+  // the row order matches the predictor's board.csv "rank" output (which
+  // also uses combined_lambda for the lambda column on locked rows).
+  // Previous code ordered by lambda_lr_total which produced different
+  // ranks on slates where combined_lambda and lambda_lr_total diverge.
   const { data, error } = await sb
     .from(`picks_${season}`)
     .select("*")
     .eq("date", iso)
-    .order("lambda_lr_total", { ascending: false, nullsFirst: false });
+    .order("combined_lambda", { ascending: false, nullsFirst: false });
   if (error) {
     console.warn("[supabase] picks select failed", error);
     return null;

@@ -4,13 +4,15 @@
  * Triggers the daily.yml workflow on GitHub via workflow_dispatch.
  * Body: { action: "predict" | "grade", secret?: string }
  *
- * Auth (T3.3):
+ * Auth (T3.3, hardened):
  *   - GITHUB_TOKEN env var must be set server-side (PAT for the dispatch).
- *   - If RUN_JOB_SECRET env var is set, the request must include a
- *     matching `secret` field in the JSON body.  The dashboard's manual
- *     button reads window.localStorage.runJobSecret and forwards it.
- *     Without RUN_JOB_SECRET set the endpoint stays open (back-compat
- *     for users who haven't enabled the gate yet).
+ *   - RUN_JOB_SECRET env var is REQUIRED whenever GITHUB_TOKEN is
+ *     configured.  Requests must include a matching `secret` field in
+ *     the JSON body.  The dashboard's manual button reads
+ *     window.localStorage.runJobSecret and forwards it.  If
+ *     GITHUB_TOKEN is set but RUN_JOB_SECRET is not, the endpoint
+ *     refuses requests (500) rather than falling open to arbitrary
+ *     workflow_dispatch traffic.
  *
  * Set both secrets in Vercel project settings -> Environment Variables.
  */
@@ -35,8 +37,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Optional auth gate -- only enforced if the env var is set.
+  // Auth gate.  Whenever GITHUB_TOKEN is configured (the only state in
+  // which this endpoint can actually do anything), RUN_JOB_SECRET must
+  // also be set and match the request body's `secret` field.  The old
+  // behavior left the endpoint open when RUN_JOB_SECRET was unset --
+  // that meant any client could trigger workflow_dispatch on a deploy
+  // that had GITHUB_TOKEN configured but not yet enabled the gate.
+  const token = process.env.GITHUB_TOKEN;
   const expectedSecret = process.env.RUN_JOB_SECRET;
+  if (token && !expectedSecret) {
+    return NextResponse.json(
+      {
+        error:
+          "Server is missing RUN_JOB_SECRET env var. Configure it in Vercel " +
+          "project settings; this endpoint refuses requests until set.",
+      },
+      { status: 500 },
+    );
+  }
   if (expectedSecret) {
     const provided = (body.secret || "").trim();
     if (!provided || provided !== expectedSecret) {
@@ -55,7 +73,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const token = process.env.GITHUB_TOKEN;
   if (!token) {
     return NextResponse.json(
       {
