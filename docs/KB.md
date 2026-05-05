@@ -3,8 +3,32 @@
 Single-page overview for future Claude (or human) sessions picking up this
 project. Read this first; it pointers out to the deeper docs at the bottom.
 
-Last refreshed: **2026-05-02** (after the Phase 1.5 / 2 / 3 / 4 / 6 real-time
-architecture migration; see [CHANGELOG.md](../CHANGELOG.md)).
+Last refreshed: **2026-05-04** (T4.2 priors-pooling deployed as the
+permanent production path; full diagnostic stack T4.4–T4.9 now monitors
+it nightly).  See [CHANGELOG.md](../CHANGELOG.md) for the 2026-05-04 entry.
+
+## TL;DR for someone picking this up cold
+
+The model is a logistic-regression NRFI predictor with **18 features per
+half-inning**, calibrated by isotonic regression.  As of 2026-05-04 the
+production pipeline reads pitcher xera/whiff via **Bayesian-pooled
+priors** (2025 prior + 2026 cumulative-thru-yesterday) instead of the
+raw season cache, because raw 2026 small-sample stats produced extreme
+outliers (xera=14.71 from 5 batted balls) that drove confident-but-
+wrong bets and lost -4.56u in a single day on 2026-05-03.
+
+Six diagnostic layers run nightly so a regression like that surfaces
+within hours instead of days:
+
+  - `tools/feature_drift_monitor.py` (T4.5) detects pitcher_q + xera shifts
+  - `tools/daily_shadow_report.py`   (T4.4) tracks T4.2 vs production delta
+  - `tools/pick_reasoning_log.py`    (T4.6) per-pick feature contributions
+  - `.github/workflows/shadow_gate.yml` (T4.7) pre-PR shadow gate
+  - `dashboard/components/ShadowDeltaCard.tsx` (T4.9) at-a-glance UI tile
+  - `docs/PLAYBOOK.md`               (T4.8) when-to-do-what process doc
+
+If something breaks: **read PLAYBOOK.md first.** It routes every common
+failure mode to the specific tool that gives you the answer in <5 min.
 
 ---
 

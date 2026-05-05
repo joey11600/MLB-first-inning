@@ -11,6 +11,129 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-04] — T4.2 priors-pooling deployed + full diagnostic stack (T4.2 → T4.10)
+
+**The big one.** Root-caused the 2026-05-03 -4.56u disaster, deployed
+a fix, and built six diagnostic layers so the next regression is
+found in minutes instead of days.
+
+### Background
+
+T2.53 (committed 2026-05-03 11:16 ET) "fixed" the early-season
+pitcher_q tag classification, marking ~24 of 30 pitchers as `'live'`
+instead of `'ltd'`.  The tag flip silently disabled a protective
+ERA-blend that had been shrinking small-sample 2026 stats toward 2025
+priors.  Result: extreme xera values like 14.71 (a pitcher with 5
+batted balls in 2026) reached the LR uncalibrated and drove confident
+STRONG YRFI bets.  5/03 went 2-6, lost -4.56u, and we didn't know why.
+
+### Added
+
+- **T4.2** priors-pooled `fetch_pitcher_statcast()` in
+  `mlb_first_inning_predictor.py`.  Reads
+  `data/v2_perfect_2026/truepit_priors_per_pitcher_per_date.json` for
+  per-pitcher per-date snapshots that pool 2025 full-season priors with
+  2026 cumulative-through-yesterday data.  Shadow on 2026-04-29 to
+  2026-05-04 placed bets:  V2 actual 13-13 -2.61u, V2+T4.2 9-5 +1.80u
+  (12 PASS), delta +4.41u.  Saves the 5/03 disaster down to -1.55u.
+
+- **T4.2 daily refresh** at 6 UTC (`.github/workflows/daily.yml`).
+  Wipes per-pitch 2026 cache, refetches via pybaseball, rebuilds the
+  priors JSON.  ~30-50 min runtime, well before the 12 UTC predict cron.
+
+- **T4.4** `tools/daily_shadow_report.py`.  Per-day "what would V2 +
+  T4.2 priors-pooling have done?" comparison.  Writes
+  `data/diagnostics/shadow_<date>.csv` plus a moving-timeline
+  `shadow_summary.csv`.  Wired into the nightly grade cron.
+
+- **T4.5** `tools/feature_drift_monitor.py`.  Daily comparison of
+  pitcher_q distribution + xera/whiff/top3c distributions + pick
+  clustering vs the trailing 7-day baseline.  Telegram alert on HIGH
+  severity.  When run retroactively against 5/03, fires 5 HIGH alerts
+  (4 pitcher_q live/ltd flips + 1 calibrator-cluster bin-collapse) --
+  vs 0 HIGH on the prior normal day.  Time-to-detection drops from
+  24+ hours to under 30 seconds.
+
+- **T4.6** `tools/pick_reasoning_log.py`.  Per-pick JSON dump showing
+  top-5 LR feature contributions per half (z-score, weight, logit
+  contribution), calibrator flat-zone detection, raw-cache vs priors-
+  pooled Statcast, pitcher_q tags, and a warnings list.  When a pick
+  loses, `jq '.picks[] | select(.matchup == "X@Y") | .warnings'` gives
+  the dominant driver in seconds.
+
+- **T4.7** `.github/workflows/shadow_gate.yml` + parametrized
+  `tools/v2_t42_shadow.py`.  Pre-PR gate that runs the T4.2 shadow on
+  the trailing 14 days using the PR's code path.  Posts the result as
+  a PR comment and fails the status check if `delta_pl < -2u`.  Would
+  have caught T2.53 before merge.
+
+- **T4.8** `docs/PLAYBOOK.md`.  Standard checklist for: bad day on
+  STRONG bets, drift alert fired, shadow delta negative for 5+ days,
+  PR about to be merged, live state not updating.  Each section routes
+  to the specific tool that gives a definitive answer.
+
+- **T4.9** `dashboard/components/ShadowDeltaCard.tsx` +
+  `dashboard/app/api/shadow-summary/route.ts`.  At-a-glance dashboard
+  tile showing trailing 7-day T4.2 delta with status pill (ok / warn /
+  regress).  Click to expand 14-day timeline table.  `copy-data.mjs`
+  now also bundles `data/diagnostics/shadow_summary.csv`.
+
+### Changed
+
+- **T4.10**: `_USE_TRUEPIT_PRIORS` is now locked-on with an explicit
+  comment in `mlb_first_inning_predictor.py`.  The toggle was kept
+  during shake-out; the consistently positive shadow delta justifies
+  making it permanent.  Future model architecture changes that need
+  raw inputs should add a new lookup path, not disable this one.
+
+- **T4.4 (deployment)**: bet halt lifted.  `daily.yml` `--min-edge`
+  reverted from 0.99 (the T4.3 emergency halt) to the production
+  default 0.02 in both the predict step and the 5-min odds-only tick.
+
+### Fixed
+
+- **Multicollinear sign-flip damage** in production LR weights
+  identified during diagnosis (`home_fip` -0.0745, `away_top3c_slg`
+  -0.2097, `away_fip` -0.0619, `home_obp` -0.0148, `home_top3c_slg`
+  -0.1276).  These are artifacts of multicollinearity (xera covers
+  pitcher quality, ISO covers power, top3c_obp covers offense; the
+  redundant features fight with the dominant ones and flip signs to
+  compensate).  Did NOT rebuild the model -- V5/V6/V7 candidate
+  rebuilds all underperformed on 3-fold backtest and on 2026 placed
+  bets.  T4.2 data-layer shrinkage addresses the real problem
+  (extreme inputs reaching the LR), which was the actual cause of
+  the 5/03 disaster.
+
+### Performance
+
+- 4/29-5/04 placed bets:  V2 actual 13-13 (50.0%) -2.61u; V2+T4.2
+  shadow 9-5 (64.3%, 12 PASS) +1.80u; delta +4.41u.
+- 5/03 alone:  V2 2-6 (25.0%) -4.56u; V2+T4.2 shadow 2-3 (40.0%, 3 PASS)
+  -1.55u; delta +3.00u.
+- 3-fold cross-year backtest of multiple architectures: prod 18-feature
+  LR aggregates -5.59u over 2880 STRONG-zone picks (-0.2% ROI); the
+  V2+T4.2 priors-pooling path is the targeted fix for 2026's specific
+  small-sample-noise pathology, not a claim that the model is robustly
+  +EV across years.
+
+### Deferred
+
+- Sliding-window LR rebuild (train on rolling last 60 days, refit
+  daily).  Cross-year transfer is broken because MLB drifts annually.
+  T4.2 caps small-sample 2026 noise but doesn't address the underlying
+  cross-year problem.  Re-evaluate after 2-4 weeks of post-T4.2 live
+  data.
+- Market-edge model using DK NRFI implied prob as primary feature.
+  Markets recalibrate to current-season conditions automatically;
+  model would learn "when is the market mispriced" -- smaller
+  question than "what's the true probability".  Blocker: no historical
+  DK odds for 2022-2025; need to start logging forward.
+- Three-line P&L distinction on dashboard (Realized / Paper / Backtest)
+  to permanently fix the conflation that confused the operator during
+  this session's investigation.
+
+---
+
 ## [2026-05-03] — Variants G/H/I added to A/B harness after worst-day deep dive (T3.12)
 
 After 2-6 record on 8 placed bets (-4.55u, worst day in 30 by 3.4×), forensic

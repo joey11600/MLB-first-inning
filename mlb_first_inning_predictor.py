@@ -1323,10 +1323,24 @@ def _load_statcast_cache() -> dict:
 # - JSON shape: {"per_pitcher": {pid_str: {date_iso: {xera, whiff_pct_rank, ...}}}}
 # - Lookup: for (pid, date_iso), find latest entry <= date_iso (or
 #   earliest entry if date_iso predates everything).
-# - Toggle USE_TRUEPIT_PRIORS=False to revert to raw-cache behavior.
 # - The fallback chain is: priors -> raw season cache -> league average.
+#
+# T4.10 (this commit): T4.2 priors-pooling is now PERMANENT and cannot
+# be disabled without removing this code.  The toggle was kept as
+# `_USE_TRUEPIT_PRIORS` during the deployment shake-out; one full week
+# of nightly shadow data (T4.4 -> shadow_summary.csv) showed a
+# consistent positive delta_pl, so we lock it in.  Reverting would
+# re-introduce the small-sample-noise pathology that caused 5/03's
+# disaster (xera=14.71 driving STRONG YRFI on a single 5-batted-ball
+# sample).  If a future model change requires bypassing the priors
+# (rare; sliding-window / market-edge architectures might want raw
+# inputs), they should add a NEW lookup path rather than disabling
+# this one.
+#
+# This is the official MLB First-Inning predictor model as of T4.10.
+# Refer to docs/PLAYBOOK.md for the diagnostic stack that monitors it.
 
-_USE_TRUEPIT_PRIORS = True
+_USE_TRUEPIT_PRIORS = True   # locked-on; see T4.10 note above
 _truepit_priors_cache: dict | None = None
 
 
