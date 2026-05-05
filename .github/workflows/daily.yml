@@ -102,7 +102,13 @@ concurrency:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    # T4.16: runner is selected by the repo variable RUNNER_LABEL (set
+    # at /settings/variables/actions).  Default fallback is ubuntu-latest
+    # so workflows still work if the variable is unset OR if the
+    # self-hosted runner is offline -- in the latter case the operator
+    # should delete the variable to roll back to GH-hosted, see
+    # docs/SELF_HOSTED_RUNNER.md.
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

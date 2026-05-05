@@ -24,7 +24,9 @@ concurrency:
 
 jobs:
   snapshot:
-    runs-on: ubuntu-latest
+    # T4.16: see docs/SELF_HOSTED_RUNNER.md.  Defaults to ubuntu-latest
+    # when RUNNER_LABEL repo variable is unset.
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

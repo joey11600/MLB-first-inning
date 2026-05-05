@@ -58,7 +58,9 @@ permissions:
 jobs:
   shadow:
     name: T4.7 shadow regression check
-    runs-on: ubuntu-latest
+    # T4.16: see docs/SELF_HOSTED_RUNNER.md.  Defaults to ubuntu-latest
+    # when RUNNER_LABEL repo variable is unset.
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Checkout PR head
         uses: actions/checkout@v4
