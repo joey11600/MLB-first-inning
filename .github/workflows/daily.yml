@@ -482,6 +482,29 @@ jobs:
           python tools/daily_shadow_report.py 2>&1 \
             || echo "::warning::daily_shadow_report failed (non-blocking)"
 
+      - name: Feature drift monitor (T4.5)
+        if: steps.action.outputs.what == 'grade'
+        # Daily check: did the feature distributions on yesterday's slate
+        # drift from the trailing 7-day baseline?  Catches the T2.53-class
+        # regression where a code change silently shifts a feature's
+        # distribution (in that case: pitcher_q tag flipped from 'ltd'
+        # to 'live' for 24 of 30 pitchers, disabling protective ERA-blend
+        # shrinkage).  When run retroactively against 5/03 this monitor
+        # would have fired 5 HIGH alerts (4 pitcher_q distribution flips
+        # + 1 calibrator-cluster bin-collapse detection) before the bets
+        # locked -- vs 0 HIGH alerts on the prior normal day.
+        #
+        # Telegram fires on HIGH severity only.  MEDIUM alerts get
+        # appended to data/system_errors.csv (visible in dashboard's
+        # Ops Health card) but no notification.  Soft-fail.
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set +e
+          python tools/feature_drift_monitor.py 2>&1 \
+            || echo "::warning::feature_drift_monitor failed (non-blocking)"
+
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
         run: |
