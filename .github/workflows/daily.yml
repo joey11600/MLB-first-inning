@@ -210,35 +210,39 @@ jobs:
 
           echo "==> Catch-up grading $YDAY (yesterday)..."
           # Kept on GH Actions: grade-yesterday is a safety net for
-          # west-coast late games that complete after midnight ET.  The
-          # Railway worker's `_graded_in_session` cache clears on date
-          # roll, so a game that finished at 12:01 AM ET could be
-          # missed if the worker restarted between 12:00 and the
-          # grade-on-fi_complete tick.  Yesterday's catch-up here
-          # provides belt-and-suspenders.  Idempotent (no-op once
-          # rows are terminal).
+          # west-coast late games that complete after midnight ET, plus
+          # any games that the 5-min ODDS-ONLY grade missed.  Idempotent
+          # (no-op once rows are terminal).
           if ! python mlb_first_inning_predictor.py --date "$YDAY" --grade 2>grade_err.log; then
             record_err "grade-yesterday" "$?" "$(tail -c 400 grade_err.log)"
             # Soft-fail: continue to today's predict
           fi
 
-          # T4.15: REMOVED grade-today from the PREDICT cron.
-          # Original (T2.27) rationale was to grade today's completed
-          # 1st innings within ~hourly-cron latency so a 7:30pm STRONG
-          # win didn't wait until 11:30pm.  T4.13 superseded that: the
-          # Railway live_state.py worker now writes graded_result the
-          # moment fi_complete fires (~10 sec).  Running grade-today
-          # here was redundant with the worker AND defeated dedup -- it
-          # was a major contributor to the "telegram keeps sending"
-          # report (race between this writer and the 5-min ODDS-ONLY
-          # tick + Railway worker, all calling grade_date() and each
-          # producing a chance to fire the daily wrap before the
-          # FIRE_DAILY_DIGEST gate landed).
+          # T4.19: RE-ADDED grade-today (was removed by T4.15).
+          # Discovered the Railway mlb-first-inning project is empty --
+          # no live_state.py worker, no predictor_loop.  T4.15 had
+          # removed this assuming the T4.13 worker grade extension
+          # would handle today's grades within ~10s of fi_complete.
+          # With Railway down, that path doesn't exist, so this step
+          # is the primary fast-grade path again.
           #
-          # Backup safety: the nightly GRADE cron at 11:30pm ET still
-          # runs grade-today + grade-yesterday as a final sweep, so a
-          # Railway worker outage during a slate is still recoverable
-          # before the next morning.
+          # Why this is safe even though it produced telegram noise
+          # before T4.16: the Contabo self-hosted runner eliminated
+          # GH Actions cron lag, so the 5-min ODDS-ONLY tick actually
+          # fires every 5 min (no queueing).  Telegram race protection
+          # comes from T4.14 (FIRE_DAILY_DIGEST gate) + T4.17 (FIRE_
+          # BANKROLL_MILESTONES gate) so wraps and milestones don't
+          # multi-fire even if multiple writers grade in close
+          # succession.
+          #
+          # When Railway services are restored and the worker grade
+          # extension is verified working for 24+ hours, this step can
+          # be removed again -- but only after that verification.
+          echo "==> Live-grading today's completed 1st innings..."
+          if ! python mlb_first_inning_predictor.py --date "$TODAY_ISO" --grade 2>>grade_err.log; then
+            record_err "grade-today" "$?" "$(tail -c 400 grade_err.log)"
+            # Soft-fail: even if grade-today errors, predict should still run.
+          fi
 
           echo "==> Predicting today's slate..."
           if ! python mlb_first_inning_predictor.py 2>predict_err.log; then
@@ -425,23 +429,30 @@ jobs:
             echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
           }
 
-          # T4.15: REMOVED odds-only grade tick.
-          # T2.65c shipped this as the PRIMARY fast-grade path because GH
-          # Actions cron lag made the hourly predict cron's grade-today
-          # too slow.  T4.13 obsoleted both: the Railway live_state.py
-          # worker now writes graded_result within ~10s of fi_complete,
-          # which is dramatically faster than even a 5-min cron AND
-          # immune to GH Actions runner queuing.
+          # T4.19: RE-ADDED grade-today after discovering the Railway
+          # mlb-first-inning project was empty (zero services running).
+          # T4.15 removed this step on the assumption that the T4.13
+          # Railway live_state.py worker would grade within ~10s of
+          # fi_complete.  But that worker isn't actually deployed -- so
+          # T4.15 left today's slate with NO fast-grade path between the
+          # hourly predict cron and the 11:30pm ET nightly grade.  On a
+          # day with games starting at 7:05pm ET, a STRONG bet that
+          # resolves at 7:30pm would have stayed ungraded for 4 hours.
           #
-          # The 5-min ODDS-ONLY cron now does ONE thing: scrape DK odds
-          # and import them.  No grading, no predicting -- those live on
-          # Railway.  This eliminates the multi-writer race that produced
-          # 2-5 wrap pings per slate (see T4.14).
+          # Now that the Contabo self-hosted runner (T4.16) eliminates
+          # GH Actions cron lag, the original race-and-noise concern
+          # behind T4.15 is moot: the 5-min cron actually fires every
+          # 5 min, no queueing.  Telegram race protection still comes
+          # from T4.14 (FIRE_DAILY_DIGEST gate) and T4.17 (FIRE_BANKROLL
+          # _MILESTONES gate) so noise doesn't return.
           #
-          # If Railway worker is down, the nightly GRADE cron at 11:30pm
-          # ET still catches up.  Operators can also trigger a manual
-          # grade via workflow_dispatch (`gh workflow run daily.yml -f
-          # what=grade`).
+          # Once Railway is restored and the live_state.py worker is
+          # confirmed grading on fi_complete for 24+ hours, this step
+          # can be removed again -- but only AFTER verification.
+          echo "==> [odds-only] Live-grading completed 1st innings for $TODAY_ISO..."
+          if ! python mlb_first_inning_predictor.py --date "$TODAY_ISO" --grade 2>grade_err.log; then
+            record_err "odds-only-grade" "$?" "$(tail -c 400 grade_err.log)"
+          fi
 
           echo "==> [odds-only] Scraping DraftKings odds for $TODAY_ISO..."
           set +e
