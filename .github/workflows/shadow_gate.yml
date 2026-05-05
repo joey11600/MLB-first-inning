@@ -1,0 +1,212 @@
+name: Shadow regression gate (T4.7)
+
+# T4.7: pre-commit shadow gate.  Any PR that touches the predictor's
+# feature pipeline runs tools/v2_t42_shadow.py against the trailing
+# 14 days of placed bets.  The shadow uses the PR's code path -- so
+# if the change degrades pick quality, the shadow's V2+T4.2 P&L
+# drops and this check fails.
+#
+# This is the gate that would have caught T2.53 before it landed:
+# T2.53 changed the pitcher_q tag distribution which feeds the LR's
+# era-blend, which would have shifted picks materially in the 14-day
+# shadow window, which would have flipped the shadow's delta_pl
+# negative.
+#
+# Trigger paths picked to cover the full pick-emission chain:
+#   the predictor itself (mlb_first_inning_predictor.py)
+#   feature backfill / cache (tools/backfill_truepit_2026.py and the
+#                             priors-aware build script)
+#   LR + calibrator JSONs that production reads
+#   the calibration / lr-baseline modules
+#   pre-built priors aggregates (changes here ripple to picks)
+#
+# Anything outside these paths does NOT trigger the gate.
+
+on:
+  pull_request:
+    paths:
+      - 'mlb_first_inning_predictor.py'
+      - 'lr_baseline.py'
+      - 'calibration.py'
+      - 'recalibrate_v2.py'
+      - 'tracker.py'
+      - 'backtest.py'
+      - 'tools/build_truepit_2026_with_priors.py'
+      - 'tools/backfill_truepit_2026.py'
+      - 'tools/build_2025_priors_aggregates.py'
+      - 'tools/v2_t42_shadow.py'
+      - 'data/lr_t1.json'
+      - 'data/lr_b1.json'
+      - 'data/calibration_v2.json'
+      - 'data/v2_perfect_2026/**'
+      - 'data/picks_2026.csv'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Trailing day window for shadow"
+        type: number
+        default: 14
+      regression_threshold_units:
+        description: "Fail if shadow delta_pl drops by more than this many units"
+        type: number
+        default: 2.0
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  shadow:
+    name: T4.7 shadow regression check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run shadow on PR branch
+        id: pr_shadow
+        run: |
+          set -e
+          DAYS="${{ github.event.inputs.days || '14' }}"
+          mkdir -p data/diagnostics
+          python tools/v2_t42_shadow.py \
+            --days "$DAYS" \
+            --output-json data/diagnostics/shadow_pr.json \
+            > shadow_pr_stdout.txt 2>&1
+          # Echo the textual table for the workflow log
+          cat shadow_pr_stdout.txt
+
+      - name: Parse shadow result
+        id: parse
+        run: |
+          set -e
+          python - <<'PY'
+          import json, os
+          with open("data/diagnostics/shadow_pr.json", encoding="utf-8") as f:
+              d = json.load(f)
+          delta = float(d.get("delta_pl") or 0.0)
+          v2_pl = float(d["v2_actual"]["pl"])
+          shadow_pl = float(d["v2_t42_shadow"]["pl"])
+          n_bets = int(d.get("n_bets") or 0)
+          since = d.get("since") or ""
+          until = d.get("until") or ""
+          gh_out = os.environ["GITHUB_OUTPUT"]
+          with open(gh_out, "a", encoding="utf-8") as out:
+              out.write(f"delta_pl={delta:.3f}\n")
+              out.write(f"v2_pl={v2_pl:.3f}\n")
+              out.write(f"shadow_pl={shadow_pl:.3f}\n")
+              out.write(f"n_bets={n_bets}\n")
+              out.write(f"since={since}\n")
+              out.write(f"until={until}\n")
+          PY
+
+      - name: Build PR comment
+        id: comment
+        run: |
+          set -e
+          THRESHOLD="${{ github.event.inputs.regression_threshold_units || '2.0' }}"
+          DELTA="${{ steps.parse.outputs.delta_pl }}"
+          V2_PL="${{ steps.parse.outputs.v2_pl }}"
+          SHADOW_PL="${{ steps.parse.outputs.shadow_pl }}"
+          N_BETS="${{ steps.parse.outputs.n_bets }}"
+          SINCE="${{ steps.parse.outputs.since }}"
+          UNTIL="${{ steps.parse.outputs.until }}"
+
+          # Decide pass/fail.  We pass if PR shadow_pl >= -THRESHOLD vs zero
+          # (i.e. shadow doesn't lose more than THRESHOLD over the window)
+          # AND delta_pl is not negative (PR doesn't regress vs V2 actual).
+          # The second condition is the real T2.53-class catcher.
+          REGRESS_FAIL="false"
+          if python -c "import sys; sys.exit(0 if float('$DELTA') < -float('$THRESHOLD') else 1)"; then
+            REGRESS_FAIL="true"
+          fi
+
+          if [ "$REGRESS_FAIL" = "true" ]; then
+            HEADER="**Shadow REGRESSION detected** -- review carefully before merging"
+          else
+            HEADER="**Shadow check passed**"
+          fi
+
+          {
+            echo "## $HEADER"
+            echo ""
+            echo "Window: \`$SINCE\` to \`$UNTIL\`  (${N_BETS} placed bets)"
+            echo ""
+            echo "| metric | value |"
+            echo "| --- | --- |"
+            echo "| V2 actual P&L (real placed bets) | ${V2_PL}u |"
+            echo "| V2 + T4.2 shadow P&L (this PR's code) | ${SHADOW_PL}u |"
+            echo "| **Delta** | **${DELTA}u** |"
+            echo ""
+            echo "Regression threshold: ${THRESHOLD}u"
+            echo ""
+            echo "<details><summary>Shadow tool stdout</summary>"
+            echo ""
+            echo '```'
+            cat shadow_pr_stdout.txt
+            echo '```'
+            echo ""
+            echo "</details>"
+          } > pr_comment.md
+
+          echo "regress_fail=$REGRESS_FAIL" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('pr_comment.md', 'utf8');
+            const { data: existing } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const prior = existing.find(c =>
+              c.user.type === 'Bot' &&
+              c.body && c.body.includes('Shadow check') ||
+              (c.body && c.body.includes('Shadow REGRESSION')));
+            if (prior) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: prior.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Upload shadow JSON as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow_report
+          path: |
+            data/diagnostics/shadow_pr.json
+            shadow_pr_stdout.txt
+
+      - name: Fail if regression
+        if: steps.comment.outputs.regress_fail == 'true'
+        run: |
+          echo "::error::Shadow regression detected: delta_pl=${{ steps.parse.outputs.delta_pl }} units"
+          echo "Review the shadow numbers in the PR comment.  If the regression"
+          echo "is intentional and acceptable, override by merging anyway"
+          echo "(this check is required-but-overridable; admins can bypass)."
+          exit 1

@@ -1,15 +1,34 @@
 """
-Clean shadow: use the PRODUCTION t1_features() / b1_features() / LR / calibrator
-directly, passing the row data + date.  T4.2 priors-pooling is wired into those
-functions already, so this gives the EXACT output the production predictor
-would emit if T4.2 had been enabled at lock time.
+tools/v2_t42_shadow.py -- shadow simulator for the production code path.
 
-Run on every placed bet 4/29-5/04, report W/L + P&L vs the production picks.
+Calls the PRODUCTION t1_features() / b1_features() / LR / calibrator directly,
+passing the row data + date.  T4.2 priors-pooling is wired into those
+functions, so this gives the EXACT output the production predictor would
+emit at lock time given the row's stored input columns.
+
+Default: trailing 14 days from today.  Override with --since/--until or
+--days N.
+
+Used by:
+  * Manual investigation: "what would the model have done on these days?"
+  * .github/workflows/shadow_gate.yml: pre-PR regression check (T4.7).
+    Any PR that touches the predictor's feature pipeline runs this on the
+    last 14 days.  If shadow P&L drops materially vs the baseline, the
+    PR fails its required status check.
+
+USAGE
+-----
+  python tools/v2_t42_shadow.py                      # last 14 days
+  python tools/v2_t42_shadow.py --days 7
+  python tools/v2_t42_shadow.py --since 2026-04-29 --until 2026-05-04
+  python tools/v2_t42_shadow.py --output-json out.json  # for CI to parse
 """
+import argparse
 import csv
 import json
 import math
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -71,7 +90,35 @@ def build_args_from_row(r):
     return home_pitcher, away_pitcher, home_offense, away_offense, wx
 
 
+def parse_args():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--since", default=None,
+                    help="Start date YYYY-MM-DD (inclusive). Default: 14 days before today.")
+    ap.add_argument("--until", default=None,
+                    help="End date YYYY-MM-DD (inclusive). Default: today.")
+    ap.add_argument("--days", type=int, default=14,
+                    help="Trailing day count, used only when --since is unset. Default 14.")
+    ap.add_argument("--output-json", default=None,
+                    help="Write structured summary to this JSON path (for CI to parse).")
+    return ap.parse_args()
+
+
 def main():
+    args = parse_args()
+    today = datetime.utcnow().date()
+    if args.until:
+        until_d = datetime.strptime(args.until, "%Y-%m-%d").date()
+    else:
+        until_d = today
+    if args.since:
+        since_d = datetime.strptime(args.since, "%Y-%m-%d").date()
+    else:
+        since_d = until_d - timedelta(days=args.days - 1)
+    since_iso = since_d.strftime("%Y-%m-%d")
+    until_iso = until_d.strftime("%Y-%m-%d")
+    print(f"Window: {since_iso} -> {until_iso}")
+
     # Load production LR + calibrator
     with open(REPO_ROOT / "data/lr_t1.json")          as f: t1d = json.load(f)
     with open(REPO_ROOT / "data/lr_b1.json")          as f: b1d = json.load(f)
@@ -92,7 +139,7 @@ def main():
     with open(REPO_ROOT / "data/picks_2026.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             d = r.get("date") or ""
-            if d < "2026-04-29" or d > "2026-05-04":
+            if d < since_iso or d > until_iso:
                 continue
             if (r.get("bet_placed") or "").upper() != "Y":
                 continue
@@ -203,6 +250,29 @@ def main():
     print(f"  V2 ACTUAL          {v2_w}-{v2_l}        P&L = {v2_total:+.2f}u  ({v2_w + v2_l} bets)")
     print(f"  V2+T4.2 SHADOW     {new_w}-{new_l}  ({new_pass} PASS)  P&L = {new_total:+.2f}u")
     print(f"  Delta              {new_total - v2_total:+.2f}u")
+
+    if args.output_json:
+        out = {
+            "since":           since_iso,
+            "until":           until_iso,
+            "n_bets":          len(rows_out),
+            "v2_actual":       {"W": v2_w, "L": v2_l, "pl": round(v2_total, 3)},
+            "v2_t42_shadow":   {"W": new_w, "L": new_l, "PASS": new_pass, "pl": round(new_total, 3)},
+            "delta_pl":        round(new_total - v2_total, 3),
+            "rows":            [{
+                "date":   x["d"],
+                "match":  x["match"],
+                "v2":     {"side": x["v2_side"], "p": round(x["v2_p"], 4),
+                            "pl": round(x["v2_pl"], 3), "outcome": x["v2_oc"]},
+                "shadow": {"pick": x["new_pick"], "p": round(x["new_p"], 4),
+                            "pl": round(x["new_pl"], 3), "outcome": x["new_oc"]},
+            } for x in rows_out],
+        }
+        out_path = Path(args.output_json)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=2)
+        print(f"\n  Wrote JSON summary -> {out_path}")
 
 
 if __name__ == "__main__":
