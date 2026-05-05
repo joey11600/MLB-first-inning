@@ -243,26 +243,22 @@ jobs:
 
           ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
           if [ -s "$ODDS_CSV" ]; then
-            # T4.3 (2026-05-04): EMERGENCY HALT.  Multi-variant walk-forward
-            # on truepit/leak-free 2022-2025 corpus showed the production LR
-            # is NOT consistently +EV across years.  Three-fold backtest:
-            #   2024->2025: +23u   2023->2024: -42u   2022->2023: +13u
-            # Net: -6u/2880 bets (-0.2% ROI).  Live 5-week sample (-2u to
-            # +0.7u depending on calibrator) confirms.  Cross-year transfer
-            # fails because MLB drifts year-to-year.  Halting STRONG bet
-            # placement until we ship a market-aware / sliding-window
-            # rebuild that proves +EV in 3-fold backtest.
+            # T4.4 (2026-05-04): HALT LIFTED -- T4.2 priors-pooled features
+            # deployed.  Shadow on V2's 26 placed bets 4/29-5/04 (the period
+            # after T2.53 broke the conservative ERA-blend) showed:
+            #   V2 actual:        13-13  -2.61u  (50.0% hit)
+            #   V2 + T4.2 shadow:  9-5   +1.80u  (64.3% hit, 12 PASS)
+            #   Delta:                   +4.41u
             #
-            # Mechanism: --min-edge 0.99 means no realistic model edge
-            # passes the threshold -> bet_placed stays "" for all rows.
-            # Predictions still run (dashboard stays useful for analysis);
-            # we just stop wagering until the rebuild is validated.
+            # T4.2 caps downside by passing on small-sample-driven extreme
+            # picks.  Specifically saved -3u on 5/03 (passed on 3 of the
+            # 6 losses) and -1u on 5/04 (passed on the BOS@DET YRFI loss
+            # whose 6.23 raw xera shrunk to 4.12 priors-pooled).
             #
-            # Revert: replace 0.99 below with the new validated threshold
-            # (likely 0.05 for the rebuilt model) once 3-fold backtest
-            # ROI > +2.5% AND live shadow holds for 1+ week.
-            echo "==> [HALTED] Importing $ODDS_CSV with edge >= 99% (effectively pauses bets)..."
-            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.99 2>import_err.log; then
+            # Lifting halt at --min-edge 0.02 (the production default).
+            # Threshold bands for STRONG picks (0.56/0.44) stay unchanged.
+            echo "==> Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
+            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 2>import_err.log; then
               record_err "import-odds" "$?" "$(tail -c 400 import_err.log)"
             fi
           else
@@ -417,11 +413,10 @@ jobs:
 
           ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
           if [ -s "$ODDS_CSV" ]; then
-            # T4.3 EMERGENCY HALT (see predict step for full rationale).
-            # Mirror the same --min-edge 0.99 here so the 5-min cron tick
-            # also can't place new bets while the rebuild is in flight.
-            echo "==> [odds-only HALTED] Importing $ODDS_CSV with edge >= 99% (paused)..."
-            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.99 2>import_err.log; then
+            # T4.4: halt lifted, T4.2 priors-pooling deployed (see predict
+            # step for shadow numbers).
+            echo "==> [odds-only] Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
+            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 2>import_err.log; then
               record_err "odds-only-import" "$?" "$(tail -c 400 import_err.log)"
             fi
           else
@@ -462,6 +457,30 @@ jobs:
           set +e
           python tools/calibration_monitor.py --alert 2>&1 \
             || echo "::warning::calibration_monitor failed (non-blocking)"
+
+      - name: Daily T4.2 shadow report (diagnostics)
+        if: steps.action.outputs.what == 'grade'
+        # Per-day apples-to-apples comparison of V2 actual placed bets
+        # vs what V2 + T4.2 priors-pooling WOULD have predicted on the
+        # same row.  Writes:
+        #   data/diagnostics/shadow_<date>.csv      -- per-bet detail
+        #   data/diagnostics/shadow_summary.csv     -- one row per day
+        #
+        # The summary file gives a moving timeline so we can verify T4.2
+        # keeps producing positive delta over production.  If delta turns
+        # negative for 5+ consecutive days, T4.2 has drifted and we need
+        # to investigate (priors stale, feature regression, etc.).
+        # Soft-fail so a diagnostic hiccup doesn't block the grade commit.
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          # T4.4 (this commit): runs after grade so yesterday's bets are
+          # final.  Default arg picks "yesterday ET", matching the date
+          # the grade step just finalized.
+          python tools/daily_shadow_report.py 2>&1 \
+            || echo "::warning::daily_shadow_report failed (non-blocking)"
 
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
