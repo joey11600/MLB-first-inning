@@ -1,6 +1,6 @@
 # NRFI Terminal — Agent Rules
 
-Read this first. These are the operating rules for any Claude (or other
+Read this first. These are the operating rules for any Codex (or other
 agent) working on this repo. Violating any of them costs the user real
 time and money. Read [docs/KB.md](./docs/KB.md) for the system overview;
 this file is just the rules.
@@ -34,9 +34,9 @@ messages, CHANGELOG entries — should still be written normally for
 future agents. But everything that goes BACK TO THE USER in chat
 should follow the rule above.
 
-This file mirrors `AGENTS.md` (the equivalent rule file for Codex /
-other agents). When you change rules in one, change them in the other
-so the two stay in sync.
+This file mirrors `CLAUDE.md` (the equivalent rule file for Claude
+agents). When you change rules in one, change them in the other so the
+two stay in sync.
 
 ## Deploy rules — read before touching the dashboard
 
@@ -157,7 +157,7 @@ The CSV ledger at `data/picks_2026.csv` is append-mostly. Specific rules:
   Mark items with `✅ <date>` when complete. Don't recycle audit IDs.
 - **docs/KB.md** — single-page system overview. Update when major
   architecture changes ship.
-- **User memory** (`~/.claude/projects/.../memory/*.md`) — model
+- **User memory** (`~/.Codex/projects/.../memory/*.md`) — model
   internals, dashboard architecture, feature backlog. **Verify against
   current code before quoting** — system reminders flag these as
   potentially stale (point-in-time observations).

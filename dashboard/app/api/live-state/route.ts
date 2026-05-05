@@ -89,9 +89,13 @@ export async function GET(request: Request) {
     );
   }
 
-  // Hydrate=linescore gets per-inning runs so we can compute "1st inning
-  // complete + runs" without an extra API call per game.
-  const url = `${MLB_BASE}/schedule?sportId=1&date=${date}&hydrate=linescore`;
+  // hydrate=linescore gets per-inning runs (so we can compute "1st inning
+  // complete + runs" without an extra API call per game).
+  // hydrate=team adds the 3-letter team abbreviation (NYY, BOS, ...) under
+  // teams.{away|home}.team.abbreviation -- without it those fields come
+  // back undefined and the dashboard renders "?@?" instead of "NYY@BOS".
+  // Mirrors the worker's hydrate list in workers/live_state.py.
+  const url = `${MLB_BASE}/schedule?sportId=1&date=${date}&hydrate=linescore,team`;
 
   let data: { dates?: Array<{ date?: string; games?: MlbScheduleGame[] }> } | null = null;
   try {

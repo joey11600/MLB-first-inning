@@ -11,6 +11,48 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-05] — Follow-ups: live-state team hydrate, DK warmup GET, agent-rule sync
+
+Three small fixes after the morning audit-fix push.
+
+### Added
+
+- **AGENTS.md** committed to repo (was previously untracked).  Branch
+  references corrected from `Codex/...` to `claude/...` to match the
+  branch Vercel + GitHub Actions actually watch.  Closes the handoff's
+  "branch-name discrepancy" deferred item.
+- **Communication-style rule** added at the top of both `CLAUDE.md` and
+  `AGENTS.md`: the user is not well-versed in developer terminology
+  and has explicitly asked agents to talk to them like a complete
+  novice.  Codifies the rule so every future session reads it before
+  acting.
+
+### Fixed
+
+- **`/api/live-state` route**: hydrate list now includes `team` so
+  team abbreviations (NYY, BOS, ...) populate.  Without it the proxy
+  returned `away="?"` / `home="?"` for every game and the dashboard
+  rendered "?@?" rows on the polling-fallback path.  Mirrors what
+  `workers/live_state.py` already requests.
+- **DK scraper 403 mitigation**: `scrape_dk_odds.fetch_dk_first_inning_runs`
+  now performs a warmup GET against
+  `sportsbook.draftkings.com/leagues/baseball/mlb` before the API
+  call.  Cookies set by the warmup are auto-attached to the same
+  `requests.Session` for the API call, making the API request look
+  like a real browser session rather than a cold cookie-less hit.
+  Best-effort: warmup failure is non-fatal.  If 403s persist next
+  escalation is curl_cffi (TLS-fingerprint masking) or a residential
+  proxy.
+
+### Deferred
+
+- **Railway live-state + predictor_loop workers**: code is ready in
+  `workers/`, `Procfile`, `railway.json`, `requirements.txt` but the
+  Railway services are gone (per T4.19).  Restoring requires a
+  Railway dashboard session the agent can't run -- separate handoff.
+
+---
+
 ## [2026-05-05] — Audit handoff fixes (first-inning grading, ET dates, board parity, cron auth)
 
 Six review findings from the full-codebase audit closed in one pass.

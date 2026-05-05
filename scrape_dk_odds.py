@@ -149,6 +149,35 @@ def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
     # gzip/deflate handled automatically.
     with requests.Session() as sess:
         sess.headers.update(HEADERS)
+
+        # T-DK403: warmup GET against the public MLB sportsbook page before
+        # the API call.  Observed in 2026-05 that GH-Actions egress IPs got
+        # 403'd by sportsbook-nash even with the full T2.55 Chrome header
+        # fingerprint.  A real browser hitting the API has cookies set by
+        # the prior homepage load; without the warmup our session has none,
+        # which DK's CDN may use as a bot signal.  The warmup is cheap
+        # (~500ms), failure is non-fatal, and any cookies it returns are
+        # auto-attached to subsequent same-session requests by `requests`.
+        # If 403s persist after this lands, next escalation is curl_cffi
+        # (TLS-fingerprint masking) or a residential proxy.
+        try:
+            warmup = sess.get(
+                "https://sportsbook.draftkings.com/leagues/baseball/mlb",
+                timeout=(10, 20),
+            )
+            if warmup.status_code != 200:
+                print(
+                    f"  DK warmup GET returned {warmup.status_code} "
+                    f"(non-fatal; proceeding to API call)",
+                    file=sys.stderr,
+                )
+        except Exception as exc:    # noqa: BLE001 -- warmup is best-effort
+            print(
+                f"  DK warmup GET failed ({type(exc).__name__}); "
+                f"proceeding to API call",
+                file=sys.stderr,
+            )
+
         for attempt in range(retries):
             try:
                 # (connect_timeout, read_timeout) -- see docstring.
