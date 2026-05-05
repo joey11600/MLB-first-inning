@@ -1,0 +1,2157 @@
+{
+ "season": 2025,
+ "fitted_at": "2026-05-05T00:39:19Z",
+ "n_pitchers": 358,
+ "schema": "per_pitcher[pid_str] = {sum_xwoba, n_balls, n_swings, n_whiffs}",
+ "note": "Pre-computed 2025 priors aggregates.  Used by tools/build_truepit_2026_with_priors.py on the daily refresh runner where the gitignored per-pitch 2025 cache is not available.",
+ "per_pitcher": {
+  "434378": {
+   "sum_xwoba": 202.524679,
+   "n_balls": 636,
+   "n_swings": 1234,
+   "n_whiffs": 278
+  },
+  "448179": {
+   "sum_xwoba": 16.832006,
+   "n_balls": 43,
+   "n_swings": 67,
+   "n_whiffs": 13
+  },
+  "450203": {
+   "sum_xwoba": 206.225849,
+   "n_balls": 628,
+   "n_swings": 1156,
+   "n_whiffs": 292
+  },
+  "453286": {
+   "sum_xwoba": 113.307149,
+   "n_balls": 347,
+   "n_swings": 677,
+   "n_whiffs": 146
+  },
+  "471911": {
+   "sum_xwoba": 69.764006,
+   "n_balls": 198,
+   "n_swings": 335,
+   "n_whiffs": 74
+  },
+  "477132": {
+   "sum_xwoba": 139.769631,
+   "n_balls": 461,
+   "n_swings": 802,
+   "n_whiffs": 183
+  },
+  "489119": {
+   "sum_xwoba": 22.218063,
+   "n_balls": 54,
+   "n_swings": 84,
+   "n_whiffs": 9
+  },
+  "500779": {
+   "sum_xwoba": 193.676556,
+   "n_balls": 555,
+   "n_swings": 939,
+   "n_whiffs": 151
+  },
+  "502043": {
+   "sum_xwoba": 32.164998,
+   "n_balls": 73,
+   "n_swings": 126,
+   "n_whiffs": 24
+  },
+  "506433": {
+   "sum_xwoba": 87.223284,
+   "n_balls": 294,
+   "n_swings": 544,
+   "n_whiffs": 114
+  },
+  "518489": {
+   "sum_xwoba": 32.556956,
+   "n_balls": 99,
+   "n_swings": 191,
+   "n_whiffs": 35
+  },
+  "518876": {
+   "sum_xwoba": 227.249924,
+   "n_balls": 721,
+   "n_swings": 1355,
+   "n_whiffs": 295
+  },
+  "519141": {
+   "sum_xwoba": 58.943756,
+   "n_balls": 204,
+   "n_swings": 407,
+   "n_whiffs": 92
+  },
+  "519242": {
+   "sum_xwoba": 128.949263,
+   "n_balls": 487,
+   "n_swings": 945,
+   "n_whiffs": 259
+  },
+  "527048": {
+   "sum_xwoba": 75.366414,
+   "n_balls": 206,
+   "n_swings": 347,
+   "n_whiffs": 58
+  },
+  "542881": {
+   "sum_xwoba": 197.150909,
+   "n_balls": 573,
+   "n_swings": 1101,
+   "n_whiffs": 254
+  },
+  "542888": {
+   "sum_xwoba": 73.941155,
+   "n_balls": 271,
+   "n_swings": 509,
+   "n_whiffs": 111
+  },
+  "543056": {
+   "sum_xwoba": 51.939494,
+   "n_balls": 170,
+   "n_swings": 357,
+   "n_whiffs": 95
+  },
+  "543101": {
+   "sum_xwoba": 52.525499,
+   "n_balls": 166,
+   "n_swings": 297,
+   "n_whiffs": 69
+  },
+  "543135": {
+   "sum_xwoba": 127.115851,
+   "n_balls": 471,
+   "n_swings": 925,
+   "n_whiffs": 230
+  },
+  "543243": {
+   "sum_xwoba": 223.335304,
+   "n_balls": 729,
+   "n_swings": 1251,
+   "n_whiffs": 320
+  },
+  "543294": {
+   "sum_xwoba": 211.892287,
+   "n_balls": 689,
+   "n_swings": 1235,
+   "n_whiffs": 207
+  },
+  "544150": {
+   "sum_xwoba": 7.859272,
+   "n_balls": 32,
+   "n_swings": 64,
+   "n_whiffs": 10
+  },
+  "547179": {
+   "sum_xwoba": 200.333911,
+   "n_balls": 605,
+   "n_swings": 1114,
+   "n_whiffs": 240
+  },
+  "554430": {
+   "sum_xwoba": 137.834855,
+   "n_balls": 564,
+   "n_swings": 1155,
+   "n_whiffs": 337
+  },
+  "570632": {
+   "sum_xwoba": 94.599219,
+   "n_balls": 243,
+   "n_swings": 450,
+   "n_whiffs": 77
+  },
+  "571510": {
+   "sum_xwoba": 213.636127,
+   "n_balls": 708,
+   "n_swings": 1400,
+   "n_whiffs": 291
+  },
+  "571578": {
+   "sum_xwoba": 220.90083,
+   "n_balls": 658,
+   "n_swings": 1199,
+   "n_whiffs": 302
+  },
+  "571760": {
+   "sum_xwoba": 185.392725,
+   "n_balls": 511,
+   "n_swings": 946,
+   "n_whiffs": 169
+  },
+  "571927": {
+   "sum_xwoba": 85.614606,
+   "n_balls": 294,
+   "n_swings": 534,
+   "n_whiffs": 86
+  },
+  "571945": {
+   "sum_xwoba": 227.06725,
+   "n_balls": 645,
+   "n_swings": 1161,
+   "n_whiffs": 171
+  },
+  "573186": {
+   "sum_xwoba": 55.563564,
+   "n_balls": 154,
+   "n_swings": 297,
+   "n_whiffs": 51
+  },
+  "579328": {
+   "sum_xwoba": 243.74348,
+   "n_balls": 745,
+   "n_swings": 1451,
+   "n_whiffs": 313
+  },
+  "592254": {
+   "sum_xwoba": 7.909529,
+   "n_balls": 28,
+   "n_swings": 53,
+   "n_whiffs": 15
+  },
+  "592332": {
+   "sum_xwoba": 224.055859,
+   "n_balls": 748,
+   "n_swings": 1508,
+   "n_whiffs": 372
+  },
+  "592662": {
+   "sum_xwoba": 217.959469,
+   "n_balls": 730,
+   "n_swings": 1476,
+   "n_whiffs": 377
+  },
+  "592791": {
+   "sum_xwoba": 147.820301,
+   "n_balls": 495,
+   "n_swings": 924,
+   "n_whiffs": 180
+  },
+  "592836": {
+   "sum_xwoba": 176.86852,
+   "n_balls": 536,
+   "n_swings": 929,
+   "n_whiffs": 155
+  },
+  "592866": {
+   "sum_xwoba": 122.26884,
+   "n_balls": 371,
+   "n_swings": 676,
+   "n_whiffs": 120
+  },
+  "593423": {
+   "sum_xwoba": 62.11292,
+   "n_balls": 176,
+   "n_swings": 344,
+   "n_whiffs": 81
+  },
+  "593958": {
+   "sum_xwoba": 217.903218,
+   "n_balls": 666,
+   "n_swings": 1187,
+   "n_whiffs": 239
+  },
+  "593974": {
+   "sum_xwoba": 94.369988,
+   "n_balls": 300,
+   "n_swings": 543,
+   "n_whiffs": 147
+  },
+  "594798": {
+   "sum_xwoba": 186.95238,
+   "n_balls": 646,
+   "n_swings": 1310,
+   "n_whiffs": 358
+  },
+  "594902": {
+   "sum_xwoba": 54.901925,
+   "n_balls": 159,
+   "n_swings": 303,
+   "n_whiffs": 39
+  },
+  "595345": {
+   "sum_xwoba": 68.445236,
+   "n_balls": 268,
+   "n_swings": 533,
+   "n_whiffs": 163
+  },
+  "596295": {
+   "sum_xwoba": 100.939296,
+   "n_balls": 271,
+   "n_swings": 490,
+   "n_whiffs": 72
+  },
+  "601713": {
+   "sum_xwoba": 219.888985,
+   "n_balls": 714,
+   "n_swings": 1363,
+   "n_whiffs": 308
+  },
+  "605130": {
+   "sum_xwoba": 95.333651,
+   "n_balls": 298,
+   "n_swings": 537,
+   "n_whiffs": 156
+  },
+  "605135": {
+   "sum_xwoba": 223.048199,
+   "n_balls": 706,
+   "n_swings": 1268,
+   "n_whiffs": 272
+  },
+  "605280": {
+   "sum_xwoba": 217.355769,
+   "n_balls": 682,
+   "n_swings": 1202,
+   "n_whiffs": 249
+  },
+  "605288": {
+   "sum_xwoba": 160.986404,
+   "n_balls": 516,
+   "n_swings": 939,
+   "n_whiffs": 159
+  },
+  "605400": {
+   "sum_xwoba": 119.532355,
+   "n_balls": 381,
+   "n_swings": 691,
+   "n_whiffs": 162
+  },
+  "605452": {
+   "sum_xwoba": 82.370801,
+   "n_balls": 217,
+   "n_swings": 419,
+   "n_whiffs": 81
+  },
+  "605483": {
+   "sum_xwoba": 65.516797,
+   "n_balls": 252,
+   "n_swings": 484,
+   "n_whiffs": 162
+  },
+  "605488": {
+   "sum_xwoba": 223.347958,
+   "n_balls": 691,
+   "n_swings": 1274,
+   "n_whiffs": 299
+  },
+  "605513": {
+   "sum_xwoba": 12.225228,
+   "n_balls": 33,
+   "n_swings": 59,
+   "n_whiffs": 14
+  },
+  "605540": {
+   "sum_xwoba": 59.549141,
+   "n_balls": 256,
+   "n_swings": 487,
+   "n_whiffs": 118
+  },
+  "606965": {
+   "sum_xwoba": 19.491618,
+   "n_balls": 65,
+   "n_swings": 114,
+   "n_whiffs": 22
+  },
+  "606996": {
+   "sum_xwoba": 47.713301,
+   "n_balls": 160,
+   "n_swings": 266,
+   "n_whiffs": 50
+  },
+  "607067": {
+   "sum_xwoba": 209.359052,
+   "n_balls": 644,
+   "n_swings": 1185,
+   "n_whiffs": 230
+  },
+  "607074": {
+   "sum_xwoba": 217.861011,
+   "n_balls": 762,
+   "n_swings": 1424,
+   "n_whiffs": 394
+  },
+  "607192": {
+   "sum_xwoba": 98.585607,
+   "n_balls": 345,
+   "n_swings": 596,
+   "n_whiffs": 154
+  },
+  "607200": {
+   "sum_xwoba": 213.864806,
+   "n_balls": 597,
+   "n_swings": 1023,
+   "n_whiffs": 169
+  },
+  "607259": {
+   "sum_xwoba": 204.043726,
+   "n_balls": 650,
+   "n_swings": 1175,
+   "n_whiffs": 213
+  },
+  "607455": {
+   "sum_xwoba": 76.734041,
+   "n_balls": 253,
+   "n_swings": 493,
+   "n_whiffs": 124
+  },
+  "607481": {
+   "sum_xwoba": 72.546902,
+   "n_balls": 224,
+   "n_swings": 390,
+   "n_whiffs": 83
+  },
+  "607536": {
+   "sum_xwoba": 238.603972,
+   "n_balls": 686,
+   "n_swings": 1237,
+   "n_whiffs": 230
+  },
+  "607625": {
+   "sum_xwoba": 203.015465,
+   "n_balls": 585,
+   "n_swings": 1011,
+   "n_whiffs": 188
+  },
+  "608331": {
+   "sum_xwoba": 225.145176,
+   "n_balls": 794,
+   "n_swings": 1465,
+   "n_whiffs": 363
+  },
+  "608337": {
+   "sum_xwoba": 210.024221,
+   "n_balls": 609,
+   "n_swings": 1119,
+   "n_whiffs": 235
+  },
+  "608372": {
+   "sum_xwoba": 238.355159,
+   "n_balls": 653,
+   "n_swings": 1174,
+   "n_whiffs": 198
+  },
+  "608379": {
+   "sum_xwoba": 218.431851,
+   "n_balls": 691,
+   "n_swings": 1303,
+   "n_whiffs": 257
+  },
+  "608566": {
+   "sum_xwoba": 209.51285,
+   "n_balls": 565,
+   "n_swings": 955,
+   "n_whiffs": 165
+  },
+  "608650": {
+   "sum_xwoba": 56.168933,
+   "n_balls": 195,
+   "n_swings": 401,
+   "n_whiffs": 100
+  },
+  "608718": {
+   "sum_xwoba": 88.503986,
+   "n_balls": 282,
+   "n_swings": 542,
+   "n_whiffs": 99
+  },
+  "615698": {
+   "sum_xwoba": 177.838043,
+   "n_balls": 489,
+   "n_swings": 891,
+   "n_whiffs": 165
+  },
+  "621107": {
+   "sum_xwoba": 94.853333,
+   "n_balls": 286,
+   "n_swings": 530,
+   "n_whiffs": 98
+  },
+  "621111": {
+   "sum_xwoba": 193.741628,
+   "n_balls": 542,
+   "n_swings": 938,
+   "n_whiffs": 164
+  },
+  "621112": {
+   "sum_xwoba": 53.919681,
+   "n_balls": 174,
+   "n_swings": 315,
+   "n_whiffs": 65
+  },
+  "621121": {
+   "sum_xwoba": 96.415086,
+   "n_balls": 273,
+   "n_swings": 459,
+   "n_whiffs": 110
+  },
+  "621244": {
+   "sum_xwoba": 222.541106,
+   "n_balls": 669,
+   "n_swings": 1151,
+   "n_whiffs": 225
+  },
+  "622379": {
+   "sum_xwoba": 15.628443,
+   "n_balls": 40,
+   "n_swings": 74,
+   "n_whiffs": 14
+  },
+  "622491": {
+   "sum_xwoba": 225.708704,
+   "n_balls": 723,
+   "n_swings": 1500,
+   "n_whiffs": 334
+  },
+  "622503": {
+   "sum_xwoba": 50.551241,
+   "n_balls": 153,
+   "n_swings": 252,
+   "n_whiffs": 57
+  },
+  "622608": {
+   "sum_xwoba": 227.452254,
+   "n_balls": 586,
+   "n_swings": 1034,
+   "n_whiffs": 170
+  },
+  "622663": {
+   "sum_xwoba": 222.94276,
+   "n_balls": 676,
+   "n_swings": 1247,
+   "n_whiffs": 189
+  },
+  "623167": {
+   "sum_xwoba": 61.549439,
+   "n_balls": 178,
+   "n_swings": 335,
+   "n_whiffs": 49
+  },
+  "623211": {
+   "sum_xwoba": 75.093048,
+   "n_balls": 240,
+   "n_swings": 457,
+   "n_whiffs": 99
+  },
+  "623437": {
+   "sum_xwoba": 82.587381,
+   "n_balls": 254,
+   "n_swings": 442,
+   "n_whiffs": 73
+  },
+  "624133": {
+   "sum_xwoba": 179.923981,
+   "n_balls": 648,
+   "n_swings": 1164,
+   "n_whiffs": 233
+  },
+  "640455": {
+   "sum_xwoba": 81.068473,
+   "n_balls": 261,
+   "n_swings": 574,
+   "n_whiffs": 138
+  },
+  "641154": {
+   "sum_xwoba": 88.810338,
+   "n_balls": 290,
+   "n_swings": 566,
+   "n_whiffs": 137
+  },
+  "641302": {
+   "sum_xwoba": 132.747999,
+   "n_balls": 401,
+   "n_swings": 748,
+   "n_whiffs": 140
+  },
+  "641482": {
+   "sum_xwoba": 51.483261,
+   "n_balls": 140,
+   "n_swings": 235,
+   "n_whiffs": 50
+  },
+  "641656": {
+   "sum_xwoba": 50.741229,
+   "n_balls": 161,
+   "n_swings": 317,
+   "n_whiffs": 78
+  },
+  "641672": {
+   "sum_xwoba": 50.615078,
+   "n_balls": 150,
+   "n_swings": 286,
+   "n_whiffs": 50
+  },
+  "641745": {
+   "sum_xwoba": 69.457546,
+   "n_balls": 267,
+   "n_swings": 488,
+   "n_whiffs": 116
+  },
+  "641778": {
+   "sum_xwoba": 129.005223,
+   "n_balls": 422,
+   "n_swings": 819,
+   "n_whiffs": 161
+  },
+  "641793": {
+   "sum_xwoba": 239.628905,
+   "n_balls": 731,
+   "n_swings": 1392,
+   "n_whiffs": 250
+  },
+  "641816": {
+   "sum_xwoba": 105.083928,
+   "n_balls": 335,
+   "n_swings": 667,
+   "n_whiffs": 138
+  },
+  "641927": {
+   "sum_xwoba": 191.739234,
+   "n_balls": 603,
+   "n_swings": 1191,
+   "n_whiffs": 274
+  },
+  "642152": {
+   "sum_xwoba": 69.485533,
+   "n_balls": 198,
+   "n_swings": 376,
+   "n_whiffs": 87
+  },
+  "642216": {
+   "sum_xwoba": 17.434706,
+   "n_balls": 46,
+   "n_swings": 85,
+   "n_whiffs": 15
+  },
+  "642232": {
+   "sum_xwoba": 83.524659,
+   "n_balls": 260,
+   "n_swings": 455,
+   "n_whiffs": 111
+  },
+  "642547": {
+   "sum_xwoba": 202.224831,
+   "n_balls": 699,
+   "n_swings": 1403,
+   "n_whiffs": 386
+  },
+  "643377": {
+   "sum_xwoba": 76.233415,
+   "n_balls": 272,
+   "n_swings": 541,
+   "n_whiffs": 198
+  },
+  "645261": {
+   "sum_xwoba": 241.242318,
+   "n_balls": 722,
+   "n_swings": 1388,
+   "n_whiffs": 255
+  },
+  "647336": {
+   "sum_xwoba": 104.334362,
+   "n_balls": 358,
+   "n_swings": 652,
+   "n_whiffs": 138
+  },
+  "650633": {
+   "sum_xwoba": 91.482579,
+   "n_balls": 292,
+   "n_swings": 509,
+   "n_whiffs": 124
+  },
+  "650644": {
+   "sum_xwoba": 128.954705,
+   "n_balls": 420,
+   "n_swings": 761,
+   "n_whiffs": 147
+  },
+  "650911": {
+   "sum_xwoba": 211.004103,
+   "n_balls": 780,
+   "n_swings": 1383,
+   "n_whiffs": 393
+  },
+  "656222": {
+   "sum_xwoba": 68.913267,
+   "n_balls": 220,
+   "n_swings": 436,
+   "n_whiffs": 110
+  },
+  "656240": {
+   "sum_xwoba": 63.814916,
+   "n_balls": 192,
+   "n_swings": 344,
+   "n_whiffs": 90
+  },
+  "656271": {
+   "sum_xwoba": 74.28928,
+   "n_balls": 242,
+   "n_swings": 514,
+   "n_whiffs": 110
+  },
+  "656288": {
+   "sum_xwoba": 101.833525,
+   "n_balls": 303,
+   "n_swings": 574,
+   "n_whiffs": 139
+  },
+  "656302": {
+   "sum_xwoba": 201.017237,
+   "n_balls": 695,
+   "n_swings": 1449,
+   "n_whiffs": 462
+  },
+  "656427": {
+   "sum_xwoba": 201.581157,
+   "n_balls": 656,
+   "n_swings": 1256,
+   "n_whiffs": 314
+  },
+  "656457": {
+   "sum_xwoba": 65.306325,
+   "n_balls": 209,
+   "n_swings": 393,
+   "n_whiffs": 93
+  },
+  "656557": {
+   "sum_xwoba": 66.017435,
+   "n_balls": 179,
+   "n_swings": 292,
+   "n_whiffs": 59
+  },
+  "656605": {
+   "sum_xwoba": 235.922248,
+   "n_balls": 724,
+   "n_swings": 1351,
+   "n_whiffs": 248
+  },
+  "656641": {
+   "sum_xwoba": 108.562025,
+   "n_balls": 345,
+   "n_swings": 683,
+   "n_whiffs": 182
+  },
+  "656731": {
+   "sum_xwoba": 86.55413,
+   "n_balls": 282,
+   "n_swings": 519,
+   "n_whiffs": 143
+  },
+  "656794": {
+   "sum_xwoba": 112.231349,
+   "n_balls": 366,
+   "n_swings": 687,
+   "n_whiffs": 124
+  },
+  "656849": {
+   "sum_xwoba": 227.892012,
+   "n_balls": 691,
+   "n_swings": 1224,
+   "n_whiffs": 272
+  },
+  "656876": {
+   "sum_xwoba": 166.785998,
+   "n_balls": 566,
+   "n_swings": 1094,
+   "n_whiffs": 213
+  },
+  "657277": {
+   "sum_xwoba": 242.181818,
+   "n_balls": 826,
+   "n_swings": 1491,
+   "n_whiffs": 344
+  },
+  "657376": {
+   "sum_xwoba": 85.650444,
+   "n_balls": 315,
+   "n_swings": 583,
+   "n_whiffs": 142
+  },
+  "657424": {
+   "sum_xwoba": 36.651295,
+   "n_balls": 135,
+   "n_swings": 251,
+   "n_whiffs": 45
+  },
+  "657514": {
+   "sum_xwoba": 61.145822,
+   "n_balls": 213,
+   "n_swings": 356,
+   "n_whiffs": 66
+  },
+  "657585": {
+   "sum_xwoba": 67.750267,
+   "n_balls": 232,
+   "n_swings": 436,
+   "n_whiffs": 128
+  },
+  "657746": {
+   "sum_xwoba": 192.549921,
+   "n_balls": 667,
+   "n_swings": 1353,
+   "n_whiffs": 320
+  },
+  "660271": {
+   "sum_xwoba": 46.402667,
+   "n_balls": 186,
+   "n_swings": 375,
+   "n_whiffs": 106
+  },
+  "660730": {
+   "sum_xwoba": 31.053585,
+   "n_balls": 71,
+   "n_swings": 115,
+   "n_whiffs": 23
+  },
+  "660761": {
+   "sum_xwoba": 22.489385,
+   "n_balls": 68,
+   "n_swings": 115,
+   "n_whiffs": 34
+  },
+  "661563": {
+   "sum_xwoba": 83.353014,
+   "n_balls": 244,
+   "n_swings": 427,
+   "n_whiffs": 84
+  },
+  "663362": {
+   "sum_xwoba": 11.794941,
+   "n_balls": 25,
+   "n_swings": 41,
+   "n_whiffs": 6
+  },
+  "663372": {
+   "sum_xwoba": 32.249596,
+   "n_balls": 114,
+   "n_swings": 211,
+   "n_whiffs": 52
+  },
+  "663399": {
+   "sum_xwoba": 48.272447,
+   "n_balls": 134,
+   "n_swings": 238,
+   "n_whiffs": 47
+  },
+  "663436": {
+   "sum_xwoba": 198.768937,
+   "n_balls": 575,
+   "n_swings": 1096,
+   "n_whiffs": 217
+  },
+  "663460": {
+   "sum_xwoba": 127.195954,
+   "n_balls": 450,
+   "n_swings": 837,
+   "n_whiffs": 226
+  },
+  "663465": {
+   "sum_xwoba": 74.382493,
+   "n_balls": 260,
+   "n_swings": 494,
+   "n_whiffs": 81
+  },
+  "663485": {
+   "sum_xwoba": 89.864536,
+   "n_balls": 291,
+   "n_swings": 548,
+   "n_whiffs": 112
+  },
+  "663546": {
+   "sum_xwoba": 24.351556,
+   "n_balls": 69,
+   "n_swings": 107,
+   "n_whiffs": 24
+  },
+  "663554": {
+   "sum_xwoba": 186.259187,
+   "n_balls": 625,
+   "n_swings": 1167,
+   "n_whiffs": 256
+  },
+  "663559": {
+   "sum_xwoba": 167.862592,
+   "n_balls": 491,
+   "n_swings": 876,
+   "n_whiffs": 139
+  },
+  "663568": {
+   "sum_xwoba": 146.261505,
+   "n_balls": 456,
+   "n_swings": 791,
+   "n_whiffs": 127
+  },
+  "663623": {
+   "sum_xwoba": 272.263909,
+   "n_balls": 762,
+   "n_swings": 1340,
+   "n_whiffs": 222
+  },
+  "663738": {
+   "sum_xwoba": 90.30392,
+   "n_balls": 272,
+   "n_swings": 441,
+   "n_whiffs": 91
+  },
+  "663795": {
+   "sum_xwoba": 31.281304,
+   "n_balls": 99,
+   "n_swings": 192,
+   "n_whiffs": 44
+  },
+  "663855": {
+   "sum_xwoba": 97.994575,
+   "n_balls": 288,
+   "n_swings": 491,
+   "n_whiffs": 103
+  },
+  "663903": {
+   "sum_xwoba": 223.252522,
+   "n_balls": 689,
+   "n_swings": 1221,
+   "n_whiffs": 261
+  },
+  "663941": {
+   "sum_xwoba": 75.262312,
+   "n_balls": 231,
+   "n_swings": 401,
+   "n_whiffs": 86
+  },
+  "663947": {
+   "sum_xwoba": 90.485353,
+   "n_balls": 298,
+   "n_swings": 532,
+   "n_whiffs": 119
+  },
+  "663969": {
+   "sum_xwoba": 89.071053,
+   "n_balls": 301,
+   "n_swings": 523,
+   "n_whiffs": 137
+  },
+  "663978": {
+   "sum_xwoba": 220.196062,
+   "n_balls": 648,
+   "n_swings": 1274,
+   "n_whiffs": 230
+  },
+  "664062": {
+   "sum_xwoba": 54.734031,
+   "n_balls": 156,
+   "n_swings": 267,
+   "n_whiffs": 74
+  },
+  "664141": {
+   "sum_xwoba": 36.719119,
+   "n_balls": 115,
+   "n_swings": 218,
+   "n_whiffs": 48
+  },
+  "664285": {
+   "sum_xwoba": 233.192695,
+   "n_balls": 771,
+   "n_swings": 1324,
+   "n_whiffs": 324
+  },
+  "664299": {
+   "sum_xwoba": 44.812676,
+   "n_balls": 157,
+   "n_swings": 279,
+   "n_whiffs": 56
+  },
+  "665152": {
+   "sum_xwoba": 205.43249,
+   "n_balls": 673,
+   "n_swings": 1323,
+   "n_whiffs": 278
+  },
+  "665625": {
+   "sum_xwoba": 7.425485,
+   "n_balls": 28,
+   "n_swings": 53,
+   "n_whiffs": 19
+  },
+  "665795": {
+   "sum_xwoba": 180.763862,
+   "n_balls": 579,
+   "n_swings": 1015,
+   "n_whiffs": 283
+  },
+  "665871": {
+   "sum_xwoba": 51.902982,
+   "n_balls": 153,
+   "n_swings": 261,
+   "n_whiffs": 39
+  },
+  "666142": {
+   "sum_xwoba": 60.939803,
+   "n_balls": 235,
+   "n_swings": 491,
+   "n_whiffs": 161
+  },
+  "666157": {
+   "sum_xwoba": 177.73059,
+   "n_balls": 610,
+   "n_swings": 1193,
+   "n_whiffs": 301
+  },
+  "666171": {
+   "sum_xwoba": 80.393332,
+   "n_balls": 249,
+   "n_swings": 460,
+   "n_whiffs": 130
+  },
+  "666200": {
+   "sum_xwoba": 209.921681,
+   "n_balls": 733,
+   "n_swings": 1397,
+   "n_whiffs": 394
+  },
+  "666214": {
+   "sum_xwoba": 139.984845,
+   "n_balls": 426,
+   "n_swings": 859,
+   "n_whiffs": 191
+  },
+  "667755": {
+   "sum_xwoba": 218.325957,
+   "n_balls": 693,
+   "n_swings": 1215,
+   "n_whiffs": 311
+  },
+  "668678": {
+   "sum_xwoba": 250.41303,
+   "n_balls": 788,
+   "n_swings": 1381,
+   "n_whiffs": 293
+  },
+  "668881": {
+   "sum_xwoba": 120.264666,
+   "n_balls": 415,
+   "n_swings": 919,
+   "n_whiffs": 261
+  },
+  "668909": {
+   "sum_xwoba": 226.165635,
+   "n_balls": 708,
+   "n_swings": 1349,
+   "n_whiffs": 355
+  },
+  "668964": {
+   "sum_xwoba": 71.279672,
+   "n_balls": 220,
+   "n_swings": 421,
+   "n_whiffs": 76
+  },
+  "668984": {
+   "sum_xwoba": 65.572079,
+   "n_balls": 216,
+   "n_swings": 427,
+   "n_whiffs": 84
+  },
+  "669020": {
+   "sum_xwoba": 69.492973,
+   "n_balls": 191,
+   "n_swings": 311,
+   "n_whiffs": 49
+  },
+  "669022": {
+   "sum_xwoba": 215.846673,
+   "n_balls": 658,
+   "n_swings": 1341,
+   "n_whiffs": 363
+  },
+  "669060": {
+   "sum_xwoba": 91.443198,
+   "n_balls": 215,
+   "n_swings": 389,
+   "n_whiffs": 59
+  },
+  "669084": {
+   "sum_xwoba": 45.513304,
+   "n_balls": 155,
+   "n_swings": 260,
+   "n_whiffs": 50
+  },
+  "669145": {
+   "sum_xwoba": 8.722429,
+   "n_balls": 27,
+   "n_swings": 41,
+   "n_whiffs": 4
+  },
+  "669160": {
+   "sum_xwoba": 201.500546,
+   "n_balls": 578,
+   "n_swings": 982,
+   "n_whiffs": 178
+  },
+  "669194": {
+   "sum_xwoba": 186.08683,
+   "n_balls": 606,
+   "n_swings": 1216,
+   "n_whiffs": 228
+  },
+  "669199": {
+   "sum_xwoba": 91.668825,
+   "n_balls": 279,
+   "n_swings": 515,
+   "n_whiffs": 144
+  },
+  "669203": {
+   "sum_xwoba": 80.053439,
+   "n_balls": 262,
+   "n_swings": 467,
+   "n_whiffs": 115
+  },
+  "669211": {
+   "sum_xwoba": 86.78252,
+   "n_balls": 256,
+   "n_swings": 525,
+   "n_whiffs": 116
+  },
+  "669302": {
+   "sum_xwoba": 140.771458,
+   "n_balls": 510,
+   "n_swings": 1054,
+   "n_whiffs": 320
+  },
+  "669308": {
+   "sum_xwoba": 44.328979,
+   "n_balls": 117,
+   "n_swings": 211,
+   "n_whiffs": 43
+  },
+  "669330": {
+   "sum_xwoba": 24.001654,
+   "n_balls": 81,
+   "n_swings": 192,
+   "n_whiffs": 39
+  },
+  "669358": {
+   "sum_xwoba": 217.006356,
+   "n_balls": 710,
+   "n_swings": 1336,
+   "n_whiffs": 318
+  },
+  "669372": {
+   "sum_xwoba": 117.498031,
+   "n_balls": 390,
+   "n_swings": 675,
+   "n_whiffs": 187
+  },
+  "669373": {
+   "sum_xwoba": 186.751499,
+   "n_balls": 751,
+   "n_swings": 1577,
+   "n_whiffs": 492
+  },
+  "669387": {
+   "sum_xwoba": 122.306219,
+   "n_balls": 394,
+   "n_swings": 736,
+   "n_whiffs": 160
+  },
+  "669432": {
+   "sum_xwoba": 121.212151,
+   "n_balls": 421,
+   "n_swings": 860,
+   "n_whiffs": 205
+  },
+  "669456": {
+   "sum_xwoba": 52.040473,
+   "n_balls": 159,
+   "n_swings": 298,
+   "n_whiffs": 79
+  },
+  "669461": {
+   "sum_xwoba": 218.947145,
+   "n_balls": 645,
+   "n_swings": 1151,
+   "n_whiffs": 214
+  },
+  "669467": {
+   "sum_xwoba": 219.689698,
+   "n_balls": 684,
+   "n_swings": 1212,
+   "n_whiffs": 248
+  },
+  "669620": {
+   "sum_xwoba": 17.36797,
+   "n_balls": 55,
+   "n_swings": 99,
+   "n_whiffs": 19
+  },
+  "669713": {
+   "sum_xwoba": 41.366325,
+   "n_balls": 129,
+   "n_swings": 241,
+   "n_whiffs": 51
+  },
+  "669721": {
+   "sum_xwoba": 17.99375,
+   "n_balls": 46,
+   "n_swings": 85,
+   "n_whiffs": 14
+  },
+  "669854": {
+   "sum_xwoba": 49.611597,
+   "n_balls": 177,
+   "n_swings": 339,
+   "n_whiffs": 103
+  },
+  "669920": {
+   "sum_xwoba": 113.059431,
+   "n_balls": 334,
+   "n_swings": 549,
+   "n_whiffs": 126
+  },
+  "669923": {
+   "sum_xwoba": 160.075981,
+   "n_balls": 523,
+   "n_swings": 1023,
+   "n_whiffs": 247
+  },
+  "670102": {
+   "sum_xwoba": 98.610468,
+   "n_balls": 265,
+   "n_swings": 492,
+   "n_whiffs": 106
+  },
+  "670329": {
+   "sum_xwoba": 39.424884,
+   "n_balls": 141,
+   "n_swings": 296,
+   "n_whiffs": 83
+  },
+  "670912": {
+   "sum_xwoba": 53.78145,
+   "n_balls": 170,
+   "n_swings": 281,
+   "n_whiffs": 78
+  },
+  "671096": {
+   "sum_xwoba": 199.641524,
+   "n_balls": 679,
+   "n_swings": 1339,
+   "n_whiffs": 296
+  },
+  "671106": {
+   "sum_xwoba": 218.581808,
+   "n_balls": 671,
+   "n_swings": 1199,
+   "n_whiffs": 216
+  },
+  "671212": {
+   "sum_xwoba": 70.112723,
+   "n_balls": 225,
+   "n_swings": 410,
+   "n_whiffs": 105
+  },
+  "671737": {
+   "sum_xwoba": 178.245821,
+   "n_balls": 569,
+   "n_swings": 1079,
+   "n_whiffs": 224
+  },
+  "672456": {
+   "sum_xwoba": 128.373757,
+   "n_balls": 385,
+   "n_swings": 703,
+   "n_whiffs": 127
+  },
+  "672582": {
+   "sum_xwoba": 80.449167,
+   "n_balls": 261,
+   "n_swings": 457,
+   "n_whiffs": 72
+  },
+  "672782": {
+   "sum_xwoba": 94.04545,
+   "n_balls": 271,
+   "n_swings": 512,
+   "n_whiffs": 114
+  },
+  "673540": {
+   "sum_xwoba": 148.145725,
+   "n_balls": 479,
+   "n_swings": 865,
+   "n_whiffs": 220
+  },
+  "673929": {
+   "sum_xwoba": 73.212295,
+   "n_balls": 261,
+   "n_swings": 542,
+   "n_whiffs": 151
+  },
+  "674370": {
+   "sum_xwoba": 118.695071,
+   "n_balls": 338,
+   "n_swings": 649,
+   "n_whiffs": 144
+  },
+  "674841": {
+   "sum_xwoba": 25.994337,
+   "n_balls": 98,
+   "n_swings": 162,
+   "n_whiffs": 31
+  },
+  "675512": {
+   "sum_xwoba": 53.242588,
+   "n_balls": 179,
+   "n_swings": 317,
+   "n_whiffs": 66
+  },
+  "675911": {
+   "sum_xwoba": 182.864326,
+   "n_balls": 537,
+   "n_swings": 1005,
+   "n_whiffs": 294
+  },
+  "676083": {
+   "sum_xwoba": 144.932903,
+   "n_balls": 445,
+   "n_swings": 851,
+   "n_whiffs": 141
+  },
+  "676106": {
+   "sum_xwoba": 131.548633,
+   "n_balls": 375,
+   "n_swings": 689,
+   "n_whiffs": 125
+  },
+  "676263": {
+   "sum_xwoba": 75.150527,
+   "n_balls": 288,
+   "n_swings": 572,
+   "n_whiffs": 143
+  },
+  "676272": {
+   "sum_xwoba": 10.742722,
+   "n_balls": 27,
+   "n_swings": 51,
+   "n_whiffs": 9
+  },
+  "676282": {
+   "sum_xwoba": 117.431989,
+   "n_balls": 393,
+   "n_swings": 692,
+   "n_whiffs": 194
+  },
+  "676428": {
+   "sum_xwoba": 74.405499,
+   "n_balls": 255,
+   "n_swings": 437,
+   "n_whiffs": 106
+  },
+  "676440": {
+   "sum_xwoba": 219.857529,
+   "n_balls": 734,
+   "n_swings": 1340,
+   "n_whiffs": 287
+  },
+  "676467": {
+   "sum_xwoba": 124.110624,
+   "n_balls": 374,
+   "n_swings": 733,
+   "n_whiffs": 121
+  },
+  "676508": {
+   "sum_xwoba": 96.899755,
+   "n_balls": 321,
+   "n_swings": 597,
+   "n_whiffs": 150
+  },
+  "676664": {
+   "sum_xwoba": 177.432512,
+   "n_balls": 555,
+   "n_swings": 1073,
+   "n_whiffs": 197
+  },
+  "676879": {
+   "sum_xwoba": 72.735225,
+   "n_balls": 264,
+   "n_swings": 434,
+   "n_whiffs": 108
+  },
+  "676917": {
+   "sum_xwoba": 68.115595,
+   "n_balls": 216,
+   "n_swings": 391,
+   "n_whiffs": 98
+  },
+  "676961": {
+   "sum_xwoba": 70.98737,
+   "n_balls": 192,
+   "n_swings": 313,
+   "n_whiffs": 61
+  },
+  "676962": {
+   "sum_xwoba": 142.002266,
+   "n_balls": 432,
+   "n_swings": 782,
+   "n_whiffs": 204
+  },
+  "676974": {
+   "sum_xwoba": 91.015479,
+   "n_balls": 262,
+   "n_swings": 452,
+   "n_whiffs": 114
+  },
+  "676979": {
+   "sum_xwoba": 215.601913,
+   "n_balls": 817,
+   "n_swings": 1638,
+   "n_whiffs": 437
+  },
+  "677651": {
+   "sum_xwoba": 6.174349,
+   "n_balls": 27,
+   "n_swings": 51,
+   "n_whiffs": 12
+  },
+  "677944": {
+   "sum_xwoba": 186.414227,
+   "n_balls": 543,
+   "n_swings": 960,
+   "n_whiffs": 197
+  },
+  "677952": {
+   "sum_xwoba": 83.12653,
+   "n_balls": 288,
+   "n_swings": 553,
+   "n_whiffs": 130
+  },
+  "677958": {
+   "sum_xwoba": 94.341636,
+   "n_balls": 267,
+   "n_swings": 530,
+   "n_whiffs": 120
+  },
+  "677960": {
+   "sum_xwoba": 50.717008,
+   "n_balls": 164,
+   "n_swings": 313,
+   "n_whiffs": 85
+  },
+  "678022": {
+   "sum_xwoba": 47.84087,
+   "n_balls": 161,
+   "n_swings": 307,
+   "n_whiffs": 95
+  },
+  "678024": {
+   "sum_xwoba": 127.569127,
+   "n_balls": 407,
+   "n_swings": 681,
+   "n_whiffs": 151
+  },
+  "678368": {
+   "sum_xwoba": 114.100481,
+   "n_balls": 327,
+   "n_swings": 627,
+   "n_whiffs": 109
+  },
+  "678394": {
+   "sum_xwoba": 228.312656,
+   "n_balls": 698,
+   "n_swings": 1236,
+   "n_whiffs": 232
+  },
+  "678906": {
+   "sum_xwoba": 43.182554,
+   "n_balls": 139,
+   "n_swings": 251,
+   "n_whiffs": 67
+  },
+  "680573": {
+   "sum_xwoba": 143.173087,
+   "n_balls": 471,
+   "n_swings": 902,
+   "n_whiffs": 196
+  },
+  "680684": {
+   "sum_xwoba": 56.718315,
+   "n_balls": 139,
+   "n_swings": 250,
+   "n_whiffs": 51
+  },
+  "680694": {
+   "sum_xwoba": 34.614298,
+   "n_balls": 126,
+   "n_swings": 224,
+   "n_whiffs": 72
+  },
+  "680730": {
+   "sum_xwoba": 258.346968,
+   "n_balls": 695,
+   "n_swings": 1335,
+   "n_whiffs": 248
+  },
+  "680732": {
+   "sum_xwoba": 193.833988,
+   "n_balls": 570,
+   "n_swings": 1079,
+   "n_whiffs": 244
+  },
+  "680735": {
+   "sum_xwoba": 37.715336,
+   "n_balls": 102,
+   "n_swings": 201,
+   "n_whiffs": 34
+  },
+  "680736": {
+   "sum_xwoba": 79.898429,
+   "n_balls": 277,
+   "n_swings": 553,
+   "n_whiffs": 115
+  },
+  "680742": {
+   "sum_xwoba": 54.243219,
+   "n_balls": 179,
+   "n_swings": 350,
+   "n_whiffs": 107
+  },
+  "680755": {
+   "sum_xwoba": 56.959576,
+   "n_balls": 200,
+   "n_swings": 364,
+   "n_whiffs": 100
+  },
+  "680880": {
+   "sum_xwoba": 36.245873,
+   "n_balls": 103,
+   "n_swings": 177,
+   "n_whiffs": 47
+  },
+  "680885": {
+   "sum_xwoba": 122.333066,
+   "n_balls": 412,
+   "n_swings": 769,
+   "n_whiffs": 201
+  },
+  "680951": {
+   "sum_xwoba": 9.879564,
+   "n_balls": 23,
+   "n_swings": 46,
+   "n_whiffs": 13
+  },
+  "681151": {
+   "sum_xwoba": 14.185061,
+   "n_balls": 47,
+   "n_swings": 93,
+   "n_whiffs": 15
+  },
+  "681190": {
+   "sum_xwoba": 194.723655,
+   "n_balls": 546,
+   "n_swings": 966,
+   "n_whiffs": 141
+  },
+  "681293": {
+   "sum_xwoba": 50.036377,
+   "n_balls": 135,
+   "n_swings": 236,
+   "n_whiffs": 55
+  },
+  "681343": {
+   "sum_xwoba": 189.098587,
+   "n_balls": 610,
+   "n_swings": 1167,
+   "n_whiffs": 292
+  },
+  "681347": {
+   "sum_xwoba": 129.003832,
+   "n_balls": 401,
+   "n_swings": 748,
+   "n_whiffs": 184
+  },
+  "681517": {
+   "sum_xwoba": 115.79857,
+   "n_balls": 358,
+   "n_swings": 661,
+   "n_whiffs": 139
+  },
+  "681857": {
+   "sum_xwoba": 82.163115,
+   "n_balls": 262,
+   "n_swings": 476,
+   "n_whiffs": 139
+  },
+  "681867": {
+   "sum_xwoba": 22.484759,
+   "n_balls": 74,
+   "n_swings": 128,
+   "n_whiffs": 18
+  },
+  "682052": {
+   "sum_xwoba": 117.955893,
+   "n_balls": 397,
+   "n_swings": 759,
+   "n_whiffs": 197
+  },
+  "682243": {
+   "sum_xwoba": 127.865028,
+   "n_balls": 364,
+   "n_swings": 736,
+   "n_whiffs": 154
+  },
+  "682847": {
+   "sum_xwoba": 115.155231,
+   "n_balls": 354,
+   "n_swings": 653,
+   "n_whiffs": 172
+  },
+  "682989": {
+   "sum_xwoba": 28.416889,
+   "n_balls": 81,
+   "n_swings": 134,
+   "n_whiffs": 28
+  },
+  "682990": {
+   "sum_xwoba": 192.569905,
+   "n_balls": 647,
+   "n_swings": 1139,
+   "n_whiffs": 256
+  },
+  "683004": {
+   "sum_xwoba": 204.497189,
+   "n_balls": 624,
+   "n_swings": 1194,
+   "n_whiffs": 262
+  },
+  "683155": {
+   "sum_xwoba": 9.620489,
+   "n_balls": 31,
+   "n_swings": 55,
+   "n_whiffs": 11
+  },
+  "683627": {
+   "sum_xwoba": 63.637624,
+   "n_balls": 157,
+   "n_swings": 281,
+   "n_whiffs": 65
+  },
+  "684007": {
+   "sum_xwoba": 165.467134,
+   "n_balls": 522,
+   "n_swings": 1085,
+   "n_whiffs": 237
+  },
+  "684320": {
+   "sum_xwoba": 87.309764,
+   "n_balls": 282,
+   "n_swings": 504,
+   "n_whiffs": 127
+  },
+  "685126": {
+   "sum_xwoba": 92.230675,
+   "n_balls": 292,
+   "n_swings": 563,
+   "n_whiffs": 170
+  },
+  "685299": {
+   "sum_xwoba": 123.397159,
+   "n_balls": 335,
+   "n_swings": 662,
+   "n_whiffs": 109
+  },
+  "685326": {
+   "sum_xwoba": 48.395711,
+   "n_balls": 126,
+   "n_swings": 223,
+   "n_whiffs": 51
+  },
+  "686218": {
+   "sum_xwoba": 78.894953,
+   "n_balls": 291,
+   "n_swings": 578,
+   "n_whiffs": 179
+  },
+  "686563": {
+   "sum_xwoba": 157.644044,
+   "n_balls": 442,
+   "n_swings": 832,
+   "n_whiffs": 157
+  },
+  "686613": {
+   "sum_xwoba": 191.647923,
+   "n_balls": 702,
+   "n_swings": 1283,
+   "n_whiffs": 324
+  },
+  "686642": {
+   "sum_xwoba": 25.429288,
+   "n_balls": 71,
+   "n_swings": 132,
+   "n_whiffs": 38
+  },
+  "686701": {
+   "sum_xwoba": 103.016415,
+   "n_balls": 320,
+   "n_swings": 615,
+   "n_whiffs": 125
+  },
+  "686730": {
+   "sum_xwoba": 23.878049,
+   "n_balls": 59,
+   "n_swings": 106,
+   "n_whiffs": 23
+  },
+  "686752": {
+   "sum_xwoba": 203.070686,
+   "n_balls": 648,
+   "n_swings": 1303,
+   "n_whiffs": 300
+  },
+  "686790": {
+   "sum_xwoba": 16.513761,
+   "n_balls": 59,
+   "n_swings": 108,
+   "n_whiffs": 31
+  },
+  "686799": {
+   "sum_xwoba": 179.298555,
+   "n_balls": 485,
+   "n_swings": 845,
+   "n_whiffs": 155
+  },
+  "686930": {
+   "sum_xwoba": 31.927518,
+   "n_balls": 104,
+   "n_swings": 198,
+   "n_whiffs": 41
+  },
+  "686973": {
+   "sum_xwoba": 86.346022,
+   "n_balls": 280,
+   "n_swings": 537,
+   "n_whiffs": 136
+  },
+  "687064": {
+   "sum_xwoba": 81.368556,
+   "n_balls": 254,
+   "n_swings": 453,
+   "n_whiffs": 90
+  },
+  "687075": {
+   "sum_xwoba": 26.415422,
+   "n_balls": 84,
+   "n_swings": 139,
+   "n_whiffs": 20
+  },
+  "687134": {
+   "sum_xwoba": 108.738741,
+   "n_balls": 267,
+   "n_swings": 478,
+   "n_whiffs": 71
+  },
+  "687223": {
+   "sum_xwoba": 65.847988,
+   "n_balls": 174,
+   "n_swings": 305,
+   "n_whiffs": 53
+  },
+  "687362": {
+   "sum_xwoba": 36.208897,
+   "n_balls": 99,
+   "n_swings": 179,
+   "n_whiffs": 35
+  },
+  "687473": {
+   "sum_xwoba": 146.185422,
+   "n_balls": 443,
+   "n_swings": 850,
+   "n_whiffs": 186
+  },
+  "687606": {
+   "sum_xwoba": 33.189282,
+   "n_balls": 110,
+   "n_swings": 201,
+   "n_whiffs": 50
+  },
+  "687765": {
+   "sum_xwoba": 131.505389,
+   "n_balls": 356,
+   "n_swings": 657,
+   "n_whiffs": 157
+  },
+  "687830": {
+   "sum_xwoba": 50.109852,
+   "n_balls": 133,
+   "n_swings": 238,
+   "n_whiffs": 54
+  },
+  "687888": {
+   "sum_xwoba": 59.176058,
+   "n_balls": 210,
+   "n_swings": 411,
+   "n_whiffs": 93
+  },
+  "687922": {
+   "sum_xwoba": 39.971014,
+   "n_balls": 108,
+   "n_swings": 226,
+   "n_whiffs": 52
+  },
+  "687931": {
+   "sum_xwoba": 39.408741,
+   "n_balls": 102,
+   "n_swings": 185,
+   "n_whiffs": 43
+  },
+  "688107": {
+   "sum_xwoba": 9.916985,
+   "n_balls": 29,
+   "n_swings": 40,
+   "n_whiffs": 10
+  },
+  "688138": {
+   "sum_xwoba": 121.753125,
+   "n_balls": 348,
+   "n_swings": 602,
+   "n_whiffs": 105
+  },
+  "688158": {
+   "sum_xwoba": 57.156775,
+   "n_balls": 190,
+   "n_swings": 380,
+   "n_whiffs": 89
+  },
+  "689017": {
+   "sum_xwoba": 66.147343,
+   "n_balls": 178,
+   "n_swings": 338,
+   "n_whiffs": 65
+  },
+  "689225": {
+   "sum_xwoba": 30.032089,
+   "n_balls": 93,
+   "n_swings": 159,
+   "n_whiffs": 31
+  },
+  "690916": {
+   "sum_xwoba": 61.621541,
+   "n_balls": 167,
+   "n_swings": 347,
+   "n_whiffs": 82
+  },
+  "690928": {
+   "sum_xwoba": 77.992252,
+   "n_balls": 253,
+   "n_swings": 433,
+   "n_whiffs": 87
+  },
+  "690953": {
+   "sum_xwoba": 60.120788,
+   "n_balls": 174,
+   "n_swings": 358,
+   "n_whiffs": 81
+  },
+  "690986": {
+   "sum_xwoba": 48.996053,
+   "n_balls": 155,
+   "n_swings": 297,
+   "n_whiffs": 72
+  },
+  "690990": {
+   "sum_xwoba": 145.193811,
+   "n_balls": 474,
+   "n_swings": 868,
+   "n_whiffs": 196
+  },
+  "690997": {
+   "sum_xwoba": 54.979673,
+   "n_balls": 188,
+   "n_swings": 313,
+   "n_whiffs": 81
+  },
+  "691587": {
+   "sum_xwoba": 108.033833,
+   "n_balls": 384,
+   "n_swings": 842,
+   "n_whiffs": 223
+  },
+  "691799": {
+   "sum_xwoba": 40.838706,
+   "n_balls": 153,
+   "n_swings": 292,
+   "n_whiffs": 83
+  },
+  "691951": {
+   "sum_xwoba": 29.312078,
+   "n_balls": 73,
+   "n_swings": 128,
+   "n_whiffs": 25
+  },
+  "693313": {
+   "sum_xwoba": 56.924448,
+   "n_balls": 155,
+   "n_swings": 271,
+   "n_whiffs": 56
+  },
+  "693433": {
+   "sum_xwoba": 192.285824,
+   "n_balls": 704,
+   "n_swings": 1401,
+   "n_whiffs": 330
+  },
+  "693645": {
+   "sum_xwoba": 95.292896,
+   "n_balls": 303,
+   "n_swings": 628,
+   "n_whiffs": 139
+  },
+  "693821": {
+   "sum_xwoba": 226.381047,
+   "n_balls": 676,
+   "n_swings": 1165,
+   "n_whiffs": 237
+  },
+  "693855": {
+   "sum_xwoba": 73.879199,
+   "n_balls": 240,
+   "n_swings": 493,
+   "n_whiffs": 120
+  },
+  "694363": {
+   "sum_xwoba": 25.574283,
+   "n_balls": 80,
+   "n_swings": 151,
+   "n_whiffs": 31
+  },
+  "694462": {
+   "sum_xwoba": 68.775399,
+   "n_balls": 222,
+   "n_swings": 396,
+   "n_whiffs": 103
+  },
+  "694477": {
+   "sum_xwoba": 149.677536,
+   "n_balls": 494,
+   "n_swings": 1000,
+   "n_whiffs": 211
+  },
+  "694646": {
+   "sum_xwoba": 22.92104,
+   "n_balls": 50,
+   "n_swings": 63,
+   "n_whiffs": 11
+  },
+  "694738": {
+   "sum_xwoba": 151.093154,
+   "n_balls": 473,
+   "n_swings": 810,
+   "n_whiffs": 184
+  },
+  "694819": {
+   "sum_xwoba": 78.035824,
+   "n_balls": 271,
+   "n_swings": 580,
+   "n_whiffs": 152
+  },
+  "694918": {
+   "sum_xwoba": 28.191143,
+   "n_balls": 78,
+   "n_swings": 132,
+   "n_whiffs": 24
+  },
+  "694973": {
+   "sum_xwoba": 181.853632,
+   "n_balls": 710,
+   "n_swings": 1437,
+   "n_whiffs": 401
+  },
+  "695418": {
+   "sum_xwoba": 178.486955,
+   "n_balls": 537,
+   "n_swings": 1053,
+   "n_whiffs": 196
+  },
+  "695505": {
+   "sum_xwoba": 54.327342,
+   "n_balls": 187,
+   "n_swings": 401,
+   "n_whiffs": 121
+  },
+  "695534": {
+   "sum_xwoba": 18.823671,
+   "n_balls": 40,
+   "n_swings": 72,
+   "n_whiffs": 23
+  },
+  "695549": {
+   "sum_xwoba": 65.45388,
+   "n_balls": 197,
+   "n_swings": 345,
+   "n_whiffs": 78
+  },
+  "696149": {
+   "sum_xwoba": 36.701626,
+   "n_balls": 123,
+   "n_swings": 231,
+   "n_whiffs": 62
+  },
+  "700241": {
+   "sum_xwoba": 131.721047,
+   "n_balls": 396,
+   "n_swings": 672,
+   "n_whiffs": 114
+  },
+  "700249": {
+   "sum_xwoba": 166.35005,
+   "n_balls": 464,
+   "n_swings": 839,
+   "n_whiffs": 188
+  },
+  "700363": {
+   "sum_xwoba": 63.053702,
+   "n_balls": 168,
+   "n_swings": 299,
+   "n_whiffs": 67
+  },
+  "701487": {
+   "sum_xwoba": 44.788055,
+   "n_balls": 133,
+   "n_swings": 273,
+   "n_whiffs": 57
+  },
+  "701519": {
+   "sum_xwoba": 61.722184,
+   "n_balls": 157,
+   "n_swings": 309,
+   "n_whiffs": 74
+  },
+  "701542": {
+   "sum_xwoba": 233.023333,
+   "n_balls": 706,
+   "n_swings": 1198,
+   "n_whiffs": 268
+  },
+  "701581": {
+   "sum_xwoba": 77.186128,
+   "n_balls": 228,
+   "n_swings": 452,
+   "n_whiffs": 116
+  },
+  "701656": {
+   "sum_xwoba": 29.612532,
+   "n_balls": 99,
+   "n_swings": 225,
+   "n_whiffs": 50
+  },
+  "702056": {
+   "sum_xwoba": 19.457749,
+   "n_balls": 62,
+   "n_swings": 113,
+   "n_whiffs": 37
+  },
+  "702070": {
+   "sum_xwoba": 173.353503,
+   "n_balls": 554,
+   "n_swings": 1022,
+   "n_whiffs": 250
+  },
+  "702674": {
+   "sum_xwoba": 47.054994,
+   "n_balls": 139,
+   "n_swings": 238,
+   "n_whiffs": 61
+  },
+  "800048": {
+   "sum_xwoba": 45.194506,
+   "n_balls": 165,
+   "n_swings": 288,
+   "n_whiffs": 72
+  },
+  "800049": {
+   "sum_xwoba": 48.14636,
+   "n_balls": 139,
+   "n_swings": 239,
+   "n_whiffs": 45
+  },
+  "800311": {
+   "sum_xwoba": 28.371322,
+   "n_balls": 69,
+   "n_swings": 134,
+   "n_whiffs": 30
+  },
+  "801139": {
+   "sum_xwoba": 24.682977,
+   "n_balls": 74,
+   "n_swings": 163,
+   "n_whiffs": 45
+  },
+  "801403": {
+   "sum_xwoba": 152.462746,
+   "n_balls": 440,
+   "n_swings": 835,
+   "n_whiffs": 173
+  },
+  "804636": {
+   "sum_xwoba": 29.755924,
+   "n_balls": 87,
+   "n_swings": 163,
+   "n_whiffs": 32
+  },
+  "805123": {
+   "sum_xwoba": 34.660321,
+   "n_balls": 124,
+   "n_swings": 243,
+   "n_whiffs": 68
+  },
+  "805673": {
+   "sum_xwoba": 117.270459,
+   "n_balls": 352,
+   "n_swings": 692,
+   "n_whiffs": 175
+  },
+  "806185": {
+   "sum_xwoba": 99.115815,
+   "n_balls": 297,
+   "n_swings": 522,
+   "n_whiffs": 133
+  },
+  "806188": {
+   "sum_xwoba": 68.744275,
+   "n_balls": 226,
+   "n_swings": 386,
+   "n_whiffs": 81
+  },
+  "806960": {
+   "sum_xwoba": 64.386763,
+   "n_balls": 198,
+   "n_swings": 361,
+   "n_whiffs": 78
+  },
+  "808963": {
+   "sum_xwoba": 49.194671,
+   "n_balls": 134,
+   "n_swings": 222,
+   "n_whiffs": 44
+  },
+  "808967": {
+   "sum_xwoba": 164.99878,
+   "n_balls": 640,
+   "n_swings": 1230,
+   "n_whiffs": 331
+  },
+  "813349": {
+   "sum_xwoba": 18.957858,
+   "n_balls": 79,
+   "n_swings": 165,
+   "n_whiffs": 52
+  },
+  "815083": {
+   "sum_xwoba": 38.268821,
+   "n_balls": 106,
+   "n_swings": 199,
+   "n_whiffs": 52
+  },
+  "829272": {
+   "sum_xwoba": 61.348062,
+   "n_balls": 173,
+   "n_swings": 307,
+   "n_whiffs": 67
+  }
+ }
+}

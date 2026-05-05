@@ -170,6 +170,22 @@ def main():
 
     cache_2026 = REPO_ROOT / "data" / "cache" / "perpitch_2026"
     cache_2025 = REPO_ROOT / "data" / "cache" / "perpitch"
+    # T4.2 daily-refresh path: prefer the small checked-in aggregates JSON
+    # if present.  Falls through to per-pitch 2025 cache for local dev.
+    aggregates_2025_path = REPO_ROOT / "data" / "v2_perfect_2026" / "2025_priors_aggregates.json"
+    aggregates_2025: dict = {}
+    if aggregates_2025_path.exists():
+        try:
+            with open(aggregates_2025_path, encoding="utf-8") as f:
+                _agg_payload = json.load(f)
+            aggregates_2025 = _agg_payload.get("per_pitcher") or {}
+            print(f"  Loaded {len(aggregates_2025)} pre-built 2025 priors aggregates "
+                  f"from {aggregates_2025_path.name}")
+        except Exception as exc:    # noqa: BLE001
+            print(f"  WARN: failed to read {aggregates_2025_path}: {exc!r} "
+                  f"-- falling back to per-pitch cache")
+            aggregates_2025 = {}
+
     if not cache_2026.exists():
         sys.exit(f"Missing {cache_2026}.  Run tools/backfill_truepit_2026.py first.")
 
@@ -205,21 +221,35 @@ def main():
             continue
 
         prior = {"sum_xwoba": 0.0, "n_balls": 0, "n_swings": 0, "n_whiffs": 0}
-        f25 = cache_2025 / f"perpitch_{pid}_2025.json"
-        if f25.exists():
-            try:
-                with open(f25, encoding="utf-8") as f:
-                    data_2025 = json.load(f)
-                pitches_2025 = data_2025.get("pitches", [])
-                if pitches_2025:
-                    prior = aggregate_2025_prior(pitches_2025)
-                    n_with_prior += 1
-                else:
-                    n_without_prior += 1
-            except Exception:    # noqa: BLE001
-                n_without_prior += 1
+        # T4.2 fast path: pre-built aggregates JSON (used on daily-refresh
+        # runner where the gitignored per-pitch 2025 cache is unavailable).
+        agg = aggregates_2025.get(str(pid))
+        if agg and agg.get("n_balls", 0) > 0:
+            prior = {
+                "sum_xwoba": float(agg.get("sum_xwoba") or 0.0),
+                "n_balls":   int(agg.get("n_balls")   or 0),
+                "n_swings":  int(agg.get("n_swings")  or 0),
+                "n_whiffs":  int(agg.get("n_whiffs")  or 0),
+            }
+            n_with_prior += 1
         else:
-            n_without_prior += 1
+            # Slow path: per-pitch 2025 cache (only present on dev machines
+            # that have run tools/backfill_xera_pit_perpitch.py).
+            f25 = cache_2025 / f"perpitch_{pid}_2025.json"
+            if f25.exists():
+                try:
+                    with open(f25, encoding="utf-8") as f:
+                        data_2025 = json.load(f)
+                    pitches_2025 = data_2025.get("pitches", [])
+                    if pitches_2025:
+                        prior = aggregate_2025_prior(pitches_2025)
+                        n_with_prior += 1
+                    else:
+                        n_without_prior += 1
+                except Exception:    # noqa: BLE001
+                    n_without_prior += 1
+            else:
+                n_without_prior += 1
 
         per_date = build_pooled_per_date(pitches_2026, prior)
         pooled_by_pitcher[pid] = per_date

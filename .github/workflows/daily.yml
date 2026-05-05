@@ -75,12 +75,22 @@ on:
     # ~5 min worst-case.  Skipping minute 0 (where the hourly predict
     # already runs) avoids concurrency-group collisions.
     - cron: "5,10,15,20,25,30,35,40,45,50,55 17-23,0-3 * * *"   # every 5min, 1pm-11pm ET
+    # T4.2 daily priors refresh: rebuild the per-pitcher per-date
+    # truepit_priors JSON that production reads via the priors-pooled
+    # _get_pitcher_statcast() path.  Runs at 6am UTC = 2am ET, after
+    # all west-coast games end (latest finish ~1am ET) and well before
+    # the morning predict crons (12 UTC).  This keeps the priors fresh
+    # so today's predictions use yesterday's pitches in the pooled
+    # estimate, not stale data.  Without this refresh, the priors
+    # JSON would freeze at whatever date it was last built and the
+    # 2026 cumulative term would never grow.
+    - cron: "0 6 * * *"    # 2am EDT / 1am EST -- daily priors-pooled cache rebuild
   workflow_dispatch:
     inputs:
       action:
         description: "Which job to run"
         type: choice
-        options: [predict, grade, recalibrate]
+        options: [predict, grade, recalibrate, refresh-priors]
         default: predict
 
 permissions:
@@ -132,6 +142,10 @@ jobs:
             "5,10,15,20,25,30,35,40,45,50,55 17-23,0-3 * * *")
               # T2.65: 5-min odds-only tick (Option C lock-event capture).
               echo "what=odds-only" >> "$GITHUB_OUTPUT"
+              ;;
+            "0 6 * * *")
+              # T4.2: daily priors-pooled cache + JSON rebuild.
+              echo "what=refresh-priors" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "what=${MANUAL:-predict}" >> "$GITHUB_OUTPUT"
@@ -456,6 +470,64 @@ jobs:
           # then refit the calibrator on fresh park factors.
           python rebuild_park_factors.py
           python recalibrate_v2.py
+
+      - name: Refresh priors-pooled Statcast cache (T4.2 daily)
+        if: steps.action.outputs.what == 'refresh-priors'
+        # Rebuilds data/v2_perfect_2026/truepit_priors_per_pitcher_per_date.json
+        # from scratch.  Production's _get_pitcher_statcast() reads this file
+        # to apply Bayesian shrinkage (2025 prior + 2026 cumulative-thru-
+        # yesterday) so xera/whiff don't get whipsawed by small-sample 2026
+        # noise (root cause of the 5/03 -4.56u disaster: ARI@CHC away pitcher
+        # had cache xera=14.71 from a 5-batted-ball sample; pooled value
+        # was 4.62, preserving the protective shrinkage T2.53 inadvertently
+        # disabled by re-tagging early-season pitchers as 'live').
+        #
+        # Why delete the cache directory first: backfill_truepit_2026.py
+        # caches per-pitcher fetches in data/cache/perpitch_2026/ keyed only
+        # by player_id (no end-date in the key), so re-running the script
+        # otherwise serves yesterday's cached snapshot indefinitely.  Wiping
+        # the directory forces a fresh Statcast pull through 2026-04-01 ->
+        # today.  Cost: ~30-50 min for ~250 pitchers (pybaseball rate-
+        # limited).  Acceptable overnight given the 6h buffer before the
+        # 12 UTC predict cron starts.
+        env:
+          # No SUPABASE_* needed; this step writes only local files.
+          ACTION: refresh-priors
+        run: |
+          set -euo pipefail
+
+          echo "==> Wiping per-pitch 2026 cache to force fresh Statcast pull..."
+          rm -rf data/cache/perpitch_2026
+          mkdir -p data/cache/perpitch_2026
+
+          echo "==> Backfilling per-pitch Statcast (this takes ~30-50 min)..."
+          python tools/backfill_truepit_2026.py 2>backfill_err.log || {
+            echo "::warning::backfill_truepit_2026 exited non-zero -- continuing to priors build with whatever was cached"
+            tail -c 600 backfill_err.log || true
+          }
+
+          echo "==> Rebuilding priors-pooled per-pitcher per-date snapshots..."
+          python tools/build_truepit_2026_with_priors.py 2>priors_err.log || {
+            echo "::error::build_truepit_2026_with_priors failed -- aborting refresh (kept previous JSON)"
+            tail -c 600 priors_err.log
+            exit 1
+          }
+
+          echo "==> Sanity-checking the rebuilt JSON..."
+          python - <<'PY'
+          import json, sys
+          path = "data/v2_perfect_2026/truepit_priors_per_pitcher_per_date.json"
+          with open(path, encoding="utf-8") as f:
+              d = json.load(f)
+          n_pitchers = len(d.get("per_pitcher", {}) or {})
+          n_with_prior    = d.get("n_with_prior") or 0
+          n_without_prior = d.get("n_without_prior") or 0
+          print(f"Pitchers in priors JSON: {n_pitchers}  with-2025-prior={n_with_prior}  without={n_without_prior}")
+          if n_pitchers < 100:
+              sys.exit(f"Sanity FAILED: only {n_pitchers} pitchers in JSON; aborting commit")
+          if n_with_prior < 50:
+              sys.exit(f"Sanity FAILED: only {n_with_prior} pitchers have 2025 priors; aborting commit")
+          PY
 
       - name: Commit data changes (if any)
         env:
