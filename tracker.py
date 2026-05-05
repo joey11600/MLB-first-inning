@@ -1935,7 +1935,25 @@ def _check_bankroll_milestone_after_grade(rows: list[dict]) -> None:
     """Compute season P&L; fire a one-shot ping if it crossed any
     standard milestone (positive or negative).  Notifications_log
     dedup ensures each milestone fires at most once per 90-day window
-    so we don't spam if P&L oscillates over a threshold."""
+    so we don't spam if P&L oscillates over a threshold.
+
+    T4.17: gated behind FIRE_BANKROLL_MILESTONES=1 env var.  The
+    SELECT-then-INSERT dedup path is racy under multi-writer load
+    (Railway worker + GH Actions PREDICT cron + ODDS-ONLY cron + nightly
+    GRADE cron all call grade_date() and each iterates the milestone
+    list).  When two writers fire within the millisecond race window
+    they both see "no row" and both ping -- producing N-x duplicates
+    per crossing where N is the number of milestones below current P&L.
+
+    The fix mirrors the daily-wrap gate (T4.14): only ONE writer is
+    authorized to fire milestones.  Default is off everywhere -- if
+    you want milestones, set FIRE_BANKROLL_MILESTONES=1 on the nightly
+    grade cron in .github/workflows/daily.yml (mirroring how
+    FIRE_DAILY_DIGEST is wired) so the burst of "hit +10, +25, +50"
+    fires once per slate at 11:30pm ET instead of every 5 minutes."""
+    if os.environ.get("FIRE_BANKROLL_MILESTONES", "").strip() != "1":
+        return
+
     season_record, season_pl, hit_rate = _aggregate_season_record(rows)
     abs_pl = int(season_pl)   # truncate toward zero
     sign = 1 if season_pl >= 0 else -1
