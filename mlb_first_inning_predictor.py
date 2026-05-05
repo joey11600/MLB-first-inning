@@ -1291,6 +1291,98 @@ def _load_statcast_cache() -> dict:
     return _statcast_cache
 
 
+# T4.2: priors-aware pitcher Statcast cache.
+#
+# WHY THIS EXISTS
+# ---------------
+# Production used to read raw season-to-date Statcast aggregates from
+# data/statcast_pitcher_cache.json.  In April-May of a fresh season,
+# pitchers have ~3-6 starts each, and per-pitcher xera computed on
+# 30-80 batted balls is wildly noisy (observed 2026 stdev=1.66 vs
+# stable-state 2025 stdev=0.89, with min=0.64 and max=14.71).
+# Feeding that noise into the LR model as if it were a true-talent
+# estimate produced over-confident picks that all moved together
+# inside the calibrator's flat zones (e.g. 5/03: three different
+# YRFI bets all calibrated to P(YRFI)=0.638, all lost: -3u that
+# should have been three independent decisions).
+#
+# WHAT THIS DOES
+# --------------
+# Bayesian-pooled per-pitcher per-date snapshot built by
+# tools/build_truepit_2026_with_priors.py:
+#
+#   pooled_xera[pid, date] = pool( 2025_full_season, 2026_thru_yesterday )
+#
+# where pooling weights each pitch equally regardless of season (alpha=1
+# full pooling).  Early-season picks lean ~95% on the 2025 prior; by
+# season's end, ~50/50.  Rookies without 2025 data fall through to
+# the raw cache, then league average.
+#
+# WIRE-UP CONTRACT
+# ----------------
+# - JSON shape: {"per_pitcher": {pid_str: {date_iso: {xera, whiff_pct_rank, ...}}}}
+# - Lookup: for (pid, date_iso), find latest entry <= date_iso (or
+#   earliest entry if date_iso predates everything).
+# - Toggle USE_TRUEPIT_PRIORS=False to revert to raw-cache behavior.
+# - The fallback chain is: priors -> raw season cache -> league average.
+
+_USE_TRUEPIT_PRIORS = True
+_truepit_priors_cache: dict | None = None
+
+
+def _load_truepit_priors() -> dict:
+    """Load priors-aware pitcher Statcast snapshots.  Cached.  Returns
+    {} on any error so production never breaks if the file is missing
+    or corrupted."""
+    global _truepit_priors_cache
+    if _truepit_priors_cache is not None:
+        return _truepit_priors_cache
+    p = (Path(__file__).parent / "data" / "v2_perfect_2026"
+         / "truepit_priors_per_pitcher_per_date.json")
+    if not p.exists():
+        _truepit_priors_cache = {}
+        return _truepit_priors_cache
+    try:
+        with open(p, encoding="utf-8") as f:
+            data = json.load(f)
+        _truepit_priors_cache = data.get("per_pitcher", {}) or {}
+    except Exception:    # noqa: BLE001
+        _truepit_priors_cache = {}
+    return _truepit_priors_cache
+
+
+def _truepit_lookup(player_id: int, date_iso: str) -> dict | None:
+    """Find the priors-pooled snapshot for (pid, date) -- the latest
+    snapshot <= date_iso (so a 2026-05-04 prediction uses everything
+    we knew at the start of 2026-05-04, including all prior 2026
+    appearances + the 2025 season prior).
+
+    Returns None if the pitcher isn't in the priors cache.  Returns the
+    earliest snapshot if date_iso predates everything (still better than
+    raw cache: at minimum it's the 2025 prior + zero 2026 data, which
+    is what we want for season-debut starts)."""
+    priors = _load_truepit_priors()
+    pid_entries = priors.get(str(player_id))
+    if not pid_entries:
+        return None
+    # All keys are ISO date strings; lexical sort = chronological.
+    sorted_dates = sorted(pid_entries.keys())
+    # Find latest date <= date_iso.  bisect_right would also work but
+    # the data is small (<200 dates per pitcher) so a linear scan is fine.
+    chosen = None
+    for d in sorted_dates:
+        if d <= date_iso:
+            chosen = d
+        else:
+            break
+    if chosen is None:
+        # Date predates all snapshots -- use the earliest one
+        # (it's just the 2025 prior + 0 2026 pitches, perfectly fine
+        # for a season debut).
+        chosen = sorted_dates[0]
+    return pid_entries.get(chosen)
+
+
 def _load_ump_data() -> tuple[dict, dict]:
     """Returns (game_pk -> ump record, ump_id -> rate record)."""
     global _ump_cache, _ump_rates_data
@@ -1315,9 +1407,34 @@ def _load_ump_data() -> tuple[dict, dict]:
     return _ump_cache, _ump_rates_data
 
 
-def fetch_pitcher_statcast(player_id: int, season: int) -> dict:
+def fetch_pitcher_statcast(player_id: int, season: int,
+                            date_iso: str | None = None) -> dict:
     """Returns Statcast aggregates for a pitcher: xera + whiff_pct_rank.
-    Falls back to neutral defaults if pitcher not in cache."""
+
+    Lookup priority (T4.2):
+      1. If date_iso is provided AND priors are enabled, look up the
+         priors-pooled (2025 prior + 2026 thru-yesterday) snapshot.
+         This is the calibrated, low-variance source.
+      2. Otherwise (or on miss) fall through to the raw season-to-date
+         cache (data/statcast_pitcher_cache.json keyed by season+pid).
+         This still has the small-sample-noise problem for early-season
+         pitchers but is better than nothing.
+      3. On full miss, return neutral defaults (league-average xera +
+         50th-percentile whiff rank).
+
+    Backward compatible: callers that don't pass date_iso get the
+    legacy raw-cache behavior, so no caller is force-changed by this
+    refactor."""
+    if date_iso and _USE_TRUEPIT_PRIORS:
+        snap = _truepit_lookup(player_id, date_iso)
+        if snap is not None:
+            return {
+                "xera":           float(snap["xera"])
+                                  if snap.get("xera") is not None else _LEAGUE_AVG_XERA,
+                "whiff_pct_rank": float(snap["whiff_pct_rank"])
+                                  if snap.get("whiff_pct_rank") is not None
+                                  else _NEUTRAL_PCT_RANK,
+            }
     cache = _load_statcast_cache()
     season_cache = cache.get(str(season), {})
     rec = season_cache.get(str(player_id))
@@ -1376,17 +1493,23 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  home_pvt_nrfi:   float = _LEAGUE_NRFI_RATE,
                  home_avg_ip_per_start: float = 5.0,
-                 season: int = 2026) -> list[float]:
+                 season: int = 2026,
+                 date_iso: str | None = None) -> list[float]:
     """T1 (top of 1st) feature vector: home pitcher vs away offense at home park.
     Order MUST match _T1_EXPECTED_FEATURES.
 
     Phase F: 18 features per half (added pvt_nrfi familiarity + opener
-    detection via avg IP per start)."""
+    detection via avg IP per start).
+
+    T4.2: when date_iso is provided, the pitcher Statcast lookup uses
+    priors-pooled (2025 prior + 2026 thru-yesterday) values instead of
+    the raw season cache.  This dramatically reduces small-sample noise
+    in early-season (April/May) predictions."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     if wx is None:
         wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
               "humidity": WX_HUMIDITY_DEFAULT, "is_dome": 0.0}
-    sc = fetch_pitcher_statcast(home_pitcher_id, season) if home_pitcher_id else {
+    sc = fetch_pitcher_statcast(home_pitcher_id, season, date_iso=date_iso) if home_pitcher_id else {
         "xera": _LEAGUE_AVG_XERA, "whiff_pct_rank": _NEUTRAL_PCT_RANK,
     }
     h_era = home_pitcher.get("era", LEAGUE_AVG_ERA)
@@ -1426,14 +1549,17 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  away_pvt_nrfi:   float = _LEAGUE_NRFI_RATE,
                  away_avg_ip_per_start: float = 5.0,
-                 season: int = 2026) -> list[float]:
+                 season: int = 2026,
+                 date_iso: str | None = None) -> list[float]:
     """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park.
-    Order MUST match _B1_EXPECTED_FEATURES.  Phase F: 18 features."""
+    Order MUST match _B1_EXPECTED_FEATURES.  Phase F: 18 features.
+
+    T4.2: see t1_features for the date_iso priors-pooling rationale."""
     fi_park = _load_fi_park_rates().get(home_abbr, _FI_PARK_NRFI_DEFAULT)
     if wx is None:
         wx = {"temp_c": WX_TEMP_DEFAULT, "wind_kmh": WX_WIND_DEFAULT,
               "humidity": WX_HUMIDITY_DEFAULT, "is_dome": 0.0}
-    sc = fetch_pitcher_statcast(away_pitcher_id, season) if away_pitcher_id else {
+    sc = fetch_pitcher_statcast(away_pitcher_id, season, date_iso=date_iso) if away_pitcher_id else {
         "xera": _LEAGUE_AVG_XERA, "whiff_pct_rank": _NEUTRAL_PCT_RANK,
     }
     a_era = away_pitcher.get("era", LEAGUE_AVG_ERA)
@@ -2064,6 +2190,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             home_pvt_nrfi=home_pvt_nrfi,           # Phase F: familiarity
             home_avg_ip_per_start=home_avg_ip,     # Phase F: opener detection
             season=season,
+            date_iso=target_iso,                   # T4.2: priors-pooled Statcast
         )
         b1_feats = b1_features(
             home_ab, away_sp, home_bat, wx,
@@ -2078,6 +2205,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             away_pvt_nrfi=away_pvt_nrfi,
             away_avg_ip_per_start=away_avg_ip,
             season=season,
+            date_iso=target_iso,                   # T4.2: priors-pooled Statcast
         )
         # Compute each half's P(run) so we can persist lambda projections
         # for display (the screenshot-style "expected runs per half").
