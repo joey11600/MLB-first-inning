@@ -20,3 +20,15 @@ colorama>=0.4.6,<1.0
 # reason as the rest of the file.
 supabase>=2.0.0,<3.0
 python-dotenv>=1.0.0,<2.0
+
+# T-DK403 (2026-05-05): curl_cffi for TLS-fingerprint impersonation.
+# Plain `requests` exposes Python's distinctive TLS handshake (JA3
+# fingerprint), which DraftKings' CDN started 403'ing on every cycle
+# in early May 2026.  curl_cffi wraps libcurl and impersonates real
+# Chrome / Safari / Firefox handshakes byte-for-byte, defeating that
+# layer of bot detection.  Verified bypass on 2026-05-05: API call
+# returned 200 + valid JSON where plain `requests` had been getting
+# 403 Forbidden for hours.  scrape_dk_odds.py prefers curl_cffi when
+# importable, falls back to plain `requests` on environments where it
+# can't compile (no precompiled wheel).
+curl_cffi>=0.7.0,<1.0

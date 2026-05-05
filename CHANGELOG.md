@@ -11,6 +11,56 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-05] — Pick-lock alignment + proper DK 403 fix (curl_cffi)
+
+Two fixes that together restore the "T-60min auto-bet + BET LOCKED
+Telegram" workflow that's been silently broken for ~weeks.
+
+### Fixed
+
+- **Pick-refresh lock aligned with auto-bet lock**: `tracker._pick_is_locked`
+  now uses `_pick_lock_minutes()` (default 60) instead of a hardcoded
+  5 min.  Previously the predictor could keep refreshing the verdict
+  until 5 min before first pitch even though the auto-bet path fires
+  at 60 min, meaning a STRONG bet could be committed (`bet_placed=Y`,
+  market odds frozen) and THEN flipped to a different side or PASS by
+  the predictor in the 55 min between.  Both lock concepts now use
+  the same window.  Dashboard's "PENDING · LOCKS HH:MM (60 min
+  pre-game)" display already used 60; this aligns the backend.
+
+- **DraftKings 403 properly fixed via curl_cffi**: `scrape_dk_odds.py`
+  now prefers `curl_cffi.requests` with `impersonate="chrome120"` and
+  falls back to plain `requests` when curl_cffi isn't available.
+  Plain `requests` exposes Python's distinctive TLS fingerprint
+  (JA3), which DK's CDN started rejecting with 403 Forbidden in early
+  May.  curl_cffi wraps libcurl and impersonates a real Chrome
+  handshake byte-for-byte, defeating that detection layer.  Verified
+  bypass on 2026-05-05: API returns 200 + valid 14-event JSON where
+  plain `requests` had been getting 403 for hours.  This unblocks the
+  whole odds capture chain (morning 10am ET cron, every-5-min
+  odds-only ticks, predict-cycle import_odds), which in turn
+  re-enables the BET LOCKED Telegram alerts at T-60min for STRONG
+  bets.
+
+- **`requirements.txt`**: pinned `curl_cffi>=0.7.0,<1.0`.
+
+### Why this matters
+
+Workflow user expects: morning scrape captures odds for every game,
+displays them in the dashboard.  At T-60min before first pitch for any
+STRONG NRFI/YRFI pick: pick freezes, `bet_placed=Y` flips, market
+odds lock at that moment's price, "🔒 BET LOCKED · STRONG NRFI"
+Telegram fires with team / time / DK price / units / edge so user
+can place the bet on DK.
+
+Why it wasn't working: DK 403s blocked all odds capture, which broke
+every downstream step (no odds → no `bet_placed=Y` flip → no Telegram
+fire).  Fixing the 403 restores the entire chain.  The 5-min vs
+60-min mismatch was a separate bug that would have caused odd
+mid-bet pick flips once odds capture resumed.
+
+---
+
 ## [2026-05-05] — Follow-ups: live-state team hydrate, DK warmup GET, agent-rule sync
 
 Three small fixes after the morning audit-fix push.

@@ -136,18 +136,43 @@ def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
     extract_odds() pipeline downstream, not here.
     """
     import time
+
+    # T-DK403 (2026-05-05): prefer curl_cffi for TLS-fingerprint
+    # impersonation.  Plain `requests` was 403'ing on every cycle for
+    # hours -- DK's CDN added bot detection that fingerprints the TLS
+    # handshake (JA3) and rejected Python's default.  curl_cffi wraps
+    # libcurl and impersonates a real Chrome handshake, which DK
+    # accepts.  Verified locally on 2026-05-05: 200 + valid JSON via
+    # curl_cffi where plain requests had been blocked.
+    use_curl_cffi = False
+    requests_mod = None
     try:
-        import requests   # already in requirements.txt
+        from curl_cffi import requests as _curl_requests
+        requests_mod = _curl_requests
+        use_curl_cffi = True
     except ImportError:
-        # Fall back to urllib if requests somehow isn't available.
-        # Returns the same shape; retry logic mirrors the original.
-        return _fetch_dk_via_urllib(retries=retries, backoff=backoff)
+        try:
+            import requests as _std_requests
+            requests_mod = _std_requests
+        except ImportError:
+            # Fall back to urllib if neither is available.
+            return _fetch_dk_via_urllib(retries=retries, backoff=backoff)
 
     url = f"{DK_BASE}/leagues/{MLB_LEAGUE_ID}/categories/{INNING_1_CAT}"
     last_exc: Exception | None = None
     # Session = connection reuse across retries.  TLS handshake amortizes;
-    # gzip/deflate handled automatically.
-    with requests.Session() as sess:
+    # gzip/deflate handled automatically.  curl_cffi.Session takes an
+    # `impersonate=` arg that picks the TLS+headers fingerprint to
+    # mimic; "chrome120" matches the most-common real-world Chrome
+    # release.  Plain `requests.Session` ignores the kwarg, so we pass
+    # it conditionally.
+    sess_kwargs = {"impersonate": "chrome120"} if use_curl_cffi else {}
+    with requests_mod.Session(**sess_kwargs) as sess:
+        # When using curl_cffi with `impersonate=`, it writes its own
+        # full Chrome header set INCLUDING User-Agent / sec-ch-ua /
+        # Accept-Language and overrides any conflicting keys we set.
+        # That's exactly what we want -- HEADERS just adds Referer +
+        # Origin + Accept overrides on top, which curl_cffi preserves.
         sess.headers.update(HEADERS)
 
         # T-DK403: warmup GET against the public MLB sportsbook page before

@@ -456,11 +456,16 @@ def _pick_is_locked(existing: dict, iso_date: str) -> bool:
                 game_dt = datetime.fromisoformat(iso_date).replace(
                     hour=t.hour, minute=t.minute, tzinfo=et,
                 )
-                # 5-minute buffer so a refresh that lands right at first
-                # pitch still locks the pick (typical workflow: bet a few
-                # minutes before)
+                # Pick-refresh lock: same 60-min buffer the auto-bet
+                # path uses (`_pick_lock_minutes()`).  When the pick
+                # commits at T-60 (bet_placed=Y, BET LOCKED Telegram),
+                # the strategy verdict (NRFI/YRFI/STRONG/PASS) must
+                # ALSO be frozen -- otherwise the predictor could flip
+                # the side after the user's already in the bet at DK.
+                # Was a 5-min hard-coded buffer; aligned to 60 here so
+                # both lock concepts agree.
                 from datetime import timedelta
-                return now_et >= (game_dt - timedelta(minutes=5))
+                return now_et >= (game_dt - timedelta(minutes=_pick_lock_minutes()))
             except ValueError:
                 continue
     except Exception:
