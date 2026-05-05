@@ -6,6 +6,7 @@ import { useSupabaseRealtime } from "@/lib/useSupabaseRealtime";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
 import { OpsHealthCard } from "./OpsHealthCard";
+import { ShadowDeltaCard } from "./ShadowDeltaCard";
 import { RoiPanel } from "./RoiPanel";
 import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
@@ -286,10 +287,13 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       {/* Post-redesign top-of-fold ordering:
           1. TonightsActionCard -- "what should I bet tonight" (NEW, hero)
           2. OpsHealthCard      -- system health surfaced if anything's wrong
-          3. SummaryStrip       -- retrospective today-stats tiles
-          4. RoiPanel           -- bankroll across 7d/30d/season
-          5. ControlPanel       -- date + filters
-          6. (changes / board / status)
+          3. ShadowDeltaCard    -- T4.4 daily T4.2 shadow delta (is the fix
+                                   still working? -- visible at a glance,
+                                   click to see 14-day timeline)
+          4. SummaryStrip       -- retrospective today-stats tiles
+          5. RoiPanel           -- bankroll across 7d/30d/season
+          6. ControlPanel       -- date + filters
+          7. (changes / board / status)
        */}
       <TonightsActionCard
         rows={data.rows}
@@ -298,6 +302,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       />
 
       <OpsHealthCard />
+      <ShadowDeltaCard />
 
       {/* T3.21: SummaryStrip slimmed -- no longer needs details since
           P&L/CLV moved into RoiPanel.  RoiPanel now receives rows +

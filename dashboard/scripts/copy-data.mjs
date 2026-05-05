@@ -82,4 +82,26 @@ if (fs.existsSync(errs)) {
   copied += 1;
 }
 
+// 6. T4.4 diagnostic outputs -- shadow_summary.csv is the daily
+//    timeline of "V2 actual vs V2+T4.2 shadow" deltas.  Surfaced on
+//    the dashboard so the operator sees at a glance whether T4.2 is
+//    still producing positive delta vs the live model.  Only copy
+//    the small summary file; the per-day detail/JSON files are kept
+//    on disk for jq investigation but don't ship with the bundle.
+const diagSrc = path.join(src, "diagnostics");
+if (fs.existsSync(diagSrc)) {
+  const diagDest = path.join(dest, "diagnostics");
+  fs.mkdirSync(diagDest, { recursive: true });
+  const summary = path.join(diagSrc, "shadow_summary.csv");
+  if (fs.existsSync(summary)) {
+    fs.copyFileSync(summary, path.join(diagDest, "shadow_summary.csv"));
+    copied += 1;
+  }
+  const driftAlerts = path.join(diagSrc, "drift_alerts.csv");
+  if (fs.existsSync(driftAlerts)) {
+    fs.copyFileSync(driftAlerts, path.join(diagDest, "drift_alerts.csv"));
+    copied += 1;
+  }
+}
+
 console.log(`[copy-data] copied ${copied} files from ${src} → ${dest}`);

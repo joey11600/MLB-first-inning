@@ -1,0 +1,157 @@
+/* T4.4 -- shadow delta card.  Mirrors OpsHealthCard styling so the
+   two compact tiles stack cleanly above the board. */
+
+.wrap {
+  margin: 8px 0 0;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  transition: border-color 200ms ease, background 200ms ease;
+  position: relative;
+  flex-wrap: wrap;
+}
+.card:hover {
+  border-color: color-mix(in oklab, var(--foreground) 12%, var(--border));
+}
+.card:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--primary) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.label {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+}
+
+.statusText {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sep {
+  opacity: 0.30;
+  font-size: 10px;
+}
+
+.metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.metricLabel {
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.metricValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.metric.warn .metricValue {
+  color: var(--destructive, #c0392b);
+}
+
+.chevron {
+  margin-left: auto;
+  font-size: 9px;
+  opacity: 0.55;
+}
+
+/* Status colors -- match OpsHealthCard palette so the eye treats the
+   two tiles as siblings. */
+.statusOk        { color: var(--success, #2e8b57); }
+.statusWarn      { color: var(--warning, #c08a1d); }
+.statusRegress   { color: var(--destructive, #c0392b); }
+.statusUnknown   { color: var(--muted-foreground); }
+
+/* Expanded body */
+.expanded {
+  margin-top: 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--card);
+  font-size: 12px;
+}
+
+.reason {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+}
+
+.th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tr:hover { background: color-mix(in oklab, var(--foreground) 4%, transparent); }
+
+.td, .tdNum {
+  padding: 6px 8px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+}
+
+.tdNum {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.deltaPos { color: var(--success, #2e8b57); font-weight: 600; }
+.deltaNeg { color: var(--destructive, #c0392b); font-weight: 600; }
+
+.note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+.note code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
