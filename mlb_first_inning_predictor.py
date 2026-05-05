@@ -1341,6 +1341,19 @@ def _load_statcast_cache() -> dict:
 # Refer to docs/PLAYBOOK.md for the diagnostic stack that monitors it.
 
 _USE_TRUEPIT_PRIORS = True   # locked-on; see T4.10 note above
+
+# T4.18: model version label.  V2.1 = V2 LR (18 features per half-inning) +
+# T4.2 priors-pooled xera/whiff features + V2 calibrator.  Locked into
+# production at T4.10 (commit f833640) after a full week of nightly shadow
+# data showed consistent positive delta_pl vs vanilla V2.  This label is
+# logged into pick_reasoning JSONs so the dashboard / future post-mortems
+# can tell which exact model produced any given pick.
+#
+# Bumping convention: V2.x for feature-engineering improvements that keep
+# the 18-feature LR architecture; V3+ for actual architecture changes
+# (e.g. variant K's leak-free truepit calibrator, currently shadow-only).
+MODEL_VERSION = "V2.1"
+
 _truepit_priors_cache: dict | None = None
 
 

@@ -10,6 +10,12 @@
  * v3 view shows what would have happened if the model used the leak-free
  * truepit calibrator instead.
  *
+ * T4.18: surface label updated from "v2" to "V2.1" to signal that
+ * production V2 has been running with T4.2 priors-pooling since
+ * 2026-05-04 (T4.10 commit f833640).  V2.1 = same 18-feature LR per
+ * half-inning + Bayesian-shrunk xera/whiff inputs.  Internal enum
+ * stays "v2" so API URLs / localStorage keys don't break.
+ *
  * Persists in localStorage across sessions.  On non-v2 selection,
  * shows a subtle "EXPERIMENTAL" tag so the operator never forgets they're
  * looking at shadow data.
@@ -53,7 +59,7 @@ export function ModelToggle({ model, onChange }: ModelToggleProps) {
       className={styles.toggle}
       role="group"
       aria-label="Model view"
-      title="Switch between v2 (production) and v3 (experimental shadow). v2 still drives Telegram alerts and real bookkeeping."
+      title="Switch between V2.1 (production: V2 LR + T4.2 priors-pooling) and V3 (experimental shadow calibrator). V2.1 drives Telegram alerts and real bookkeeping."
     >
       <button
         type="button"
@@ -61,7 +67,7 @@ export function ModelToggle({ model, onChange }: ModelToggleProps) {
         aria-pressed={model === "v2"}
         onClick={() => setModel("v2")}
       >
-        <span className={styles.optionLabel}>v2</span>
+        <span className={styles.optionLabel}>V2.1</span>
         <span className={styles.optionTag}>live</span>
       </button>
       <button
@@ -70,7 +76,7 @@ export function ModelToggle({ model, onChange }: ModelToggleProps) {
         aria-pressed={model === "v3"}
         onClick={() => setModel("v3")}
       >
-        <span className={styles.optionLabel}>v3</span>
+        <span className={styles.optionLabel}>V3</span>
         <span className={`${styles.optionTag} ${styles.optionTagShadow}`}>shadow</span>
       </button>
     </div>

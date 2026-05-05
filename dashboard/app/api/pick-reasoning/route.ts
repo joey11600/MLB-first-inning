@@ -125,8 +125,13 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // T4.18: surface the model_version recorded at predict time (e.g. "V2.1")
+  // alongside the per-pick reasoning, so the dashboard panel can show
+  // exactly which model wrote this pick.  Falls back to "unknown" for
+  // historical pick files written before T4.18 landed.
+  const modelVersion = (payload as { model_version?: string }).model_version ?? "unknown";
   return NextResponse.json(
-    { available: true, ...target },
+    { available: true, model_version: modelVersion, ...target },
     { headers: { "cache-control": "no-store" } },
   );
 }

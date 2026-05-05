@@ -334,15 +334,31 @@ def main():
             })
 
     out_path = DIAG_DIR / f"{target_date}.json"
+    # T4.18: include model version so future post-mortems can tell at a
+    # glance which exact model produced these picks.  Imported lazily to
+    # keep this tool runnable even if the predictor file is in a half-
+    # imported state (e.g. during a refit).
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        repo_root = _P(__file__).resolve().parent.parent
+        if str(repo_root) not in _sys.path:
+            _sys.path.insert(0, str(repo_root))
+        from mlb_first_inning_predictor import MODEL_VERSION as _MV
+        model_version = _MV
+    except Exception:
+        model_version = "unknown"
+
     payload = {
-        "date":         target_date,
-        "fitted_at":    datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "n_picks":      len(pick_entries),
-        "schema_note":  ("Each pick entry has top-5 LR feature contributions "
-                          "per half, calibrator-band info, raw-vs-priors-pooled "
-                          "Statcast comparison, and warnings list.  Sort by "
-                          "abs(contribution) to find dominant drivers."),
-        "picks":        pick_entries,
+        "date":           target_date,
+        "model_version":  model_version,    # T4.18: e.g. "V2.1" (V2 LR + T4.2 priors-pooling)
+        "fitted_at":      datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "n_picks":        len(pick_entries),
+        "schema_note":    ("Each pick entry has top-5 LR feature contributions "
+                            "per half, calibrator-band info, raw-vs-priors-pooled "
+                            "Statcast comparison, and warnings list.  Sort by "
+                            "abs(contribution) to find dominant drivers."),
+        "picks":          pick_entries,
     }
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)

@@ -194,6 +194,11 @@ function PickReasoningPanel({
   type ReasoningResp = {
     available?:        boolean;
     reason?:           string;
+    // T4.18: model_version stamps each pick with the model that produced
+    // it (e.g. "V2.1" = V2 LR + T4.2 priors-pooling).  Surfaced in the
+    // reasoning panel header so the operator always knows which model
+    // wrote any given pick.  "unknown" for picks logged before T4.18.
+    model_version?:    string;
     matchup?:          string;
     pick_side?:        string;
     pick_strength?:    string;
@@ -274,12 +279,18 @@ function PickReasoningPanel({
   const warnings = data.warnings || [];
   const hasConcerns = warnings.length > 0 || flatZone || homeShrunk || awayShrunk;
 
+  // T4.18: model version label (e.g. "V2.1") stamped at predict time.
+  const modelVersion = data?.model_version ?? "unknown";
+
   return (
     <section className={styles.reasoningPanel}>
       <div className={styles.whyHead}>
         <span className="eyebrow">Pick diagnostics</span>
         <span className={styles.whySub}>
           T4.2 priors-pooling status, pitcher data quality, calibrator band.
+        </span>
+        <span className={styles.modelVersionPill} title="Model version recorded at predict time">
+          {modelVersion}
         </span>
       </div>
 
@@ -1169,7 +1180,7 @@ function V3DisagreementNotice({
           <span className={styles.noticeInlineSide} data-side={v3Side.toLowerCase()}>
             {v3Label}
           </span>
-          ; v2 (production, your real picks) says{" "}
+          ; V2.1 (production, your real picks) says{" "}
           <span className={styles.noticeInlineSide} data-side={v2Side.toLowerCase()}>
             {v2Label}
           </span>
