@@ -987,7 +987,19 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     "strong_scratch":       6 * 60,   # one scratch alert per game per side
     "bankroll_milestone":   90 * 24 * 60,  # near-permanent (3 months) per milestone
     "daily_digest":         18 * 60,  # one digest per day
-    "ops_health":           60,       # at most one stall alert per hour
+    # T4.14: bumped from 60 -> 120 min.  During a sustained predictor
+    # outage (e.g. GH Actions queue starvation, Railway redeploy) the
+    # 30-min staleness threshold + 60-min dedup combined to fire a stall
+    # ping every hour for the duration.  120 min cuts that to once
+    # every 2 hours -- still enough signal to know something's wrong,
+    # half the noise volume.
+    "ops_health":           120,
+    # T4.14: feature_drift_monitor.py was using its own urllib send path
+    # that bypassed dedup entirely.  Now routed through _notify_event_telegram
+    # like all other event types.  Once-per-day window matches the
+    # monitor's daily run cadence -- a re-run shouldn't re-ping if the
+    # drift signal hasn't changed.
+    "feature_drift":        24 * 60,
 }
 
 
@@ -1024,6 +1036,20 @@ _SUPERGROUP_CHAT_ID         = "-1003953933618"
 _SUPERGROUP_ALLOWED_EVENTS  = frozenset({"strong_locked", "strong_graded"})
 _SUPERGROUP_THREAD_ID       = "2"   # "1st Inning Model" topic in Backfist Bets
 
+# T4.14: known-stale chat_ids that should receive nothing.
+# Operators occasionally leave old test groups, decommissioned bots, or
+# accidentally-pasted chat_ids in the TELEGRAM_CHAT_ID env var.  Listing
+# them here (rather than relying on the env var being clean) makes the
+# dedup explicit at the code level -- env-var changes can happen later
+# without a redeploy, and re-adding a known-stale id won't re-spam.
+#
+# Map shape mirrors _TELEGRAM_EVENT_ROUTES so the same _chat_should_receive
+# logic handles both: events=frozenset() means "no event types pass."
+_DENIED_CHAT_IDS: frozenset[str] = frozenset({
+    "-5115372935",   # legacy group, decommissioned 2026-Q1; kept here so
+                     # an env-var refresh isn't strictly required.
+})
+
 # Per-chat event routes.  Add new entries here when adding new chat_ids.
 _TELEGRAM_EVENT_ROUTES: dict[str, dict] = {
     _SUPERGROUP_CHAT_ID: {
@@ -1036,7 +1062,15 @@ _TELEGRAM_EVENT_ROUTES: dict[str, dict] = {
 def _chat_should_receive_event(chat_id: str, event_type: str | None) -> bool:
     """Return True if this chat_id should receive the given event_type.
     Chats without a route entry default to "receive everything"
-    (backwards-compatible)."""
+    (backwards-compatible).
+
+    T4.14: chat_ids in `_DENIED_CHAT_IDS` always return False, regardless
+    of event_type (including the legacy `event_type=None` callers that
+    used to bypass routing entirely).  This is the code-level kill for
+    stale chat_ids that lingered in TELEGRAM_CHAT_ID after groups were
+    archived / bots removed."""
+    if chat_id in _DENIED_CHAT_IDS:
+        return False
     if event_type is None:
         return True    # legacy callers that don't pass event_type get everything
     route = _TELEGRAM_EVENT_ROUTES.get(chat_id)
@@ -1079,6 +1113,15 @@ def _send_telegram_html(text: str, *, event_type: str | None = None) -> bool:
 
     Fail-OPEN per the original notifier contract: a Telegram outage
     must NEVER break the predictor."""
+    # T4.14: master kill switch.  Setting TELEGRAM_DISABLE_ALL=1 in any
+    # writer's env (Railway dashboard, GH Actions secrets, local .env)
+    # silences ALL telegram sends from that process -- no matter which
+    # event type, which chat, which dedup state.  Designed for the
+    # "bot is spamming, kill it now" emergency flow: flip the env var,
+    # the next process tick goes silent, no redeploy needed.
+    if os.environ.get("TELEGRAM_DISABLE_ALL", "").strip() == "1":
+        return False
+
     token        = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_ids_raw = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
     if not token or not chat_ids_raw:
@@ -2268,31 +2311,49 @@ def grade_date(date_str: str, season: int) -> None:
     if graded_n > 0:
         _check_bankroll_milestone_after_grade(rows)
 
-    # T2.38 #4: Daily digest.  Fire when ALL of today's games are
-    # terminally graded (WIN/LOSS/PASS/POSTPONED/SUSPENDED) AND we're
-    # actually grading "today" (not backfilling).  Notifications_log
-    # 18h dedup means at most one digest per slate date.
-    iso_today_et = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
-    if iso_date == iso_today_et:
-        all_today = [r for r in rows if (r.get("date") or "").strip() == iso_date]
-        terminal = {"WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"}
-        if all_today and all(
-            (r.get("graded_result") or "").strip().upper() in terminal
-            for r in all_today
-        ):
-            today_record, today_pl = _aggregate_today_record(rows, iso_date)
-            season_record, season_pl, _hit = _aggregate_season_record(rows)
-            # We don't know tomorrow's slate count without an MLB API call;
-            # leave 0 — predictor cycle the next morning will fix the
-            # board.  Could enrich in a future revision.
-            _notify_daily_digest_telegram(
-                iso_date         = iso_date,
-                today_record     = today_record,
-                today_pl_units   = today_pl,
-                season_record    = season_record,
-                season_pl_units  = season_pl,
-                tomorrow_games   = 0,
-            )
+    # T2.38 #4 / T4.14: Daily digest, gated to ONE writer per slate.
+    #
+    # Original (T2.38) design: fire whenever all of today's rows were
+    # terminal at the end of any grade_date() run, with notifications_log
+    # 18h dedup as the only defense.  In practice four independent
+    # writers all run grade_date for "today":
+    #   - GH Actions PREDICT cron (hourly during prime time)
+    #   - GH Actions ODDS-ONLY cron (every 5 min, 1pm-4am ET)
+    #   - GH Actions GRADE cron (nightly 11:30pm ET)
+    #   - Railway predictor_loop worker (its own cadence)
+    # Once the last game lands, every subsequent tick from ANY writer
+    # tried to fire the digest.  The dedup is a SELECT-then-INSERT
+    # pattern (no atomic claim), so two writers within milliseconds
+    # would both see "no row in window" and both ping -- producing
+    # 2-5 wrap pings per slate ("the random wrap messages").
+    #
+    # Fix: gate the trigger on FIRE_DAILY_DIGEST=1.  ONE cron sets it
+    # (the nightly grade in .github/workflows/daily.yml).  Everything
+    # else leaves it unset, so the digest path is a no-op for them.
+    # The notifications_log dedup remains as a backup but is no longer
+    # carrying the weight.
+    if os.environ.get("FIRE_DAILY_DIGEST", "").strip() == "1":
+        iso_today_et = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        if iso_date == iso_today_et:
+            all_today = [r for r in rows if (r.get("date") or "").strip() == iso_date]
+            terminal = {"WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"}
+            if all_today and all(
+                (r.get("graded_result") or "").strip().upper() in terminal
+                for r in all_today
+            ):
+                today_record, today_pl = _aggregate_today_record(rows, iso_date)
+                season_record, season_pl, _hit = _aggregate_season_record(rows)
+                # We don't know tomorrow's slate count without an MLB API call;
+                # leave 0 — predictor cycle the next morning will fix the
+                # board.  Could enrich in a future revision.
+                _notify_daily_digest_telegram(
+                    iso_date         = iso_date,
+                    today_record     = today_record,
+                    today_pl_units   = today_pl,
+                    season_record    = season_record,
+                    season_pl_units  = season_pl,
+                    tomorrow_games   = 0,
+                )
 
     print(f"\n  Graded {graded_n} | Skipped {skipped_n} | Already done {already_n}")
     print(f"  CSV: {path}\n")

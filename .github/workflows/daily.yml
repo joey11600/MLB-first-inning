@@ -294,6 +294,13 @@ jobs:
           SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ACTION: grade
+          # T4.14: ONLY this cron is authorized to fire the daily wrap
+          # ping.  All other writers (predict cron, odds-only 5-min tick,
+          # Railway predictor_loop) leave FIRE_DAILY_DIGEST unset, which
+          # makes their grade_date() calls skip the digest path entirely
+          # -- prevents the 2-5 wrap pings/slate that kept arriving as
+          # different writers raced past notifications_log dedup.
+          FIRE_DAILY_DIGEST: "1"
         run: |
           TODAY=$(TZ='America/New_York' date +%m/%d/%Y)
           YDAY=$(TZ='America/New_York' date -d 'yesterday' +%m/%d/%Y)

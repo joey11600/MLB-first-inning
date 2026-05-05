@@ -251,20 +251,41 @@ def severity_for_extreme_count(n: int, total: int) -> str:
     return "OK"
 
 
-def send_telegram(msg: str) -> None:
-    """Best-effort Telegram send; silent on missing creds or transient errors."""
-    bot   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat  = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
-    if not bot or not chat:
-        return
+def send_telegram(msg: str, target_date: str = "") -> None:
+    """Best-effort Telegram send.
+
+    T4.14: rewired to delegate to tracker._notify_event_telegram so this
+    monitor inherits the same routing, circuit breakers, dedup, audit
+    logging, and TELEGRAM_DISABLE_ALL kill switch as every other
+    notification in the system.
+
+    Previous implementation issued a raw urllib.request.urlopen with
+    `chat_id=<the entire CSV string>` in the form body -- if
+    TELEGRAM_CHAT_ID held more than one chat (which it does in production
+    for the supergroup broadcast), Telegram silently 400'd the call and
+    the operator never got any alert.  Worse, when it DID work for a
+    single-chat env var, every drift run pinged again because there was
+    no dedup against notifications_log.
+
+    `event_key` includes the target_date so a re-run on the same date
+    deduplicates (24h window from `_DEDUP_WINDOW_M["feature_drift"]`),
+    but a new day's drift signal still fires fresh."""
     try:
-        import urllib.request
-        import urllib.parse
-        url = f"https://api.telegram.org/bot{bot}/sendMessage"
-        data = urllib.parse.urlencode({"chat_id": chat, "text": msg}).encode()
-        urllib.request.urlopen(url, data=data, timeout=8)
-    except Exception:    # noqa: BLE001
-        pass
+        # Lazy import keeps tools/ runnable from a stripped-down env if
+        # tracker fails to load -- the monitor's CSV outputs still ship
+        # even when telegram is unavailable.
+        import sys as _sys
+        from pathlib import Path as _P
+        repo_root = _P(__file__).resolve().parent.parent
+        if str(repo_root) not in _sys.path:
+            _sys.path.insert(0, str(repo_root))
+        from tracker import _notify_event_telegram
+
+        event_key = f"feature_drift:{target_date or 'unknown'}"
+        _notify_event_telegram("feature_drift", event_key, msg)
+    except Exception as exc:    # noqa: BLE001 -- never break the monitor
+        print(f"  [drift-monitor] telegram send via tracker failed: {exc!r}",
+              file=sys.stderr)
 
 
 def append_system_error(date_iso: str, step: str, message: str) -> None:
@@ -454,8 +475,11 @@ def main():
                        [f"- {note}" for sev, metric, note in high_alerts[:5]]
             if len(high_alerts) > 5:
                 tg_lines.append(f"... and {len(high_alerts) - 5} more HIGH alerts")
-            send_telegram("\n".join(tg_lines))
-            print(f"  Sent Telegram alert ({len(high_alerts)} HIGH).")
+            # T4.14: pass target_date so the central notifier can build a
+            # per-date dedup key.  A re-run on the same date won't re-ping;
+            # a new date's drift signal fires fresh.
+            send_telegram("\n".join(tg_lines), target_date=target_date)
+            print(f"  Sent Telegram alert ({len(high_alerts)} HIGH) via tracker.")
 
 
 if __name__ == "__main__":
