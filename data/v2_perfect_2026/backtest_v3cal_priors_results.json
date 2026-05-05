@@ -1,0 +1,308 @@
+{
+  "window": {
+    "since": "2026-04-01",
+    "until": "2026-05-04"
+  },
+  "n_rows": 455,
+  "n_changed": 237,
+  "v2_actual": {
+    "n_strong": 199,
+    "w": 122,
+    "l": 73,
+    "pl": 36.475
+  },
+  "v2_truepit": {
+    "n_strong": 190,
+    "w": 98,
+    "l": 87,
+    "pl": 0.66
+  },
+  "delta_pl": -35.815,
+  "per_zone": {
+    "STRONG NRFI": {
+      "n": 156,
+      "w": 81,
+      "l": 72,
+      "pl": 0.374
+    },
+    "STRONG YRFI": {
+      "n": 34,
+      "w": 17,
+      "l": 15,
+      "pl": 0.286
+    }
+  },
+  "verdict_flips_sample": [
+    {
+      "date": "2026-04-05",
+      "game": "PHI@COL",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.3623,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.5001,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "HOU@OAK",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.3969,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.4806,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "LAD@WSH",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.413,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.4833,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "NYM@SF",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.413,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.5139,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "MIL@KC",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4891,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.5861,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "STL@DET",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4692,
+      "tp": "STRONG YRFI",
+      "tp_p": 0.3833,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "TB@MIN",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4891,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.5936,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "TOR@CWS",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.413,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.4798,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "CHC@CLE",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.411,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.4827,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "CIN@TEX",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.5543,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.5963,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "SEA@LAA",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4692,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-05",
+      "game": "ATL@ARI",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.414,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.5139,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-25",
+      "game": "SD@ARI",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4493,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-25",
+      "game": "DET@CIN",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.4081,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.5139,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-25",
+      "game": "MIA@SF",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4604,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-25",
+      "game": "SEA@STL",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4553,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-25",
+      "game": "LAA@KC",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4734,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.6074,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "NYY@SEA",
+      "v2": "STRONG NRFI",
+      "v2_p": 0.6532,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.5401,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "DET@ARI",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.413,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.5826,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "SF@SD",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4965,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "MIN@KC",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.4,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.5139,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "WSH@PHI",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4692,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "PIT@CIN",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4493,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.6074,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "TEX@BAL",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4891,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.6057,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "CLE@LAD",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4692,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "BOS@HOU",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4891,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.5836,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "OAK@ATL",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.4758,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "NRFI"
+    },
+    {
+      "date": "2026-04-01",
+      "game": "CWS@MIA",
+      "v2": "NO EDGE PASS",
+      "v2_p": 0.5543,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.575,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-02",
+      "game": "NYM@SF",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.413,
+      "tp": "NO EDGE PASS",
+      "tp_p": 0.4833,
+      "actual": "YRFI"
+    },
+    {
+      "date": "2026-04-02",
+      "game": "ATL@ARI",
+      "v2": "STRONG YRFI",
+      "v2_p": 0.4037,
+      "tp": "STRONG NRFI",
+      "tp_p": 0.5827,
+      "actual": "YRFI"
+    }
+  ],
+  "fitted_at": "2026-05-04T21:21:04Z"
+}
