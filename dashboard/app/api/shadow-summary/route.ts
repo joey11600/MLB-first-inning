@@ -27,6 +27,26 @@ import path from "node:path";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Resolve the repo-level `data/` dir.  Same pattern as lib/board.ts and
+ *  app/api/health/route.ts: on Vercel after copy-data.mjs runs, ./data
+ *  exists in the dashboard root; locally we fall back to ../data. */
+function dataDir(): string {
+  const local  = path.resolve(process.cwd(), "data");
+  const parent = path.resolve(process.cwd(), "..", "data");
+  try {
+    if (fs.existsSync(path.join(parent, "diagnostics", "shadow_summary.csv"))) return parent;
+    if (fs.existsSync(path.join(local,  "diagnostics", "shadow_summary.csv"))) return local;
+    // Fall back to whichever boards dir exists (matches the rest of the
+    // dashboard's resolution; the file may not exist yet but at least we
+    // pick a sensible base path).
+    if (fs.existsSync(path.join(parent, "boards"))) return parent;
+    if (fs.existsSync(path.join(local,  "boards"))) return local;
+  } catch {
+    /* ignore */
+  }
+  return local;
+}
+
 interface SummaryRow {
   date:      string;
   nBets:     number;
@@ -112,7 +132,7 @@ function aggregate(rows: SummaryRow[]) {
 }
 
 export async function GET() {
-  const csvPath = path.join(process.cwd(), "data", "diagnostics", "shadow_summary.csv");
+  const csvPath = path.join(dataDir(), "diagnostics", "shadow_summary.csv");
   let rows: SummaryRow[] = [];
   try {
     if (fs.existsSync(csvPath)) {
