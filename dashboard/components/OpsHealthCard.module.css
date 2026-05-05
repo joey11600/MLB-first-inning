@@ -88,6 +88,19 @@
   color: var(--destructive);
 }
 
+/* T4.13: amber/warn tone for the grade chip when 1-2 games have been
+   awaiting grade for >15 min.  Less urgent than full error tone (no
+   destructive red) but should still draw the eye -- the grade pipeline
+   is showing early signs of cron lag and the operator should know
+   before it escalates to the 3+ degraded threshold. */
+.metricWarn .metricValue {
+  color: var(--secondary);
+}
+.metricWarn .metricBadge {
+  background: color-mix(in oklab, var(--secondary) 18%, transparent);
+  color: var(--secondary);
+}
+
 .detail {
   color: var(--muted-foreground);
   font-style: italic;

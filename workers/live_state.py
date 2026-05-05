@@ -51,7 +51,7 @@ import os
 import signal
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -84,6 +84,17 @@ ET = ZoneInfo("America/New_York")
 POLL_INTERVAL_S  = int(os.environ.get("POLL_INTERVAL_S",  "10"))
 QUIET_INTERVAL_S = int(os.environ.get("QUIET_INTERVAL_S", "300"))
 ACTIVE_HOURS     = os.environ.get("ACTIVE_HOURS_ET", "10-26")
+
+# T4.13 — Railway worker grade extension.
+# Tracks game_pks already graded by THIS worker process for the current
+# slate date so grade_completed_picks() doesn't re-query Supabase for
+# already-graded games on every 10-sec tick.  Cleared when the slate date
+# rolls over (see main loop) so a worker that survives past midnight ET
+# starts fresh on the new day.  Cross-process idempotency is provided by
+# the SELECT-then-skip-on-terminal check inside grade_completed_picks
+# itself, so this set is purely a query-savings optimization, not a
+# correctness mechanism.
+_graded_in_session: set[str] = set()
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +154,95 @@ def _record_step_failure(client: "Client", step: str, message: str) -> None:
     except Exception as exc:    # noqa: BLE001 — fail-open per worker contract
         print(f"[live_state] _record_step_failure({step!r}) failed: {exc!r}",
               file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# T4.13 — grade computation helpers (mirrored from tracker._calc_pnl).
+# Pure functions, no I/O.  Kept inline here instead of importing tracker so
+# the worker container doesn't need the full predictor codebase available
+# (tracker pulls in pandas, statsapi, etc. at import time -- way more than
+# the worker needs to compute "did we win or lose this bet").
+# ---------------------------------------------------------------------------
+
+def _payout_per_unit(odds_str) -> Optional[float]:
+    """American odds -> payout-per-unit-risked.
+    -110 -> 0.909, +120 -> 1.20, -200 -> 0.50, etc.
+    Returns None when the string is empty or unparseable."""
+    if odds_str is None:
+        return None
+    s = str(odds_str).strip()
+    if not s:
+        return None
+    try:
+        odds = float(s)
+    except (ValueError, TypeError):
+        return None
+    if odds == 0:
+        return None
+    if odds > 0:
+        return odds / 100.0
+    return 100.0 / abs(odds)
+
+
+def _compute_pnl(picks_row: dict, graded: str) -> Optional[float]:
+    """Inline mirror of tracker._calc_pnl for the worker.
+
+    Decision tree (kept identical to tracker.py:2407 so the worker and
+    the GH-Actions grade cycle converge on the same number for any row):
+
+      * Not WIN/LOSS -> None (PASS / POSTPONED / not-graded contribute nothing)
+      * pick_side not in {NRFI, YRFI} -> None (PASS rows aren't bets)
+      * bet_placed='N'  (sub-threshold edge) -> 0.0  (counted as a graded
+        non-bet so dashboard ROI denominator stays right)
+      * units = explicit units_risked, falling back to 1.0/STRONG, 0.5/LEAN
+      * LOSS -> -units
+      * WIN  -> units * payout_per_unit(market odds), with -110 fallback
+        when the market odds column is empty.
+
+    Returns a Python float (rounded to 3dp like tracker._fmt(x, 3)) or
+    None when the row isn't gradable to a numeric P&L.  The Supabase
+    converter (_to_float in supabase_writer) accepts None and writes
+    SQL NULL -- consistent with how the dashboard already renders
+    'no P&L yet' rows."""
+    if graded not in ("WIN", "LOSS"):
+        return None
+
+    pick = (picks_row.get("pick_side") or "").strip().upper()
+    if pick not in ("NRFI", "YRFI"):
+        return None
+
+    bet = (picks_row.get("bet_placed") or "").strip().upper()
+    if bet == "N":
+        return 0.0
+
+    # Bet size: explicit units_risked wins; else strength default.
+    raw_units = picks_row.get("units_risked")
+    units: Optional[float] = None
+    if raw_units not in (None, ""):
+        try:
+            units = float(raw_units)
+        except (ValueError, TypeError):
+            units = None
+    if units is None:
+        strength = (picks_row.get("pick_strength") or "").strip().upper()
+        if strength == "STRONG":
+            units = 1.0
+        elif strength == "LEAN":
+            units = 0.5
+        else:
+            units = 0.0
+    if units <= 0:
+        return None
+
+    if graded == "LOSS":
+        return round(-units, 3)
+
+    # WIN -- prefer real market odds, otherwise -110 flat fallback.
+    odds_col = "market_nrfi_odds" if pick == "NRFI" else "market_yrfi_odds"
+    ppu = _payout_per_unit(picks_row.get(odds_col))
+    if ppu is None:
+        ppu = 100.0 / 110.0    # 0.9091 — matches tracker._calc_pnl fallback
+    return round(units * ppu, 3)
 
 
 def fetch_slate(date_iso: str) -> list[dict]:
@@ -339,6 +439,257 @@ def run_cycle(client: Client, last_sigs: dict[str, tuple], debug: bool) -> tuple
     return (len(rows), len(to_upsert), all_final, rows)
 
 
+# ---------------------------------------------------------------------------
+# T4.13 — Railway worker grade extension.
+#
+# Why this exists: GH Actions cron reliability degraded to ~5 fires per 4
+# hours (vs the 12/hour the schedule asks for) during prime-time slates,
+# so picks_<season>.graded_result lagged 30-60+ minutes behind reality
+# even though live_game_state was already showing fi_complete=true.
+# Operators saw "winning bet, ungraded" and had to manual-grade.
+#
+# This worker already polls MLB every 10 sec for live_game_state, so it
+# has fresh fi_total_runs in hand the moment a 1st inning lands.  We
+# piggyback the grade decision onto that same tick: read picks_<season>
+# from Supabase, compute WIN/LOSS/PASS deterministically, write it back.
+# Result: dashboard sees graded picks ~10 sec after Final-of-1st instead
+# of waiting for the next non-skipped GH Actions fire.
+#
+# Convergence with GH Actions: both writers share Supabase via
+# ON CONFLICT(date, game_pk).  GH Actions also writes the canonical CSV
+# and re-mirrors -- those writes are idempotent (same WIN/LOSS/PASS
+# decision, identical profit_loss_units).  No conflict.
+# ---------------------------------------------------------------------------
+
+def grade_completed_picks(
+    client: Client,
+    full_rows: list[dict],
+    date_iso: str,
+) -> int:
+    """Find newly-completed first innings and write graded results to
+    picks_<season> in Supabase.  Returns the count of rows graded this
+    tick.  Self-skips when nothing's new, so calling every cycle is cheap.
+
+    Filtering pipeline:
+      1. full_rows -> games where fi_complete=True AND we have all three
+         fi_*_runs values (defensive: parse_game can return fi_complete
+         for a Final game where the 1st-inning subobject is missing,
+         which would yield None runs and a bogus grade).
+      2. Drop game_pks already graded earlier in this worker session
+         (`_graded_in_session` cache) to avoid re-querying Supabase
+         for finished work.
+      3. For each remaining game, SELECT the picks_<season> row(s) by
+         (date, game_pk).  A single date+game_pk usually returns 1 row,
+         but DH-paired predictions or backfilled rows could return >1
+         -- we grade each independently rather than assuming uniqueness.
+      4. Skip rows whose graded_result is already terminal (WIN/LOSS/PASS):
+         those were graded by an earlier worker tick, GH Actions, or the
+         operator.  Add to the session cache so we don't re-SELECT.
+      5. Compute graded_result + profit_loss_units, UPDATE in place.
+
+    Failure model: every Supabase call is wrapped in try/except.  Errors
+    are logged + recorded to system_errors but never propagate -- the
+    live_state polling loop must keep running even if grading fails (a
+    grade outage is recoverable at the next GH Actions fire; a missed
+    live_state upsert is not, because the dashboard's whole live UI
+    depends on it).
+
+    Telegram pings: lazy-imports tracker._notify_strong_graded_telegram
+    so STRONG bets that grade here still trigger the operator ping.
+    Notifications_log dedup means even if the same row is graded again
+    by GH Actions later, the user gets exactly one ping per game per
+    side.  Skipped silently if the import fails (worker doesn't need
+    tracker to do its core job)."""
+    if not full_rows:
+        return 0
+
+    # Step 1+2: filter to newly-grade-able games.
+    candidates = [
+        r for r in full_rows
+        if r.get("fi_complete")
+        and r.get("fi_total_runs") is not None
+        and r.get("fi_away_runs") is not None
+        and r.get("fi_home_runs") is not None
+        and str(r.get("game_pk") or "") not in _graded_in_session
+    ]
+    if not candidates:
+        return 0
+
+    season = int(date_iso[:4])
+    table  = f"picks_{season}"
+    graded_count = 0
+    # Re-fetched once on first successful grade so we can fire telegram
+    # pings with today's running record.  None until we need it.
+    today_record_cache: Optional[tuple] = None
+
+    for state in candidates:
+        gp = str(state.get("game_pk") or "")
+        if not gp:
+            continue
+
+        # Step 3: SELECT picks_<season> for this (date, game_pk).
+        try:
+            res = (
+                client.table(table)
+                      .select(
+                          "date, game_pk, away_team, home_team, "
+                          "pick_side, pick_strength, pick_label, "
+                          "graded_result, "
+                          "market_nrfi_odds, market_yrfi_odds, "
+                          "units_risked, bet_placed, game_time_et"
+                      )
+                      .eq("date", date_iso)
+                      .eq("game_pk", gp)
+                      .execute()
+            )
+        except Exception as exc:    # noqa: BLE001
+            print(f"[live_state] grade-select {gp}: {exc!r}",
+                  file=sys.stderr)
+            _record_step_failure(
+                client, "grade-select",
+                f"SELECT picks_{season} game_pk={gp}: {exc!r}",
+            )
+            continue
+
+        rows = res.data or []
+        if not rows:
+            # No picks_<season> entry for this game (e.g. predictor never
+            # ran on this slate, or row got filtered out pre-write).
+            # Cache to skip on subsequent ticks -- nothing to grade and
+            # re-checking every 10s would waste queries.
+            _graded_in_session.add(gp)
+            continue
+
+        all_terminal = True
+        for picks_row in rows:
+            existing = (picks_row.get("graded_result") or "").strip().upper()
+            # Step 4: terminal-grade short-circuit.  POSTPONED/SUSPENDED
+            # are NOT terminal -- tracker.grade_date re-checks them in
+            # case of makeup/resume, and we follow the same rule so a
+            # rain-delayed game whose 1st inning eventually completes
+            # gets re-graded correctly.
+            if existing in ("WIN", "LOSS", "PASS"):
+                continue
+
+            away_r  = state["fi_away_runs"]
+            home_r  = state["fi_home_runs"]
+            total_r = state["fi_total_runs"]
+            actual  = "NRFI" if total_r == 0 else "YRFI"
+            pick    = (picks_row.get("pick_side") or "").strip().upper()
+
+            if pick == "PASS":
+                graded_result = "PASS"
+            elif pick in ("NRFI", "YRFI") and pick == actual:
+                graded_result = "WIN"
+            elif pick in ("NRFI", "YRFI"):
+                graded_result = "LOSS"
+            else:
+                # Unknown pick_side (legacy row, manual edit, etc.) --
+                # skip rather than guessing.  GH Actions grade will
+                # surface it via the predictor's normal logging.
+                all_terminal = False
+                continue
+
+            pnl     = _compute_pnl(picks_row, graded_result)
+            now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+            update = {
+                "actual_result":     actual,
+                "graded_result":     graded_result,
+                "fi_away_runs":      int(away_r),
+                "fi_home_runs":      int(home_r),
+                "fi_total_runs":     int(total_r),
+                "graded_at":         now_iso,
+                "profit_loss_units": pnl,
+            }
+
+            # Step 5: UPDATE in place.  Filter on date+game_pk to be a
+            # no-op if a parallel writer raced us to it (idempotent).
+            try:
+                (client.table(table)
+                       .update(update)
+                       .eq("date", date_iso)
+                       .eq("game_pk", gp)
+                       .execute())
+            except Exception as exc:    # noqa: BLE001
+                print(f"[live_state] grade-update {gp}: {exc!r}",
+                      file=sys.stderr)
+                _record_step_failure(
+                    client, "grade-update",
+                    f"UPDATE picks_{season} game_pk={gp}: {exc!r}",
+                )
+                all_terminal = False
+                continue
+
+            graded_count += 1
+            ts = datetime.now(ET).strftime("%H:%M:%S")
+            pnl_tag = f"  pnl={pnl:+.3f}u" if isinstance(pnl, (int, float)) and pnl != 0 else ""
+            print(
+                f"[live_state] {ts} ET  graded {picks_row.get('away_team') or '???'}@"
+                f"{picks_row.get('home_team') or '???'} (gp={gp})  "
+                f"pick={pick} actual={actual} -> {graded_result}  "
+                f"1st={away_r}-{home_r}{pnl_tag}",
+                flush=True,
+            )
+
+            # Telegram graded ping for STRONG bets, mirrored from
+            # tracker.grade_date.  Lazy-imported per-tick so import
+            # errors degrade gracefully (worker must keep polling).
+            try:
+                if today_record_cache is None:
+                    # One SELECT per tick to compute today's running
+                    # W-L + P&L.  Refreshed AFTER the UPDATE above so
+                    # the just-graded row is included in the running
+                    # record we send to telegram.
+                    todays_res = (
+                        client.table(table)
+                              .select(
+                                  "graded_result, profit_loss_units, "
+                                  "pick_side, pick_strength, "
+                                  "bet_placed, units_risked"
+                              )
+                              .eq("date", date_iso)
+                              .execute()
+                    )
+                    todays_rows = todays_res.data or []
+                    import sys as _sys
+                    from pathlib import Path as _P
+                    repo_root = _P(__file__).resolve().parent.parent
+                    if str(repo_root) not in _sys.path:
+                        _sys.path.insert(0, str(repo_root))
+                    from tracker import _aggregate_today_record
+                    today_record_cache = _aggregate_today_record(
+                        todays_rows, date_iso
+                    )
+                from tracker import _notify_strong_graded_telegram
+                # Build a row dict shaped like what tracker passes:
+                # the original picks_row plus the freshly-written
+                # grade fields.
+                notify_row = {**picks_row, **update}
+                today_record, today_pl = today_record_cache
+                _notify_strong_graded_telegram(
+                    notify_row, today_record, today_pl,
+                )
+            except Exception as exc:    # noqa: BLE001
+                # Non-fatal: telegram missing != grade missing.  GH
+                # Actions will re-fire the ping after its next grade
+                # cycle if the worker's path was unavailable.
+                print(
+                    f"[live_state] telegram graded ping skipped "
+                    f"(gp={gp}): {exc!r}",
+                    file=sys.stderr,
+                )
+
+        # If every row for this game_pk ended up terminal (or just got
+        # graded), cache the game_pk so subsequent ticks skip it.  If
+        # any row failed mid-loop (all_terminal=False), leave the
+        # game_pk uncached so the next tick retries the failed UPDATE.
+        if all_terminal:
+            _graded_in_session.add(gp)
+
+    return graded_count
+
+
 def check_scratches(client, full_rows: list[dict]) -> int:
     """T2.40 starter-scratch detector.
 
@@ -481,7 +832,15 @@ def check_ops_health(client) -> None:
         latest = _dt.fromisoformat(latest_iso.replace("Z", "+00:00"))
         now    = _dt.now(latest.tzinfo)
         age_m  = int((now - latest).total_seconds() / 60)
-        if age_m >= 30:
+        # T4.14: bumped from 30 min -> 45 min.  GitHub Actions cron
+        # routinely fires 10-25 min late on free runners; the 30-min
+        # threshold was firing on routine cron-skip events that resolved
+        # themselves before the operator could act.  45 min is the point
+        # where intervention is actually needed (real outage vs transient
+        # cron lag).  Dedup window was bumped to 120 min in tracker.py
+        # so a sustained outage produces 1 ping every 2h instead of
+        # every hour.
+        if age_m >= 45:
             _notify_ops_health_telegram(age_m)
     except Exception as exc:    # noqa: BLE001 — advisory only
         # Don't even log -- ops health checks shouldn't pollute logs
@@ -542,6 +901,12 @@ def main() -> None:
         if cur_iso != last_iso_seen:
             print(f"[live_state] date rolled {last_iso_seen} -> {cur_iso}, clearing sig cache")
             last_sigs.clear()
+            # T4.13: also clear the grade-session cache so games on the
+            # new slate get fresh evaluation.  Without this a worker
+            # that survives midnight would think every game on the new
+            # slate was already graded just because game_pks happen to
+            # collide (they don't, but the cache would still bloat).
+            _graded_in_session.clear()
             last_iso_seen = cur_iso
 
         if not is_active_hour():
@@ -554,6 +919,22 @@ def main() -> None:
 
         seen, pushed, all_final, full_rows = run_cycle(client, last_sigs, args.debug)
 
+        # T4.13: Railway worker grade extension.  Run after every cycle
+        # (cheap when nothing's complete -- function self-skips when
+        # full_rows has no fi_complete=True games not in the session
+        # cache).  Wrapped in try/except so a grade outage NEVER takes
+        # down the live_state polling loop -- worker contract is fail-
+        # open: live UI must keep working even when grading is degraded.
+        try:
+            grade_completed_picks(client, full_rows, cur_iso)
+        except Exception as exc:    # noqa: BLE001
+            print(f"[live_state] grade_completed_picks crashed: {exc!r}",
+                  file=sys.stderr)
+            _record_step_failure(
+                client, "grade-cycle",
+                f"grade_completed_picks raised: {exc!r}",
+            )
+
         # T2.38 #7: throttled ops-health check.
         cycle_count += 1
         if cycle_count % HEALTH_EVERY_N_CYCLES == 0:
@@ -565,7 +946,8 @@ def main() -> None:
 
         if args.once:
             # In --once mode also run health + scratch checks so smoke
-            # tests cover them.
+            # tests cover them.  Grade was already invoked above; no
+            # need to call it twice.
             check_ops_health(client)
             check_scratches(client, full_rows)
             print(f"[live_state] --once mode: seen={seen} pushed={pushed} all_final={all_final}")

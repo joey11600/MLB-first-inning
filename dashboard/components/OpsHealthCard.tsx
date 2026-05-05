@@ -34,8 +34,17 @@ interface HealthResponse {
   isPrimeHours:         boolean;
   lastPredictAt:        string | null;
   lastWorkerAt:         string | null;
+  // T4.13: grade-pipeline freshness.  lastGradeAt = MAX(graded_at) on
+  // picks_<season>; gamesAwaitingGrade = games whose 1st inning landed
+  // in live_game_state but graded_result is still empty in picks.  The
+  // latter is the killer cron-lag signal -- 0 under healthy ops, >0
+  // when grading has stalled.
+  lastGradeAt?:         string | null;
   minutesSincePredict:  number | null;
   minutesSinceWorker:   number | null;
+  minutesSinceGrade?:   number | null;
+  gamesAwaitingGrade?:  number;
+  oldestAwaitingMinutes?: number | null;
   errorsLast24h:        number;
   errorsLastHour:       number;
   errorCountsByStep:    Record<string, number>;
@@ -128,7 +137,13 @@ export function OpsHealthCard() {
 
   const { status, reasons, minutesSincePredict, lastWorkerAt,
           errorsLastHour, errorsLast24h, errorCountsByStep,
-          recentErrors, noticesLast24h = 0, recentNotices = [] } = data;
+          recentErrors, noticesLast24h = 0, recentNotices = [],
+          // T4.13: grade-freshness fields (optional -- older deploys
+          // of the API route won't return them; default to safe values
+          // so the card still renders against a stale endpoint).
+          minutesSinceGrade = null,
+          gamesAwaitingGrade = 0,
+          oldestAwaitingMinutes = null } = data;
 
   const statusClass =
     status === "ok"       ? styles.statusOk
@@ -144,6 +159,27 @@ export function OpsHealthCard() {
 
   const predictAge = formatAge(minutesSincePredict);
   const workerAge  = formatWorkerAge(lastWorkerAt);
+  const gradeAge   = formatAge(minutesSinceGrade);
+
+  // T4.13: tone the grade chip when the pipeline is lagging.  Red when
+  // there's a real cron-lag bite (3+ ungraded for >15 min), amber when
+  // 1-2 ungraded for >15 min.  Always-green when nothing's awaiting --
+  // a cold lastGradeAt when no innings have completed yet (early in the
+  // slate) is normal and shouldn't visually scream.
+  const gradeLagging =
+    gamesAwaitingGrade >= 3
+    && oldestAwaitingMinutes !== null
+    && oldestAwaitingMinutes > 15;
+  const gradeWarn =
+    !gradeLagging
+    && gamesAwaitingGrade >= 1
+    && oldestAwaitingMinutes !== null
+    && oldestAwaitingMinutes > 15;
+  const gradeChipClass = gradeLagging
+    ? styles.metricErrs
+    : gradeWarn
+      ? styles.metricWarn ?? ""
+      : "";
 
   return (
     <section className={styles.wrap}>
@@ -177,6 +213,29 @@ export function OpsHealthCard() {
         <span className={styles.metric}>
           <span className={styles.metricLabel}>live state</span>
           <span className={`num ${styles.metricValue}`}>{workerAge}</span>
+        </span>
+        {/* T4.13: grade-freshness chip.  Always rendered so operators
+            have a constant signal of grade-pipeline health (a missing
+            chip would just look like the feature is broken).  Tone
+            class kicks in only when the pipeline is actually lagging,
+            so the chip stays visually quiet under healthy ops. */}
+        <span className={styles.sep}>·</span>
+        <span className={`${styles.metric} ${gradeChipClass}`}>
+          <span className={styles.metricLabel}>grade</span>
+          <span className={`num ${styles.metricValue}`}>{gradeAge}</span>
+          {gamesAwaitingGrade > 0 && (
+            <span
+              className={styles.metricBadge}
+              title={
+                oldestAwaitingMinutes !== null
+                  ? `${gamesAwaitingGrade} game${gamesAwaitingGrade === 1 ? "" : "s"}` +
+                    ` awaiting grade -- oldest ${oldestAwaitingMinutes} min`
+                  : `${gamesAwaitingGrade} game${gamesAwaitingGrade === 1 ? "" : "s"} awaiting grade`
+              }
+            >
+              {gamesAwaitingGrade} awaiting
+            </span>
+          )}
         </span>
         {errorsLast24h > 0 && (
           <>

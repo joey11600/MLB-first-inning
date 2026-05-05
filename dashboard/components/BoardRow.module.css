@@ -19,14 +19,25 @@
    New 6 cols: TIME | MATCHUP | STATE | PICK (pill+chip) | DIST | EXPAND.
 
    Width budget at the smallest desktop viewport (1281px):
-     fixed:   74 + 80 + 64                       = 218
-     minima:  120 + 280 + 220                    = 620
+     fixed:   74 + 80 + 68                       = 222
+     minima:  108 + 348 + 196                    = 652
      gaps:    5 × 14                             = 70
      padding: 24 + 24                            = 48
-     ------                                      956px min
-   Comfortable -- 325px of fr slack at 1281, 484px at 1440.  PICK gets
-   the largest fr share (1.0) so the pill+chip pair stretches with
-   viewport while remaining left-aligned.
+     ------                                      992px min
+   Comfortable at 1281 (~289px of fr slack) and roomy at 1440 (~448px).
+   PICK gets the dominant fr share (1.25) so the pill + odds-chip pair
+   has true breathing room as the viewport widens, and the chip never
+   has to fight the meter for column real estate.
+
+   Earlier rev had PICK at minmax(280px, 1fr) which made the pill+chip
+   pair (~300px combined for a STRONG YRFI + DK chip) overflow the
+   cell at the 1281 boundary.  The pickCell used display:inline-flex
+   which shrink-wraps to content -- so flex-wrap never triggered,
+   the chip ran straight into the meter column, and the row's
+   overflow:hidden clipped its right tail.  Two fixes shipped here:
+   pickCell is now display:flex (fills the cell so wrap actually
+   triggers when content exceeds it) and the column is wider with
+   more fr slack so wrap is the rare exception, not the norm.
    ============================================================ */
 
 /* ============================================================
@@ -162,14 +173,14 @@
   width: 100%;
   grid-template-columns:
     74px                    /* TIME -- wall-clock or placeholder chip */
-    minmax(120px, 0.5fr)    /* MATCHUP -- away at home + DH/DQ tags */
+    minmax(108px, 0.42fr)   /* MATCHUP -- away at home + DH/DQ tags */
     80px                    /* STATE -- live badge or graded result */
-    minmax(280px, 1fr)      /* PICK -- pill + inline odds chip */
-    minmax(220px, 0.6fr)    /* DIST -- segmented NRFI<->YRFI bar */
-    64px;                   /* EXPAND -- caret affordance */
+    minmax(348px, 1.25fr)   /* PICK -- pill + inline odds chip (fits STRONG YRFI + DK -135 +6.3% with slack) */
+    minmax(196px, 0.5fr)    /* DIST -- segmented NRFI<->YRFI bar */
+    68px;                   /* EXPAND -- caret affordance + breathing buffer to DIST */
   align-items: center;
   gap: 14px;
-  padding: 18px 24px;
+  padding: 18px 28px 18px 24px;
   text-align: left;
   color: var(--foreground);
   position: relative;
@@ -467,11 +478,18 @@
    ============================================================ */
 
 .pickCell {
-  display: inline-flex;
+  /* Fills the grid cell instead of shrink-wrapping to content.  Without
+     this, the inline-flex container ignored its grid track width, the
+     chip ran past the cell boundary, and flex-wrap never triggered
+     because the container had no width constraint to overflow.  With
+     display:flex the cell width caps the row, so wrap fires correctly
+     and the OddsChip stops getting clipped by overflow:hidden on .row. */
+  display: flex;
   align-items: center;
   column-gap: 12px;
   row-gap: 6px;
   min-width: 0;
+  width: 100%;
   flex-wrap: wrap;
 }
 
@@ -651,8 +669,8 @@
 .oddsChip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 10px 4px 9px;
+  gap: 6px;
+  padding: 4px 9px 4px 8px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: color-mix(in oklab, var(--muted) 80%, transparent);
@@ -662,6 +680,12 @@
   letter-spacing: 0.02em;
   white-space: nowrap;
   flex: 0 0 auto;
+  /* Defensive: if the cell ever does pinch (very narrow viewport, weird
+     zoom level, long edge string), the chip can shrink by trimming its
+     own internal whitespace before it gets clipped by the row's
+     overflow:hidden.  flex-shrink:1 + min-width:0 lets it negotiate. */
+  min-width: 0;
+  max-width: 100%;
   transition: background 200ms cubic-bezier(0.16, 1, 0.3, 1),
               border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -763,12 +787,17 @@
    ============================================================ */
 
 .distBar {
-  display: inline-grid;
-  grid-template-columns: minmax(40px, auto) 1fr minmax(40px, auto);
+  display: grid;
+  grid-template-columns: minmax(36px, auto) 1fr minmax(36px, auto);
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   min-width: 0;
+  /* Pull the YRFI numeric label inboard a few pixels so it doesn't sit
+     flush against the EXPAND column.  Combined with the wider EXPAND
+     track and the row's right-padding bump, this gives the caret a
+     proper visual buffer without shrinking the bar's fill area. */
+  padding-right: 6px;
 }
 
 .distLabel {
