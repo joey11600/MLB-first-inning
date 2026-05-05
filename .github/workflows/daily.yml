@@ -505,6 +505,26 @@ jobs:
           python tools/feature_drift_monitor.py 2>&1 \
             || echo "::warning::feature_drift_monitor failed (non-blocking)"
 
+      - name: Per-pick reasoning log (T4.6)
+        if: steps.action.outputs.what == 'grade'
+        # For each STRONG pick on yesterday's slate, write a JSON entry
+        # with: top-5 LR feature contributions per half (z-score, weight,
+        # logit contribution), calibrator band info (flat-zone detection),
+        # raw-cache vs priors-pooled Statcast comparison, pitcher_q tags,
+        # and a warnings list flagging outliers.
+        #
+        # Output: data/diagnostics/picks/<date>.json
+        #
+        # Future losing-bet debugging:
+        #   jq '.picks[] | select(.graded_result == "LOSS") | .warnings'
+        #     data/diagnostics/picks/<date>.json
+        # tells you the dominant feature on every loss in seconds.
+        # Soft-fail.
+        run: |
+          set +e
+          python tools/pick_reasoning_log.py 2>&1 \
+            || echo "::warning::pick_reasoning_log failed (non-blocking)"
+
       - name: Recalibrate (weekly)
         if: steps.action.outputs.what == 'recalibrate'
         run: |
