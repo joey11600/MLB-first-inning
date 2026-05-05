@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type {
   BatterLine,
   BoardRow,
@@ -40,6 +41,7 @@ export function GameDetails({
   rawDetail,
   thresholds,
   model = "v2",
+  slateDate,
 }: {
   row:        BoardRow;
   detail:     GameDetail | undefined;
@@ -47,6 +49,8 @@ export function GameDetails({
   rawDetail?: GameDetail | undefined;
   thresholds?: PickThresholds;
   model?:     "v2" | "v3";
+  /** T4.12: slate date (YYYY-MM-DD) for the /api/pick-reasoning lookup. */
+  slateDate?: string;
 }) {
   const hasDetail = Boolean(detail);
 
@@ -120,6 +124,7 @@ export function GameDetails({
       )}
 
       <WhyThisPickPanel detail={detail} pickSide={row.pickSide} />
+      <PickReasoningPanel date={slateDate ?? ""} gamePk={row.gamePk} matchup={`${row.away}@${row.home}`} />
 
       <div className={styles.matchupGrid}>
         <TeamCard
@@ -157,6 +162,200 @@ export function GameDetails({
  *  signed bar showing magnitude/direction.  Positive contribution
  *  pushes toward NRFI, negative toward YRFI.  Hidden when no
  *  contributions are persisted (older rows / pre-LR-v4). */
+/* T4.12 -- Per-pick reasoning panel sourcing T4.6's pick_reasoning_log.py
+   output.  Surfaces the diagnostic data the operator needs to TRUST a
+   pick:
+     - priors-pooled vs raw cache xera (was T4.2 shrinkage active?)
+     - pitcher_q tags (live / ltd / sm -- the T2.53-class regression
+       indicator)
+     - calibrator flat-zone status (multiple raw probs collapsing to
+       same calibrated output = bin-collapse pathology)
+     - warnings list (outlier features, extreme cache values, etc.)
+
+   When all three checks are clean the panel collapses to a one-line
+   "no concerns" pill.  Loud warnings expand inline. */
+function PickReasoningPanel({
+  date,
+  gamePk,
+  matchup,
+}: {
+  date:    string;
+  gamePk:  string;
+  matchup: string;
+}) {
+  type Driver = {
+    name:         string;
+    value:        number;
+    z:            number;
+    weight:       number;
+    contribution: number;
+    outlier:      boolean;
+  };
+  type ReasoningResp = {
+    available?:        boolean;
+    reason?:           string;
+    matchup?:          string;
+    pick_side?:        string;
+    pick_strength?:    string;
+    raw_p_nrfi?:       number;
+    calibrated_p_nrfi?: number;
+    calibrator_band?:  { is_flat?: boolean; flat_size?: number; flat_rate?: number };
+    top_drivers_t1?:   Driver[];
+    top_drivers_b1?:   Driver[];
+    priors_vs_raw?: {
+      home_xera_raw?:    number | null;
+      home_xera_pooled?: number | null;
+      away_xera_raw?:    number | null;
+      away_xera_pooled?: number | null;
+    };
+    pitcher_q?: {
+      home_pitcher_q?: string | null;
+      away_pitcher_q?: string | null;
+    };
+    warnings?: string[];
+  };
+
+  const [data, setData] = useState<ReasoningResp | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!date || !gamePk) {
+      setLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/pick-reasoning?date=${encodeURIComponent(date)}&game_pk=${encodeURIComponent(gamePk)}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok && res.status !== 404) {
+          if (!cancelled) setLoaded(true);
+          return;
+        }
+        const json: ReasoningResp = await res.json();
+        if (!cancelled) {
+          setData(json);
+          setLoaded(true);
+        }
+      } catch {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [date, gamePk]);
+
+  if (!loaded) return null;
+
+  // No reasoning available yet for this pick (likely PASS pick before
+  // --include-pass flag fires, or pre-T4.6 data).  Don't render.
+  if (!data || data.available === false) return null;
+
+  const priors = data.priors_vs_raw || {};
+  const homeRaw    = priors.home_xera_raw    ?? null;
+  const homePooled = priors.home_xera_pooled ?? null;
+  const awayRaw    = priors.away_xera_raw    ?? null;
+  const awayPooled = priors.away_xera_pooled ?? null;
+
+  const homeShrunk =
+    homeRaw != null && homePooled != null
+      ? Math.abs(homeRaw - homePooled) > 0.5
+      : false;
+  const awayShrunk =
+    awayRaw != null && awayPooled != null
+      ? Math.abs(awayRaw - awayPooled) > 0.5
+      : false;
+
+  const flatZone = data.calibrator_band?.is_flat ?? false;
+  const flatSize = data.calibrator_band?.flat_size ?? 0;
+
+  const pq = data.pitcher_q || {};
+  const warnings = data.warnings || [];
+  const hasConcerns = warnings.length > 0 || flatZone || homeShrunk || awayShrunk;
+
+  return (
+    <section className={styles.reasoningPanel}>
+      <div className={styles.whyHead}>
+        <span className="eyebrow">Pick diagnostics</span>
+        <span className={styles.whySub}>
+          T4.2 priors-pooling status, pitcher data quality, calibrator band.
+        </span>
+      </div>
+
+      {!hasConcerns && (
+        <div className={`${styles.reasoningPill} ${styles.reasoningOk}`}>
+          No concerns -- inputs within expected ranges, no calibrator clamping.
+        </div>
+      )}
+
+      {(homeShrunk || awayShrunk) && (
+        <div className={styles.reasoningRow}>
+          <span className={styles.reasoningLabel}>xera shrinkage (T4.2)</span>
+          <div className={styles.reasoningStack}>
+            {homeShrunk && (
+              <div className={`${styles.reasoningSubrow} ${styles.shrunkHigh}`}>
+                Home pitcher: raw cache <strong className="num">{homeRaw!.toFixed(2)}</strong>{" "}
+                → priors-pooled <strong className="num">{homePooled!.toFixed(2)}</strong>{" "}
+                (drift {(homePooled! - homeRaw!).toFixed(2)})
+              </div>
+            )}
+            {awayShrunk && (
+              <div className={`${styles.reasoningSubrow} ${styles.shrunkHigh}`}>
+                Away pitcher: raw cache <strong className="num">{awayRaw!.toFixed(2)}</strong>{" "}
+                → priors-pooled <strong className="num">{awayPooled!.toFixed(2)}</strong>{" "}
+                (drift {(awayPooled! - awayRaw!).toFixed(2)})
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {(pq.home_pitcher_q || pq.away_pitcher_q) && (
+        <div className={styles.reasoningRow}>
+          <span className={styles.reasoningLabel}>pitcher_q tag</span>
+          <div className={styles.reasoningStack}>
+            <span className={styles.reasoningInline}>
+              away: <strong>{pq.away_pitcher_q ?? "—"}</strong> ·
+              home: <strong>{pq.home_pitcher_q ?? "—"}</strong>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {flatZone && (
+        <div className={styles.reasoningRow}>
+          <span className={styles.reasoningLabel}>calibrator</span>
+          <div className={styles.reasoningStack}>
+            <div className={`${styles.reasoningSubrow} ${styles.flatZone}`}>
+              Flat zone detected: {flatSize} bins map to the same rate. Multiple
+              distinct raw probs collapse here -- predictions correlate with
+              other picks in this band.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {warnings.length > 0 && (
+        <div className={styles.reasoningRow}>
+          <span className={styles.reasoningLabel}>warnings</span>
+          <ul className={styles.reasoningWarnList}>
+            {warnings.map((w, i) => (
+              <li key={i} className={styles.reasoningWarn}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className={styles.whyFoot}>
+        Source: <code>data/diagnostics/picks/{date}.json</code> ·
+        {" "}generated by <code>tools/pick_reasoning_log.py</code> (T4.6) ·
+        {" "}{matchup}
+      </div>
+    </section>
+  );
+}
+
 function WhyThisPickPanel({
   detail,
   pickSide,

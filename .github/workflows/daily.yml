@@ -228,6 +228,19 @@ jobs:
             exit 1
           fi
 
+          # T4.12 (this commit): write per-pick reasoning JSON for the
+          # FRESH slate so the dashboard's "Why this pick?" panel has
+          # data BEFORE games are graded.  The same script also runs in
+          # the nightly grade cron for historical record; this hourly
+          # call keeps today's data current as picks lock + flip + relock.
+          # Soft-fail so a reasoning error doesn't block the predict
+          # commit -- diagnostic, not on the critical path.
+          echo "==> Writing per-pick reasoning JSON for $TODAY_ISO..."
+          set +e
+          python tools/pick_reasoning_log.py "$TODAY_ISO" --include-pass 2>reason_err.log \
+            || echo "::warning::pick_reasoning_log failed (non-blocking): $(tail -c 200 reason_err.log)"
+          set -e
+
           echo "==> Scraping DraftKings odds for $TODAY_ISO..."
           set +e
           python scrape_dk_odds.py 2>scrape_err.log

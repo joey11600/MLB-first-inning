@@ -424,6 +424,7 @@ export function BoardRowItem({
             rawDetail={rawDetail}
             thresholds={thresholds}
             model={model}
+            slateDate={slateDate}
           />
         </div>
       )}

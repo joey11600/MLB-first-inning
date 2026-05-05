@@ -86,8 +86,15 @@ if (fs.existsSync(errs)) {
 //    timeline of "V2 actual vs V2+T4.2 shadow" deltas.  Surfaced on
 //    the dashboard so the operator sees at a glance whether T4.2 is
 //    still producing positive delta vs the live model.  Only copy
-//    the small summary file; the per-day detail/JSON files are kept
-//    on disk for jq investigation but don't ship with the bundle.
+//    the small summary file; the per-day detail CSVs are kept on
+//    disk for jq investigation but don't ship with the bundle.
+//
+// T4.12 (also): bundle the LAST 7 DAYS of pick-reasoning JSON files
+//    (data/diagnostics/picks/<date>.json from T4.6) so the dashboard
+//    can surface "Why this pick?" feature contributions per row.
+//    Older files stay on disk for historical investigation but don't
+//    ship -- we only need recent days for the dashboard's row-expand
+//    panel.
 const diagSrc = path.join(src, "diagnostics");
 if (fs.existsSync(diagSrc)) {
   const diagDest = path.join(dest, "diagnostics");
@@ -101,6 +108,21 @@ if (fs.existsSync(diagSrc)) {
   if (fs.existsSync(driftAlerts)) {
     fs.copyFileSync(driftAlerts, path.join(diagDest, "drift_alerts.csv"));
     copied += 1;
+  }
+
+  // Per-pick reasoning JSONs (T4.6) -- bundle the most recent 7 files
+  const picksSrc = path.join(diagSrc, "picks");
+  if (fs.existsSync(picksSrc)) {
+    const picksDest = path.join(diagDest, "picks");
+    fs.mkdirSync(picksDest, { recursive: true });
+    const allPicks = fs.readdirSync(picksSrc)
+      .filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f))
+      .sort()
+      .slice(-7);
+    for (const f of allPicks) {
+      fs.copyFileSync(path.join(picksSrc, f), path.join(picksDest, f));
+      copied += 1;
+    }
   }
 }
 
