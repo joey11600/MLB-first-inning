@@ -8,9 +8,7 @@
  * the unit stake committed, and how many picks are still pending lineups.
  *
  * Reads from rows + details that DashboardShell already receives from
- * the BoardResponse -- no new data layer.  Click-to-jump links scroll
- * to the first STRONG row of each side via the id={row-<gamePk>}
- * anchor that BoardRow now exposes.
+ * the BoardResponse -- no new data layer.
  *
  * Empty-slate behavior: when there are zero STRONG plays, the card
  * collapses into a calmer "slate locked, nothing to bet" treatment so
@@ -33,8 +31,6 @@ interface TonightsActionCardProps {
 
 interface SideBreakdown {
   count:    number;
-  /** First gamePk in this side's bucket -- for the jump-to-row link. */
-  jumpId:   string | null;
   /** Total units committed (sum of bet_placed='Y' rows × 1u flat). */
   unitsAt:  number;
 }
@@ -68,8 +64,6 @@ function summarize(
   let yrfiCount   = 0;
   let nrfiUnits   = 0;
   let yrfiUnits   = 0;
-  let nrfiJumpId: string | null = null;
-  let yrfiJumpId: string | null = null;
   let pending     = 0;
 
   for (const r of rows) {
@@ -89,11 +83,9 @@ function summarize(
     if (r.pickSide === "NRFI") {
       nrfiCount += 1;
       nrfiUnits += stakeU;
-      if (!nrfiJumpId && r.gamePk) nrfiJumpId = r.gamePk;
     } else if (r.pickSide === "YRFI") {
       yrfiCount += 1;
       yrfiUnits += stakeU;
-      if (!yrfiJumpId && r.gamePk) yrfiJumpId = r.gamePk;
     }
   }
 
@@ -103,8 +95,8 @@ function summarize(
 
   return {
     total,
-    nrfi:    { count: nrfiCount, jumpId: nrfiJumpId, unitsAt: nrfiUnits },
-    yrfi:    { count: yrfiCount, jumpId: yrfiJumpId, unitsAt: yrfiUnits },
+    nrfi:    { count: nrfiCount, unitsAt: nrfiUnits },
+    yrfi:    { count: yrfiCount, unitsAt: yrfiUnits },
     pending,
     unitsTotal,
     empty,
@@ -169,14 +161,12 @@ export function TonightsActionCard({
             label="NRFI"
             tone="nrfi"
             count={s.nrfi.count}
-            jumpId={s.nrfi.jumpId}
             units={s.nrfi.unitsAt}
           />
           <SideRow
             label="YRFI"
             tone="yrfi"
             count={s.yrfi.count}
-            jumpId={s.yrfi.jumpId}
             units={s.yrfi.unitsAt}
           />
           {s.pending > 0 && (
@@ -197,13 +187,11 @@ function SideRow({
   label,
   tone,
   count,
-  jumpId,
   units,
 }: {
   label: "NRFI" | "YRFI";
   tone:  "nrfi" | "yrfi";
   count: number;
-  jumpId: string | null;
   units: number;
 }) {
   if (count === 0) {
@@ -219,30 +207,12 @@ function SideRow({
 
   const meta = units > 0 ? `${units.toFixed(1)}u` : "";
 
-  // jumpId may be empty for legacy rows w/o gamePk; render the row as
-  // a static block in that case (no anchor target available).
-  if (!jumpId) {
-    return (
-      <div className={styles.sideRow}>
-        <span className={styles.sideDot} data-tone={tone} aria-hidden />
-        <span className={styles.sideLabel}>{label}</span>
-        <span className={`num ${styles.sideCount}`}>{count}</span>
-        {meta && <span className={styles.sideMeta}>{meta}</span>}
-      </div>
-    );
-  }
-
   return (
-    <a
-      href={`#row-${jumpId}`}
-      className={`${styles.sideRow} ${styles.sideRowLink}`}
-      aria-label={`Jump to first STRONG ${label} pick on the board`}
-    >
+    <div className={styles.sideRow}>
       <span className={styles.sideDot} data-tone={tone} aria-hidden />
       <span className={styles.sideLabel}>{label}</span>
       <span className={`num ${styles.sideCount}`}>{count}</span>
       {meta && <span className={styles.sideMeta}>{meta}</span>}
-      <span className={styles.sideArrow} aria-hidden>&rsaquo;</span>
-    </a>
+    </div>
   );
 }

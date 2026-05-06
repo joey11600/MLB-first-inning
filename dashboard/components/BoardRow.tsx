@@ -316,12 +316,6 @@ export function BoardRowItem({
   const pulseKey = `${detail?.gradedResult ?? ""}|${row.pickLabel}|${detail?.profitLossUnits ?? ""}|${detail?.fiTotalRuns ?? ""}`;
   const justChanged = useRecentlyChanged(pulseKey, 2500);
 
-  // Stable id for jump-to-row anchor (used by TonightsActionCard).
-  // Falls back to the away@home key when gamePk is empty (legacy rows).
-  const rowAnchorId = row.gamePk
-    ? `row-${row.gamePk}`
-    : `row-${row.away}-${row.home}-${row.gameNumber || 1}`;
-
   const rowClasses = [
     styles.row,
     styles[tone],
@@ -332,7 +326,7 @@ export function BoardRowItem({
   ].filter(Boolean).join(" ");
 
   return (
-    <div className={rowClasses} id={rowAnchorId}>
+    <div className={rowClasses}>
       <button
         type="button"
         className={styles.clickable}
