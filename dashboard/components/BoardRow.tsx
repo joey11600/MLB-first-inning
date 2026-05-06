@@ -543,7 +543,40 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
 
   const nrfiPrice = normalizeAmericanOdds(detail.marketNrfiOdds);
   const yrfiPrice = normalizeAmericanOdds(detail.marketYrfiOdds);
-  if (!nrfiPrice && !yrfiPrice) return null;
+
+  // T-V21-2026-05-06: when a STRONG bet was placed but DK odds were
+  // never captured (typical "DK closed market before our scraper got
+  // there" pattern), still surface the row's bet status with a
+  // -110 fallback chip.  Without this the row showed nothing at all
+  // and the user couldn't tell from the chip area whether a bet had
+  // been placed.  This branch only renders for placed-but-no-odds
+  // STRONG bets; PASS rows + no-data pre-game rows still hide.
+  if (!nrfiPrice && !yrfiPrice) {
+    const isPlacedStrong =
+      detail.betPlaced === "Y" &&
+      (row.pickSide === "NRFI" || row.pickSide === "YRFI");
+    if (!isPlacedStrong) return null;
+    const sideLabel = row.pickSide === "NRFI" ? "N" : "Y";
+    const toneClass =
+      row.pickSide === "NRFI" ? styles.oddsNrfi : styles.oddsYrfi;
+    return (
+      <span
+        className={`${styles.oddsChip} ${toneClass}`}
+        title={
+          `Bet placed: ${row.pickSide} (no DK price captured at lock).` +
+          `\nP&L computed at the standard -110 payout fallback.` +
+          `\nThis happens when DK closes the market before the scraper` +
+          ` reaches the game.`
+        }
+      >
+        <span className={styles.oddsBook}>DK</span>
+        <span className={styles.oddsPair}>
+          <span className={styles.oddsSideLabel}>{sideLabel}</span>
+          <span className={styles.oddsPrice}>-110*</span>
+        </span>
+      </span>
+    );
+  }
 
   const book = shortBook(detail.sportsbook);
   const ageStr = relAge(detail.oddsCapturedAt);

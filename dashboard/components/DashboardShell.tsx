@@ -230,6 +230,15 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   // when the env vars are missing (back-compat for the CSV-only path).
   // The hook itself manages the WebSocket lifecycle (subscribe / unsubscribe
   // on date change + unmount).
+  //
+  // T-V21-2026-05-06: debounced.  Multiple writers (Railway predictor
+  // every 5 min + GHA cron + import_odds + live worker grade extension)
+  // can all touch a single row in the same second when a game grades or
+  // a lock window opens.  Without coalescing, every event fired its own
+  // refetch and the user saw rows briefly disappear / reappear during
+  // the in-between writes.  Now we wait 1.5s after the LAST event
+  // before refetching, so a burst of N writes results in 1 refresh.
+  const refetchTimerRef = useRef<number | null>(null);
   useSupabaseRealtime({
     date: data.date || null,
     onChange: (table) => {
@@ -238,10 +247,24 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       // intentionally don't refetch the board for those.  Picks /
       // pick_changes flips DO need a board refresh.
       if (table === "live_game_state") return;
-      const d = dataDateRef.current;
-      if (d) void refetch(d);
+      if (refetchTimerRef.current !== null) {
+        window.clearTimeout(refetchTimerRef.current);
+      }
+      refetchTimerRef.current = window.setTimeout(() => {
+        refetchTimerRef.current = null;
+        const d = dataDateRef.current;
+        if (d) void refetch(d);
+      }, 1500);
     },
   });
+  useEffect(() => {
+    // Clean up any pending debounced refetch on unmount.
+    return () => {
+      if (refetchTimerRef.current !== null) {
+        window.clearTimeout(refetchTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
