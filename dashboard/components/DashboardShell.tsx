@@ -98,6 +98,26 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     } catch { /* ignore */ }
   }, [filters]);
 
+  // T-V21-2026-05-06f: content-fingerprint of just the user-visible
+  // payload (date / rows / details / pickChanges / thresholds), but
+  // NOT the server-generated `generatedAt` timestamp.  Prior behavior
+  // re-rendered the whole tree on every poll/realtime event because
+  // each /api/board response had a fresh `generatedAt`, so React saw
+  // a new state object and dispatched a top-level update -- looked
+  // like a "random refresh" to the user even when no row had moved.
+  // Now we set state only when something semantically changed.
+  function fingerprint(d: BoardResponse): string {
+    return JSON.stringify({
+      date:      d.date,
+      rows:      d.rows,
+      details:   d.details,
+      changes:   d.pickChanges,
+      thr:       d.thresholds,
+      avail:     d.availableDates,
+    });
+  }
+  const lastFingerprintRef = useRef<string>(fingerprint(initial));
+
   async function refetch(date: string) {
     setLoading(true);
     try {
@@ -106,7 +126,15 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       });
       if (res.ok) {
         const json = (await res.json()) as BoardResponse;
-        setData(json);
+        const next = fingerprint(json);
+        if (next !== lastFingerprintRef.current) {
+          lastFingerprintRef.current = next;
+          setData(json);
+        }
+        // Else: response semantically identical to current state.
+        // Skip setData entirely so React doesn't trigger a re-render
+        // cascade through ChangeBanner / SummaryStrip / RoiPanel /
+        // BoardTable / Ticker just to repaint the same content.
       }
     } finally {
       setLoading(false);
