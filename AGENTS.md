@@ -108,6 +108,29 @@ The CSV ledger at `data/picks_2026.csv` is append-mostly. Specific rules:
 - **Pick changes are journaled.** Every flip writes to `pick_changes.csv`.
   90-day rolling retention (T3.5). Never truncate this file manually.
 
+## Quoting P&L numbers — use the calculator, never math in your head
+
+Before stating any P&L figure to the user (chat, summary, commit
+message, anywhere), run `python tools/pl_calc.py` for the relevant
+date / window and copy the number it prints.  Do NOT add up the
+column in your head -- on 2026-05-05 a mental-math error in chat
+("+3.22u") combined with a backfill mirror bug to make the user see
+THREE different numbers for the same slate within ten minutes.  The
+calculator is the canonical answer.
+
+Quick reference:
+- Today's slate (ET):           `python tools/pl_calc.py`
+- Specific date:                `python tools/pl_calc.py --date 2026-05-04`
+- Trailing 7d / 30d / season:   `python tools/pl_calc.py --window 7d`
+- Include LEAN bets too:        `python tools/pl_calc.py --include-lean`
+
+The script also runs a consistency check: every row's stored
+`profit_loss_units` is recomputed against `tracker._calc_pnl` and
+flagged "DRIFT" if they disagree.  A drift means something modified
+the row without going through `_calc_pnl` (e.g. a backfill mirror
+that overwrote real odds with blanks).  Fix any drift before
+quoting numbers.
+
 ## Money rules
 
 - **Flat 1u plays only.** User explicitly rejected Kelly / fractional /

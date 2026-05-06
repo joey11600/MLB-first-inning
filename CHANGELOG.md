@@ -11,6 +11,36 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-05] — `tools/pl_calc.py` canonical P&L calculator
+
+Single command that prints the verified P&L for any date or window.
+Reads `picks_<season>.csv`, recomputes per-row P&L with the same
+helper the rest of the system uses (`tracker._calc_pnl`), and shows
+both the stored and recomputed totals side-by-side so any drift is
+visible at a glance.
+
+Why: today I quoted +3.22u in chat, the user saw +2.55u in the
+dashboard, and the actual answer was +2.22u.  Three numbers for
+one slate within ten minutes.  Mental arithmetic is banned for
+P&L going forward; the calculator is the canonical answer.
+
+Usage:
+- Today's slate:                  `python tools/pl_calc.py`
+- Specific date:                  `python tools/pl_calc.py --date 2026-05-04`
+- Trailing 7d / 30d / season:     `python tools/pl_calc.py --window 7d`
+
+Bonus: the script flags rows where stored `profit_loss_units`
+disagrees with the recomputed value -- catches the exact failure
+mode that made today's incident a 30-minute debugging session
+(my backfill mirror sent blank market odds and graded_result to
+Supabase, overwriting real values; the recompute would have
+flagged it instantly).
+
+`CLAUDE.md` and `AGENTS.md` both updated to require running the
+calculator before stating any P&L figure to the user.
+
+---
+
 ## [2026-05-05] — Pick-lock alignment + proper DK 403 fix (curl_cffi)
 
 Two fixes that together restore the "T-60min auto-bet + BET LOCKED
