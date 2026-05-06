@@ -285,15 +285,77 @@ PICKS_CONVERTERS: dict[str, Any] = {
 }
 
 
+# T-V21-2026-05-06d: fields that predict does NOT own.  Owned by
+# import_odds (odds, edges, opening line, CLV), the grader (graded
+# result + first-inning runs), or the bet-placement / end-of-day
+# safety net (bet_placed, units_risked, profit_loss_units).  When a
+# row arrives at the mirror with a blank value for one of these, it
+# means "this writer doesn't have new info for that field" -- NOT
+# "wipe the Supabase value to blank."  The predict path on a fresh
+# Railway container reads the git-tracked CSV (which never has same-
+# day odds because GHA doesn't commit them), then preserves those
+# empties through log_picks; without this guard, mirror_picks's
+# upsert was overwriting Supabase's real captured odds with blanks.
+#
+# Real-world incident: 2026-05-06 TOR@TB STRONG YRFI -- odds captured
+# by Railway around midday, mirrored to Supabase, then wiped when a
+# Vercel-triggered redeploy at 4:32 PM EDT booted a fresh container
+# with no local odds file.  The next predict mirrored empty odds and
+# blew away the real prices in Supabase, then DK no longer returned
+# the (already-started) game's market so nothing repaired it.  Same
+# pattern observed on SD@SF, MIL@STL, LAD@HOU, CWS@LAA, ATL@SEA.
+_PRESERVE_ON_BLANK_FIELDS: frozenset[str] = frozenset({
+    # Odds capture
+    "market_nrfi_odds", "market_yrfi_odds",
+    "sportsbook", "odds_captured_at",
+    "implied_nrfi_prob", "implied_yrfi_prob",
+    "edge_nrfi", "edge_yrfi", "edge_on_pick",
+    # Opening line + CLV (T4.28)
+    "opened_nrfi_odds", "opened_yrfi_odds",
+    "opened_captured_at", "clv_pct",
+    # Bet placement
+    "bet_placed", "units_risked", "profit_loss_units",
+    # Grade (set by --grade only)
+    "actual_result", "graded_result",
+    "fi_away_runs", "fi_home_runs", "fi_total_runs",
+    "graded_at",
+})
+
+
+def _is_blank(v) -> bool:
+    """True if `v` is the kind of empty value the predict path emits when
+    it doesn't know the column yet.  Treats "", None, and the string "None"
+    as blank (the latter from CSV reads where a None got str()'d).
+    Numeric 0 is NOT blank -- 0 runs is a real graded value."""
+    if v is None:
+        return True
+    if isinstance(v, str) and v.strip() in ("", "None"):
+        return True
+    return False
+
+
 def _transform_pick_row(row: dict) -> dict:
     """Tracker CSV-style row dict -> Supabase row dict with Postgres-
     appropriate types.  Unknown columns are dropped (forwards-compat:
     if FIELDS gains a column not yet in PICKS_CONVERTERS, that column
-    just doesn't get mirrored until we add the converter)."""
+    just doesn't get mirrored until we add the converter).
+
+    T-V21-2026-05-06d: fields in _PRESERVE_ON_BLANK_FIELDS are skipped
+    when the source value is blank, so an empty value from the predict
+    path doesn't overwrite a populated Supabase column.  See the
+    constant's docstring for the incident this prevents."""
     out: dict = {}
     for col, conv in PICKS_CONVERTERS.items():
         if col in row:
-            out[col] = conv(row.get(col))
+            raw = row.get(col)
+            if col in _PRESERVE_ON_BLANK_FIELDS and _is_blank(raw):
+                # Skip -- let Supabase keep whatever it had.  PostgREST's
+                # upsert sets only the columns present in the body, so a
+                # missing column on UPDATE is preserved; on INSERT the
+                # column gets its table default (NULL).  Either way we
+                # never clobber a real value with a blank.
+                continue
+            out[col] = conv(raw)
     # Default double_header to "N" if the column isn't on the row at
     # all -- some legacy rows pre-T2.21 may still be missing it.
     if "double_header" not in out:
@@ -385,6 +447,18 @@ def mirror_picks(rows: Iterable[dict], season: int) -> int:
             )
         payloads = list(deduped.values())
 
+    # T-V21-2026-05-06d: group payloads by key-shape before batching.
+    # _transform_pick_row now skips blank preserve-fields (odds, grade,
+    # bet) so heterogeneous payloads can flow through this path: row A
+    # has market_nrfi_odds, row B doesn't.  PostgREST's bulk upsert
+    # rejects mixed-shape arrays ("Could not find the 'market_nrfi_odds'
+    # column") so we send one batch per distinct key-set.  Order is
+    # stable (sorted by key tuple) so retries are deterministic.
+    shape_groups: dict[tuple, list[dict]] = {}
+    for p in payloads:
+        sig = tuple(sorted(p.keys()))
+        shape_groups.setdefault(sig, []).append(p)
+
     # T2.45 #5: per-batch retry + per-batch error isolation.
     #
     # Old behavior: a single try/except wrapped the entire batch loop.
@@ -404,8 +478,15 @@ def mirror_picks(rows: Iterable[dict], season: int) -> int:
     BACKOFFS_S   = (0.5, 1.5)    # before attempt 2 / 3
     import time as _time
     total = 0
-    for i in range(0, len(payloads), BATCH):
-        batch = payloads[i:i + BATCH]
+    # Flatten shape-groups into batches.  Each batch is uniform-shape
+    # (subset of one shape-group, sliced to BATCH).
+    flat_batches: list[list[dict]] = []
+    for sig in sorted(shape_groups):
+        group_payloads = shape_groups[sig]
+        for j in range(0, len(group_payloads), BATCH):
+            flat_batches.append(group_payloads[j:j + BATCH])
+
+    for i, batch in enumerate(flat_batches):
         last_exc: Exception | None = None
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
@@ -420,7 +501,7 @@ def mirror_picks(rows: Iterable[dict], season: int) -> int:
         if last_exc is not None:
             # All retries exhausted for this batch.  Log + record + continue.
             print(
-                f"[supabase_writer] picks upsert batch {i//BATCH + 1} "
+                f"[supabase_writer] picks upsert batch {i + 1}/{len(flat_batches)} "
                 f"({len(batch)} rows) failed after {MAX_ATTEMPTS} attempts: "
                 f"{last_exc!r}",
                 file=sys.stderr,
@@ -435,8 +516,7 @@ def mirror_picks(rows: Iterable[dict], season: int) -> int:
                     "step":            "supabase-mirror-picks",
                     "exit_code":       1,
                     "message":         (
-                        f"batch {i//BATCH + 1} of "
-                        f"{(len(payloads) + BATCH - 1) // BATCH}, "
+                        f"batch {i + 1} of {len(flat_batches)}, "
                         f"{len(batch)} rows: {last_exc!r}"
                     )[:1500],
                 }).execute()
