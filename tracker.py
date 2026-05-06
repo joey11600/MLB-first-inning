@@ -238,6 +238,32 @@ def _mirror_picks_to_supabase(season: int, rows: list[dict]) -> None:
         pass
 
 
+def _patch_picks_to_supabase(
+    season: int,
+    rows: list[dict],
+    fields: list[str],
+) -> None:
+    """Safer counterpart to `_mirror_picks_to_supabase`: only the named
+    `fields` are pushed to Supabase; everything else on the destination
+    row stays untouched.
+
+    Use this for any data-correction / backfill workflow where the
+    local CSV may be out-of-date relative to Supabase (e.g. live worker
+    has graded a row the CSV hasn't pulled in yet).  Mirroring a stale
+    full row WIPES the fresher Supabase fields -- this is the bug that
+    caused the 2026-05-05 P&L confusion.
+
+    Silent no-op when Supabase env vars are unset.  Errors swallowed
+    (CSV remains source of truth)."""
+    if not rows or not fields:
+        return
+    try:
+        from db.supabase_writer import patch_picks
+        patch_picks(rows, season, fields)
+    except Exception:
+        pass
+
+
 def _mirror_pick_change_to_supabase(*, captured_at: str, iso_date: str,
                                      game_pk: str, away_team: str, home_team: str,
                                      game_time: str, old_label: str,
@@ -1875,26 +1901,72 @@ def _notify_bankroll_milestone_telegram(milestone_units: int,
     _notify_event_telegram("bankroll_milestone", event_key, body)
 
 
+def _verified_today_pl(rows: list[dict], iso_date: str) -> tuple[float, float, int]:
+    """Recompute today's P&L using `_calc_pnl` and compare to the stored
+    `profit_loss_units` column.  Returns (stored_total, recomputed_total,
+    drift_row_count).  Same canonical math `tools/pl_calc.py` runs --
+    if the digest's stored total disagrees with the recomputed total,
+    a row was modified outside `_calc_pnl` (e.g. a backfill mirror that
+    overwrote real odds with blanks; see 2026-05-05 incident)."""
+    stored = 0.0
+    recomp = 0.0
+    drift = 0
+    for r in rows:
+        if (r.get("date") or "").strip() != iso_date:
+            continue
+        try:
+            sv = float((r.get("profit_loss_units") or "0") or 0)
+        except (ValueError, TypeError):
+            sv = 0.0
+        rv_str = _calc_pnl(r)
+        try:
+            rv = float(rv_str) if rv_str else 0.0
+        except (ValueError, TypeError):
+            rv = 0.0
+        stored += sv
+        recomp += rv
+        if abs(sv - rv) > 0.001 and (sv != 0.0 or rv != 0.0):
+            drift += 1
+    return stored, recomp, drift
+
+
 def _notify_daily_digest_telegram(iso_date: str,
                                    today_record: tuple[int, int, int],
                                    today_pl_units: float,
                                    season_record: tuple[int, int, int],
                                    season_pl_units: float,
-                                   tomorrow_games: int) -> None:
+                                   tomorrow_games: int,
+                                   today_pl_recomputed: float | None = None,
+                                   today_drift_rows: int = 0) -> None:
     """Once-per-day end-of-slate wrap.  Fires after the last game of
-    `iso_date` is graded (or via a daily cron at ~1am ET)."""
+    `iso_date` is graded (or via a daily cron at ~1am ET).
+
+    If `today_pl_recomputed` is supplied and differs from `today_pl_units`
+    by more than 0.001u, the digest also flags the drift inline so the
+    user sees they should run `tools/pl_calc.py` to investigate.  This
+    is the canonical match for `pl_calc --verbose`'s consistency check."""
     w, l, p = today_record
     sw, sl, _sp = season_record
-    body = "\n".join([
+    lines = [
         f"🌙 <b>{iso_date} wrap</b>",
         f"Today: {w}-{l}" + (f"-{p}P" if p else "") + f" · <b>{today_pl_units:+.2f}u</b>",
         f"Season: {sw}-{sl} · {(sw / max(sw + sl, 1)) * 100:.1f}% · {season_pl_units:+.2f}u",
         f"Tomorrow: {tomorrow_games} games on the slate.",
-        "",
-        _dashboard_link(iso_date),
-    ])
+    ]
+    # Drift warning: if recomputed differs from stored, surface inline.
+    if today_pl_recomputed is not None and abs(today_pl_recomputed - today_pl_units) > 0.001:
+        lines.append("")
+        lines.append(
+            f"⚠️ <b>P&L drift detected:</b> stored {today_pl_units:+.2f}u vs "
+            f"recomputed {today_pl_recomputed:+.2f}u "
+            f"({today_drift_rows} row(s)).  Run "
+            f"<code>python tools/pl_calc.py --date {iso_date}</code> "
+            f"to diagnose."
+        )
+    lines.append("")
+    lines.append(_dashboard_link(iso_date))
     event_key = f"daily_digest:{iso_date}"
-    _notify_event_telegram("daily_digest", event_key, body)
+    _notify_event_telegram("daily_digest", event_key, "\n".join(lines))
 
 
 def _aggregate_today_record(rows: list[dict], iso_date: str) -> tuple[tuple[int, int, int], float]:
@@ -2420,16 +2492,22 @@ def grade_date(date_str: str, season: int) -> None:
             ):
                 today_record, today_pl = _aggregate_today_record(rows, iso_date)
                 season_record, season_pl, _hit = _aggregate_season_record(rows)
+                # Verified-against-pl_calc: recompute P&L per row and
+                # compare to stored.  If they disagree the digest shows
+                # a drift warning so the user knows to run pl_calc.
+                stored_pl, recomp_pl, drift_rows = _verified_today_pl(rows, iso_date)
                 # We don't know tomorrow's slate count without an MLB API call;
                 # leave 0 — predictor cycle the next morning will fix the
                 # board.  Could enrich in a future revision.
                 _notify_daily_digest_telegram(
-                    iso_date         = iso_date,
-                    today_record     = today_record,
-                    today_pl_units   = today_pl,
-                    season_record    = season_record,
-                    season_pl_units  = season_pl,
-                    tomorrow_games   = 0,
+                    iso_date              = iso_date,
+                    today_record          = today_record,
+                    today_pl_units        = today_pl,
+                    season_record         = season_record,
+                    season_pl_units       = season_pl,
+                    tomorrow_games        = 0,
+                    today_pl_recomputed   = recomp_pl,
+                    today_drift_rows      = drift_rows,
                 )
 
     print(f"\n  Graded {graded_n} | Skipped {skipped_n} | Already done {already_n}")

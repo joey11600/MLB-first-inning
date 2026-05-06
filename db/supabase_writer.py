@@ -449,6 +449,86 @@ def mirror_picks(rows: Iterable[dict], season: int) -> int:
     return total
 
 
+def patch_picks(
+    rows: Iterable[dict],
+    season: int,
+    fields: Iterable[str],
+) -> int:
+    """Targeted update of ONLY the listed fields on picks_<season> rows.
+
+    Unlike `mirror_picks`, which builds a full-row payload and upserts
+    it (any column blank in the source dict gets written as blank in
+    Postgres, OVERWRITING whatever Supabase had), `patch_picks` sends
+    a partial payload.  Other columns in the destination row are left
+    untouched.
+
+    Use this whenever the source dict isn't the authoritative full
+    state of the row -- in particular, ANY backfill / data-correction
+    script.  On 2026-05-05 a backfill mirror sent blank market_*_odds
+    + blank graded_result for rows where Supabase had real values, and
+    those values got wiped.  `patch_picks(..., fields=["bet_placed",
+    "units_risked", "profit_loss_units"])` would have been the right
+    primitive: only the three fields we actually wanted to change get
+    pushed; the real odds + grade Supabase already had stay put.
+
+    Composite PK (date, game_pk) is required on every input row.
+    Returns the number of rows successfully patched.  Never raises.
+
+    Implementation note: uses one UPDATE per row (no batching), since
+    PostgREST's bulk-update endpoint can't take per-row WHERE clauses
+    via the supabase-py SDK.  For a typical backfill of <50 rows this
+    is fine.  For larger backfills consider mirror_picks instead --
+    only when you ARE the source of truth for the full row state.
+    """
+    fields = [f for f in fields if f]
+    if not fields:
+        return 0
+    client = _get_client()
+    if client is None:
+        return 0
+    rows = list(rows)
+    if not rows:
+        return 0
+
+    table = f"picks_{season}"
+    successful = 0
+    for r in rows:
+        # Run the full transform so we get the same type coercion as
+        # mirror_picks.  Then filter the result to only the requested
+        # fields.  (Date / game_pk are NEVER in `fields` -- they're
+        # the primary key, not a patchable column.)
+        try:
+            full = _transform_pick_row(r)
+        except Exception as exc:    # noqa: BLE001
+            print(
+                f"[supabase_writer] patch_picks transform failed for row "
+                f"{r.get('date')!r}/{r.get('game_pk')!r}: {exc!r}",
+                file=sys.stderr,
+            )
+            continue
+        date = full.get("date")
+        game_pk = full.get("game_pk")
+        if not date or not game_pk:
+            continue
+        payload = {f: full[f] for f in fields if f in full}
+        if not payload:
+            continue
+        try:
+            (client.table(table)
+                   .update(payload)
+                   .eq("date", date)
+                   .eq("game_pk", str(game_pk))
+                   .execute())
+            successful += 1
+        except Exception as exc:    # noqa: BLE001
+            print(
+                f"[supabase_writer] patch_picks update failed for "
+                f"{date}/{game_pk} (fields={list(payload)}): {exc!r}",
+                file=sys.stderr,
+            )
+    return successful
+
+
 def mirror_pick_change(
     *,
     captured_at_utc: str,

@@ -62,19 +62,14 @@ on:
     - cron: "0 2 * * *"    # 10pm EDT / 9pm EST  -- final pre-lock for west-coast
     - cron: "30 3 * * *"   # 11:30pm EDT / 10:30pm EST  -- nightly grade
     - cron: "45 4 * * 1"   # 12:45am EDT / 11:45pm EST Sun -- weekly recal
-    # T2.65 (Option C lock-event capture): 5-min odds-only ticks during
-    # prime game hours.  The hourly predict crons above scrape DK + import
-    # at the top of each hour, but a game whose first pitch is at e.g.
-    # 5:40 PM ET locks at 4:40 PM ET -- the 4pm cron (4:00 PM ET) runs
-    # BEFORE the lock window opens, and the 5pm cron (5:00 PM ET) runs
-    # 20 min AFTER lock.  If the 5pm cron fails (cron lag, DK transient
-    # error), the next chance is 6pm -- 80 min after lock, by which time
-    # the game is mid-1st-inning and we've missed the window entirely.
-    #
-    # Adding 5-min granularity caps the lock-to-odds-capture latency at
-    # ~5 min worst-case.  Skipping minute 0 (where the hourly predict
-    # already runs) avoids concurrency-group collisions.
-    - cron: "5,10,15,20,25,30,35,40,45,50,55 17-23,0-3 * * *"   # every 5min, 1pm-11pm ET
+    # T-CLEANUP-2026-05-05: removed every-5-min odds-only cron.
+    # Railway's predictor_loop (Procfile / mlb-first-inning service) now
+    # owns DK scraping + odds import, running every 5 min on a clean
+    # IP that DK doesn't 403.  GitHub's runner IPs are in Azure ranges
+    # that DK fingerprints as bot traffic; this cron was failing every
+    # tick for weeks before being removed.  Workflow_dispatch + manual
+    # cron trigger still available if Railway is ever down for an
+    # extended outage.
     # T4.2 daily priors refresh: rebuild the per-pitcher per-date
     # truepit_priors JSON that production reads via the priors-pooled
     # _get_pitcher_statcast() path.  Runs at 6am UTC = 2am ET, after
@@ -145,10 +140,8 @@ jobs:
             "45 4 * * 1")
               echo "what=recalibrate" >> "$GITHUB_OUTPUT"
               ;;
-            "5,10,15,20,25,30,35,40,45,50,55 17-23,0-3 * * *")
-              # T2.65: 5-min odds-only tick (Option C lock-event capture).
-              echo "what=odds-only" >> "$GITHUB_OUTPUT"
-              ;;
+            # T-CLEANUP-2026-05-05: dropped 5-min odds-only branch.
+            # Cron schedule + step both removed (Railway owns DK scrape).
             "0 6 * * *")
               # T4.2: daily priors-pooled cache + JSON rebuild.
               echo "what=refresh-priors" >> "$GITHUB_OUTPUT"
@@ -264,42 +257,17 @@ jobs:
             || echo "::warning::pick_reasoning_log failed (non-blocking): $(tail -c 200 reason_err.log)"
           set -e
 
-          echo "==> Scraping DraftKings odds for $TODAY_ISO..."
-          set +e
-          python scrape_dk_odds.py 2>scrape_err.log
-          DK_RC=$?
-          set -e
-          if [ "$DK_RC" -eq 2 ]; then
-            # Exit 2 = scraper detected stale API IDs (0 markets during
-            # prime hours).  Loud warning, but we proceed without odds.
-            record_err "scrape-dk" "$DK_RC" "DK API IDs likely stale -- 0 markets in prime hours"
-          elif [ "$DK_RC" -ne 0 ]; then
-            record_err "scrape-dk" "$DK_RC" "$(tail -c 400 scrape_err.log)"
-          fi
-
-          ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
-          if [ -s "$ODDS_CSV" ]; then
-            # T4.4 (2026-05-04): HALT LIFTED -- T4.2 priors-pooled features
-            # deployed.  Shadow on V2's 26 placed bets 4/29-5/04 (the period
-            # after T2.53 broke the conservative ERA-blend) showed:
-            #   V2 actual:        13-13  -2.61u  (50.0% hit)
-            #   V2 + T4.2 shadow:  9-5   +1.80u  (64.3% hit, 12 PASS)
-            #   Delta:                   +4.41u
-            #
-            # T4.2 caps downside by passing on small-sample-driven extreme
-            # picks.  Specifically saved -3u on 5/03 (passed on 3 of the
-            # 6 losses) and -1u on 5/04 (passed on the BOS@DET YRFI loss
-            # whose 6.23 raw xera shrunk to 4.12 priors-pooled).
-            #
-            # Lifting halt at --min-edge 0.02 (the production default).
-            # Threshold bands for STRONG picks (0.56/0.44) stay unchanged.
-            echo "==> Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
-            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 2>import_err.log; then
-              record_err "import-odds" "$?" "$(tail -c 400 import_err.log)"
-            fi
-          else
-            echo "==> No DK odds CSV for $TODAY_ISO -- skipping import (DK pulled markets or scraper broken)."
-          fi
+          # T-CLEANUP-2026-05-05: GitHub's runner IPs are in Azure
+          # ranges that DK fingerprints as bot traffic and 403s every
+          # request -- even with curl_cffi TLS impersonation.  Railway
+          # runs in Google Cloud (us-east4) which DK doesn't block,
+          # so DK scraping + odds-import both moved entirely to
+          # Railway's predictor_loop (workers/predictor_loop.py).
+          # The block that used to call scrape_dk_odds.py + --import-odds
+          # was here; both removed.  Railway scrapes every 5 min and
+          # mirrors odds to Supabase; the dashboard reads from Supabase.
+          echo "==> DK scrape + import-odds skipped on GitHub Actions" \
+               "(Railway predictor_loop owns this path)."
 
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'
@@ -359,6 +327,37 @@ jobs:
             record_err "grade-today" "$?" "$(tail -c 400 grade_t_err.log)"
           fi
 
+      - name: End-of-day safety net (orphaned STRONG bets)
+        if: steps.action.outputs.what == 'grade'
+        # Catches any STRONG NRFI/YRFI pick that's terminal (WIN/LOSS)
+        # but never had bet_placed=Y set during the day -- typically
+        # because DK closed the market early so the auto-bet flow
+        # never saw the row in the import_odds CSV.  See
+        # tools/end_of_day_check.py header for the full rationale.
+        # Soft-fail: a safety-net hiccup must not break the grade workflow.
+        # Patches Supabase via _patch_picks_to_supabase (only the 3
+        # changed fields; never overwrites grade / odds / anything else).
+        # Sends its own dedicated Telegram alert when it actually fires.
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set +e
+          # Run on TODAY's slate (just-finished games) -- the grade
+          # step above has already filled in all WIN/LOSS results,
+          # so any orphan we find is a real bookkeeping miss.
+          TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
+          python tools/end_of_day_check.py --date "$TODAY_ISO" 2>&1 \
+            || echo "::warning::end_of_day_check failed (non-blocking)"
+          # Also sweep yesterday in case a late west-coast game graded
+          # AFTER yesterday's safety-net run (idempotent: re-running on
+          # an already-clean slate is silent + 0-cost).
+          YDAY_ISO=$(TZ='America/New_York' date -d 'yesterday' +%Y-%m-%d)
+          python tools/end_of_day_check.py --date "$YDAY_ISO" 2>&1 \
+            || echo "::warning::end_of_day_check yesterday failed (non-blocking)"
+
       - name: Auto-classify new losses (T2.48)
         if: steps.action.outputs.what == 'grade'
         # Runs after grading completes.  analyze_losses.py is idempotent
@@ -386,117 +385,12 @@ jobs:
           set +e
           python tools/backfill_variants.py 2>&1 || echo "::warning::backfill_variants failed (non-blocking)"
 
-      - name: Run odds-only capture (T2.65 lock-event tick)
-        if: steps.action.outputs.what == 'odds-only'
-        # T2.65 / Option C: lightweight tick fired every 5 min during
-        # prime game hours (see cron above for rationale).  Does:
-        #   1. T2.65c: live grade today's slate (catches NRFI/YRFI hits
-        #      within ~5min of the 1st inning ending, not 30-90min after
-        #      via the unreliable hourly predict cron).
-        #   2. Scrape DK + --import-odds (caps lock-to-odds latency at
-        #      ~5min instead of up-to-60min).
-        #   3. T2.65b: live_state.py --once fallback (Railway worker backup).
-        # Skips the heavy predict step -- that stays owned by the hourly
-        # predict cron, which also re-runs grade-today as belt-and-suspenders.
-        #
-        # The --import-odds command iterates picks_2026 and applies
-        # odds + bet_placed=Y to any STRONG row that's inside its
-        # lock window (60 min pre-game).  By running every 5 min, the
-        # worst-case lock-to-odds-capture latency is ~5 min instead of
-        # the prior up-to-60 min (or unbounded if the hourly cron
-        # errors).
-        env:
-          ALERT_WEBHOOK_URL:    ${{ secrets.ALERT_WEBHOOK_URL }}
-          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
-          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          ACTION: odds-only
-        run: |
-          TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
-          NOW_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-          # Same record_err helper as the predict step.  Defined inline
-          # because shell functions don't persist across steps.
-          record_err() {
-            local STEP="$1"; local CODE="$2"; local MSG="$3"
-            mkdir -p data
-            if [ ! -f data/system_errors.csv ]; then
-              echo "captured_at_utc,date,step,exit_code,message" > data/system_errors.csv
-            fi
-            local SAFE_MSG=$(echo "$MSG" | tr ',' ';' | tr '"' "'" | head -c 400)
-            echo "$NOW_UTC,$TODAY_ISO,$STEP,$CODE,\"$SAFE_MSG\"" >> data/system_errors.csv
-            echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
-          }
-
-          # T4.19: RE-ADDED grade-today after discovering the Railway
-          # mlb-first-inning project was empty (zero services running).
-          # T4.15 removed this step on the assumption that the T4.13
-          # Railway live_state.py worker would grade within ~10s of
-          # fi_complete.  But that worker isn't actually deployed -- so
-          # T4.15 left today's slate with NO fast-grade path between the
-          # hourly predict cron and the 11:30pm ET nightly grade.  On a
-          # day with games starting at 7:05pm ET, a STRONG bet that
-          # resolves at 7:30pm would have stayed ungraded for 4 hours.
-          #
-          # Now that the Contabo self-hosted runner (T4.16) eliminates
-          # GH Actions cron lag, the original race-and-noise concern
-          # behind T4.15 is moot: the 5-min cron actually fires every
-          # 5 min, no queueing.  Telegram race protection still comes
-          # from T4.14 (FIRE_DAILY_DIGEST gate) and T4.17 (FIRE_BANKROLL
-          # _MILESTONES gate) so noise doesn't return.
-          #
-          # Once Railway is restored and the live_state.py worker is
-          # confirmed grading on fi_complete for 24+ hours, this step
-          # can be removed again -- but only AFTER verification.
-          echo "==> [odds-only] Live-grading completed 1st innings for $TODAY_ISO..."
-          if ! python mlb_first_inning_predictor.py --date "$TODAY_ISO" --grade 2>grade_err.log; then
-            record_err "odds-only-grade" "$?" "$(tail -c 400 grade_err.log)"
-          fi
-
-          echo "==> [odds-only] Scraping DraftKings odds for $TODAY_ISO..."
-          set +e
-          python scrape_dk_odds.py 2>scrape_err.log
-          DK_RC=$?
-          set -e
-          if [ "$DK_RC" -eq 2 ]; then
-            record_err "odds-only-scrape" "$DK_RC" "DK API IDs likely stale"
-          elif [ "$DK_RC" -ne 0 ]; then
-            record_err "odds-only-scrape" "$DK_RC" "$(tail -c 400 scrape_err.log)"
-          fi
-
-          ODDS_CSV="data/odds/dk_${TODAY_ISO}.csv"
-          if [ -s "$ODDS_CSV" ]; then
-            # T4.4: halt lifted, T4.2 priors-pooling deployed (see predict
-            # step for shadow numbers).
-            echo "==> [odds-only] Importing $ODDS_CSV (edge >= 2% triggers bet_placed=Y)..."
-            if ! python mlb_first_inning_predictor.py --import-odds "$ODDS_CSV" --min-edge 0.02 2>import_err.log; then
-              record_err "odds-only-import" "$?" "$(tail -c 400 import_err.log)"
-            fi
-          else
-            echo "==> [odds-only] No DK odds CSV for $TODAY_ISO -- skipping import."
-          fi
-
-          # T2.65b: live game-state poll fallback.
-          #
-          # workers/live_state.py is normally a long-running Railway worker
-          # that polls MLB Stats API every 10s and upserts to Supabase
-          # live_game_state.  When Railway is healthy, that worker keeps
-          # the dashboard's live game state (inning/score) fresh sub-second.
-          # When Railway dies (observed 2026-05-03 -> 24+ hour outage with
-          # no detection), the dashboard goes silent on live state.
-          #
-          # This 5-min --once fallback gives us GitHub-Actions-driven backup
-          # coverage: even if Railway stays dead indefinitely, the dashboard
-          # never goes more than ~5-10 min without a live-state refresh.
-          # Latency is worse than Railway (10s -> 5min), but it's a guaranteed
-          # baseline.  When Railway is healthy, it'll keep updating in
-          # parallel and the user sees Railway's faster updates; the GH
-          # tick just no-ops when there's nothing changed.
-          echo "==> [odds-only] Running live_state.py --once (Railway fallback)..."
-          if ! python workers/live_state.py --once 2>livestate_err.log; then
-            record_err "odds-only-livestate" "$?" "$(tail -c 400 livestate_err.log)"
-          fi
+      # T-CLEANUP-2026-05-05: removed entire "Run odds-only capture"
+      # step + its `odds-only` action branch.  The step's three jobs
+      # (live grade, DK scrape + import, live_state --once fallback)
+      # all moved entirely to Railway's predictor_loop and live_state
+      # worker, which run every 5 min on a clean IP.  Removing here
+      # cleans up ~2880 daily 403-flooded log entries.
 
       - name: Calibration drift monitor (T2.59)
         if: steps.action.outputs.what == 'grade'

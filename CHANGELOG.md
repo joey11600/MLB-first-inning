@@ -11,6 +11,79 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-05] — System reliability bundle: safer mirror, end-of-day safety net, drift-aware digest, GHA cleanup
+
+Four upgrades that together close out the failure modes uncovered
+during today's incident.  None of them ship new model behavior;
+they're all reliability / observability.
+
+### Added
+
+- **`db.supabase_writer.patch_picks(rows, season, fields)`**: targeted
+  field-level update on `picks_<season>` rows.  Unlike `mirror_picks`
+  (which builds a full-row payload and upserts it -- any column blank
+  in the source dict gets written as blank in Postgres), `patch_picks`
+  sends only the listed fields.  Other columns on the destination row
+  stay untouched.  Today's failure mode -- a backfill mirror with
+  blank `market_*_odds` and blank `graded_result` overwriting real
+  values in Supabase -- is structurally impossible with this primitive.
+  Wrapped in `tracker._patch_picks_to_supabase` for caller convenience.
+
+- **`tools/end_of_day_check.py`**: nightly safety net.  Scans the
+  target slate (default: yesterday ET) for STRONG NRFI/YRFI picks
+  whose game graded WIN/LOSS but whose `bet_placed` is empty -- the
+  exact "DK closed market before scraper got odds" failure mode that
+  bit today (4 STRONG bets stayed bookkeeping-orphaned all night).
+  Auto-flips them to `bet_placed=Y, units_risked=1.0`, recomputes
+  `profit_loss_units` via `tracker._calc_pnl`, and patches Supabase
+  via the new `patch_picks` primitive.  Sends a single Telegram alert
+  listing what was retro-fixed.  Silent if everything was placed
+  correctly.
+
+- **`.github/workflows/daily.yml` end-of-day step**: the safety net
+  now runs automatically after the nightly grade cron, on both
+  TODAY's slate (catches the just-finished games) and YESTERDAY's
+  (catches any late west-coast game that graded after yesterday's
+  safety-net run).
+
+### Changed
+
+- **Daily digest now shows P&L drift inline**: `_notify_daily_digest_telegram`
+  takes optional `today_pl_recomputed` + `today_drift_rows` args.
+  When the recomputed total differs from the stored total, the
+  Telegram body inlines a warning: "stored +X.XXu vs recomputed
+  +Y.YYu (N row(s)). Run `tools/pl_calc.py` to diagnose."  Same
+  drift detection `pl_calc` runs; the digest now surfaces it
+  proactively without the user having to check.
+
+- **GitHub Actions DK scraping removed entirely** (T-CLEANUP-2026-05-05):
+  - Every-5-min `odds-only` cron schedule deleted.
+  - Entire `Run odds-only capture` step deleted (live grade + DK
+    scrape + import-odds + live_state --once fallback all moved to
+    Railway).
+  - DK scrape + odds-import block removed from the hourly `predict`
+    step (kept the rest: catch-up grade yesterday, live-grade today,
+    Statcast predict, pick reasoning).
+
+  Why: GitHub's Azure-range runner IPs get fingerprinted as bot
+  traffic by DraftKings' CDN and 403'd 100% of the time -- even with
+  the curl_cffi TLS impersonation fix.  Railway's Google-Cloud
+  us-east4 IP is clean, so DK scraping moved entirely there.  Removing
+  the GHA path eliminates ~2880 daily error-log entries from failed
+  scrapes.
+
+### Why this matters
+
+Today's 30-minute "what's the right number?" debugging session was
+caused by ONE mirror bug (mirror sends blanks → wipes real values).
+The new `patch_picks` makes that class of bug impossible.  The safety
+net catches the second-order effect (orphaned STRONG bets from any
+cause).  The drift-aware digest catches anything either of the above
+miss.  And the GHA cleanup means real errors (a Railway outage, a
+model bug) aren't buried under hourly DK 403 noise.
+
+---
+
 ## [2026-05-05] — `tools/pl_calc.py` canonical P&L calculator
 
 Single command that prints the verified P&L for any date or window.
