@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { loadBoard } from "@/lib/board";
 import { DashboardShell } from "@/components/DashboardShell";
 
@@ -19,17 +20,34 @@ export const dynamic = "force-dynamic";
 // page-wide so Supabase's internal fetches inherit it.
 export const fetchCache = "force-no-store";
 
-export default async function HomePage() {
-  // T-V21-2026-05-06: removed `?date=YYYY-MM-DD` query param handling.
-  // The URL serialization caused stale-bookmark stickiness: viewing a
-  // past date once put `?date=2026-05-02` in the URL, the user
-  // bookmarked / kept that tab, and every subsequent visit re-loaded
-  // 5/02 instead of today's slate.
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: { date?: string };
+}) {
+  // T-V21-2026-05-06: any `?date=` query param triggers a real HTTP
+  // redirect to "/".  Reasons it's a HARD redirect, not just ignoring
+  // the param:
   //
-  // Now: every initial page load fetches the latest available slate.
-  // The date picker in ControlPanel still navigates to historical
-  // dates (client-side state via refetch); just doesn't sync to the
-  // URL.  Refresh always returns the user to today.
+  //   1. Browser cache.  The HTML at "/?date=2026-05-02" was cached
+  //      from a past visit (when that URL legitimately served 5/02
+  //      data).  A normal Cache-Control: no-store header doesn't
+  //      bust BFCache (Chrome's back/forward snapshot cache) so the
+  //      browser keeps showing the stale page when the user hits
+  //      "back" from /history.  A 307 redirect IS respected by
+  //      BFCache: the browser sees the redirect response and
+  //      replaces the URL.
+  //
+  //   2. Bookmark hygiene.  If the user bookmarked "/?date=X",
+  //      visiting that bookmark redirects to "/" -- the bookmark
+  //      effectively self-heals.
+  //
+  //   3. Symmetry with the client-side strip in DashboardShell.
+  //      Both server (here) and client (mount useEffect) refuse to
+  //      keep `?date=` in the URL, so the bug can't sneak back in.
+  if (searchParams?.date) {
+    redirect("/");
+  }
   const initial = await loadBoard(null);
   return <DashboardShell initial={initial} />;
 }
