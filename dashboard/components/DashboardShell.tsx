@@ -135,6 +135,27 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       url.searchParams.delete("date");
       window.history.replaceState(null, "", url.toString());
     }
+
+    // T-V21-2026-05-06b: BFCache eviction guard.  Chrome's back/forward
+    // cache (BFCache) stores fully-rendered pages in memory and serves
+    // them on `back` / `forward` / restored-tab without making a server
+    // request -- which means our middleware + page redirect for `?date=`
+    // never gets a chance to run.  When BFCache restores a page, the
+    // `pageshow` event fires with `event.persisted === true`.  If the
+    // restored URL still has `?date=`, force a hard navigation to "/"
+    // so the user lands on a fresh, server-rendered page.  This is the
+    // missing piece that was letting omnibox auto-suggest serve stale
+    // HTML from past deployments.
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      const u = new URL(window.location.href);
+      if (u.searchParams.has("date")) {
+        u.searchParams.delete("date");
+        window.location.replace(u.pathname + u.search);
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
   // T4.20: Browser notifications on new pick flips.  Compares the

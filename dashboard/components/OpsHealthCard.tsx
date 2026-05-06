@@ -107,17 +107,20 @@ export function OpsHealthCard() {
     return () => clearInterval(id);
   }, [refresh]);
 
-  // T3.14: auto-open on non-ok status so errors are visible at-a-glance.
+  // Auto-open ONLY on non-ok status (warn/degraded) — historical errors in
+  // the last 24h alone don't warrant pre-expanding. The status field already
+  // encodes whether the system is currently unhappy; old resolved errors
+  // sitting in the audit log shouldn't pop the panel on every visit.
   // Skip if the user already closed it (sticky until status flips back
   // to ok and out again).
   useEffect(() => {
     if (!data) return;
-    const isBad = data.status !== "ok" || data.errorsLast24h > 0;
+    const isBad = data.status !== "ok";
     if (isBad && !open && !userClosed) {
       setOpen(true);
     }
     if (!isBad && userClosed) {
-      // Status recovered -- reset the userClosed flag so the next bad
+      // Status recovered — reset the userClosed flag so the next bad
       // event auto-opens again.
       setUserClosed(false);
     }
@@ -189,9 +192,10 @@ export function OpsHealthCard() {
         onClick={() => {
           setOpen(o => {
             const next = !o;
-            // If the user is manually closing while errors are present,
-            // mark userClosed so we don't keep auto-popping it back open.
-            if (!next && (status !== "ok" || errorsLast24h > 0)) {
+            // Mark userClosed only if the system is actually unhealthy
+            // (matches the auto-open trigger). Historical errors alone
+            // don't sticky-suppress the panel.
+            if (!next && status !== "ok") {
               setUserClosed(true);
             }
             return next;
