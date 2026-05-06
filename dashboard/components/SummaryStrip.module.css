@@ -1,5 +1,7 @@
 .wrap {
-  padding: 28px 0 20px;
+  /* Section gap is owned by .shell { gap: 16px } -- this wrap only
+     needs a hair of internal breathing room. */
+  padding: 4px 0;
 }
 
 .tiles {
@@ -7,7 +9,7 @@
   /* T3.21 -- collapsed from 4 tiles to 2 + Distribution.  The Today
      P&L and Today CLV tiles moved into RoiPanel's TODAY window. */
   grid-template-columns: 200px 200px 1fr;
-  gap: 16px;
+  gap: 12px;
   align-items: stretch;
 }
 @media (max-width: 900px) {
@@ -18,12 +20,12 @@
 }
 
 .tile {
-  padding: 22px 24px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 10px;
-  min-height: 122px;
+  gap: 8px;
+  min-height: 96px;
   position: relative;
   background: var(--card);
   border: 1px solid var(--border);
@@ -47,13 +49,14 @@
    in BoardRow). */
 
 .big {
-  /* Geist Mono heading-40 -- numeric, terminal feel */
+  /* Geist Mono heading-32 -- numeric, terminal feel.  Was 40px;
+     tightened with the rest of the dashboard density pass. */
   font-family: var(--font-mono);
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 500;
   color: var(--foreground);
-  line-height: 3rem;
-  letter-spacing: -1.6px;
+  line-height: 2.25rem;
+  letter-spacing: -1.2px;
 }
 
 .foot {
@@ -80,10 +83,10 @@
 .sep { color: var(--border); margin: 0 2px; }
 
 .distribution {
-  padding: 22px 24px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -93,14 +96,14 @@
 .buckets {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .bucket {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 12px 10px;
+  gap: 4px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   background: var(--background);
@@ -138,11 +141,11 @@
 
 .bucketCount {
   font-family: var(--font-mono);
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 500;
   color: var(--foreground);
-  line-height: 2rem;
-  letter-spacing: -0.8px;
+  line-height: 1.75rem;
+  letter-spacing: -0.6px;
 }
 
 .bucketBar {
@@ -177,7 +180,10 @@
 
 .pass { border-top: 2px solid var(--secondary); }
 .pass .bucketFill { background: var(--secondary); }
-.pass .bucketCount { color: var(--secondary-foreground); }
+/* Use --secondary directly (amber).  --secondary-foreground is
+   near-black -- intended for text ON amber backgrounds, not for a
+   number on the dark bucket card where it was invisible. */
+.pass .bucketCount { color: var(--secondary); }
 
 .leanYrfi { border-top: 2px solid color-mix(in oklab, var(--destructive) 55%, transparent); }
 .leanYrfi .bucketFill { background: color-mix(in oklab, var(--destructive) 55%, transparent); }

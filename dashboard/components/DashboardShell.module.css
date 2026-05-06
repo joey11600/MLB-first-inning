@@ -1,10 +1,14 @@
 .shell {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 24px 96px;
+  padding: 0 24px 64px;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  /* Consistent vertical rhythm between sections instead of each
+     section owning its own top/bottom padding (which compounded
+     into 40-60px gaps).  Sections still have their own internal
+     padding; this is just inter-section. */
+  gap: 12px;
 }
 
 /* ============================================================
@@ -22,8 +26,8 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 32px;
-  padding: 24px 0 18px;
+  gap: 24px;
+  padding: 18px 0 14px;
   border-bottom: 1px solid var(--border);
 }
 

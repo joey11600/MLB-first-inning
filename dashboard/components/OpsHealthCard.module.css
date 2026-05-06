@@ -2,7 +2,8 @@
    into a per-step error breakdown and recent-error list. */
 
 .wrap {
-  margin: 12px 0 0;
+  /* margin removed -- .shell { gap: 16px } owns inter-section spacing now. */
+  margin: 0;
 }
 
 .card {

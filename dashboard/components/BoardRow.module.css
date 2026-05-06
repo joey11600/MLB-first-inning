@@ -461,7 +461,9 @@
   background: var(--destructive);
 }
 .resultPass {
-  color: var(--secondary-foreground);
+  /* Use --secondary directly: the chip background is only 18% amber
+     so we need an amber-toned text, not the near-black amber-foreground. */
+  color: var(--secondary);
   background: color-mix(in oklab, var(--secondary) 18%, transparent);
   border: 1px solid color-mix(in oklab, var(--secondary) 40%, var(--border));
 }

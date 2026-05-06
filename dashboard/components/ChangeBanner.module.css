@@ -78,7 +78,10 @@
 }
 .tallyAdd  { color: var(--primary); }
 .tallyDrop { color: var(--muted-foreground); }
-.tallyFlip { color: color-mix(in oklab, var(--secondary-foreground) 80%, var(--muted-foreground)); }
+/* Was secondary-foreground (near-black) on dark bg.  Use the amber
+   itself, dimmed slightly with the muted-foreground to feel quieter
+   than the primary tally-add accent but still readable. */
+.tallyFlip { color: color-mix(in oklab, var(--secondary) 75%, var(--muted-foreground)); }
 
 .toggle {
   font-family: var(--font-sans);
@@ -183,7 +186,9 @@
 .chip_pass {
   background: color-mix(in oklab, var(--secondary) 14%, var(--muted));
   border-color: color-mix(in oklab, var(--secondary) 30%, var(--border));
-  color: var(--secondary-foreground);
+  /* Was secondary-foreground (near-black) on a 14%-amber-tinted muted
+     background -- low contrast.  Use amber itself for readable label. */
+  color: var(--secondary);
 }
 .chip_pending {
   background: var(--muted);

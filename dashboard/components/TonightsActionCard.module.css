@@ -17,8 +17,9 @@
    ============================================================ */
 
 .wrap {
-  margin-top: 24px;
-  padding: 24px 28px;
+  /* margin-top removed -- .shell { gap: 16px } owns inter-section
+     spacing now.  Internal padding tightened from 24/28 to 18/22. */
+  padding: 18px 22px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -49,7 +50,7 @@
   display: flex;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .eyebrow {
@@ -73,7 +74,7 @@
   display: grid;
   grid-template-columns: auto 1px 1fr;
   align-items: center;
-  gap: 28px;
+  gap: 22px;
   position: relative;
   z-index: 1;
 }
@@ -88,9 +89,9 @@
 .heroNum {
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 64px;
+  font-size: 52px;
   line-height: 1;
-  letter-spacing: -3px;
+  letter-spacing: -2.4px;
   color: var(--foreground);
   font-variant-numeric: tabular-nums;
 }
@@ -119,7 +120,7 @@
 
 .divider {
   width: 1px;
-  height: 64px;
+  height: 56px;
   background: var(--border);
   align-self: center;
 }
