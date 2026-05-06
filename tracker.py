@@ -1621,11 +1621,16 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
         new_label   = new_label,
         row_context = row_context,
     )
-    pk = game_pk or f"{away_team}@{home_team}"
-    # T-V21-2026-05-06e: include iso_date so back-to-back same-team
-    # series within the 24h dedup window can't collide on the
-    # team-fallback key when game_pk is missing.
-    event_key = f"flip_to_strong:{iso_date}:{pk}:{(new_label or '').upper()}"
+    # T-V21-2026-05-06h: only date-scope the team-fallback key.  When
+    # game_pk is set (almost always), keep the original key shape so
+    # existing notifications_log dedup records still match -- the
+    # all-keys date-prefix change in 06e refired in-flight WIN/LOSS
+    # alerts as duplicates because the new key didn't match the row
+    # the OLD key had already inserted.
+    if game_pk:
+        event_key = f"flip_to_strong:{game_pk}:{(new_label or '').upper()}"
+    else:
+        event_key = f"flip_to_strong:{iso_date}:{away_team}@{home_team}:{(new_label or '').upper()}"
     _notify_event_telegram("flip_to_strong", event_key, body)
 
 
@@ -1672,9 +1677,12 @@ def _notify_strong_locked_telegram(row: dict) -> None:
         _dashboard_link(iso_date),
     ])
 
-    # T-V21-2026-05-06e: scope by iso_date so the team-fallback key
-    # can't cross-day-collide when game_pk is missing.
-    event_key = f"strong_locked:{iso_date}:{game_pk or (away + '@' + home)}"
+    # T-V21-2026-05-06h: only date-scope the team-fallback key.
+    # See _notify_pick_flip_telegram for full rationale.
+    if game_pk:
+        event_key = f"strong_locked:{game_pk}"
+    else:
+        event_key = f"strong_locked:{iso_date}:{away}@{home}"
     _notify_event_telegram("strong_locked", event_key, body)
 
 
@@ -1736,7 +1744,11 @@ def _notify_strong_graded_telegram(row: dict, today_record: tuple[int, int, int]
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_graded:{iso_date}:{game_pk or (away + '@' + home)}"
+    # T-V21-2026-05-06h: see _notify_pick_flip_telegram for rationale.
+    if game_pk:
+        event_key = f"strong_graded:{game_pk}"
+    else:
+        event_key = f"strong_graded:{iso_date}:{away}@{home}"
     _notify_event_telegram("strong_graded", event_key, body)
 
 
@@ -1763,7 +1775,11 @@ def _notify_strong_voided_telegram(row: dict, reason: str) -> None:
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_voided:{iso_date}:{game_pk or (away + '@' + home)}"
+    # T-V21-2026-05-06h: see _notify_pick_flip_telegram for rationale.
+    if game_pk:
+        event_key = f"strong_voided:{game_pk}"
+    else:
+        event_key = f"strong_voided:{iso_date}:{away}@{home}"
     _notify_event_telegram("strong_voided", event_key, body)
 
 
@@ -1802,7 +1818,11 @@ def _notify_strong_pregame_telegram(row: dict, minutes_to_first_pitch: int) -> N
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_pregame:{iso_date}:{game_pk or (away + '@' + home)}"
+    # T-V21-2026-05-06h: see _notify_pick_flip_telegram for rationale.
+    if game_pk:
+        event_key = f"strong_pregame:{game_pk}"
+    else:
+        event_key = f"strong_pregame:{iso_date}:{away}@{home}"
     _notify_event_telegram("strong_pregame", event_key, body)
 
 
@@ -1832,7 +1852,11 @@ def _notify_strong_clv_telegram(row: dict, opened_implied: float, closing_implie
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_clv:{iso_date}:{game_pk or (away + '@' + home)}"
+    # T-V21-2026-05-06h: see _notify_pick_flip_telegram for rationale.
+    if game_pk:
+        event_key = f"strong_clv:{game_pk}"
+    else:
+        event_key = f"strong_clv:{iso_date}:{away}@{home}"
     _notify_event_telegram("strong_clv", event_key, body)
 
 
@@ -1867,7 +1891,11 @@ def _notify_strong_weather_telegram(row: dict, change_summary: str) -> None:
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_weather:{iso_date}:{game_pk or (away + '@' + home)}"
+    # T-V21-2026-05-06h: see _notify_pick_flip_telegram for rationale.
+    if game_pk:
+        event_key = f"strong_weather:{game_pk}"
+    else:
+        event_key = f"strong_weather:{iso_date}:{away}@{home}"
     _notify_event_telegram("strong_weather", event_key, body)
 
 
@@ -1908,7 +1936,11 @@ def _notify_strong_scratch_telegram(row: dict,
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_scratch:{iso_date}:{game_pk or (away + '@' + home)}:{scratched_side}"
+    # T-V21-2026-05-06h: see _notify_pick_flip_telegram for rationale.
+    if game_pk:
+        event_key = f"strong_scratch:{game_pk}:{scratched_side}"
+    else:
+        event_key = f"strong_scratch:{iso_date}:{away}@{home}:{scratched_side}"
     _notify_event_telegram("strong_scratch", event_key, body)
 
 

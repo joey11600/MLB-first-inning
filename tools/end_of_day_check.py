@@ -123,6 +123,48 @@ def find_orphaned_strong_bets(rows: list[dict], iso_date: str) -> list[int]:
     return out
 
 
+def _resend_missing_strong_graded(rows: list[dict], iso_date: str) -> None:
+    """T-V21-2026-05-06h: fire strong_graded Telegram for any placed
+    STRONG graded bet on the date that hasn't already pinged.  Dedup
+    in _notify_event_telegram (notifications_log query, 24h window)
+    silently filters bets that already pinged today, so this is a
+    safe one-shot recovery sweep.
+
+    Catches the failure mode where a row was orphaned at grade time
+    (bet_placed='' when grade_picks ran), got auto-flagged later by
+    this script, but never sent its WIN/LOSS alert because grading is
+    idempotent and won't re-call the notifier on already-graded rows."""
+    try:
+        from tracker import (
+            _notify_strong_graded_telegram, _aggregate_today_record,
+        )
+    except Exception as exc:    # noqa: BLE001
+        print(f"  [warn] cannot import notifier: {exc!r}", file=sys.stderr)
+        return
+
+    candidates = [
+        r for r in rows
+        if (r.get("date") or "").strip() == iso_date
+        and (r.get("pick_strength") or "").strip().upper() == "STRONG"
+        and (r.get("pick_side") or "").strip().upper() in ("NRFI", "YRFI")
+        and (r.get("bet_placed") or "").strip().upper() == "Y"
+        and (r.get("graded_result") or "").strip().upper() in ("WIN", "LOSS")
+    ]
+    if not candidates:
+        return
+
+    today_record, today_pl = _aggregate_today_record(rows, iso_date)
+    print(f"  [recovery] sweeping {len(candidates)} placed STRONG graded bet(s) "
+          f"for missing WIN/LOSS pings (dedup will filter already-fired)")
+    for r in candidates:
+        try:
+            _notify_strong_graded_telegram(r, today_record, today_pl)
+        except Exception as exc:    # noqa: BLE001 -- best effort
+            print(f"  [warn] strong_graded recovery ping failed for "
+                  f"{r.get('away_team')}@{r.get('home_team')}: {exc!r}",
+                  file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -172,6 +214,17 @@ def main() -> int:
           f"orphaned-STRONG-bets={len(indices)}  "
           f"dry_run={args.dry_run}")
 
+    # T-V21-2026-05-06h: even when no orphans need repair, sweep all
+    # placed STRONG graded bets on the date and try firing strong_graded
+    # for each.  Catches the case where a row was an orphan earlier in
+    # the day, got fixed by an interim end_of_day_check run, and the
+    # WIN/LOSS Telegram never went out (because grade_picks already
+    # skipped the row's notify when bet_placed was still '').
+    # Dedup in _notify_event_telegram filters out already-fired pings,
+    # so this is safe to call even when everything's healthy.
+    if not args.dry_run:
+        _resend_missing_strong_graded(rows, target_date)
+
     if not indices:
         print("All STRONG bets correctly placed.  No action.")
         return 0
@@ -210,6 +263,15 @@ def main() -> int:
     )
     print(f"Patched {len(fixed_rows)} rows to Supabase "
           f"(bet_placed, units_risked, profit_loss_units only)")
+
+    # T-V21-2026-05-06h: fire the missed strong_graded WIN/LOSS pings
+    # for the orphans we just repaired.  _resend_missing_strong_graded
+    # already runs unconditionally above (catches THIS slate's orphan-
+    # then-fixed gaps too) but we re-call it here against the freshly-
+    # patched rows so the per-bet WIN/LOSS surface lights up the same
+    # cycle the safety net repairs the row.  Dedup in
+    # _notify_event_telegram filters duplicates.
+    _resend_missing_strong_graded(rows, target_date)
 
     # Telegram alert
     body_lines = [
