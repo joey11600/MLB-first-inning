@@ -1,7 +1,7 @@
 {
   "date": "2026-05-06",
   "model_version": "V2.1",
-  "fitted_at": "2026-05-06T19:33:32Z",
+  "fitted_at": "2026-05-06T19:46:38Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -465,28 +465,20 @@
     {
       "matchup": "TEX@NYY",
       "game_pk": "823550",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "YRFI",
+      "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3129,
+      "raw_p_run_t1": 0.2991,
       "raw_p_run_b1": 0.3564,
-      "raw_p_nrfi": 0.4422,
-      "calibrated_p_nrfi": 0.4043,
+      "raw_p_nrfi": 0.4511,
+      "calibrated_p_nrfi": 0.4102,
       "calibrator_band": {
-        "band": "bin_1-2",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_2-3",
+        "is_flat": true,
+        "flat_size": 3,
+        "flat_rate": 0.40425531914893614
       },
       "top_drivers_t1": [
-        {
-          "name": "away_top3c_slg",
-          "value": 0.3853,
-          "z": -0.889,
-          "weight": -0.2097,
-          "contribution": 0.1864,
-          "outlier": false
-        },
         {
           "name": "home_fip",
           "value": 3.337,
@@ -504,19 +496,27 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_obp",
-          "value": 0.3166,
-          "z": -0.758,
-          "weight": 0.0869,
-          "contribution": -0.0659,
-          "outlier": false
-        },
-        {
           "name": "home_xera",
           "value": 4.3451,
           "z": 0.197,
           "weight": 0.2964,
           "contribution": 0.0583,
+          "outlier": false
+        },
+        {
+          "name": "home_plate_ump_nrfi_rate",
+          "value": 0.5521,
+          "z": 1.071,
+          "weight": -0.054,
+          "contribution": -0.0579,
+          "outlier": false
+        },
+        {
+          "name": "wx_is_dome",
+          "value": 0.0,
+          "z": -0.583,
+          "weight": -0.0611,
+          "contribution": 0.0357,
           "outlier": false
         }
       ],
@@ -572,7 +572,9 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": []
+      "warnings": [
+        "calibrator flat zone: 3 bins all map to rate 0.4043 (multiple distinct raw probs collapse here)"
+      ]
     },
     {
       "matchup": "CIN@CHC",
