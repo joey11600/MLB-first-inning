@@ -19,31 +19,17 @@ export const dynamic = "force-dynamic";
 // page-wide so Supabase's internal fetches inherit it.
 export const fetchCache = "force-no-store";
 
-/** Strict ISO YYYY-MM-DD validation -- prevents `?date=2099-12-31` or
- *  `?date=garbage` from being passed through to loadBoard, where it
- *  silently falls back to the latest available date and the URL state
- *  becomes inconsistent with what's displayed. */
-function isValidIsoDate(s: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const [y, m, d] = s.split("-").map(Number);
-  if (m < 1 || m > 12 || d < 1 || d > 31) return false;
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return (
-    dt.getUTCFullYear() === y &&
-    dt.getUTCMonth() === m - 1 &&
-    dt.getUTCDate() === d
-  );
-}
-
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: { date?: string };
-}) {
-  const raw = (searchParams?.date ?? "").trim();
-  // Pass null when the param is missing OR malformed; loadBoard will
-  // fall back to the most recent available date in either case.
-  const requested = raw && isValidIsoDate(raw) ? raw : null;
-  const initial = await loadBoard(requested);
+export default async function HomePage() {
+  // T-V21-2026-05-06: removed `?date=YYYY-MM-DD` query param handling.
+  // The URL serialization caused stale-bookmark stickiness: viewing a
+  // past date once put `?date=2026-05-02` in the URL, the user
+  // bookmarked / kept that tab, and every subsequent visit re-loaded
+  // 5/02 instead of today's slate.
+  //
+  // Now: every initial page load fetches the latest available slate.
+  // The date picker in ControlPanel still navigates to historical
+  // dates (client-side state via refetch); just doesn't sync to the
+  // URL.  Refresh always returns the user to today.
+  const initial = await loadBoard(null);
   return <DashboardShell initial={initial} />;
 }

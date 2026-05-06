@@ -123,25 +123,19 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   ]);
 
   useEffect(() => {
-    // Keep URL in sync for shareability — but ONLY when the user is viewing a
-    // non-current date. The default view (today / most-recent slate) should
-    // live at a clean `/` so opening the site doesn't deeplink into a date
-    // and the URL stays canonical for bookmarks/shares.
-    if (typeof window === "undefined" || !data.date) return;
+    // T-V21-2026-05-06: strip any `?date=` left in the URL on mount.
+    // Was: re-syncing data.date to the URL on every change, which made
+    // a one-time visit to a past slate stick in the user's URL forever
+    // (refresh / bookmark / restore-tab all re-loaded the stale date).
+    // Now: URL is always clean.  The date picker in ControlPanel
+    // navigates via React state (refetch); refresh returns to today.
+    if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    const latestAvailable = data.availableDates?.[0] ?? null;
-    const isDefaultView = latestAvailable !== null && data.date === latestAvailable;
-
-    if (isDefaultView) {
-      if (url.searchParams.has("date")) {
-        url.searchParams.delete("date");
-        window.history.replaceState(null, "", url.toString());
-      }
-    } else if (url.searchParams.get("date") !== data.date) {
-      url.searchParams.set("date", data.date);
+    if (url.searchParams.has("date")) {
+      url.searchParams.delete("date");
       window.history.replaceState(null, "", url.toString());
     }
-  }, [data.date, data.availableDates]);
+  }, []);
 
   // T4.20: Browser notifications on new pick flips.  Compares the
   // pickChanges array between data refetches; any new entries (newer
