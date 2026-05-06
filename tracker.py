@@ -33,6 +33,11 @@ DATA_DIR = Path(__file__).parent / "data"
 FIELDS = [
     # --- core prediction ---
     "date", "season", "game_pk", "game_number",
+    # T-V21-2026-05-06e: doubleheader flag from MLB API ("N" / "Y" / "S").
+    # Predictor populates this; previously was missing from FIELDS so it
+    # never made it into the CSV / Supabase, and DH games were
+    # indistinguishable from singletons in the dashboard.
+    "double_header",
     "away_team", "home_team", "game_time_et",
     "away_pitcher", "home_pitcher",
     "away_pitcher_id", "home_pitcher_id",
@@ -377,16 +382,25 @@ def _is_inside_lock_window(game_time_et: str, iso_date: str,
     Returns True when the row should be eligible for bet_placed=Y.
     Returns False pre-lock (STRONG verdict stays advisory; the model
     can still flip with fresh lineup / weather / pitcher data).
-    Returns True (defensively) when game_time_et is unparseable so
-    we don't accidentally lock a row out forever -- caller's other
-    guards will handle that case."""
+
+    T-V21-2026-05-06e: returns False (NOT defensively True) for
+    placeholder game_time_et like "After Game 1" / "TBD" / anything
+    without a "%H:%M" pattern.  Doubleheader Game 2 rows enter the
+    slate with these placeholders 6-12 hours before Game 1 even ends,
+    and the previous "always lockable" fallback was setting
+    bet_placed=Y immediately on the first import_odds run.  That's
+    exactly the early-commit failure mode T2.58 was designed to
+    prevent.  Other defensive guards (graded_result terminal +24h
+    stale created_at) still cover the "abandoned row" case."""
     if lock_min is None:
         lock_min = _pick_lock_minutes()
     game_dt = _parse_game_time_et(game_time_et, iso_date)
     if game_dt is None:
-        # Fall back to "always lockable" to avoid blocking forever.
-        # Other guards (graded_result, etc.) handle stale rows.
-        return True
+        # Placeholder time -- not yet inside the lock window.  Caller
+        # treats this as "STRONG verdict stays advisory; don't auto-bet."
+        # Once the actual time is posted (DH-1 finishes, schedule fills
+        # in), subsequent cycles parse it normally.
+        return False
     from zoneinfo import ZoneInfo
     from datetime import timedelta
     now_et = datetime.now(ZoneInfo("America/New_York"))
@@ -592,6 +606,12 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "season":         season,
             "game_pk":        g["game_pk"],
             "game_number":    g["game_number"],
+            # T-V21-2026-05-06e: predictor populates this from MLB API
+            # (N / Y / S).  Was getting silently defaulted to "N" in the
+            # Supabase mirror because tracker.FIELDS didn't list it; that
+            # made the whole table say "no doubleheaders today" even on
+            # DH days.
+            "double_header":  g.get("double_header", "N"),
             "away_team":      ap["abbr"],
             "home_team":      hp["abbr"],
             "game_time_et":   g["time"],
@@ -1345,9 +1365,16 @@ def _log_telegram_failure(chat_id: str, err_str: str) -> None:
     _TELEGRAM_FAILURE_LOG_TS[key] = now_ts
     try:
         from db.supabase_writer import mirror_system_error
+        from zoneinfo import ZoneInfo
+        # T-V21-2026-05-06e: use ET date, not UTC.  Most STRONG-bet
+        # Telegram pings fire 7pm-12am ET when UTC has already rolled
+        # to the next day; an UTC-stamped failure row was filed under
+        # tomorrow's slate, so date-filtered Ops Health queries
+        # ("show me 2026-05-06's errors") missed them.
+        iso_date_et = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
         mirror_system_error(
             captured_at_utc = _now_utc(),
-            iso_date        = (datetime.utcnow().date().isoformat()),
+            iso_date        = iso_date_et,
             step            = "telegram-send",
             exit_code       = 1,
             message         = (
@@ -1595,7 +1622,10 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
         row_context = row_context,
     )
     pk = game_pk or f"{away_team}@{home_team}"
-    event_key = f"flip_to_strong:{pk}:{(new_label or '').upper()}"
+    # T-V21-2026-05-06e: include iso_date so back-to-back same-team
+    # series within the 24h dedup window can't collide on the
+    # team-fallback key when game_pk is missing.
+    event_key = f"flip_to_strong:{iso_date}:{pk}:{(new_label or '').upper()}"
     _notify_event_telegram("flip_to_strong", event_key, body)
 
 
@@ -1642,7 +1672,9 @@ def _notify_strong_locked_telegram(row: dict) -> None:
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_locked:{game_pk or (away + '@' + home)}"
+    # T-V21-2026-05-06e: scope by iso_date so the team-fallback key
+    # can't cross-day-collide when game_pk is missing.
+    event_key = f"strong_locked:{iso_date}:{game_pk or (away + '@' + home)}"
     _notify_event_telegram("strong_locked", event_key, body)
 
 
@@ -1704,7 +1736,7 @@ def _notify_strong_graded_telegram(row: dict, today_record: tuple[int, int, int]
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_graded:{game_pk or (away + '@' + home)}"
+    event_key = f"strong_graded:{iso_date}:{game_pk or (away + '@' + home)}"
     _notify_event_telegram("strong_graded", event_key, body)
 
 
@@ -1731,7 +1763,7 @@ def _notify_strong_voided_telegram(row: dict, reason: str) -> None:
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_voided:{game_pk or (away + '@' + home)}"
+    event_key = f"strong_voided:{iso_date}:{game_pk or (away + '@' + home)}"
     _notify_event_telegram("strong_voided", event_key, body)
 
 
@@ -1770,7 +1802,7 @@ def _notify_strong_pregame_telegram(row: dict, minutes_to_first_pitch: int) -> N
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_pregame:{game_pk or (away + '@' + home)}"
+    event_key = f"strong_pregame:{iso_date}:{game_pk or (away + '@' + home)}"
     _notify_event_telegram("strong_pregame", event_key, body)
 
 
@@ -1800,7 +1832,7 @@ def _notify_strong_clv_telegram(row: dict, opened_implied: float, closing_implie
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_clv:{game_pk or (away + '@' + home)}"
+    event_key = f"strong_clv:{iso_date}:{game_pk or (away + '@' + home)}"
     _notify_event_telegram("strong_clv", event_key, body)
 
 
@@ -1835,7 +1867,7 @@ def _notify_strong_weather_telegram(row: dict, change_summary: str) -> None:
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_weather:{game_pk or (away + '@' + home)}"
+    event_key = f"strong_weather:{iso_date}:{game_pk or (away + '@' + home)}"
     _notify_event_telegram("strong_weather", event_key, body)
 
 
@@ -1876,7 +1908,7 @@ def _notify_strong_scratch_telegram(row: dict,
         _dashboard_link(iso_date),
     ])
 
-    event_key = f"strong_scratch:{game_pk or (away + '@' + home)}:{scratched_side}"
+    event_key = f"strong_scratch:{iso_date}:{game_pk or (away + '@' + home)}:{scratched_side}"
     _notify_event_telegram("strong_scratch", event_key, body)
 
 
@@ -2065,10 +2097,16 @@ def _notify_ops_health_telegram(minutes_since_last_predict: int) -> None:
         "",
         _dashboard_link(),
     ])
-    # Use minute granularity in the key so the dedup window = 1h still
-    # lets us re-ping if the outage persists across an hour boundary.
-    bucket = (datetime.utcnow().minute // 30) * 30
-    event_key = f"ops_health:stalled:{datetime.utcnow().strftime('%Y%m%d%H')}{bucket:02d}"
+    # T-V21-2026-05-06e: stable event_key per slate-day so the
+    # 120-min dedup window in _DEDUP_WINDOW_M actually fires.  The
+    # previous key embedded a 30-minute bucket
+    # (`{YYYYMMDDHH}{00 or 30}`) which produced a fresh, unmatched
+    # key every 30 min -- a sustained 2-hour outage spammed 4 pings
+    # instead of 1.  ET-date so a midnight-UTC outage during US prime
+    # time pings under tonight's slate, not tomorrow's.
+    from zoneinfo import ZoneInfo
+    iso_date_et = datetime.now(ZoneInfo("America/New_York")).strftime("%Y%m%d")
+    event_key = f"ops_health:stalled:{iso_date_et}"
     _notify_event_telegram("ops_health", event_key, body)
 
 
@@ -2707,10 +2745,21 @@ def _apply_odds_to_row(
     existing_bet_placed   = (row.get("bet_placed") or "").strip().upper()
     existing_market_nrfi  = (row.get("market_nrfi_odds") or "").strip()
     existing_market_yrfi  = (row.get("market_yrfi_odds") or "").strip()
+    # T-V21-2026-05-06e: lock fires when the PICKED SIDE has a captured
+    # bet-time price -- not both sides.  Previously we required both,
+    # which meant a STRONG YRFI bet placed when only YRFI was scraped
+    # (rare partial-coverage case) would fall through here and the next
+    # full scrape would OVERWRITE the locked YRFI price with the latest.
+    # That breaks CLAUDE.md's "once bet_placed=Y, market_*_odds is
+    # LOCKED" guarantee on the picked side.
+    existing_picked_side = (row.get("pick_side") or "").strip().upper()
+    locked_side_odds = (
+        existing_market_nrfi if existing_picked_side == "NRFI"
+        else existing_market_yrfi if existing_picked_side == "YRFI"
+        else ""
+    )
 
-    if (existing_bet_placed == "Y"
-        and existing_market_nrfi
-        and existing_market_yrfi):
+    if existing_bet_placed == "Y" and locked_side_odds:
         # T2.38 #5: BEFORE the early-return, compute current implied
         # probability vs `opened_*_odds` (locked at first scrape).  If
         # the market shifted >=5pp toward the picked side on a STRONG
@@ -3207,6 +3256,12 @@ def repair_csv(season: int | None = None, dry_run: bool = False) -> None:
         return
 
     repaired_n = skipped_n = ok_n = 0
+    # T-V21-2026-05-06e: track repaired rows so we can patch them to
+    # Supabase too.  Previously this script wrote the CSV but never
+    # synced -- the dashboard kept showing the broken pick_side/strength
+    # until the next predictor cycle, which for graded rows would
+    # never fire (locked).
+    repaired_rows: list[dict] = []
 
     for i, r in enumerate(rows):
         tag      = f"row {i + 2}"
@@ -3247,10 +3302,19 @@ def repair_csv(season: int | None = None, dry_run: bool = False) -> None:
         if not dry_run:
             r["pick_side"]     = new_side
             r["pick_strength"] = new_strength
+            repaired_rows.append(r)
         repaired_n += 1
 
     if not dry_run and repaired_n > 0:
         _write_rows(path, rows)
+        # Patch (not full mirror) so we touch ONLY the two repaired
+        # columns -- can't accidentally wipe odds / grade / bet on
+        # Supabase even if the local CSV row is otherwise stale.
+        _patch_picks_to_supabase(
+            season, repaired_rows, ["pick_side", "pick_strength"],
+        )
+        print(f"  Patched {len(repaired_rows)} rows to Supabase "
+              f"(pick_side, pick_strength only)")
 
     mode = "(dry-run) " if dry_run else ""
     print(f"\n  {mode}Repaired {repaired_n} | Skipped (unrecoverable) {skipped_n} | Already OK {ok_n}")

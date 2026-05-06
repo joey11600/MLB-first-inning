@@ -57,6 +57,12 @@ def main():
 
     n_filled = 0
     n_skipped = 0
+    # T-V21-2026-05-06e: track touched rows so we can patch only the
+    # pitcher_id columns to Supabase.  Without this, a backfill run
+    # against a stale CSV would have its updates remain CSV-only --
+    # the dashboard reads Supabase, so it'd show stale "0" pitcher
+    # IDs until the next predictor cycle.
+    touched_rows: list[dict] = []
     for r in rows:
         pk = (r.get("game_pk") or "").strip()
         a_pid_csv = (r.get("away_pitcher_id") or "").strip()
@@ -86,15 +92,29 @@ def main():
         # Update pid_cache too
         pid_cache[pk] = [a_pid, h_pid]
         n_filled += 1
+        touched_rows.append(r)
         print(f"  {r['date']} {r['away_team']} @ {r['home_team']} pk={pk}: a={a_pid}, h={h_pid}")
 
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=header, extrasaction="ignore")
-        w.writeheader()
-        w.writerows(rows)
+    # Atomic write via tracker._write_rows -- prevents a torn-file race
+    # where a concurrent reader (predictor cycle, dashboard CSV serve)
+    # sees a half-written file mid-flush.
+    from tracker import _write_rows, _patch_picks_to_supabase
+    _write_rows(path, rows)
 
     with open(pid_cache_path, "w", encoding="utf-8") as f:
         json.dump(pid_cache, f, indent=2)
+
+    # Patch Supabase with ONLY the two columns this script owns.
+    # Per-row PATCH (not full mirror) means real odds / grade / bet
+    # stay untouched even if the local CSV is mid-stale.
+    if touched_rows:
+        season = int((touched_rows[0].get("date") or "")[:4])
+        _patch_picks_to_supabase(
+            season, touched_rows,
+            ["away_pitcher_id", "home_pitcher_id"],
+        )
+        print(f"  Patched {len(touched_rows)} rows to Supabase "
+              f"(away_pitcher_id, home_pitcher_id only)")
 
     print(f"\n  Filled {n_filled} games with actual starting pitcher IDs")
     print(f"  Skipped {n_skipped} games (not graded or boxscore unavailable)")

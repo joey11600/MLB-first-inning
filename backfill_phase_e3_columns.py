@@ -275,10 +275,62 @@ def backfill_picks_2026(caches: dict):
 
 
 def save(path: Path, header: list, rows: list):
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=header, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
+    """T-V21-2026-05-06e: atomic write + Supabase patch.  Was using a
+    plain `open(path, "w", ...)` which (a) leaves a torn file visible
+    if a concurrent reader (predictor cycle, dashboard CSV serve)
+    catches it mid-flush, and (b) skipped Supabase entirely so any
+    backfill of picks_2026.csv stayed CSV-only and the dashboard kept
+    showing pre-backfill values.
+
+    For picks_<season>.csv specifically, also patch Supabase with the
+    columns this script touches.  The two backtest CSVs (under
+    data/backtests/) aren't mirrored anywhere, so they only get the
+    atomic-write upgrade -- no Supabase patch needed."""
+    is_picks = path.name.startswith("picks_") and path.suffix == ".csv"
+    if is_picks:
+        # Use tracker's atomic writer + the targeted Supabase patch so
+        # backfill columns land in Supabase without overwriting odds /
+        # grade / bet that this script doesn't own.
+        from tracker import _write_rows, _patch_picks_to_supabase
+        _write_rows(path, rows)
+        # Columns this script may have populated, listed exhaustively.
+        # patch_picks ignores empty values inside _transform_pick_row,
+        # so rows that didn't actually change a given column are no-ops.
+        backfill_cols = [
+            "home_p_last5_pitcher_nrfi", "away_p_last5_pitcher_nrfi",
+            "home_p_last10_pitcher_nrfi", "away_p_last10_pitcher_nrfi",
+            "home_top3c_obp", "away_top3c_obp",
+            "home_top3c_slg", "away_top3c_slg",
+            "home_top3c_iso", "away_top3c_iso",
+            "home_plate_ump_id", "home_plate_ump_nrfi_rate",
+            "home_xera", "away_xera",
+            "home_whiff_pct_rank", "away_whiff_pct_rank",
+        ]
+        # Derive season from filename (picks_2026.csv -> 2026).
+        try:
+            season = int(path.stem.rsplit("_", 1)[1])
+        except (IndexError, ValueError):
+            season = None
+        if season is not None:
+            _patch_picks_to_supabase(season, rows, backfill_cols)
+            print(f"    Patched {len(rows)} rows to Supabase "
+                  f"({len(backfill_cols)} backfill columns)")
+        return
+    # Backtest CSVs: just an atomic file write, no Supabase mirror.
+    import tempfile, os
+    tmp_fd, tmp_path = tempfile.mkstemp(prefix=path.name + ".",
+                                        suffix=".tmp",
+                                        dir=str(path.parent))
+    try:
+        with os.fdopen(tmp_fd, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=header, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        os.replace(tmp_path, path)
+    except Exception:
+        try:    os.unlink(tmp_path)
+        except OSError:    pass
+        raise
 
 
 def main():

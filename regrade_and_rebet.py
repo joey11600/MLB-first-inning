@@ -415,10 +415,29 @@ def main() -> None:
     if args.dry_run:
         print(f"\n  [dry-run] {PICKS_PATH} NOT modified.")
     else:
-        with open(PICKS_PATH, "w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-            writer.writeheader()
-            writer.writerows(rows)
+        # T-V21-2026-05-06e: atomic write + targeted Supabase patch.
+        # The previous plain `open(path, "w", ...)` could leave a
+        # torn file visible to a concurrent reader, AND skipped
+        # Supabase entirely -- the dashboard kept showing pre-regrade
+        # pick_side / pick_strength until a predictor cycle re-mirrored
+        # them (which on graded rows never happens because of the
+        # bet-time pick lock).
+        from tracker import _write_rows, _patch_picks_to_supabase
+        _write_rows(PICKS_PATH, rows)
+        # Columns this script can modify: pick_side, pick_strength,
+        # pick_label.  Patch only those so we don't accidentally wipe
+        # odds / grade / bet on rows where this CSV is mid-stale.
+        try:
+            season = int(PICKS_PATH.stem.rsplit("_", 1)[1])
+            _patch_picks_to_supabase(
+                season, rows,
+                ["pick_side", "pick_strength", "pick_label"],
+            )
+            print(f"  Patched {len(rows)} rows to Supabase "
+                  f"(pick_side, pick_strength, pick_label only)")
+        except (IndexError, ValueError):
+            print(f"  WARNING: could not derive season from {PICKS_PATH.name}; "
+                  f"Supabase not patched.  Run db.migrate_csv_to_supabase if needed.")
         print(f"\n  Wrote updated picks -> {PICKS_PATH}")
 
     print("\nDone.\n")

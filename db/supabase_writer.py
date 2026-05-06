@@ -343,7 +343,18 @@ def _transform_pick_row(row: dict) -> dict:
     T-V21-2026-05-06d: fields in _PRESERVE_ON_BLANK_FIELDS are skipped
     when the source value is blank, so an empty value from the predict
     path doesn't overwrite a populated Supabase column.  See the
-    constant's docstring for the incident this prevents."""
+    constant's docstring for the incident this prevents.
+
+    T-V21-2026-05-06e: also preserve bet_placed="N" when the row already
+    has a graded_result (terminal).  Rationale: end_of_day_check sets
+    bet_placed="Y" for orphan STRONG bets; an in-flight Railway predictor
+    cycle that started reading the CSV BEFORE the GHA push that included
+    the EOD fix can finish its mirror with bet_placed="N" (legitimate
+    pre-EOD state), which would undo the patch.  Once a row is graded,
+    only EOD safety net + import_odds (when bet was actually placed at
+    lock) should be authoritative for bet_placed -- not a stale-CSV
+    predict cycle."""
+    graded = (row.get("graded_result") or "").strip().upper() in ("WIN", "LOSS")
     out: dict = {}
     for col, conv in PICKS_CONVERTERS.items():
         if col in row:
@@ -354,6 +365,17 @@ def _transform_pick_row(row: dict) -> dict:
                 # missing column on UPDATE is preserved; on INSERT the
                 # column gets its table default (NULL).  Either way we
                 # never clobber a real value with a blank.
+                continue
+            # Terminal-row N-protection: don't let a stale-CSV cycle write
+            # bet_placed="N" / units_risked="" / profit_loss_units="" on
+            # a row that already has graded_result.  Those three columns
+            # become locked-in once the game grades; only the EOD safety
+            # net + import_odds at lock time should authoritatively set
+            # them, never a downstream predict pass.
+            if (graded
+                    and col == "bet_placed"
+                    and isinstance(raw, str)
+                    and raw.strip().upper() == "N"):
                 continue
             out[col] = conv(raw)
     # Default double_header to "N" if the column isn't on the row at

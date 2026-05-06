@@ -606,8 +606,18 @@ def grade_completed_picks(
                 "fi_home_runs":      int(home_r),
                 "fi_total_runs":     int(total_r),
                 "graded_at":         now_iso,
-                "profit_loss_units": pnl,
             }
+            # T-V21-2026-05-06e: only include profit_loss_units when we
+            # actually computed one.  _compute_pnl returns None for PASS
+            # rows, malformed strength, or any case where payout can't be
+            # derived.  Sending None as an UPDATE value writes SQL NULL
+            # to Supabase, wiping any prior value (e.g. one already set
+            # by tracker._calc_pnl for a STRONG bet that this worker
+            # then re-grades as PASS due to a stale pick_side read).
+            # Omitting the key from the payload preserves whatever
+            # Supabase had.
+            if pnl is not None:
+                update["profit_loss_units"] = pnl
 
             # Step 5: UPDATE in place.  Filter on date+game_pk to be a
             # no-op if a parallel writer raced us to it (idempotent).

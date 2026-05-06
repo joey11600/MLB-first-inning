@@ -250,39 +250,63 @@ def transform_row(row: dict) -> dict:
 # --- migration steps -------------------------------------------------------
 
 def migrate_picks(client: Client, csv_path: Path, dry_run: bool = False) -> tuple[int, int]:
-    """Bulk-upsert picks_<year>.csv into picks_<year> table.  Returns (read, upserted)."""
+    """Bulk-upsert picks_<year>.csv into picks_<year> table.  Returns (read, upserted).
+
+    T-V21-2026-05-06e: delegates to `db.supabase_writer.mirror_picks` so this
+    one-shot migrator inherits the same preserve-on-blank guard the live
+    Railway / GHA mirror uses.  Without this delegation, running this script
+    against a stale CSV (e.g. just after a fresh git pull, before the day's
+    odds have been imported) would wipe Supabase's authoritative odds /
+    grade / bet columns -- the exact incident on 2026-05-06.
+
+    The local PICKS_FIELD_MAP / transform_row is still used to derive the
+    season number from the file stem (picks_<season>.csv); the actual
+    payload construction now happens inside supabase_writer."""
     if not csv_path.exists():
         print(f"  [skip] {csv_path.name} does not exist")
         return (0, 0)
 
     table = csv_path.stem  # "picks_2026"
+    # Derive season from file stem -- supabase_writer takes a season int
+    # and constructs the table name itself.
+    try:
+        season = int(table.rsplit("_", 1)[1])
+    except (IndexError, ValueError):
+        print(f"  [{table}] cannot derive season from filename; skipping")
+        return (0, 0)
+
     rows: list[dict] = []
     with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            rows.append(transform_row(row))
+            rows.append(row)   # raw CSV dicts; supabase_writer transforms
 
     print(f"  [{table}] read {len(rows)} rows from CSV")
 
     if dry_run:
-        print(f"  [{table}] DRY RUN — would upsert {len(rows)} rows; first row keys: {list(rows[0].keys())[:8] if rows else []}...")
+        # Show what _would_ be sent through the safe path.  This uses the
+        # same _transform_pick_row that mirror_picks would call, so the
+        # dry-run payload accurately reflects the post-fix behavior
+        # (preserve-on-blank etc.).
+        from db.supabase_writer import _transform_pick_row, _PRESERVE_ON_BLANK_FIELDS
+        preview_payload = _transform_pick_row(rows[0]) if rows else {}
+        skipped_blank_preserve = [
+            f for f in _PRESERVE_ON_BLANK_FIELDS
+            if f not in preview_payload
+        ]
+        print(
+            f"  [{table}] DRY RUN -- would mirror {len(rows)} rows via "
+            f"db.supabase_writer.mirror_picks.  Sample row sends "
+            f"{len(preview_payload)} columns; skipping blank preserve fields: "
+            f"{sorted(skipped_blank_preserve)[:6]}{'...' if len(skipped_blank_preserve) > 6 else ''}"
+        )
         return (len(rows), 0)
 
-    # Upsert in batches of 500 to stay under request size limits + give us
-    # progress feedback for long-running migrations
-    BATCH = 500
-    upserted = 0
-    for i in range(0, len(rows), BATCH):
-        batch = rows[i:i+BATCH]
-        # ON CONFLICT (date, game_pk) DO UPDATE — handled by `upsert()` which
-        # uses primary key automatically
-        res = client.table(table).upsert(batch, on_conflict="date,game_pk").execute()
-        if res.data is None and getattr(res, "error", None):
-            print(f"  [{table}] batch {i//BATCH + 1} ERROR: {res.error}")
-            continue
-        upserted += len(batch)
-        print(f"  [{table}] upserted {upserted}/{len(rows)}")
-
+    # Single source of truth for the upsert: mirror_picks owns batching,
+    # shape-grouping, retry, and the preserve-on-blank filter.
+    from db.supabase_writer import mirror_picks
+    upserted = mirror_picks(rows, season)
+    print(f"  [{table}] upserted {upserted}/{len(rows)} via supabase_writer.mirror_picks")
     return (len(rows), upserted)
 
 
