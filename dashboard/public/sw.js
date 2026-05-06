@@ -32,7 +32,13 @@
  * stale Vercel chunks across deploys.
  */
 
-const CACHE_VERSION  = "nrfi-v2";
+// T-V21-2026-05-06c: bumped from "nrfi-v2".  The activate handler purges
+// any cache whose key doesn't start with the current CACHE_VERSION, so
+// bumping this string forces a clean slate on every browser the next
+// time the SW activates -- which is the only reliable way to evict
+// stale HTML cached by past deploys (incl. the dirty `?date=2026-05-02`
+// shell that was sticking through the middleware redirect).
+const CACHE_VERSION  = "nrfi-v3";
 const SHELL_CACHE    = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE  = `${CACHE_VERSION}-runtime`;
 
@@ -108,9 +114,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Stale-while-revalidate for the HTML shell + everything else.
-  // Renders cached version instantly, refreshes in background.
-  event.respondWith(staleWhileRevalidate(req));
+  // T-V21-2026-05-06c: HTML is now network-first.  Stale-while-revalidate
+  // was serving an old cached shell (the OLD 4-tile layout with the
+  // "MODEL: LR-v2 · calibrated" header from a deploy weeks back) on
+  // every alternate refresh, because SWR returns cached IMMEDIATELY
+  // and only revalidates in the background -- meaning the user sees
+  // stale HTML at least once per cache miss-cycle.  For a live data
+  // dashboard, freshness > instant boot.  Network-first means:
+  //
+  //   - Online:  always fresh shell, server has chance to redirect
+  //              `?date=` queries before the page renders.
+  //   - Offline: cached fallback so the user still sees SOMETHING
+  //              (the offline copy is a genuine improvement over a
+  //              connection-refused error).
+  event.respondWith(networkFirst(req));
 });
 
 // ---------------------------------------------------------------------------

@@ -80,6 +80,17 @@ const swBootstrap = `
   // contentful paint is a Lighthouse anti-pattern.
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(function (reg) {
+        // T-V21-2026-05-06c: force an update check on every page load.
+        // Browsers normally only check for new SW versions every 24h;
+        // this bypasses that interval so when we ship a new sw.js the
+        // user picks it up on their next visit instead of after a day.
+        // Critical for evicting the stale nrfi-v2 cache that was
+        // serving an old shell on alternating refreshes.
+        if (reg && typeof reg.update === 'function') {
+          reg.update().catch(function () {});
+        }
+      })
       .catch(function (err) { console.warn('[sw] registration failed:', err); });
   });
 })();
