@@ -22,33 +22,23 @@ import styles from "./GameDetails.module.css";
 /** GameDetails — expanded row drawer.
  *
  *  Post-redesign: hosts the contextual annotations that used to render
- *  inline on the row (tentative lean while LINEUP PENDING, v3 model
- *  disagreement, line-drift open→current).  The row stays clean; the
- *  context lives one click away.
+ *  inline on the row (tentative lean while LINEUP PENDING, line-drift
+ *  open→current).  The row stays clean; the context lives one click away.
  *
  *  Props:
- *    row        — effective row (v3-spread-applied if model="v3" and v3 data present)
- *    detail     — effective detail (same v3-spread treatment)
- *    rawRow     — original BoardRow before any v3 spread (for v3-vs-v2 comparison)
- *    rawDetail  — original GameDetail before v3 spread
+ *    row        — BoardRow (V2.1 production)
+ *    detail     — GameDetail (V2.1 production)
  *    thresholds — classifier thresholds from the predictor; falls back to defaults
- *    model      — "v2" (production) or "v3" (shadow)
  */
 export function GameDetails({
   row,
   detail,
-  rawRow,
-  rawDetail,
   thresholds,
-  model = "v2",
   slateDate,
 }: {
   row:        BoardRow;
   detail:     GameDetail | undefined;
-  rawRow?:    BoardRow;
-  rawDetail?: GameDetail | undefined;
   thresholds?: PickThresholds;
-  model?:     "v2" | "v3";
   /** T4.12: slate date (YYYY-MM-DD) for the /api/pick-reasoning lookup. */
   slateDate?: string;
 }) {
@@ -59,10 +49,7 @@ export function GameDetails({
       <NoticeStack
         row={row}
         detail={detail}
-        rawRow={rawRow}
-        rawDetail={rawDetail}
         thresholds={thresholds}
-        model={model}
       />
 
       <div className={styles.topGrid}>
@@ -1024,8 +1011,6 @@ function initialsFromName(name: string | undefined): string {
    row inline.  Each notice is conditionally rendered:
      - TentativeLeanNotice: when LINEUP/STARTER PENDING with a
        computable lean
-     - V3DisagreementNotice: when model=v3 and v3 disagrees with v2
-     - V3MissingNotice: when model=v3 but the row has no v3 data
      - LineDriftNotice: when opened odds differ from current,
        showing whether the market moved toward or away from the pick
    None of these block the main details panel; if all conditions
@@ -1035,24 +1020,14 @@ function initialsFromName(name: string | undefined): string {
 function NoticeStack({
   row,
   detail,
-  rawRow,
-  rawDetail,
   thresholds,
-  model,
 }: {
   row:        BoardRow;
   detail:     GameDetail | undefined;
-  rawRow?:    BoardRow;
-  rawDetail?: GameDetail | undefined;
   thresholds?: PickThresholds;
-  model:      "v2" | "v3";
 }) {
   const showTentative =
     row.pickStrength === "LINEUP PENDING";
-  const showV3Disagree =
-    model === "v3" && rawRow?.v3?.disagreesWithV2 === true;
-  const showV3Missing =
-    model === "v3" && rawRow !== undefined && rawRow.v3 === undefined;
 
   // Line drift on the picked side -- only meaningful when we have an
   // opened price for that side AND the price has actually moved.
@@ -1079,7 +1054,7 @@ function NoticeStack({
     && driftOpenRaw !== driftCurrentRaw,
   );
 
-  if (!showTentative && !showV3Disagree && !showV3Missing && !showDrift) {
+  if (!showTentative && !showDrift) {
     return null;
   }
 
@@ -1091,17 +1066,6 @@ function NoticeStack({
           detail={detail}
           thresholds={thresholds}
         />
-      )}
-      {showV3Disagree && rawRow && (
-        <V3DisagreementNotice
-          v2Label={rawRow.pickLabel}
-          v3Label={rawRow.v3!.pickLabel}
-          v2Side={rawRow.pickSide}
-          v3Side={rawRow.v3!.pickSide}
-        />
-      )}
-      {showV3Missing && (
-        <V3MissingNotice />
       )}
       {showDrift && driftPick && (
         <LineDriftNotice
@@ -1148,63 +1112,6 @@ function TentativeLeanNotice({
         <div className={styles.noticeMeta}>
           Based on team-fallback batter stats.  Will commit (or override)
           once MLB posts the lineup.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** V3DisagreementNotice -- shown in v3 view when v3's verdict differs
- *  from v2's production verdict on this game.  Quiet, side-by-side
- *  presentation so the operator can compare without alarm. */
-function V3DisagreementNotice({
-  v2Label,
-  v3Label,
-  v2Side,
-  v3Side,
-}: {
-  v2Label: string;
-  v3Label: string;
-  v2Side:  PickSide;
-  v3Side:  PickSide;
-}) {
-  return (
-    <div className={`${styles.notice} ${styles.noticeShadow}`}>
-      <span className={styles.noticeDot} data-tone="shadow" aria-hidden />
-      <div className={styles.noticeBody}>
-        <div className={styles.noticeHead}>
-          <span className={styles.noticeEyebrow}>v3 disagreement</span>
-        </div>
-        <div className={styles.noticeMeta}>
-          v3 (experimental) says{" "}
-          <span className={styles.noticeInlineSide} data-side={v3Side.toLowerCase()}>
-            {v3Label}
-          </span>
-          ; V2.1 (production, your real picks) says{" "}
-          <span className={styles.noticeInlineSide} data-side={v2Side.toLowerCase()}>
-            {v2Label}
-          </span>
-          .
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** V3MissingNotice -- shown when v3 view is selected but this row has
- *  no shadow data (pre-T3.13 row, before nrfi_prob_raw was stored).
- *  Tells the operator they're seeing v2 verdict as a fallback. */
-function V3MissingNotice() {
-  return (
-    <div className={`${styles.notice} ${styles.noticeShadow}`}>
-      <span className={styles.noticeDot} data-tone="shadow" aria-hidden />
-      <div className={styles.noticeBody}>
-        <div className={styles.noticeHead}>
-          <span className={styles.noticeEyebrow}>v3 unavailable</span>
-        </div>
-        <div className={styles.noticeMeta}>
-          No shadow data for this game (predicted before T3.13 nrfi_prob_raw
-          column landed).  Showing v2 verdict as a fallback.
         </div>
       </div>
     </div>

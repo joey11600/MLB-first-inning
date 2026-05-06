@@ -15,7 +15,6 @@ export function BoardTable({
   loading,
   thresholds,
   date,
-  model = "v2",
 }: {
   rows: BoardRow[];
   details: Record<string, GameDetail>;
@@ -23,9 +22,6 @@ export function BoardTable({
   loading: boolean;
   thresholds?: PickThresholds;
   date?: string;
-  /** T3.17: which model's verdict to display (v2 = production,
-   *  v3 = experimental shadow).  Threaded through to BoardRowItem. */
-  model?: "v2" | "v3";
 }) {
   // Tier-1 live MLB state: poll /api/live-state every 30s for in-progress
   // games on today's date.  Hook auto-skips for historical dates so we
@@ -177,7 +173,6 @@ export function BoardTable({
               })}
               thresholds={thresholds}
               slateDate={date ?? ""}
-              model={model}
             />
           );
         })}

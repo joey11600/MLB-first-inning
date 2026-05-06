@@ -94,7 +94,6 @@ function lookupDetail(
 export function aggregateTodayRoi(
   rows:    BoardRow[],
   details: Record<string, GameDetail>,
-  model:   "v2" | "v3",
   today:   string,
 ): RoiResponse {
   const buckets = new Map<string, ZoneRoi>();
@@ -106,24 +105,20 @@ export function aggregateTodayRoi(
   let dayPL = 0;
 
   for (const r of rows) {
-    const eside     = model === "v3" && r.v3 ? r.v3.pickSide     : r.pickSide;
-    const estrength = model === "v3" && r.v3 ? r.v3.pickStrength : r.pickStrength;
-
-    const label = zoneLabel(eside, estrength);
-    const key   = `${eside}|${estrength}`;
+    const label = zoneLabel(r.pickSide, r.pickStrength);
+    const key   = `${r.pickSide}|${r.pickStrength}`;
     let z = buckets.get(key);
     if (!z) {
-      z = emptyZone(label, eside, estrength);
+      z = emptyZone(label, r.pickSide, r.pickStrength);
       buckets.set(key, z);
     }
 
     z.picks += 1;
     totalPicks += 1;
 
-    const d        = lookupDetail(r, details);
-    const useV3D   = model === "v3" && d?.v3 !== undefined;
-    const graded   = useV3D ? d!.v3!.gradedResult     : d?.gradedResult;
-    const plRaw    = useV3D ? d!.v3!.profitLossUnits  : d?.profitLossUnits;
+    const d      = lookupDetail(r, details);
+    const graded = d?.gradedResult;
+    const plRaw  = d?.profitLossUnits;
 
     if (graded === "WIN" || graded === "LOSS" || graded === "PASS") {
       gradedPicks += 1;

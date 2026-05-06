@@ -7,16 +7,20 @@ import { todayEtIso } from "@/lib/date";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
 import { OpsHealthCard } from "./OpsHealthCard";
-import { ShadowDeltaCard } from "./ShadowDeltaCard";
 import { RoiPanel } from "./RoiPanel";
 import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
 import { Ticker } from "./Ticker";
 import { StatusLine } from "./StatusLine";
-import { ModelToggle, usePersistedModel } from "./ModelToggle";
 import { TonightsActionCard } from "./TonightsActionCard";
 import { SettingsDropdown } from "./SettingsDropdown";
 import styles from "./DashboardShell.module.css";
+
+// T-V21-LOCKIN-2026-05-06: removed ModelToggle (V2/V3 pill) and
+// ShadowDeltaCard (V2-vs-V2.1 daily delta tile).  V2.1 is now the
+// only production model; the V3 shadow comparison is no longer
+// surfaced.  All `model` props on downstream components are
+// dropped along with this.
 
 // T3.18: Filter persistence helpers.  We persist via TWO mechanisms:
 //   1. URL search params (shareable, bookmarkable, survives reloads)
@@ -65,9 +69,8 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   const [data, setData] = useState<BoardResponse>(initial);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-  // T3.17: v2/v3 model toggle (Variant K shadow tracking).  v2 is the
-  // production calibrator and source-of-truth; v3 is experimental shadow.
-  const [model, setModel] = usePersistedModel();
+  // T-V21-LOCKIN-2026-05-06: V2.1 is the only production model.
+  // The v2/v3 ModelToggle was deleted along with the V3 shadow surface.
 
   // Hydrate filters once on mount from URL params + localStorage.
   // (Done in an effect so SSR-rendered HTML doesn't read window.)
@@ -120,14 +123,25 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   ]);
 
   useEffect(() => {
-    // keep URL in sync for shareability
+    // Keep URL in sync for shareability — but ONLY when the user is viewing a
+    // non-current date. The default view (today / most-recent slate) should
+    // live at a clean `/` so opening the site doesn't deeplink into a date
+    // and the URL stays canonical for bookmarks/shares.
     if (typeof window === "undefined" || !data.date) return;
     const url = new URL(window.location.href);
-    if (url.searchParams.get("date") !== data.date) {
+    const latestAvailable = data.availableDates?.[0] ?? null;
+    const isDefaultView = latestAvailable !== null && data.date === latestAvailable;
+
+    if (isDefaultView) {
+      if (url.searchParams.has("date")) {
+        url.searchParams.delete("date");
+        window.history.replaceState(null, "", url.toString());
+      }
+    } else if (url.searchParams.get("date") !== data.date) {
       url.searchParams.set("date", data.date);
       window.history.replaceState(null, "", url.toString());
     }
-  }, [data.date]);
+  }, [data.date, data.availableDates]);
 
   // T4.20: Browser notifications on new pick flips.  Compares the
   // pickChanges array between data refetches; any new entries (newer
@@ -241,11 +255,9 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
       <Ticker rows={data.rows} date={data.date} />
       <main className={styles.shell}>
       {/* Tightened single-row header.  Brand on the left, slate hero
-          centered, primary actions (model toggle + history) and the
-          settings dropdown on the right.  The MODEL meta block was
-          dropped because the ModelToggle pill itself shows current
-          state -- two surfaces saying the same thing was redundant.
-          ThemeToggle + NotifyToggle moved into SettingsDropdown. */}
+          centered, primary actions (history) and the settings dropdown
+          on the right.  ThemeToggle + NotifyToggle live inside
+          SettingsDropdown. */}
       <header className={styles.header}>
         <div className={styles.brand}>
           <div className={styles.mark} aria-hidden />
@@ -268,17 +280,10 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         </div>
 
         <div className={styles.headerActions}>
-          <ModelToggle model={model} onChange={setModel} />
-          {/* T3.24: History link follows the active model toggle so the
-              operator lands on the matching screen.  v2 -> /history
-              (production bookkeeping); v3 -> /history/v3 (Variant K
-              shadow). */}
           <a
-            href={model === "v3" ? "/history/v3" : "/history"}
+            href="/history"
             className={styles.navLink}
-            title={model === "v3"
-              ? "v3 shadow bankroll history"
-              : "Bankroll history (production)"}
+            title="Bankroll history"
           >
             <span className={styles.navLinkIcon} aria-hidden>▤</span>
             History
@@ -287,37 +292,31 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         </div>
       </header>
 
-      {/* Post-redesign top-of-fold ordering:
-          1. TonightsActionCard -- "what should I bet tonight" (NEW, hero)
+      {/* Top-of-fold ordering:
+          1. TonightsActionCard -- "what should I bet tonight" (hero)
           2. OpsHealthCard      -- system health surfaced if anything's wrong
-          3. ShadowDeltaCard    -- T4.4 daily T4.2 shadow delta (is the fix
-                                   still working? -- visible at a glance,
-                                   click to see 14-day timeline)
-          4. SummaryStrip       -- retrospective today-stats tiles
-          5. RoiPanel           -- bankroll across 7d/30d/season
-          6. ControlPanel       -- date + filters
-          7. (changes / board / status)
+          3. SummaryStrip       -- retrospective today-stats tiles
+          4. RoiPanel           -- bankroll across 7d/30d/season
+          5. ControlPanel       -- date + filters
+          6. (changes / board / status)
        */}
       <TonightsActionCard
         rows={data.rows}
         details={data.details}
-        model={model}
       />
 
       <OpsHealthCard />
-      <ShadowDeltaCard />
 
       {/* T3.21: SummaryStrip slimmed -- no longer needs details since
           P&L/CLV moved into RoiPanel.  RoiPanel now receives rows +
           details so its TODAY window can aggregate locally without
           a server round-trip. */}
-      <SummaryStrip rows={data.rows} model={model} />
+      <SummaryStrip rows={data.rows} />
 
       <RoiPanel
         initialDate={data.date}
         rows={data.rows}
         details={data.details}
-        model={model}
       />
 
       <ControlPanel
@@ -339,7 +338,6 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           loading={loading}
           thresholds={data.thresholds}
           date={data.date}
-          model={model}
         />
       </section>
 

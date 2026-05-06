@@ -329,29 +329,6 @@ async function loadPickChanges(iso: string): Promise<PickChange[]> {
 
 
 // ---------------------------------------------------------------------------
-// Variant K (v3 calibrator shadow) -- T3.17
-// ---------------------------------------------------------------------------
-
-async function loadVariantKByGamePk(iso: string): Promise<Record<string, PickRow>> {
-  const sb = getServerSupabase();
-  if (!sb) return {};
-  const { data, error } = await sb
-    .from("pick_variants")
-    .select("game_pk, pick_side, pick_strength, pick_label, nrfi_prob, yrfi_prob, graded_result, would_be_units, profit_loss_units")
-    .eq("date", iso)
-    .eq("variant_name", "K")
-    .limit(50);
-  if (error || !data) return {};
-  const out: Record<string, PickRow> = {};
-  for (const r of data as PickRow[]) {
-    const gpk = str(r.game_pk);
-    if (gpk) out[gpk] = r;
-  }
-  return out;
-}
-
-
-// ---------------------------------------------------------------------------
 // Thresholds (still file-based; tiny static JSON)
 // ---------------------------------------------------------------------------
 
@@ -437,9 +414,9 @@ export async function loadBoardFromSupabase(
 
   const pickRows = data as PickRow[];
 
-  // T3.17: fetch Variant K (v3 calibrator shadow) rows for the same date.
-  // Indexed by game_pk so we can splice them into BoardRow + GameDetail.
-  const v3ByGamePk = await loadVariantKByGamePk(iso);
+  // T-V21-LOCKIN-2026-05-06: removed Variant K (v3 calibrator shadow)
+  // splice.  V2.1 is the only production model surfaced; the V3 toggle
+  // and shadow data flow were archived.
 
   // Build BoardRow + GameDetail in one pass.  rank is the 1-based index
   // after the SQL ordering above (matches what board.csv encodes).
@@ -449,39 +426,6 @@ export async function loadBoardFromSupabase(
     const baseRow    = rowToBoardRow(r, idx + 1);
     const baseDetail = rowToGameDetail(r);
     const pk         = str(r.game_pk);
-
-    // T3.17: splice in v3 shadow data when available
-    const k = pk ? v3ByGamePk[pk] : undefined;
-    if (k) {
-      const v3RowSide     = (k.pick_side     ?? "PASS")   as BoardRow["pickSide"];
-      const v3RowStrength = (k.pick_strength ?? "NO EDGE") as BoardRow["pickStrength"];
-      const v3Label       = (k.pick_label    ?? "PASS - No edge") as string;
-      const v3Nrfi        = num(k.nrfi_prob) * 100;
-      const v3Yrfi        = num(k.yrfi_prob) * 100;
-      const disagrees     = (
-        v3RowSide     !== baseRow.pickSide     ||
-        v3RowStrength !== baseRow.pickStrength
-      );
-      baseRow.v3 = {
-        pickSide:        v3RowSide,
-        pickStrength:    v3RowStrength,
-        pickLabel:       v3Label,
-        nrfiPct:         v3Nrfi,
-        yrfiPct:         v3Yrfi,
-        disagreesWithV2: disagrees,
-      };
-      baseDetail.v3 = {
-        pickSide:        v3RowSide,
-        pickStrength:    v3RowStrength,
-        pickLabel:       v3Label,
-        nrfiPct:         v3Nrfi,
-        yrfiPct:         v3Yrfi,
-        gradedResult:    (k.graded_result as GameDetail["gradedResult"]) ?? null,
-        unitsRisked:     k.would_be_units == null ? null : Number(k.would_be_units),
-        profitLossUnits: k.profit_loss_units == null ? null : Number(k.profit_loss_units),
-        disagreesWithV2: disagrees,
-      };
-    }
 
     boardRows.push(baseRow);
     const teamKey = `${str(r.away_team)}@${str(r.home_team)}`;

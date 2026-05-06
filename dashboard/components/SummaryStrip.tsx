@@ -51,26 +51,17 @@ const BUCKETS: Bucket[] = [
 
 export function SummaryStrip({
   rows,
-  model = "v2",
 }: {
   rows: BoardRow[];
-  /** T3.17 model toggle.  Distribution counts are computed from
-   *  effective row.pickSide/pickStrength so the strip respects the
-   *  toggle for v3 mode.  No P&L lives here anymore -- that's
-   *  consolidated into RoiPanel. */
-  model?: "v2" | "v3";
 }) {
-  const effectivePickSide = (r: BoardRow): BoardRow["pickSide"] =>
-    model === "v3" && r.v3 ? r.v3.pickSide : r.pickSide;
-
   const avgLambda =
     rows.length === 0 ? 0 : rows.reduce((a, r) => a + r.lambda, 0) / rows.length;
   const maxLambda =
     rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.lambda));
   const minLambda =
     rows.length === 0 ? 0 : Math.min(...rows.map((r) => r.lambda));
-  const nrfiCnt = rows.filter((r) => effectivePickSide(r) === "NRFI").length;
-  const yrfiCnt = rows.filter((r) => effectivePickSide(r) === "YRFI").length;
+  const nrfiCnt = rows.filter((r) => r.pickSide === "NRFI").length;
+  const yrfiCnt = rows.filter((r) => r.pickSide === "YRFI").length;
 
   return (
     <section className={styles.wrap} aria-label="Slate summary">

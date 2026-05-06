@@ -24,20 +24,9 @@ export interface BoardRow {
   gameNumber: number;    // 1 by default
   doubleHeader: string;  // "N" / "Y" / "S"
   gameTimeEt: string;    // mirrors picks_2026.csv game_time_et for the same row
-  // T3.17: shadow-tracking v3 calibrator verdict (Variant K).  Present
-  // for rows where pick_variants.K has been computed; absent for pre-K
-  // dates or rows that pre-date the nrfi_prob_raw column.  When present,
-  // the dashboard's model toggle can switch to display v3 fields.
-  v3?: {
-    pickSide:        PickSide;
-    pickStrength:    PickStrength;
-    pickLabel:       string;
-    nrfiPct:         number;
-    yrfiPct:         number;
-    /** True when v3 disagrees with v2 (different side or PASS-vs-bet).
-     *  Drives a small badge on the row. */
-    disagreesWithV2: boolean;
-  };
+  // T-V21-LOCKIN-2026-05-06: removed v3 (Variant K shadow) field.
+  // V2.1 is the only production model; the V3 shadow surface was
+  // archived along with the model toggle.
 }
 
 export interface PitcherStats {
@@ -127,20 +116,7 @@ export interface GameDetail {
   openedYrfiOdds:   string;
   openedCapturedAt: string;      // ISO timestamp; empty when no opened odds
   clvPct:           number | null; // (close implied prob - open implied prob) on the picked side
-  // T3.17: v3 shadow grading (Variant K).  Outcome of v3's verdict on
-  // this game.  Present alongside v2's grading when pick_variants.K
-  // has a row for this game; absent otherwise.
-  v3?: {
-    pickSide:        PickSide;
-    pickStrength:    PickStrength;
-    pickLabel:       string;
-    nrfiPct:         number;
-    yrfiPct:         number;
-    gradedResult:    GradedResult;
-    unitsRisked:     number | null;
-    profitLossUnits: number | null;
-    disagreesWithV2: boolean;
-  };
+  // T-V21-LOCKIN-2026-05-06: removed v3 (Variant K shadow) grading.
   away: {
     team: string;
     pitcher: PitcherStats;

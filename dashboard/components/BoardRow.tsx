@@ -271,14 +271,13 @@ function effectiveToneClass(
 }
 
 export function BoardRowItem({
-  row: rawRow,
-  detail: rawDetail,
+  row,
+  detail,
   live,
   expanded,
   onToggle,
   thresholds,
   slateDate,
-  model = "v2",
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
@@ -287,19 +286,7 @@ export function BoardRowItem({
   onToggle: () => void;
   thresholds?: PickThresholds;
   slateDate?: string;
-  model?: "v2" | "v3";
 }) {
-  // T3.17: synthesize an "effective" row + detail that pull pick + grading
-  // fields from v3 when the toggle is on AND v3 data is present.
-  const useV3        = model === "v3" && rawRow.v3 !== undefined;
-  const useV3Detail  = useV3 && rawDetail?.v3 !== undefined;
-  const row: BoardRow = useV3
-    ? { ...rawRow, ...rawRow.v3! }
-    : rawRow;
-  const detail: GameDetail | undefined =
-    rawDetail && useV3Detail
-      ? { ...rawDetail, ...rawDetail.v3! }
-      : rawDetail;
 
   // T3.22: compute tentative lean once at the row level.  Only meaningful
   // when LINEUP PENDING (pitcher real, hitters fallback).  Threaded down
@@ -420,10 +407,7 @@ export function BoardRowItem({
           <GameDetails
             row={row}
             detail={detail}
-            rawRow={rawRow}
-            rawDetail={rawDetail}
             thresholds={thresholds}
-            model={model}
             slateDate={slateDate}
           />
         </div>

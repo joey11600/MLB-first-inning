@@ -33,14 +33,12 @@ interface RoiPanelProps {
    *  client-side without a server round-trip. */
   rows:        BoardRow[];
   details:     Record<string, GameDetail>;
-  model?:      "v2" | "v3";
 }
 
 export function RoiPanel({
   initialDate,
   rows,
   details,
-  model = "v2",
 }: RoiPanelProps) {
   const [window, setWindow] = useState<RoiWindow>("today");
   const [data, setData]     = useState<RoiResponse | null>(null);
@@ -54,13 +52,13 @@ export function RoiPanel({
   );
 
   // TODAY window: compute locally from props.  Recomputes whenever
-  // rows / details / model change so realtime grade updates show up
+  // rows / details change so realtime grade updates show up
   // immediately without re-fetching anything.
   const todayData = useMemo<RoiResponse | null>(() => {
     if (window !== "today") return null;
     if (!initialDate) return null;
-    return aggregateTodayRoi(rows, details, model, initialDate);
-  }, [window, rows, details, model, initialDate]);
+    return aggregateTodayRoi(rows, details, initialDate);
+  }, [window, rows, details, initialDate]);
 
   // 7d / 30d / season windows: fetch from /api/roi.  TODAY is handled
   // above; we skip fetching when it's selected.
@@ -72,7 +70,7 @@ export function RoiPanel({
     }
     let cancelled = false;
     setLoading(true);
-    const url = `/api/roi?window=${window}${initialDate ? `&date=${initialDate}` : ""}${model === "v3" ? "&model=v3" : ""}`;
+    const url = `/api/roi?window=${window}${initialDate ? `&date=${initialDate}` : ""}`;
     fetch(url, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((j: RoiResponse | null) => {
@@ -85,7 +83,7 @@ export function RoiPanel({
     return () => {
       cancelled = true;
     };
-  }, [window, initialDate, model]);
+  }, [window, initialDate]);
 
   // Effective render data: today's local agg or server fetch.
   const view = window === "today" ? todayData : data;
@@ -95,11 +93,7 @@ export function RoiPanel({
       <header className={styles.head}>
         <div className={styles.headLeft}>
           <span className={styles.eyebrow}>Performance</span>
-          <span className={styles.title}>
-            {model === "v3"
-              ? "Bankroll @ DK · v3 shadow"
-              : "Bankroll @ DK"}
-          </span>
+          <span className={styles.title}>Bankroll @ DK</span>
           {view && (
             <span className={styles.range}>
               {window === "today"

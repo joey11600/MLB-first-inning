@@ -29,8 +29,6 @@ import styles from "./TonightsActionCard.module.css";
 interface TonightsActionCardProps {
   rows: BoardRow[];
   details: Record<string, GameDetail>;
-  /** T3.17 model toggle -- when "v3", count picks from row.v3 instead. */
-  model?: "v2" | "v3";
 }
 
 interface SideBreakdown {
@@ -65,7 +63,6 @@ function lookupDetail(
 function summarize(
   rows: BoardRow[],
   details: Record<string, GameDetail>,
-  model: "v2" | "v3",
 ): ActionSummary {
   let nrfiCount   = 0;
   let yrfiCount   = 0;
@@ -76,27 +73,24 @@ function summarize(
   let pending     = 0;
 
   for (const r of rows) {
-    const eside     = model === "v3" && r.v3 ? r.v3.pickSide     : r.pickSide;
-    const estrength = model === "v3" && r.v3 ? r.v3.pickStrength : r.pickStrength;
+    const strength = r.pickStrength;
 
-    if (estrength === "LINEUP PENDING" || estrength === "STARTER PENDING") {
+    if (strength === "LINEUP PENDING" || strength === "STARTER PENDING") {
       pending += 1;
       continue;
     }
 
-    if (estrength !== "STRONG") continue;
+    if (strength !== "STRONG") continue;
 
-    const d        = lookupDetail(r, details);
-    const useV3D   = model === "v3" && d?.v3 !== undefined;
-    const placed   = useV3D ? "Y" /* v3 doesn't track bet_placed; assume placed for shadow */
-                            : d?.betPlaced;
-    const stakeU   = placed === "Y" ? 1 : 0;
+    const d      = lookupDetail(r, details);
+    const placed = d?.betPlaced;
+    const stakeU = placed === "Y" ? 1 : 0;
 
-    if (eside === "NRFI") {
+    if (r.pickSide === "NRFI") {
       nrfiCount += 1;
       nrfiUnits += stakeU;
       if (!nrfiJumpId && r.gamePk) nrfiJumpId = r.gamePk;
-    } else if (eside === "YRFI") {
+    } else if (r.pickSide === "YRFI") {
       yrfiCount += 1;
       yrfiUnits += stakeU;
       if (!yrfiJumpId && r.gamePk) yrfiJumpId = r.gamePk;
@@ -120,9 +114,8 @@ function summarize(
 export function TonightsActionCard({
   rows,
   details = {},
-  model = "v2",
 }: TonightsActionCardProps) {
-  const s = summarize(rows, details, model);
+  const s = summarize(rows, details);
 
   // Empty state: no STRONG plays AND nothing pending -- slate is
   // either fully PASS or already-graded.  Calmer treatment, smaller

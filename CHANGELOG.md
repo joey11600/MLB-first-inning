@@ -11,6 +11,80 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-06] — V2.1 lock-in: archive V2 toggle, remove V3 + shadow surface
+
+V2.1 (V2 LR + T4.2 priors-pooling + V2 calibrator) was already
+locked-on at T4.10.  This commit completes the archival: every
+V2-vs-V2.1 toggle, the V3 (Variant K) shadow dashboard surface,
+and the V2-vs-V2.1 daily shadow comparison are all removed.
+
+### Removed (V3 + shadow dashboard surface)
+
+- `dashboard/components/ModelToggle.tsx` (+ module CSS) — the V2/V3
+  pill in the header.
+- `dashboard/components/ShadowDeltaCard.tsx` (+ module CSS) — the
+  V2-vs-V2.1 shadow delta tile on the home page.
+- `dashboard/app/history/v3/page.tsx` — the `/history/v3` route.
+- `dashboard/app/api/shadow-summary/route.ts` — feed for the shadow
+  delta tile.
+- `dashboard/lib/roi.ts::loadV3Roi` — Variant K ROI aggregator.
+- `model` prop + `v3` branches in: `BoardRow`, `BoardTable`, `RoiPanel`,
+  `SummaryStrip`, `TonightsActionCard`, `HistoryView`, `GameDetails`,
+  `DashboardShell`.
+- `v3?: { ... }` fields on `BoardRow` and `GameDetail` types.
+- `loadVariantKByGamePk` + the V3 splice in `lib/board-supabase.ts`.
+- `?model=v3` handling in `app/api/roi/route.ts`.
+
+### Removed (shadow tooling)
+
+- `tools/daily_shadow_report.py` — built per-day shadow CSVs comparing
+  V2 actual placed bets vs V2+T4.2 shadow.
+- `tools/v2_t42_shadow.py` — pre-PR shadow regression gate.
+- `.github/workflows/shadow_gate.yml` — PR check that runs
+  `tools/v2_t42_shadow.py` against the trailing 14 days.
+- Daily.yml: removed "Daily T4.2 shadow report" step + "Backfill
+  variants A/C/AC" step (the A/B harness is no longer maintained).
+
+### Removed (V2 toggle)
+
+- `_USE_TRUEPIT_PRIORS` constant in `mlb_first_inning_predictor.py`.
+  Was locked-on at T4.10 but kept as a vestigial toggle; deleted now
+  along with the conditional in `fetch_pitcher_statcast`.  Priors-
+  pooling is the only path for `xera` / `whiff_pct_rank` features;
+  raw season cache stays as a rookies-without-priors fallback.
+
+### Archived (kept on disk for historical reference)
+
+- `data/diagnostics/shadow_*.csv` → `data/archive/diagnostics/`
+- `data/calibration_v3.json` → `data/archive/`
+- `data/v5_shadow_report.json` → `data/archive/`
+- `data/v2_perfect_2026/backtest_v3cal_*.json` → `data/archive/v2_perfect_2026/`
+
+### Left intact
+
+- Supabase `pick_variants` table (no new writes, but historical rows
+  preserved in case of future model post-mortem).
+- `db/variants.py` (orchestration code referenced nowhere on the live
+  path; harmless to leave on disk).
+- `MODEL_VERSION = "V2.1"` constant remains as the per-pick label.
+  Bumping convention noted in code: `V2.x` for feature-engineering
+  improvements that keep the 18-feature LR architecture; `V3` for
+  actual architecture changes.
+
+### Verified
+
+- `python -m py_compile` across all touched files: clean.
+- `cd dashboard && npm run build`: clean. Bundle: home page 91.8 kB
+  (down from 94 kB pre-cleanup); `/history/v3` and `/api/shadow-summary`
+  no longer in the route table.
+- Preview server: dashboard renders correctly. No V2/V3 toggle in
+  header; no ShadowDeltaCard tile; "Bankroll @ DK" section no longer
+  shows the "v3 shadow" label variant.
+- `python tools/pl_calc.py`: still reports +2.220u for 2026-05-05
+  (5W/2L), unchanged.
+
+---
+
 ## [2026-05-05] — System reliability bundle: safer mirror, end-of-day safety net, drift-aware digest, GHA cleanup
 
 Four upgrades that together close out the failure modes uncovered

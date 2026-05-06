@@ -372,18 +372,11 @@ jobs:
           set +e
           python tools/analyze_losses.py 2>&1 || echo "::warning::analyze_losses failed (non-blocking)"
 
-      - name: Backfill variants A/C/AC (T2.51 A/B harness)
-        if: steps.action.outputs.what == 'grade'
-        # Re-runs the variant backfill after each grade cycle so the
-        # pick_variants table stays current with newly-graded rows.
-        # Default invocation skips already-done (date, game_pk, variant)
-        # tuples so steady-state cost is just the new picks.  Soft-fail.
-        env:
-          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: |
-          set +e
-          python tools/backfill_variants.py 2>&1 || echo "::warning::backfill_variants failed (non-blocking)"
+      # T-V21-LOCKIN-2026-05-06: removed "Backfill variants A/C/AC"
+      # step.  V2.1 is the locked-in production model (T4.10); the A/B
+      # harness (variants A/C/AC and Variant K) was shadow / experimental
+      # only and is no longer maintained.  pick_variants Supabase table
+      # left intact for historical reference; just no new writes.
 
       # T-CLEANUP-2026-05-05: removed entire "Run odds-only capture"
       # step + its `odds-only` action branch.  The step's three jobs
@@ -406,29 +399,11 @@ jobs:
           python tools/calibration_monitor.py --alert 2>&1 \
             || echo "::warning::calibration_monitor failed (non-blocking)"
 
-      - name: Daily T4.2 shadow report (diagnostics)
-        if: steps.action.outputs.what == 'grade'
-        # Per-day apples-to-apples comparison of V2 actual placed bets
-        # vs what V2 + T4.2 priors-pooling WOULD have predicted on the
-        # same row.  Writes:
-        #   data/diagnostics/shadow_<date>.csv      -- per-bet detail
-        #   data/diagnostics/shadow_summary.csv     -- one row per day
-        #
-        # The summary file gives a moving timeline so we can verify T4.2
-        # keeps producing positive delta over production.  If delta turns
-        # negative for 5+ consecutive days, T4.2 has drifted and we need
-        # to investigate (priors stale, feature regression, etc.).
-        # Soft-fail so a diagnostic hiccup doesn't block the grade commit.
-        env:
-          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: |
-          set +e
-          # T4.4 (this commit): runs after grade so yesterday's bets are
-          # final.  Default arg picks "yesterday ET", matching the date
-          # the grade step just finalized.
-          python tools/daily_shadow_report.py 2>&1 \
-            || echo "::warning::daily_shadow_report failed (non-blocking)"
+      # T-V21-LOCKIN-2026-05-06: removed "Daily T4.2 shadow report"
+      # step.  Tool deleted (tools/daily_shadow_report.py).  V2.1 is now
+      # production; the V2-vs-V2.1 shadow comparison that justified
+      # T4.10 is no longer relevant.  Historical shadow CSVs archived
+      # under data/archive/diagnostics/.
 
       - name: Feature drift monitor (T4.5)
         if: steps.action.outputs.what == 'grade'

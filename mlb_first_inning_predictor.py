@@ -1325,33 +1325,25 @@ def _load_statcast_cache() -> dict:
 #   earliest entry if date_iso predates everything).
 # - The fallback chain is: priors -> raw season cache -> league average.
 #
-# T4.10 (this commit): T4.2 priors-pooling is now PERMANENT and cannot
-# be disabled without removing this code.  The toggle was kept as
-# `_USE_TRUEPIT_PRIORS` during the deployment shake-out; one full week
-# of nightly shadow data (T4.4 -> shadow_summary.csv) showed a
-# consistent positive delta_pl, so we lock it in.  Reverting would
+# T-V21-LOCKIN-2026-05-06: priors-pooling is the only path.  The
+# `_USE_TRUEPIT_PRIORS` toggle (locked-on at T4.10) was deleted along
+# with the V2-vs-V2.1 shadow surface.  fetch_pitcher_statcast() now
+# unconditionally tries the priors snapshot first and falls through to
+# the raw season cache only when the priors JSON has no entry for the
+# pitcher (rookies without 2025 data).  Reverting this would
 # re-introduce the small-sample-noise pathology that caused 5/03's
 # disaster (xera=14.71 driving STRONG YRFI on a single 5-batted-ball
-# sample).  If a future model change requires bypassing the priors
-# (rare; sliding-window / market-edge architectures might want raw
-# inputs), they should add a NEW lookup path rather than disabling
-# this one.
+# sample) -- don't.
 #
-# This is the official MLB First-Inning predictor model as of T4.10.
+# This is the official MLB First-Inning predictor model.
 # Refer to docs/PLAYBOOK.md for the diagnostic stack that monitors it.
 
-_USE_TRUEPIT_PRIORS = True   # locked-on; see T4.10 note above
-
-# T4.18: model version label.  V2.1 = V2 LR (18 features per half-inning) +
-# T4.2 priors-pooled xera/whiff features + V2 calibrator.  Locked into
-# production at T4.10 (commit f833640) after a full week of nightly shadow
-# data showed consistent positive delta_pl vs vanilla V2.  This label is
-# logged into pick_reasoning JSONs so the dashboard / future post-mortems
-# can tell which exact model produced any given pick.
-#
-# Bumping convention: V2.x for feature-engineering improvements that keep
-# the 18-feature LR architecture; V3+ for actual architecture changes
-# (e.g. variant K's leak-free truepit calibrator, currently shadow-only).
+# Model version label.  V2.1 = V2 LR (18 features per half-inning) +
+# T4.2 priors-pooled xera/whiff features + V2 calibrator.  Logged into
+# pick_reasoning JSONs so the dashboard / future post-mortems can tell
+# which exact model produced any given pick.  Bump the minor (V2.2)
+# for feature-engineering improvements that keep the 18-feature LR
+# architecture; bump major (V3) for actual architecture changes.
 MODEL_VERSION = "V2.1"
 
 _truepit_priors_cache: dict | None = None
@@ -1452,7 +1444,7 @@ def fetch_pitcher_statcast(player_id: int, season: int,
     Backward compatible: callers that don't pass date_iso get the
     legacy raw-cache behavior, so no caller is force-changed by this
     refactor."""
-    if date_iso and _USE_TRUEPIT_PRIORS:
+    if date_iso:
         snap = _truepit_lookup(player_id, date_iso)
         if snap is not None:
             return {

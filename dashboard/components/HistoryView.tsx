@@ -16,16 +16,12 @@ interface DayRecord {
   cumulative: number;  // running total
 }
 
-/** T3.24: v2 (production) vs v3 (Variant K shadow) history.  The page
- *  is the same UI driven by different /api/roi data, but the chrome
- *  and a top banner make it unambiguous which model the operator is
- *  looking at -- v3 is shadow / informational, v2 is the bookkeeper. */
+/** Bankroll history for the production V2.1 model.  T-V21-LOCKIN-2026-05-06
+ *  removed the v2/v3 split (V3 was Variant K shadow, no longer surfaced). */
 export function HistoryView({
   initial,
-  model = "v2",
 }: {
   initial: RoiResponse;
-  model?: "v2" | "v3";
 }) {
   const [data, setData]     = useState<RoiResponse>(initial);
   const [window, setWindow] = useState<RoiWindow>(initial.window);
@@ -36,7 +32,7 @@ export function HistoryView({
     setWindow(w);
     setLoading(true);
     try {
-      const url = `/api/roi?window=${w}${model === "v3" ? "&model=v3" : ""}`;
+      const url = `/api/roi?window=${w}`;
       const res = await fetch(url, { cache: "no-store" });
       if (res.ok) setData((await res.json()) as RoiResponse);
     } finally {
@@ -44,15 +40,8 @@ export function HistoryView({
     }
   }
 
-  const isV3 = model === "v3";
-  const otherUrl    = isV3 ? "/history" : "/history/v3";
-  const otherLabel  = isV3 ? "View production (v2)" : "View v3 shadow";
-  const eyebrowText = isV3
-    ? "Performance · Variant K shadow"
-    : "Performance · daily breakdown";
-  const titleText   = isV3
-    ? "Bankroll history · v3 shadow"
-    : "Bankroll history";
+  const eyebrowText = "Performance · daily breakdown";
+  const titleText   = "Bankroll history";
 
   // Derive per-day records from cumulativePL.  Daily = cum[i] - cum[i-1].
   const days = useMemo<DayRecord[]>(() => {
@@ -81,7 +70,7 @@ export function HistoryView({
   const tableRows = [...days].reverse();
 
   return (
-    <main className={`${styles.shell} ${isV3 ? styles.shellV3 : ""}`}>
+    <main className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headLeft}>
           <a href="/" className={styles.backLink} aria-label="Back to slate board">
@@ -89,22 +78,10 @@ export function HistoryView({
           </a>
           <div>
             <div className={styles.eyebrow}>{eyebrowText}</div>
-            <h1 className={styles.title}>
-              {titleText}
-              {isV3 && <span className={styles.titleBadge}>shadow</span>}
-            </h1>
+            <h1 className={styles.title}>{titleText}</h1>
           </div>
         </div>
         <div className={styles.headRight}>
-          <a
-            href={otherUrl}
-            className={styles.modelSwitchLink}
-            title={isV3
-              ? "Switch back to the production v2 history (real bookkeeping)"
-              : "View the experimental v3 (Variant K) shadow history"}
-          >
-            {otherLabel} <span aria-hidden>›</span>
-          </a>
           <div className={styles.windowToggle} role="tablist" aria-label="Time window">
             {WINDOWS.map((w) => (
               <button
@@ -124,22 +101,6 @@ export function HistoryView({
           </div>
         </div>
       </header>
-
-      {/* T3.24: v3 shadow banner -- always visible on the v3 history
-          page so the operator never confuses it with the real
-          production numbers.  Quiet, informational; not an alarm. */}
-      {isV3 && (
-        <div className={styles.v3Banner} role="note">
-          <span className={styles.v3BannerDot} aria-hidden />
-          <div className={styles.v3BannerBody}>
-            <strong>Variant K · v3 calibrator shadow.</strong>{" "}
-            These numbers show what would have happened if v3 (leak-free
-            2024+2025 truepit calibrator) had been the production model.
-            Your real bookkeeping, Telegram alerts, and bankroll live on
-            v2 at <a href="/history" className={styles.v3BannerLink}>/history</a>.
-          </div>
-        </div>
-      )}
 
       {/* Summary tiles */}
       <section className={styles.tiles}>
