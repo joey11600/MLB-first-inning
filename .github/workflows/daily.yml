@@ -201,6 +201,22 @@ jobs:
             echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
           }
 
+          # T-V21-2026-05-07c: sync CSV from Supabase BEFORE any local
+          # P&L computation.  Closes the chronic CSV-vs-Supabase
+          # divergence: Railway's worker + import_odds writes real-odds
+          # P&L to Supabase, but GHA grade-today uses tracker._calc_pnl
+          # against an empty-odds CSV (the -110 fallback) -- so the
+          # cron-committed CSV always lagged behind the dashboard's
+          # real-odds totals.  This sweep pulls the odds + grade + bet
+          # columns from Supabase into the matching CSV rows so the
+          # downstream grade step computes against the same numbers
+          # the dashboard shows.  Soft-fail.
+          echo "==> Syncing CSV from Supabase..."
+          if ! python tools/sync_csv_from_supabase.py --days 8 2>sync_err.log; then
+            record_err "sync-csv-from-supabase" "$?" \
+              "$(tail -c 400 sync_err.log)"
+          fi
+
           echo "==> Catch-up grading $YDAY (yesterday)..."
           # Kept on GH Actions: grade-yesterday is a safety net for
           # west-coast late games that complete after midnight ET, plus
@@ -317,6 +333,18 @@ jobs:
                 -d "$PAYLOAD" "$ALERT_WEBHOOK_URL" >/dev/null 2>&1 || true
             fi
           }
+
+          # T-V21-2026-05-07c: sync CSV from Supabase BEFORE grading.
+          # See predict step above for full rationale.  In the nightly
+          # grade context, this also catches the case where the
+          # worker's mid-day grade landed real-odds P&L in Supabase
+          # but the cron-committed CSV stayed on -110 fallback values.
+          # Soft-fail.
+          echo "==> Syncing CSV from Supabase..."
+          if ! python tools/sync_csv_from_supabase.py --days 8 2>sync_err.log; then
+            record_err "sync-csv-from-supabase" "$?" \
+              "$(tail -c 400 sync_err.log)"
+          fi
 
           echo "==> Grading $YDAY (yesterday)..."
           if ! python mlb_first_inning_predictor.py --date "$YDAY" --grade 2>grade_y_err.log; then
