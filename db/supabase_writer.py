@@ -377,6 +377,25 @@ def _transform_pick_row(row: dict) -> dict:
                     and isinstance(raw, str)
                     and raw.strip().upper() == "N"):
                 continue
+            # T-V21-2026-05-07b: stale-fallback-PL protection.  A WIN/LOSS
+            # row whose source CSV has profit_loss_units populated but
+            # market_*_odds for the picked side EMPTY almost always means
+            # this writer computed pl with the -110 flat fallback (the
+            # GHA grade-today cron is the canonical case: it grades from
+            # MLB API but doesn't import DK odds).  If we mirror that
+            # fallback pl to Supabase, we OVERWRITE the worker's correct
+            # real-odds-derived pl that's already there.  Skip pl in
+            # that scenario; let Supabase keep the better value.
+            if graded and col == "profit_loss_units":
+                pick_side = (row.get("pick_side") or "").strip().upper()
+                picked_odds_col = (
+                    "market_nrfi_odds" if pick_side == "NRFI"
+                    else "market_yrfi_odds" if pick_side == "YRFI"
+                    else None
+                )
+                picked_odds = (row.get(picked_odds_col) or "").strip() if picked_odds_col else ""
+                if not picked_odds:
+                    continue
             out[col] = conv(raw)
     # Default double_header to "N" if the column isn't on the row at
     # all -- some legacy rows pre-T2.21 may still be missing it.
