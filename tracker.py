@@ -2240,7 +2240,7 @@ def _prune_change_log(path: Path, keep_days: int = 90) -> None:
 # 2. Grade picks
 # ---------------------------------------------------------------------------
 
-def _fetch_first_inning(game_pk: int) -> dict:
+def _fetch_first_inning(game_pk: int, slate_date: str | None = None) -> dict:
     """
     Pull the first-inning run totals for a completed (or live) game.
 
@@ -2308,17 +2308,33 @@ def _fetch_first_inning(game_pk: int) -> dict:
 
     # Postpone-detection fallback: when the game endpoint says "Scheduled"
     # / "Preview" with no innings played, ask the schedule endpoint --
-    # which updates faster on postponements.  The game endpoint's
-    # officialDate flips to the RESCHEDULED date once a makeup is set,
-    # so we query by gamePk directly (returns the game on every date it
-    # appears -- original + makeup) and look for ANY postpone signal.
+    # which updates faster on postponements.
+    #
+    # T-V21-2026-05-07: scope to the slate_date.  Querying by gamePk
+    # alone returns the game on EVERY date it appears -- the original
+    # postponed date AND the makeup -- and the previous loop broke on
+    # the FIRST postpone signal it found, applying that historical PP
+    # status to the makeup row.  Confirmed via 5/05 NYM@COL rainout
+    # (gamePk=824362, original-date detailedState=Postponed) being
+    # rescheduled to 5/07 (same gamePk, makeup-date detailedState=
+    # Scheduled): the 5/07 row got marked POSTPONED because the
+    # schedule endpoint returned both dates and we honored the 5/05
+    # PP signal.  Now we only honor postpone signals from the
+    # slate_date entry.
     if detail == "Scheduled" and away_r is None and home_r is None:
         try:
             sched = statsapi.get("schedule", {
                 "sportId": 1, "gamePk": game_pk,
-                "fields": "dates,games,gamePk,status,detailedState,reason",
+                "fields": "dates,date,games,gamePk,status,detailedState,reason",
             })
             for sd in sched.get("dates", []):
+                # Skip entries for dates other than the slate we're grading.
+                # When slate_date is unknown (caller didn't pass it) fall
+                # back to the old behavior of accepting any entry, since
+                # the historical bug only matters when there's a same-pk
+                # makeup row on a different slate.
+                if slate_date and sd.get("date") != slate_date:
+                    continue
                 for sg in sd.get("games", []):
                     if int(sg.get("gamePk") or 0) != int(game_pk):
                         continue
@@ -2395,7 +2411,7 @@ def grade_date(date_str: str, season: int) -> None:
         if existing_grade and existing_grade.upper() in ("POSTPONED", "SUSPENDED"):
             print(f"{tag}  was {existing_grade}, re-checking for makeup/resume...")
 
-        result = _fetch_first_inning(int(row["game_pk"]))
+        result = _fetch_first_inning(int(row["game_pk"]), slate_date=iso_date)
         state  = result["state"]
         detail = result["detail"]
 
@@ -2467,6 +2483,29 @@ def grade_date(date_str: str, season: int) -> None:
                     # T2.38 #3: STRONG bet voided ping for stale-scheduled rainouts.
                     _notify_strong_voided_telegram(rows[idx], "POSTPONED")
                     continue
+                # T-V21-2026-05-07: clear any stale POSTPONED/SUSPENDED grade
+                # when the game is actually scheduled to play today.  Catches
+                # the case where a previous run incorrectly stamped POSTPONED
+                # (e.g. via the cross-date schedule lookup before that bug
+                # was fixed) on a makeup row that's actually pre-game.  We
+                # bypass the standard mirror -- _transform_pick_row's
+                # preserve-on-blank guard would skip the empty grade fields
+                # and leave Supabase's old POSTPONED in place.  clear_pick_fields
+                # writes explicit NULLs for just the three grade columns.
+                if existing_grade and existing_grade.upper() in ("POSTPONED", "SUSPENDED"):
+                    rows[idx]["actual_result"] = ""
+                    rows[idx]["graded_result"] = ""
+                    rows[idx]["graded_at"]     = ""
+                    try:
+                        from db.supabase_writer import clear_pick_fields
+                        clear_pick_fields(
+                            [rows[idx]], season,
+                            ["actual_result", "graded_result", "graded_at"],
+                        )
+                    except Exception:    # noqa: BLE001 -- CSV is source of truth
+                        pass
+                    print(f"{tag}  was {existing_grade} but game is pre-game today "
+                          f"-- cleared stale grade")
                 print(f"{tag}  game not started yet -- skipping")
             elif state == "Live":
                 print(f"{tag}  Live but 1st inning not yet complete -- skipping")

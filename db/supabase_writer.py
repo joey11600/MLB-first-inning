@@ -631,6 +631,57 @@ def patch_picks(
     return successful
 
 
+def clear_pick_fields(
+    rows: Iterable[dict],
+    season: int,
+    fields: Iterable[str],
+) -> int:
+    """T-V21-2026-05-07: explicit clear of named columns to NULL/empty
+    on picks_<season>.  patch_picks + mirror_picks both go through
+    _transform_pick_row which intentionally SKIPS preserve-on-blank
+    fields (odds, grade, bet) when the source value is blank -- that's
+    the right default for "I don't have new info, don't clobber what
+    Supabase has."  But there's one explicit-clear scenario it can't
+    serve: a stale POSTPONED grade on a makeup row that needs to be
+    actively cleared to "" so the dashboard's PP badge disappears.
+
+    This function bypasses the preserve guard for the listed fields
+    only -- per-row UPDATE, NULL for each requested field.  Composite
+    PK (date, game_pk) required on every input row.  Never raises.
+    Returns the number of rows successfully cleared."""
+    fields = [f for f in fields if f]
+    if not fields:
+        return 0
+    client = _get_client()
+    if client is None:
+        return 0
+    rows = list(rows)
+    if not rows:
+        return 0
+    table = f"picks_{season}"
+    successful = 0
+    payload = {f: None for f in fields}
+    for r in rows:
+        date = (r.get("date") or "").strip()
+        game_pk = str(r.get("game_pk") or "").strip()
+        if not date or not game_pk:
+            continue
+        try:
+            (client.table(table)
+                   .update(payload)
+                   .eq("date", date)
+                   .eq("game_pk", game_pk)
+                   .execute())
+            successful += 1
+        except Exception as exc:    # noqa: BLE001
+            print(
+                f"[supabase_writer] clear_pick_fields failed for "
+                f"{date}/{game_pk} (fields={fields}): {exc!r}",
+                file=sys.stderr,
+            )
+    return successful
+
+
 def mirror_pick_change(
     *,
     captured_at_utc: str,
