@@ -15,3 +15,8 @@ date,severity,metric,note
 2026-05-05,MEDIUM,home_top3c_source=_empty_,home_top3c_source=_empty_: today=0.0% baseline=30.6% shift=-30.6%
 2026-05-05,MEDIUM,away_top3c_source=_empty_,away_top3c_source=_empty_: today=0.0% baseline=30.6% shift=-30.6%
 2026-05-05,HIGH,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 5 (>=4 = HIGH; >=3 = MEDIUM)
+2026-05-06,HIGH,home_pitcher_q=live,home_pitcher_q=live: today=73.3% baseline=31.6% shift=+41.7%
+2026-05-06,HIGH,home_pitcher_q=ltd,home_pitcher_q=ltd: today=13.3% baseline=54.1% shift=-40.7%
+2026-05-06,HIGH,away_pitcher_q=live,away_pitcher_q=live: today=66.7% baseline=25.5% shift=+41.2%
+2026-05-06,HIGH,away_pitcher_q=ltd,away_pitcher_q=ltd: today=20.0% baseline=55.1% shift=-35.1%
+2026-05-06,HIGH,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 6 (>=4 = HIGH; >=3 = MEDIUM)
