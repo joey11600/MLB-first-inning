@@ -1,7 +1,7 @@
 {
   "date": "2026-05-07",
   "model_version": "V2.1",
-  "fitted_at": "2026-05-07T21:46:35Z",
+  "fitted_at": "2026-05-07T22:49:16Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -920,33 +920,33 @@
       "matchup": "STL@SD",
       "game_pk": "823306",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.24,
-      "raw_p_run_b1": 0.345,
-      "raw_p_nrfi": 0.4978,
-      "calibrated_p_nrfi": 0.4657,
+      "raw_p_run_t1": 0.2572,
+      "raw_p_run_b1": 0.3141,
+      "raw_p_nrfi": 0.5095,
+      "calibrated_p_nrfi": 0.4718,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_7-8",
         "is_flat": true,
-        "flat_size": 3,
-        "flat_rate": 0.4657210401891253
+        "flat_size": 8,
+        "flat_rate": 0.46808510638297873
       },
       "top_drivers_t1": [
-        {
-          "name": "away_top3c_slg",
-          "value": 0.4027,
-          "z": -0.615,
-          "weight": -0.2097,
-          "contribution": 0.1291,
-          "outlier": false
-        },
         {
           "name": "home_xera",
           "value": 3.8845,
           "z": -0.404,
           "weight": 0.2964,
           "contribution": -0.1197,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_obp",
+          "value": 0.3683,
+          "z": 0.965,
+          "weight": 0.0869,
+          "contribution": 0.0839,
           "outlier": false
         },
         {
@@ -966,11 +966,11 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_obp",
-          "value": 0.3229,
-          "z": -0.548,
-          "weight": 0.0869,
-          "contribution": -0.0476,
+          "name": "away_obp",
+          "value": 0.323,
+          "z": 0.558,
+          "weight": 0.0846,
+          "contribution": 0.0472,
           "outlier": false
         }
       ],
@@ -1027,7 +1027,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "calibrator flat zone: 3 bins all map to rate 0.4657 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 8 bins all map to rate 0.4681 (multiple distinct raw probs collapse here)"
       ]
     },
     {
