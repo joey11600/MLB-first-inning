@@ -72,6 +72,60 @@ from tracker import _calc_pnl, _csv_path, _read_rows  # noqa: E402
 ET = ZoneInfo("America/New_York")
 
 
+def _load_rows(season: int) -> tuple[list[dict], str]:
+    """Load picks rows.  Supabase first (live, includes real-odds pl);
+    CSV fallback when Supabase is unavailable (offline / no env vars)
+    or returns nothing.  Returns (rows, source-description-for-display)."""
+    csv_path = _csv_path(season)
+
+    # Try Supabase first.
+    try:
+        from db.supabase_writer import _get_client
+        client = _get_client()
+        if client is not None:
+            res = client.table(f"picks_{season}").select("*").execute()
+            sb_rows = res.data or []
+            if sb_rows:
+                return _supabase_rows_to_csv_shape(sb_rows), (
+                    f"Supabase picks_{season} ({len(sb_rows)} rows)"
+                )
+    except Exception as exc:    # noqa: BLE001 -- fall through to CSV
+        print(f"[pl_calc] Supabase read failed ({exc!r}); using CSV.",
+              file=sys.stderr)
+
+    # CSV fallback.
+    if not csv_path.exists():
+        print(f"ERROR: ledger CSV not found at {csv_path}", file=sys.stderr)
+        return [], str(csv_path)
+    return _read_rows(csv_path), str(csv_path)
+
+
+def _supabase_rows_to_csv_shape(rows: list[dict]) -> list[dict]:
+    """Coerce Supabase row dicts to the same string-based shape that
+    CSV gives us, so filter_rows / _calc_pnl don't need to know the
+    difference.  Numerics become formatted strings (matching tracker's
+    _fmt conventions); None becomes "" everywhere."""
+    out = []
+    for r in rows:
+        row: dict = {}
+        for k, v in r.items():
+            if v is None:
+                row[k] = ""
+            elif isinstance(v, bool):
+                row[k] = "Y" if v else "N"
+            elif isinstance(v, (int, float)):
+                if k in ("profit_loss_units", "units_risked"):
+                    row[k] = f"{v:.3f}".rstrip("0").rstrip(".") or "0"
+                elif isinstance(v, int):
+                    row[k] = str(v)
+                else:
+                    row[k] = f"{v:.4f}".rstrip("0").rstrip(".") or "0"
+            else:
+                row[k] = str(v)
+        out.append(row)
+    return out
+
+
 def today_et_iso() -> str:
     """Today's date in America/New_York as YYYY-MM-DD."""
     return datetime.now(ET).strftime("%Y-%m-%d")
@@ -166,16 +220,21 @@ def main() -> int:
         title = f"date={d} (today ET)"
 
     season = args.season or int(end_iso[:4])
-    csv_path = _csv_path(season)
-    if not csv_path.exists():
-        print(f"ERROR: ledger CSV not found at {csv_path}", file=sys.stderr)
-        return 2
 
-    rows = _read_rows(csv_path)
+    # T-V21-2026-05-07f: Supabase is the canonical source.  CSV is a
+    # mirror that auto-syncs via the reconciler + sync_csv_from_supabase
+    # step in every Railway / GHA cycle, so if both are healthy they
+    # agree.  But if the user's local CSV is stale (between sync cycles,
+    # or the user just `git pull`ed a snapshot) Supabase has the
+    # freshest truth -- including real-odds pl values that the GHA
+    # cron's CSV write doesn't reflect.  Fall back to CSV when Supabase
+    # env vars are unset (offline / local dev) or the query errors.
+    rows, source = _load_rows(season)
+
     target = filter_rows(rows, start_iso, end_iso, args.include_lean, args.verbose)
 
     print(f"P&L Calculator -- {title}")
-    print(f"Source: {csv_path}")
+    print(f"Source: {source}")
     print(f"Filter: {'STRONG + LEAN' if args.include_lean else 'STRONG only'}"
           f"{', verbose (incl. PASS / ungraded)' if args.verbose else ''}")
     print()
