@@ -222,7 +222,11 @@ export async function GET() {
   //   - "calibration-drift": T2.59 monitor flags persistent prediction-vs-
   //     actual drift in a P(pick) bucket.  Often a positive signal (model
   //     is conservative) rather than a malfunction.
-  const INFO_STEPS = new Set<string>(["calibration-drift"]);
+  //   - "reconcile-heal" (T-V21-2026-05-07g): tools/reconcile.py recorded
+  //     auto-heals on this cycle.  POSITIVE signal -- means the safety
+  //     net found drift and patched it.  Surface so the operator can
+  //     see the system is repairing itself; don't count against errors.
+  const INFO_STEPS = new Set<string>(["calibration-drift", "reconcile-heal"]);
   const noticeRows  = recentErrors.filter(e => INFO_STEPS.has(e.step));
   const errorRows   = recentErrors.filter(e => !INFO_STEPS.has(e.step));
 

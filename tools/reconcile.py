@@ -413,6 +413,47 @@ def _heal_i4_strong_graded(client, rows: list[dict], row: dict,
         return False
 
 
+def _record_heal_notice(stats: "ReconcileStats") -> None:
+    """T-V21-2026-05-07g: write a system_errors NOTICE row whenever the
+    reconciler actually heals something.  step="reconcile-heal" is in
+    the dashboard's INFO_STEPS allow-list so it shows up as an
+    informational notice in the Ops Health card -- visible signal that
+    the safety net is doing its job, but not counted against the error
+    count or escalating health status.
+
+    Healthy runs (zero heals) are NOT recorded -- otherwise the table
+    fills up with ~288 rows per day for no reason."""
+    healed = (stats.i1_orphans_healed
+              + stats.i2_pl_corrections
+              + stats.i3_strong_locked_fired
+              + stats.i4_strong_graded_fired)
+    if healed == 0:
+        return
+    parts = []
+    if stats.i1_orphans_healed:
+        parts.append(f"I1 orphans={stats.i1_orphans_healed}")
+    if stats.i2_pl_corrections:
+        parts.append(f"I2 pl-corrections={stats.i2_pl_corrections}")
+    if stats.i3_strong_locked_fired:
+        parts.append(f"I3 strong_locked={stats.i3_strong_locked_fired}")
+    if stats.i4_strong_graded_fired:
+        parts.append(f"I4 strong_graded={stats.i4_strong_graded_fired}")
+    msg = f"healed {healed} anomaly(ies): " + ", ".join(parts)
+    try:
+        from db.supabase_writer import mirror_system_error
+        from tracker import _now_utc
+        mirror_system_error(
+            captured_at_utc=_now_utc(),
+            iso_date=_et_today(),
+            step="reconcile-heal",
+            exit_code=0,    # <-- exit_code=0 + step in INFO_STEPS = notice
+            message=msg[:1500],
+        )
+    except Exception as exc:    # noqa: BLE001
+        print(f"[reconcile] heal notice write failed: {exc!r}",
+              file=sys.stderr)
+
+
 def reconcile(
     dates: list[str] | None,
     season: int,
@@ -496,6 +537,8 @@ def reconcile(
                     notes.add(key1)
 
     print(f"[reconcile] {stats}")
+    if not dry_run:
+        _record_heal_notice(stats)
     return stats
 
 
