@@ -285,6 +285,16 @@ jobs:
           echo "==> DK scrape + import-odds skipped on GitHub Actions" \
                "(Railway predictor_loop owns this path)."
 
+          # T-V21-2026-05-07e: reconciliation sweep.  Asserts data +
+          # notification invariants over the last 3 days and auto-heals
+          # violations.  Runs after grade-today so any anomaly created
+          # by this cycle heals before commit.  Soft-fail.
+          echo "==> Running reconciliation sweep..."
+          if ! python tools/reconcile.py --days 3 2>reconcile_err.log; then
+            record_err "reconcile" "$?" \
+              "$(tail -c 400 reconcile_err.log)"
+          fi
+
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'
         # Grade today AND yesterday (in ET).  GitHub Actions cron can fire
@@ -353,6 +363,15 @@ jobs:
           echo "==> Grading $TODAY (today)..."
           if ! python mlb_first_inning_predictor.py --date "$TODAY" --grade 2>grade_t_err.log; then
             record_err "grade-today" "$?" "$(tail -c 400 grade_t_err.log)"
+          fi
+
+          # T-V21-2026-05-07e: reconciliation sweep.  Catches any data /
+          # notification anomalies the grade step left behind.
+          # Soft-fail.
+          echo "==> Running reconciliation sweep..."
+          if ! python tools/reconcile.py --days 3 2>reconcile_err.log; then
+            record_err "reconcile" "$?" \
+              "$(tail -c 400 reconcile_err.log)"
           fi
 
       - name: End-of-day safety net (orphaned STRONG bets)

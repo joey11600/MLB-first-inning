@@ -298,6 +298,21 @@ def step_import_odds() -> int:
     )
 
 
+def step_reconcile() -> int:
+    """T-V21-2026-05-07e: continuous reconciliation sweep.  Asserts
+    data + notification invariants over the recent window and
+    auto-heals violations.  Runs every cycle so any drift
+    introduced by a writer race / mid-cycle redeploy / etc. heals
+    within the next 5 min.  Idempotent and dedup-protected --
+    healthy slates are no-ops.  Soft-fail."""
+    return run(
+        ["python", "tools/reconcile.py", "--days", "3"],
+        # Cheap query (~2 selects + a handful of patches).  60s is
+        # huge headroom for the worst case.
+        60, "reconcile",
+    )
+
+
 def step_pregame_alert_check() -> int:
     """T2.38 #2: scan today's STRONG bets for any whose first pitch is
     inside the pre-game alert window (25-35 min from now in ET).  Ping
@@ -424,6 +439,16 @@ def cycle() -> None:
     rc = step_pregame_alert_check()
     if rc != 0:
         _record_step_failure("pregame-alert", rc)
+
+    # 7: T-V21-2026-05-07e -- reconciliation sweep.  Continuously asserts
+    # the system's data-integrity + notification invariants over the
+    # recent window and auto-heals violations.  Catches anything the
+    # rest of the pipeline missed (orphan bets, stale fallback pl,
+    # missed strong_locked / strong_graded telegram sends, etc.).
+    # Idempotent and dedup-protected -- a healthy slate is a no-op.
+    rc = step_reconcile()
+    if rc != 0:
+        _record_step_failure("reconcile", rc)
 
     dur = time.time() - started
     print(f"[predictor] === cycle end ({dur:.1f}s) ===", flush=True)
