@@ -215,6 +215,24 @@ def step_live_grade_today() -> int:
     )
 
 
+def step_sync_csv_from_supabase() -> int:
+    """T-V21-2026-05-07d: pull non-predict-owned columns (odds, edges,
+    grade results, bet placement) from Supabase into the container's
+    local CSV before grade-today runs.  Closes the gap where a fresh
+    container reads bet_placed='' from the git CSV and grade_picks's
+    notifier short-circuits even though Supabase has the row's
+    bet_placed='Y' from earlier import_odds + worker writes.  Soft-fail."""
+    return run(
+        [
+            "python", "tools/sync_csv_from_supabase.py",
+            "--days", "8",
+        ],
+        # 60s is plenty: the script does one Supabase SELECT + one CSV
+        # rewrite, no network egress beyond that.
+        60, "sync-csv-from-supabase",
+    )
+
+
 def step_predict_today() -> int:
     """Hard-fail: if predict errors, abort the cycle (don't proceed to
     odds import with stale picks)."""
@@ -347,6 +365,20 @@ def cycle() -> None:
     `system_errors` so the dashboard surfaces a degraded predictor."""
     started = time.time()
     print(f"[predictor] === cycle start {datetime.now(ET).strftime('%H:%M:%S %Z')} ===", flush=True)
+
+    # T-V21-2026-05-07d: sync CSV from Supabase BEFORE grade-today.
+    # The container's local CSV starts every redeploy from git, which
+    # never has bet_placed='Y' for today's bets (only Railway's
+    # import_odds writes that, and it lives only in this container's
+    # filesystem).  Without the pull, grade_picks reads bet_placed=''
+    # and _notify_strong_graded_telegram early-returns at its
+    # bet_placed=Y guard -- so STRONG WIN/LOSS pings don't fire after
+    # a mid-day redeploy.  Pull from Supabase first so the in-memory
+    # CSV reflects the worker's + import_odds's authoritative state
+    # for graded + bet-placed columns.
+    rc = step_sync_csv_from_supabase()
+    if rc != 0:
+        _record_step_failure("sync-csv-from-supabase", rc)
 
     # 1+2: grade yesterday + today (both soft-fail)
     rc = step_catch_up_grade_yesterday()
