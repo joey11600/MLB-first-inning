@@ -231,6 +231,38 @@ post-game NO EDGE label that
 `pass_label_refresh` already produced -- but the underlying
 fix is in place for the next slate.
 
+---
+
+## [2026-05-09] — RoiPanel "Last 7d" / "Last 30d" off-by-one fixed
+
+Operator on 5/09: "the units tracked are wrong. for example,
+last 7 days in the dashboard says -0.69, but i did the math
+and it should be +1.93".  The 1.93 turned out to match the
+STRONG NRFI side total for the corrected window, but the
+total being -0.69 was the symptom of an off-by-one in the
+window math.
+
+`dashboard/lib/roi.ts` was using `isoMinusDays(7)` for the 7d
+window and `isoMinusDays(30)` for 30d, then summing rows where
+`startDate <= date <= today`.  Both endpoints inclusive ->
+the window was actually 8 / 31 calendar days, not 7 / 30.
+The extra day was what swung the total from +0.000u (the
+canonical `tools/pl_calc.py --window 7d` answer for
+2026-05-09's 7-day window) to -0.69u (which silently included
+2026-05-02's -0.69u day).
+
+### Fixed
+
+- `dashboard/lib/roi.ts` window math: 7d now starts
+  `isoMinusDays(6)` (today - 6 days), 30d now starts
+  `isoMinusDays(29)` (today - 29 days).  Spans match
+  `tools/pl_calc.py`'s `today - (days - 1)` exactly.
+- After the fix, the dashboard's 7d total agrees with
+  `pl_calc --window 7d` and the per-zone breakdown matches
+  the operator's hand math (STRONG NRFI = +1.87u over the
+  trailing seven days; STRONG YRFI = -1.87u; bet-zones total
+  = -0.00u).
+
 
 
 V2.1 (V2 LR + T4.2 priors-pooling + V2 calibrator) was already

@@ -197,13 +197,24 @@ export async function loadRoi(
   // (RoiPanel routes to the local aggregator when window === "today"),
   // but if the server is called with it we honor it as a 1-day window
   // ending today so /api/roi?window=today still produces sensible data.
+  //
+  // T-V21-2026-05-09: window math is INCLUSIVE on both ends.  "Last 7
+  // days" must therefore start `today - 6 days` so the resulting span
+  // (start..today) covers exactly 7 calendar days.  The previous code
+  // used `isoMinusDays(7)` which gave an 8-day window (5/02..5/09 for
+  // a 5/09 reference) and disagreed with `tools/pl_calc.py --window 7d`
+  // (which already starts at `today - (days-1)`).  Operator on
+  // 2026-05-09 caught this when the dashboard's 7d card said -0.69u
+  // for what they expected to be the last seven days; the extra day
+  // (5/02 = -0.69u) was the entire delta.  Same fix applied to 30d
+  // for symmetry.
   const startDate =
     window === "today"
       ? today
       : window === "7d"
-        ? isoMinusDays(7)
+        ? isoMinusDays(6)
         : window === "30d"
-          ? isoMinusDays(30)
+          ? isoMinusDays(29)
           : `${today.slice(0, 4)}-01-01`;
 
   const empty: RoiResponse = {
