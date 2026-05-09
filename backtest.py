@@ -900,37 +900,97 @@ def top3_platoon_summary(top3_ids: list[int], opp_pitcher_id: int,
 
 def fetch_top3_batters(game_pk: int, use_cache: bool = True) -> dict:
     """
-    Pull the actual batting order from a completed game's boxscore.
+    Pull the top-3 batting order for a game.
     Returns {"away_top3": [id,id,id], "home_top3": [id,id,id]}.
-    Empty lists when the data isn't available (e.g. game not yet final).
+    Empty per-side lists when MLB hasn't published that team's order yet.
     Cached only when both top-3 lists are non-empty.
+
+    T-V21-2026-05-08f: previously only read from
+    `liveData.boxscore.teams.<side>.battingOrder`, which MLB only
+    populates AFTER first pitch.  That meant pre-game predict runs --
+    the ones we need to bet from -- always saw empty arrays and
+    fell through to the team-fallback path, which then triggered the
+    LINEUP PENDING guard and forced a PASS.  Concrete failure mode:
+    2026-05-08 NYY@MIL + DET@KC, both 7:40 PM ET, team-fallback gave
+    a STRONG NRFI lean (~64% NRFI), but boxscore.battingOrder was
+    empty until ~7:40 PM and the T-60 lock at 6:40 PM had already
+    frozen the row at PASS - LINEUP PENDING.
+
+    Fix: when the boxscore endpoint returns empty arrays, fall back
+    to the schedule endpoint with `hydrate=lineups`.  That endpoint
+    exposes `lineups.homePlayers` / `lineups.awayPlayers` -- the
+    actual pre-game lineup card MLB publishes 2-3 hours before
+    first pitch.  Order is preserved (1st batter first), so taking
+    the first 3 IDs gives the same top-3 the boxscore would have
+    given post-first-pitch.
+
+    Cache key still keyed on game_pk; lineups can change pre-game
+    (late scratch / bench shuffle), so the cache is only stamped
+    once both sides are populated -- partial reads stay live so a
+    later call can re-fetch the missing side as MLB publishes it.
     """
     cached = _cache_get("boxscore_top3", str(game_pk), use_cache)
     if cached is not None:
         return cached
 
+    def _to_ids(order: list) -> list[int]:
+        out = []
+        for item in order[:3]:
+            try:
+                # Schedule-lineups items are dicts with "id"; boxscore
+                # battingOrder items are bare ints.  Handle both.
+                if isinstance(item, dict):
+                    pid = item.get("id")
+                    if pid is not None:
+                        out.append(int(pid))
+                else:
+                    out.append(int(item))
+            except (TypeError, ValueError):
+                pass
+        return out
+
+    away_ids: list[int] = []
+    home_ids: list[int] = []
+
+    # 1. Try boxscore.battingOrder first.  Authoritative once the game
+    #    starts -- always reflects who actually walked to the plate.
     try:
         data = _api_get("game", {
             "gamePk": game_pk,
             "fields": "liveData,boxscore,teams,away,home,battingOrder",
         })
     except Exception:
-        return {"away_top3": [], "home_top3": []}
-
+        data = {}
     teams = data.get("liveData", {}).get("boxscore", {}).get("teams", {})
-    away_order = teams.get("away", {}).get("battingOrder", []) or []
-    home_order = teams.get("home", {}).get("battingOrder", []) or []
+    away_ids = _to_ids(teams.get("away", {}).get("battingOrder", []) or [])
+    home_ids = _to_ids(teams.get("home", {}).get("battingOrder", []) or [])
 
-    def _to_ids(order: list) -> list[int]:
-        out = []
-        for item in order[:3]:
-            try:
-                out.append(int(item))
-            except (TypeError, ValueError):
-                pass
-        return out
+    # 2. Pre-first-pitch fallback: schedule endpoint with lineups
+    #    hydrate.  MLB publishes the announced lineup card here
+    #    hours before the boxscore endpoint catches up.  Only call
+    #    when at least one side is missing from the boxscore (avoid
+    #    wasted API hit when boxscore is already complete).
+    if not away_ids or not home_ids:
+        try:
+            sched = _api_get("schedule", {
+                "sportId":  1,
+                "gamePk":   game_pk,
+                "hydrate":  "lineups",
+                "fields":   "dates,games,gamePk,lineups,homePlayers,awayPlayers,id",
+            })
+            for sd in sched.get("dates", []):
+                for sg in sd.get("games", []):
+                    if int(sg.get("gamePk") or 0) != int(game_pk):
+                        continue
+                    lineups = sg.get("lineups") or {}
+                    if not away_ids:
+                        away_ids = _to_ids(lineups.get("awayPlayers") or [])
+                    if not home_ids:
+                        home_ids = _to_ids(lineups.get("homePlayers") or [])
+        except Exception:
+            pass    # fallback failure is non-fatal; whatever boxscore gave us stands
 
-    result = {"away_top3": _to_ids(away_order), "home_top3": _to_ids(home_order)}
+    result = {"away_top3": away_ids, "home_top3": home_ids}
     if result["away_top3"] and result["home_top3"]:
         _cache_put("boxscore_top3", str(game_pk), result)
     return result

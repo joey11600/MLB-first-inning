@@ -2283,7 +2283,27 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # tentative until the lineup is in.  Parallel to STARTER PENDING.
         # Don't downgrade a NO DATA verdict (data_pts==0) -- that's a
         # strictly more severe missing-data condition than LINEUP PENDING.
-        if (pick_conf != "NO DATA"
+        #
+        # T-V21-2026-05-08e: STRONG verdicts skip the guard.  Operator
+        # call after the 5/08 NYY@MIL + DET@KC incident: both rows
+        # had a tentative STRONG NRFI lean (nrfi_p ~0.642 / 0.644) on
+        # team-fallback batter stats, both first innings ended NRFI 0-0
+        # (= the lean was right), but the LINEUP PENDING guard kept
+        # both from auto-betting because the home team's batting order
+        # hadn't published in the MLB boxscore endpoint by T-60 lock.
+        # The post-lock refresh policy only updates `*_lineup_json` --
+        # not `*_top3c_source` or `pick_strength` -- so even when the
+        # actual lineup landed pre-first-pitch the verdict stayed
+        # frozen at PASS.  Operator's preference (per CLAUDE.md "STRONG
+        # picks auto-Y regardless of edge -- if the model commits
+        # STRONG, we bet at whatever odds DK has") is to commit STRONG
+        # leans regardless of lineup state; the 2.26pp shift cited in
+        # the original guard's example is small enough that it could
+        # not flip a STRONG verdict (which sits >=6pp above threshold
+        # by definition).  Keep the guard for LEAN / NO EDGE / etc.
+        # (where a real lineup CAN materially change the call), only
+        # skip for STRONG.
+        if (pick_conf not in ("NO DATA", "STRONG")
                 and (away_top3c_source != "lineup" or home_top3c_source != "lineup")):
             pick_side = "PASS"
             pass_reasons.append("LINEUP PENDING")

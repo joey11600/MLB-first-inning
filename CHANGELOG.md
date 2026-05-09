@@ -94,6 +94,73 @@ Today's record (2026-05-08) goes from 0-2-8 / -2.000u to
 **2-2-6 / -0.486u** once the heal mirrors land in Supabase
 on the next predict cron tick.
 
+---
+
+## [2026-05-08] — Don't lose STRONG bets to a stale lineup endpoint
+
+Same-day root-cause fix for the 2026-05-08 NYY@MIL + DET@KC
+incident.  Three independent failures stacked to keep both
+rows at PASS - LINEUP PENDING:
+
+  1. `backtest.fetch_top3_batters` only reads from
+     `liveData.boxscore.teams.<side>.battingOrder`, which MLB
+     populates AFTER first pitch.  Pre-game predict runs
+     therefore always saw empty arrays and fell through to
+     team-fallback, which then triggered the LINEUP PENDING
+     guard regardless of whether the lineup card was actually
+     published on MLB's pre-game endpoints.
+  2. The LINEUP PENDING guard in `mlb_first_inning_predictor`
+     forced PASS on every non-NO-DATA row that had a
+     team-fallback `top3c_source` -- including STRONG verdicts
+     that sit 6+pp above the threshold and could not flip
+     under the small (≤2.26pp) shifts the original guard
+     comment cited.
+  3. Vercel cron tick cadence had a 60-minute gap covering
+     the lock-time window for 7:40pm ET starts (21 UTC = 5pm,
+     then nothing until 23 UTC = 7pm), so even if the
+     boxscore endpoint had eventually exposed the lineup at
+     6:30pm, no predict run was scheduled to pick it up before
+     the T-60 lock at 6:40pm.
+
+### Fixed
+
+- `backtest.fetch_top3_batters` now falls back to the schedule
+  endpoint with `hydrate=lineups` when the boxscore returns an
+  empty `battingOrder`.  Schedule lineups expose
+  `lineups.homePlayers` / `lineups.awayPlayers` -- the actual
+  pre-game lineup card MLB publishes 2-3 hours before first
+  pitch -- so the predictor sees the announced lineup as soon
+  as MLB posts it instead of waiting for first pitch.  Boxscore
+  remains the primary path; schedule fallback only fires when
+  one or both sides are missing, so live games stay on the
+  authoritative actually-batted source.
+- `mlb_first_inning_predictor` LINEUP PENDING guard now skips
+  STRONG verdicts (`pick_conf == "STRONG"`).  Operator policy
+  per CLAUDE.md is to commit STRONG signals at whatever odds
+  DK has; the guard's protection (small lineup-driven prob
+  shifts demoting a pick) cannot apply to STRONG since the
+  smallest possible shift to flip STRONG (`p < 0.56`) requires
+  a 6+pp move that real lineups have never produced in
+  observed history.  Guard still applies to LEAN / NO EDGE /
+  LOW LAMBDA / etc., where lineup data CAN materially change
+  the verdict.
+- `dashboard/vercel.json` adds 30-minute-cadence Vercel cron
+  entries between 21 UTC (5pm ET) and 02 UTC (10pm ET).  Each
+  entry hits `/api/cron/predict`, which dispatches the GHA
+  daily.yml workflow with the predict action.  Worst-case
+  pre-lock staleness for a 7:40pm game is now 30 min instead
+  of the previous 60-min gap that masked the lineup post.
+
+### Defense-in-depth shape
+
+Today's incident required ALL THREE of the above to fail
+simultaneously.  After this commit, the same incident requires
+all three of: (a) MLB's schedule endpoint to ALSO not have the
+lineup at predict time, (b) the team-fallback verdict to be
+LEAN / NO EDGE / etc. (not STRONG), AND (c) the cron tick
+within 30 min of lock to fail or run late enough to miss the
+window.  Any single layer holding catches the case.
+
 
 
 V2.1 (V2 LR + T4.2 priors-pooling + V2 calibrator) was already
