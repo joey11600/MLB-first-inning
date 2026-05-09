@@ -62,6 +62,38 @@ case (PASS rows don't trigger `_notify_strong_graded_telegram`).
   game (notifications_log dedup).  ET-gated so historical
   re-grades don't backfill-flood the operator.
 
+### Manual override (one-shot retro heal)
+
+Operator made the call to count both 2026-05-08 LINEUP
+PENDING wins (NYY@MIL + DET@KC) as actual bets, not PASSes.
+Both first innings ended NRFI 0-0 = the model's tentative
+STRONG NRFI lean was right; without the manual flip neither
+shows up in today's record / units even though the lean
+landed.
+
+- `tools/heal_2026_05_08_lineup_wins.py` — idempotent script
+  that flips both rows to STRONG NRFI WIN, locks
+  market_nrfi_odds to the lock-time DK price (= captured
+  `opened_nrfi_odds`: -140 for NYY@MIL, -125 for DET@KC),
+  recomputes `profit_loss_units` via `tracker._calc_pnl`
+  (+0.714u + +0.800u = +1.514u net), writes a
+  `pick_changes.csv` journal entry per row, mirrors the
+  rows to Supabase, and fires the standard
+  `_notify_strong_graded_telegram` for each.  Re-running is
+  a no-op (target rows detect already-healed shape;
+  `notifications_log` dedups the Telegram side).
+- `.github/workflows/daily.yml` predict step calls the heal
+  script BEFORE `sync_csv_from_supabase` so the Supabase
+  mirror lands before sync pulls back into CSV.  Soft-fail.
+  The heal is idempotent so this step is safe to leave in
+  the workflow indefinitely.
+
+### Result
+
+Today's record (2026-05-08) goes from 0-2-8 / -2.000u to
+**2-2-6 / -0.486u** once the heal mirrors land in Supabase
+on the next predict cron tick.
+
 
 
 V2.1 (V2 LR + T4.2 priors-pooling + V2 calibrator) was already

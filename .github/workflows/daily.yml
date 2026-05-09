@@ -201,6 +201,27 @@ jobs:
             echo "::warning::Step '$STEP' failed (exit $CODE): $SAFE_MSG"
           }
 
+          # T-V21-2026-05-08c: one-shot retro-bet heal for the
+          # 2026-05-08 NYY@MIL + DET@KC LINEUP PENDING wins.  Both
+          # rows had a tentative STRONG NRFI lean and resolved NRFI
+          # 0-0 in the 1st but never auto-bet because lineups didn't
+          # post by T-60 lock.  Operator (joey11600) made the call
+          # to count them as bets retroactively; this step flips
+          # both to STRONG NRFI WIN, mirrors to Supabase, and fires
+          # the standard strong_graded Telegram pings.  Idempotent
+          # (script self-detects already-healed rows + relies on
+          # notifications_log dedup) so this can stay in the workflow
+          # forever without re-firing -- safe to leave or remove on
+          # a future cleanup pass.  Placed BEFORE sync-csv-from-
+          # supabase so the heal's Supabase mirror lands before the
+          # sync pulls Supabase back into CSV; either order would
+          # converge but this avoids a transient revert.  Soft-fail.
+          echo "==> Heal: 2026-05-08 LINEUP PENDING wins..."
+          if ! python tools/heal_2026_05_08_lineup_wins.py 2>heal_err.log; then
+            record_err "heal-2026-05-08" "$?" \
+              "$(tail -c 400 heal_err.log)"
+          fi
+
           # T-V21-2026-05-07c: sync CSV from Supabase BEFORE any local
           # P&L computation.  Closes the chronic CSV-vs-Supabase
           # divergence: Railway's worker + import_odds writes real-odds
