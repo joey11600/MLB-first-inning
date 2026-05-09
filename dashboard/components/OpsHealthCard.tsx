@@ -139,8 +139,8 @@ export function OpsHealthCard() {
   }
 
   const { status, reasons, minutesSincePredict, lastWorkerAt,
-          errorsLastHour, errorsLast24h, errorCountsByStep,
-          recentErrors, noticesLast24h = 0, recentNotices = [],
+          errorsLastHour, errorsLast24h, errorCountsByStep = {},
+          recentErrors = [], noticesLast24h = 0, recentNotices = [],
           // T4.13: grade-freshness fields (optional -- older deploys
           // of the API route won't return them; default to safe values
           // so the card still renders against a stale endpoint).
@@ -263,11 +263,11 @@ export function OpsHealthCard() {
 
       {open && (
         <div className={styles.expand}>
-          {Object.keys(errorCountsByStep).length > 0 && (
+          {Object.keys(errorCountsByStep ?? {}).length > 0 && (
             <div className={styles.section}>
               <div className="eyebrow">Errors by step (last 24 h)</div>
               <ul className={styles.stepList}>
-                {Object.entries(errorCountsByStep)
+                {Object.entries(errorCountsByStep ?? {})
                   .sort((a, b) => b[1] - a[1])
                   .map(([step, count]) => (
                     <li key={step} className={styles.stepRow}>

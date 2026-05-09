@@ -1783,6 +1783,118 @@ def _notify_strong_voided_telegram(row: dict, reason: str) -> None:
     _notify_event_telegram("strong_voided", event_key, body)
 
 
+def _classify_tentative_lean(nrfi_prob, lambda_total):
+    """Mirror of dashboard's classifyTentative + predictor's classify_pick_lr
+    using current production thresholds (STRONG_NRFI_P=0.56, PASS_LO_P=0.44,
+    LAMBDA_YRFI_FLOOR=0.78).  Returns (side, strength) tuple where side is
+    one of "NRFI" / "YRFI" / "PASS".  Lambda gate is only applied when
+    lambda_total is provided (legacy/missing rows just get the no-floor
+    classification).
+
+    Used by _notify_lineup_pending_resolved_telegram so the operator
+    can see what the model would have leaned even when the row locked
+    at PASS - LINEUP/STARTER PENDING."""
+    try:
+        p = float(nrfi_prob) if nrfi_prob not in (None, "") else None
+    except (TypeError, ValueError):
+        p = None
+    if p is None:
+        return ("PASS", "NO DATA")
+    try:
+        lam = float(lambda_total) if lambda_total not in (None, "") else None
+    except (TypeError, ValueError):
+        lam = None
+    # Mirrors classify_pick_lr.  Both _LR_STRONG_NRFI_P and _LR_LEAN_NRFI_P
+    # are 0.56 in current config so anything >= 0.56 reads as STRONG NRFI.
+    if p >= 0.56:
+        return ("NRFI", "STRONG")
+    if p >= 0.44:
+        return ("PASS", "NO EDGE")
+    if lam is not None and lam < 0.78:
+        return ("PASS", "LOW LAMBDA")
+    # Same equality on the YRFI side: _LR_LEAN_YRFI_P == 0.44, no separate
+    # STRONG threshold below it, so the only YRFI bucket is STRONG.
+    return ("YRFI", "STRONG")
+
+
+def _notify_lineup_pending_resolved_telegram(row: dict) -> None:
+    """LINEUP PENDING / STARTER PENDING row got graded.  No bet was placed
+    (these strengths are PASS verdicts), but the model had a tentative
+    NRFI/YRFI lean from team-fallback batter stats -- the dashboard pill
+    shows that lean inline.  Without this ping the operator only learns
+    by checking the dashboard:  on 2026-05-08 NYY@MIL + DET@KC both
+    locked at PASS - LINEUP PENDING with a tentative STRONG NRFI lean
+    and both first innings ended NRFI 0-0, but neither pinged because
+    they were PASS rows.
+
+    Fires once per game (deduped via notifications_log).  Skipped when
+    the tentative lean is itself PASS (no signal to report) or when the
+    row didn't actually grade to a real outcome (POSTPONED / SUSPENDED /
+    no actual_result yet)."""
+    strength = (row.get("pick_strength") or "").strip().upper()
+    if strength not in ("LINEUP PENDING", "STARTER PENDING"):
+        return
+    grade = (row.get("graded_result") or "").strip().upper()
+    if grade != "PASS":
+        # WIN / LOSS shouldn't be possible for these strengths (pick_side
+        # is always PASS), and POSTPONED / SUSPENDED have no actual side
+        # to compare a lean against.
+        return
+    actual = (row.get("actual_result") or "").strip().upper()
+    if actual not in ("NRFI", "YRFI"):
+        return
+
+    nrfi_prob    = row.get("nrfi_prob")
+    lambda_total = row.get("combined_lambda") or row.get("lambda_lr_total")
+    lean_side, lean_strength = _classify_tentative_lean(nrfi_prob, lambda_total)
+    if lean_side == "PASS":
+        # No lean signal worth reporting -- model would have passed too.
+        return
+
+    away     = (row.get("away_team") or "").upper()
+    home     = (row.get("home_team") or "").upper()
+    fi_a     = row.get("fi_away_runs")
+    fi_h     = row.get("fi_home_runs")
+    iso_date = (row.get("date") or "").strip()
+    game_pk  = (row.get("game_pk") or "").strip()
+
+    try:
+        nrfi_pct = f"{float(nrfi_prob) * 100:.1f}%"
+    except (TypeError, ValueError):
+        nrfi_pct = "—"
+    score = (
+        f"{fi_a}-{fi_h}"
+        if fi_a not in (None, "") and fi_h not in (None, "") else "—"
+    )
+
+    would_win = (lean_side == actual)
+    icon      = "✅" if would_win else "❌"
+    verdict   = "would have <b>WON</b>" if would_win else "would have <b>LOST</b>"
+    cause     = (
+        "lineup didn't post before lock"
+        if strength == "LINEUP PENDING"
+        else "starter wasn't announced before lock"
+    )
+
+    body = "\n".join([
+        f"🟡 <b>{strength.title()}</b> resolved · {away} @ {home}",
+        f"Tentative lean: <b>{lean_strength} {lean_side}</b> ({nrfi_pct} NRFI)",
+        f"Actual: {actual} · 1st inning {score}",
+        f"{icon} {verdict} · no bet placed ({cause}).",
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    # Stable per-game key so a re-grade (e.g. SUSPENDED → makeup played)
+    # doesn't fire twice.  Falls back to date+matchup when game_pk is
+    # missing -- legacy rows only.
+    if game_pk:
+        event_key = f"tentative_resolved:{game_pk}"
+    else:
+        event_key = f"tentative_resolved:{iso_date}:{away}@{home}"
+    _notify_event_telegram("tentative_resolved", event_key, body)
+
+
 def _notify_strong_pregame_telegram(row: dict, minutes_to_first_pitch: int) -> None:
     """30-min-before-first-pitch reminder for STRONG bets.  Fires exactly
     once per game per ~6h dedup window (covers a single pre-game
@@ -2556,6 +2668,15 @@ def grade_date(date_str: str, season: int) -> None:
         # rows so calling for every grade is safe.
         today_record, today_pl = _aggregate_today_record(rows, iso_date)
         _notify_strong_graded_telegram(rows[idx], today_record, today_pl)
+
+        # T-V21-2026-05-08: tentative-lean ping for LINEUP PENDING /
+        # STARTER PENDING rows that just resolved.  These never trigger
+        # _notify_strong_graded (pick_side is PASS, no bet placed) so
+        # the operator only learns whether the model's tentative lean
+        # would have won by checking the dashboard.  Function
+        # self-filters non-pending strengths and PASS-PASS leans, so
+        # safe to call for every grade.
+        _notify_lineup_pending_resolved_telegram(rows[idx])
 
     _write_rows(path, rows)
     # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the

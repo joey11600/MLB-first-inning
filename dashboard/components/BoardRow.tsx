@@ -430,18 +430,31 @@ function PickPill({
   slateDate: string;
   tentativeLean: { side: PickSide; strength: PickStrength } | null;
 }) {
+  // Once a row has a graded result the game has happened: the "still
+  // waiting" visual cues (dashed border, pulsing dot, "PENDING ·"
+  // prefix, pre-lock countdown) all become misleading.  Concrete case
+  // -- 2026-05-08 NYY@MIL + DET@KC: lineups never posted before the
+  // T-60 lock so both rows froze at PASS / LINEUP PENDING with a
+  // tentative LEAN NRFI; both first innings then ended 0-0 (NRFI),
+  // but the pills kept reading "PENDING · LEAN NRFI" hours after
+  // the games had effectively won the lean.  Treat any graded row
+  // as a settled row for display purposes.
+  const isGraded = !!(detail?.gradedResult || "").trim();
+
   const lockAt = computeLockAt(row.gameTimeEt, slateDate);
   const isPreLock =
-    lockAt !== null
+    !isGraded
+    && lockAt !== null
     && Date.now() < lockAt.getTime()
     && (detail?.betPlaced || "") !== "Y"
     && (row.pickStrength === "STRONG" || row.pickStrength === "LEAN");
   const lockTimeStr = lockAt ? formatLockTime(lockAt) : "";
 
   const pendingClass =
-    (row.pickStrength === "STARTER PENDING"
-      || row.pickStrength === "LINEUP PENDING"
-      || isPreLock)
+    !isGraded
+    && (row.pickStrength === "STARTER PENDING"
+        || row.pickStrength === "LINEUP PENDING"
+        || isPreLock)
       ? styles.pickPillPending
       : "";
   const lowLambdaClass = row.pickStrength === "LOW LAMBDA" ? styles.pickPillLowLambda : "";
@@ -459,7 +472,9 @@ function PickPill({
 
   const titleText =
     showTentative
-      ? `Model's tentative lean: ${tentativeLean!.strength} ${tentativeLean!.side} based on team-fallback batter stats. Will commit (or override) once MLB posts the actual lineup -- expand the row for more context.`
+      ? (isGraded
+          ? `Model's lean was: ${tentativeLean!.strength} ${tentativeLean!.side} (computed from team-fallback batter stats while waiting on lineups). No bet was placed -- the lineup never posted in time before lock.`
+          : `Model's tentative lean: ${tentativeLean!.strength} ${tentativeLean!.side} based on team-fallback batter stats. Will commit (or override) once MLB posts the actual lineup -- expand the row for more context.`)
     : isPreLock
       ? `Model's current lean: ${row.pickStrength} ${row.pickSide}. Pick locks at ${lockTimeStr} (60 min pre-game). Until then, the verdict can still flip with fresh lineup / weather / scratch data, so DON'T bet yet.`
     : row.pickStrength === "LOW LAMBDA"
@@ -477,8 +492,12 @@ function PickPill({
       <span className={styles.pickLabel}>
         {showTentative ? (
           <>
-            <span className={styles.pickLabelMuted}>PENDING</span>
-            <span className={styles.pickLabelSep}>·</span>
+            {!isGraded && (
+              <>
+                <span className={styles.pickLabelMuted}>PENDING</span>
+                <span className={styles.pickLabelSep}>·</span>
+              </>
+            )}
             <span className={`${styles.pickLabelLean} ${leanSideClass}`}>
               {tentativeLean!.strength} {tentativeLean!.side}
             </span>

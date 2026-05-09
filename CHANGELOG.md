@@ -11,7 +11,49 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
-## [2026-05-06] — V2.1 lock-in: archive V2 toggle, remove V3 + shadow surface
+## [2026-05-08] — Pending-pill cleanup for graded games + tentative-lean Telegram ping
+
+Reported by operator on 2026-05-08: NYY@MIL and DET@KC (both
+7:40 PM ET) locked at PASS · LINEUP PENDING with a tentative
+STRONG NRFI lean.  Both first innings ended 0-0 (NRFI), but the
+dashboard pill kept reading "PENDING · STRONG NRFI" with the
+dashed border + pulsing dot for hours after the games had
+effectively won the lean.  No Telegram ping fired for either
+case (PASS rows don't trigger `_notify_strong_graded_telegram`).
+
+### Fixed
+
+- `dashboard/components/BoardRow.tsx::PickPill` — once
+  `detail.gradedResult` is set, drop the dashed border, the
+  pulsing dot, the "PENDING ·" prefix, and the pre-lock
+  countdown.  Tentative lean still renders (just as
+  "STRONG NRFI" or "STRONG YRFI") so the operator can see
+  what the model leaned, but the row no longer reads as
+  "still waiting."  Ungraded LINEUP/STARTER PENDING rows
+  keep the existing dashed-pulsing treatment.
+- `dashboard/components/OpsHealthCard.tsx` — defensive `?? {}`
+  guards on the two `Object.keys` / `Object.entries` calls
+  for `errorCountsByStep`, plus default `recentErrors = []` in
+  the destructure.  Without them a partial /api/health-live
+  response (e.g. Supabase-not-configured) crashed the entire
+  dashboard with "Cannot convert undefined or null to object".
+
+### Added
+
+- `tracker._notify_lineup_pending_resolved_telegram` — fires
+  once per game when a LINEUP PENDING / STARTER PENDING row
+  grades to PASS with a non-PASS tentative lean.  Tells the
+  operator whether the lean would have won or lost so they
+  don't have to scrape the dashboard for that signal.  Wired
+  into `grade_date()` next to the existing strong-graded
+  ping; new event type `tentative_resolved` (deduped via
+  notifications_log).
+- `tracker._classify_tentative_lean` — Python mirror of the
+  dashboard's `classifyTentative` + the predictor's
+  `classify_pick_lr` thresholds, so the new ping computes the
+  same lean the pill renders.
+
+
 
 V2.1 (V2 LR + T4.2 priors-pooling + V2 calibrator) was already
 locked-on at T4.10.  This commit completes the archival: every
