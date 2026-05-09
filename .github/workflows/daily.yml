@@ -365,6 +365,17 @@ jobs:
             fi
           }
 
+          # T-V21-2026-05-08c: 2026-05-08 LINEUP PENDING heal -- runs
+          # in the grade path too so the 12:30am ET nightly grade
+          # picks it up if the predict cron at 8am ET tomorrow is the
+          # first one with the deploy.  See predict-step copy of this
+          # block for full rationale.  Idempotent.  Soft-fail.
+          echo "==> Heal: 2026-05-08 LINEUP PENDING wins..."
+          if ! python tools/heal_2026_05_08_lineup_wins.py 2>heal_err.log; then
+            record_err "heal-2026-05-08" "$?" \
+              "$(tail -c 400 heal_err.log)"
+          fi
+
           # T-V21-2026-05-07c: sync CSV from Supabase BEFORE grading.
           # See predict step above for full rationale.  In the nightly
           # grade context, this also catches the case where the
