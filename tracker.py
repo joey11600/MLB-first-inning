@@ -1056,6 +1056,11 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # monitor's daily run cadence -- a re-run shouldn't re-ping if the
     # drift signal hasn't changed.
     "feature_drift":        24 * 60,
+    # T-V21-2026-05-08: LINEUP / STARTER PENDING tentative-lean
+    # resolved -- one ping per game per day.  Retro-fire pass in
+    # grade_date() reaches every today-graded row on every cron tick,
+    # so the dedup window has to cover the whole slate.
+    "tentative_resolved":   24 * 60,
 }
 
 
@@ -2682,6 +2687,25 @@ def grade_date(date_str: str, season: int) -> None:
     # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the
     # rows that were actually graded in this call.
     _mirror_picks_to_supabase(season, [rows[i] for i in graded_indices])
+
+    # T-V21-2026-05-08 retro pass: tentative-lean ping for any LINEUP /
+    # STARTER PENDING row in today's slate, including ones graded by an
+    # earlier run.  The per-row loop above only reaches the notify call
+    # for rows it grades right now -- already-terminal rows hit the
+    # `continue` near the top and skip the notify.  That meant 5/08's
+    # NYY@MIL + DET@KC (LINEUP PENDING resolved NRFI 0-0) were missed
+    # by the new ping when graded *before* this code shipped.  The
+    # `_notify_lineup_pending_resolved_telegram` helper self-filters
+    # non-pending strengths and PASS-PASS leans, and notifications_log
+    # has a 24h dedup window for `tentative_resolved`, so this re-pass
+    # fires each missing game exactly once across all today's cron
+    # ticks and predict runs.  Gated to today's ET slate so a
+    # historical re-grade (e.g. `tracker grade 2026-04-12`) doesn't
+    # flood the operator with backfill notifications.
+    iso_today_et = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    if iso_date == iso_today_et:
+        for idx, _r in targets:
+            _notify_lineup_pending_resolved_telegram(rows[idx])
 
     # T2.38 #6: Bankroll milestone check.  Run AFTER all rows are
     # graded for this date so the season total reflects the latest

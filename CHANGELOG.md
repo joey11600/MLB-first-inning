@@ -47,11 +47,20 @@ case (PASS rows don't trigger `_notify_strong_graded_telegram`).
   don't have to scrape the dashboard for that signal.  Wired
   into `grade_date()` next to the existing strong-graded
   ping; new event type `tentative_resolved` (deduped via
-  notifications_log).
+  notifications_log, 24h window).
 - `tracker._classify_tentative_lean` — Python mirror of the
   dashboard's `classifyTentative` + the predictor's
   `classify_pick_lr` thresholds, so the new ping computes the
   same lean the pill renders.
+- `grade_date()` retro-fire pass: after the per-row grading
+  loop finishes, iterate today's slate (ET-gated) and call
+  `_notify_lineup_pending_resolved_telegram` for every row.
+  The per-row loop only reaches the notify call for rows it
+  grades right now, so already-terminal rows from earlier
+  cron ticks never fired the new ping.  This pass catches
+  them on the next predict / grade cron, exactly once per
+  game (notifications_log dedup).  ET-gated so historical
+  re-grades don't backfill-flood the operator.
 
 
 
