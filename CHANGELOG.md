@@ -233,6 +233,77 @@ fix is in place for the next slate.
 
 ---
 
+## [2026-05-09] — Manual DK odds overrides + orphan-bet Telegram alert
+
+System audit on 2026-05-09 (operator: "make sure that the
+tracking is being done properly") found that **112 of 220
+graded STRONG bets across the season (51%) had used the -110
+fallback** because no DK odds were captured at grade time.
+Cause: the chronic Railway-down failure mode on the odds-
+import worker.  GHA can't scrape DK directly (DK 403s GHA's
+Azure IPs), so when Railway is down the row grades with empty
+`market_*_odds`, `tracker._calc_pnl` returns the -110
+fallback (=+0.909u for a win), and `tools/end_of_day_check.py`
+silently stamps the row at that price as if -110 were the
+real DK entry price.  The dashboard's `OddsChip` shows
+"DK -110*" with an asterisk in this case, but the asterisk is
+easy to miss; from the operator's perspective the row looks
+like a real -110 bet.
+
+### Added
+
+- `data/manual_odds_overrides.csv` -- a user-maintained
+  ledger.  Operator drops a row in whenever they need to record
+  the actual DK entry price for a bet that the auto-scrape
+  missed.  Format documented inline + in
+  [docs/MANUAL_ODDS.md](./docs/MANUAL_ODDS.md).
+- `tools/apply_manual_odds.py` -- idempotent heal script.
+  Reads the override ledger, finds the matching pick row by
+  `(date, game_pk)` (or `(date, away, home)` when game_pk is
+  blank), patches `market_*_odds` / `sportsbook` /
+  `odds_captured_at`, sets `bet_placed=Y` + `units_risked=1`
+  for STRONG NRFI/YRFI rows that weren't already, recomputes
+  `profit_loss_units` via `tracker._calc_pnl` from the
+  supplied odds, journals each change to `pick_changes.csv`,
+  and mirrors to Supabase.  Idempotent: re-runs with the same
+  override are a no-op.
+- `tracker._notify_strong_orphan_no_odds_telegram` -- fires
+  the moment a STRONG bet grades W/L with empty
+  `market_*_odds` (before this code shipped, the row would
+  have been silently stamped at -110).  Body includes the
+  exact line to add to `manual_odds_overrides.csv` to heal
+  it.  New event type `strong_orphan_no_odds` with 24h
+  notifications_log dedup window.  Wired into `grade_date`
+  inline (catches new graded rows) AND the retro pass for
+  today's slate (catches rows graded by an earlier cron tick
+  before this code shipped).
+- Both predict and grade paths in `.github/workflows/daily.yml`
+  now invoke `tools/apply_manual_odds.py` before
+  `sync_csv_from_supabase` so the override's mirror lands
+  authoritatively.  Soft-fail.
+- Documentation: [docs/MANUAL_ODDS.md](./docs/MANUAL_ODDS.md)
+  + a CLAUDE.md money-rules entry explaining the override
+  flow.
+
+### Operator workflow going forward
+
+1. STRONG bet grades without captured DK odds.
+2. Telegram pings: "⚠️ NO DK ODDS CAPTURED · NYY @ MIL ·
+   STRONG NRFI · WIN" with the exact override-CSV line to add.
+3. Operator pastes the line into `data/manual_odds_overrides.csv`
+   with their actual DK entry price + commits.
+4. Next predict/grade cron tick (within 30 min) runs
+   `apply_manual_odds.py`, which patches `market_*_odds` and
+   recomputes `profit_loss_units`.
+5. Dashboard / pl_calc / Supabase all reflect the real price.
+
+Verified by sanity test: dry-run + apply + idempotency check
+on a known orphan (TEX@NYY 2026-05-05 STRONG YRFI WIN).
+Stored P&L moved from +0.909u (-110 fallback) to +1.150u
+(real +115 entry) on the override.
+
+---
+
 ## [2026-05-09] — RoiPanel "Last 7d" / "Last 30d" off-by-one fixed
 
 Operator on 5/09: "the units tracked are wrong. for example,

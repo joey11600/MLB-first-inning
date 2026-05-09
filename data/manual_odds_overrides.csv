@@ -1,0 +1,23 @@
+date,away_team,home_team,game_pk,market_nrfi_odds,market_yrfi_odds,sportsbook,note
+# Manual odds overrides for picks where the auto-scrape missed capturing
+# DK prices.  Each row replaces market_nrfi_odds / market_yrfi_odds on
+# the matching pick (matched by date + game_pk if provided, else by
+# date + away + home).  tools/apply_manual_odds.py reads this file,
+# overrides the row, and recomputes profit_loss_units from the supplied
+# odds.  Idempotent -- re-applying the same override is a no-op.
+#
+# Format:
+#   date              YYYY-MM-DD ET slate date
+#   away_team         3-letter abbr (NYY, SF, ...)
+#   home_team         3-letter abbr
+#   game_pk           MLB game_pk (optional; helps disambiguate doubleheaders)
+#   market_nrfi_odds  American odds, e.g. -130 or +105.  Use the side
+#                     you actually placed; the other side can be left
+#                     blank if you don't have it.
+#   market_yrfi_odds  same
+#   sportsbook        defaults to "DraftKings (manual)" if blank, so
+#                     the dashboard chip shows the override label
+#   note              free-form, journaled to pick_changes.csv
+#
+# Example (uncomment + edit to use):
+# 2026-05-05,MIN,WSH,,+115,-135,DraftKings (manual),"actual DK entry price"

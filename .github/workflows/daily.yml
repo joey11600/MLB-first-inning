@@ -222,6 +222,21 @@ jobs:
               "$(tail -c 400 heal_err.log)"
           fi
 
+          # T-V21-2026-05-09: apply user-supplied DK odds overrides.
+          # Reads data/manual_odds_overrides.csv (empty by default --
+          # operator adds a row whenever the auto-scrape misses a DK
+          # price) and patches market_*_odds + recomputes
+          # profit_loss_units on the matching pick row.  Idempotent so
+          # safe every cron tick.  Placed BEFORE sync-csv-from-
+          # supabase so the override's mirror lands authoritatively;
+          # the sync's preserve-on-blank logic won't overwrite a
+          # populated odds field.  Soft-fail.
+          echo "==> Apply manual odds overrides..."
+          if ! python tools/apply_manual_odds.py 2>manual_odds_err.log; then
+            record_err "apply-manual-odds" "$?" \
+              "$(tail -c 400 manual_odds_err.log)"
+          fi
+
           # T-V21-2026-05-07c: sync CSV from Supabase BEFORE any local
           # P&L computation.  Closes the chronic CSV-vs-Supabase
           # divergence: Railway's worker + import_odds writes real-odds
@@ -374,6 +389,14 @@ jobs:
           if ! python tools/heal_2026_05_08_lineup_wins.py 2>heal_err.log; then
             record_err "heal-2026-05-08" "$?" \
               "$(tail -c 400 heal_err.log)"
+          fi
+
+          # T-V21-2026-05-09: apply user-supplied DK odds overrides
+          # (same step as the predict path).  Soft-fail.
+          echo "==> Apply manual odds overrides..."
+          if ! python tools/apply_manual_odds.py 2>manual_odds_err.log; then
+            record_err "apply-manual-odds" "$?" \
+              "$(tail -c 400 manual_odds_err.log)"
           fi
 
           # T-V21-2026-05-07c: sync CSV from Supabase BEFORE grading.

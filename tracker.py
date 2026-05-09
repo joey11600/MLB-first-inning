@@ -1123,6 +1123,13 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # grade_date() reaches every today-graded row on every cron tick,
     # so the dedup window has to cover the whole slate.
     "tentative_resolved":   24 * 60,
+    # T-V21-2026-05-09: orphan STRONG bet alert -- fires when a
+    # graded W/L row had its profit_loss_units computed against the
+    # -110 fallback because no DK odds were ever captured.  Operator
+    # gets a Telegram heads-up instead of the row silently being
+    # stamped at +0.909u.  One ping per game per slate (24h window)
+    # so subsequent crons don't re-spam the same orphan.
+    "strong_orphan_no_odds": 24 * 60,
 }
 
 
@@ -1962,6 +1969,76 @@ def _notify_lineup_pending_resolved_telegram(row: dict) -> None:
     _notify_event_telegram("tentative_resolved", event_key, body)
 
 
+def _notify_strong_orphan_no_odds_telegram(row: dict) -> None:
+    """T-V21-2026-05-09: STRONG bet graded WIN/LOSS with NO captured DK
+    odds -- profit_loss_units was computed against the -110 fallback
+    (=+0.909u for a win, -1.0u for a loss) instead of the real DK price.
+    Operator on 2026-05-09 traced this to the chronic Railway-down
+    failure mode: when the odds-import worker is offline, GHA can't
+    scrape DK directly (DK 403s GHA's Azure IP ranges), so the row
+    grades with empty market_*_odds and end_of_day_check silently
+    stamps the -110 fallback.  Audit found 112 of 220 graded STRONG
+    bets had used this fallback -- 51% of the season.
+
+    This ping makes the next instance VISIBLE: the operator gets a
+    Telegram alert the moment a STRONG bet grades without odds, so
+    they can record the actual DK entry price in
+    `data/manual_odds_overrides.csv` (then `tools/apply_manual_odds.py`
+    heals the row to the real price + recomputes P&L).
+
+    Self-filters non-STRONG / non-bet-placed rows AND only fires when
+    market_*_odds for the picked side is genuinely empty -- so a row
+    that has odds captured won't false-positive even when the cron
+    re-runs against an already-graded row."""
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if (row.get("bet_placed")    or "").strip().upper() != "Y":
+        return
+    grade = (row.get("graded_result") or "").strip().upper()
+    if grade not in ("WIN", "LOSS"):
+        return
+
+    side = (row.get("pick_side") or "").upper()
+    odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+    captured = (row.get(odds_col) or "").strip()
+    if captured:
+        return    # has real odds, not an orphan
+
+    away     = (row.get("away_team") or "").upper()
+    home     = (row.get("home_team") or "").upper()
+    fi_a     = row.get("fi_away_runs")
+    fi_h     = row.get("fi_home_runs")
+    iso_date = (row.get("date") or "").strip()
+    game_pk  = (row.get("game_pk") or "").strip()
+    pl       = (row.get("profit_loss_units") or "—").strip()
+
+    icon       = "✅" if grade == "WIN" else "❌"
+    score_line = (
+        f"1st inning: {fi_a}-{fi_h} ({(int(fi_a) + int(fi_h))} runs)"
+        if fi_a not in (None, "") and fi_h not in (None, "") else ""
+    )
+    pl_line = f"+{pl}u" if grade == "WIN" else f"{pl}u"
+
+    body = "\n".join([
+        f"⚠️ <b>NO DK ODDS CAPTURED</b> · {away} @ {home} · STRONG {side} · {grade}",
+        f"P&L computed at -110 fallback: <b>{pl_line}</b>",
+        score_line,
+        "",
+        f"To replace with your actual DK entry price, add a row to "
+        f"<code>data/manual_odds_overrides.csv</code> and the next predict "
+        f"cron will heal it:",
+        f"<code>{iso_date},{away},{home},{game_pk or ''},NRFI_odds,YRFI_odds,DraftKings,&quot;your note&quot;</code>",
+        "",
+        _dashboard_link(iso_date),
+    ])
+
+    if game_pk:
+        event_key = f"strong_orphan_no_odds:{game_pk}"
+    else:
+        event_key = f"strong_orphan_no_odds:{iso_date}:{away}@{home}"
+    _notify_event_telegram("strong_orphan_no_odds", event_key, body)
+
+
 def _notify_strong_pregame_telegram(row: dict, minutes_to_first_pitch: int) -> None:
     """30-min-before-first-pitch reminder for STRONG bets.  Fires exactly
     once per game per ~6h dedup window (covers a single pre-game
@@ -2745,6 +2822,19 @@ def grade_date(date_str: str, season: int) -> None:
         # safe to call for every grade.
         _notify_lineup_pending_resolved_telegram(rows[idx])
 
+        # T-V21-2026-05-09: orphan STRONG bet alert -- fires when a
+        # STRONG bet grades with NO captured DK odds (so its
+        # profit_loss_units used the -110 fallback instead of the real
+        # price).  Audit on 2026-05-09 traced the chronic -110 fallback
+        # rate (51% of season) to this silent failure mode.  Now the
+        # operator gets a Telegram heads-up the moment it happens, so
+        # they can record the actual DK entry price in
+        # data/manual_odds_overrides.csv -> apply_manual_odds.py heals
+        # the row.  Function self-filters non-orphans (STRONG +
+        # bet_placed=Y + W/L + NO captured market_*_odds for picked
+        # side), so calling for every grade is safe.
+        _notify_strong_orphan_no_odds_telegram(rows[idx])
+
     _write_rows(path, rows)
     # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the
     # rows that were actually graded in this call.
@@ -2768,6 +2858,11 @@ def grade_date(date_str: str, season: int) -> None:
     if iso_date == iso_today_et:
         for idx, _r in targets:
             _notify_lineup_pending_resolved_telegram(rows[idx])
+            # T-V21-2026-05-09: same retro pattern for the orphan-no-odds
+            # alert.  Catches today's already-graded STRONG bets that
+            # silently used the -110 fallback before this code shipped.
+            # Self-filters via the helper + notifications_log dedup.
+            _notify_strong_orphan_no_odds_telegram(rows[idx])
 
     # T2.38 #6: Bankroll milestone check.  Run AFTER all rows are
     # graded for this date so the season total reflects the latest

@@ -153,6 +153,18 @@ quoting numbers.
 - **Never fabricate odds.** If the scraper missed a game, the row stays
   un-priced. Don't synthesize "what DK probably had" — leads to
   fabricated CLV.
+- **User can override missing odds manually.** When the auto-scrape
+  misses a DK price, `_calc_pnl` falls back to flat -110 (silently
+  misreports P&L). The user maintains
+  `data/manual_odds_overrides.csv`; `tools/apply_manual_odds.py`
+  reads it and patches `market_*_odds` + recomputes
+  `profit_loss_units` on the matching row. Idempotent, runs every
+  predict + grade cron tick. See [docs/MANUAL_ODDS.md](./docs/MANUAL_ODDS.md).
+  Never edit the CSV's odds columns directly — always go through the
+  override file so the change is journaled and Supabase-synced.
+  `_notify_strong_orphan_no_odds_telegram` pings the operator the
+  moment a STRONG bet grades without a captured DK price, with the
+  exact override-CSV line to add for the heal.
 
 ## Test methodology rules
 
