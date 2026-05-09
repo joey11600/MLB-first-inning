@@ -372,6 +372,27 @@ def _parse_game_time_et(game_time_et: str, iso_date: str):
     return None
 
 
+def _game_has_started(game_time_et: str, iso_date: str) -> bool:
+    """T-V21-2026-05-08g: True once `now` (ET) has crossed the row's
+    `game_time_et`.  Used by log_picks to gate post-lock pick refreshes:
+    a PASS row (no bet placed) can still safely re-evaluate its pick
+    after the T-60 lock as long as the game hasn't actually started
+    yet, because no money is on the line and the user might still
+    benefit from the resolved verdict.
+
+    Returns False for placeholder game_time_et ("After Game 1" / "TBD"
+    / anything without an "%H:%M" pattern) -- consistent with
+    `_is_inside_lock_window`'s defensive default.  Defensive lock #1
+    (slate-date >24h past) in `_pick_is_locked` still covers the
+    abandoned-row case so the unparseable-time path can't lead to
+    perpetual refreshes."""
+    game_dt = _parse_game_time_et(game_time_et, iso_date)
+    if game_dt is None:
+        return False
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/New_York")) >= game_dt
+
+
 def _is_inside_lock_window(game_time_et: str, iso_date: str,
                            lock_min: int | None = None) -> bool:
     """T2.58: True if `now` is within `lock_min` minutes of game start
@@ -750,12 +771,35 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     "blended_inputs",
                 ]
 
+            # T-V21-2026-05-08g: compute post-lock PASS-row refresh
+            # eligibility once and reuse it both as the notification
+            # gate (so a PASS -> STRONG upgrade post-lock fires the
+            # standard pick_flip ping) and as the lock-bypass gate
+            # below (so the same upgrade actually mutates the row
+            # instead of being preserved).  Eligibility: existing is
+            # a no-bet PASS row, no terminal grade, AND the game
+            # hasn't started yet -- defined exactly as in the
+            # post-lock branch below to keep the two gates in sync.
+            existing_grade_for_post_lock = (existing.get("graded_result") or "").upper()
+            existing_bet_for_post_lock   = (existing.get("bet_placed") or "").upper()
+            post_lock_pass_refresh_eligible = (
+                (existing.get("pick_side") or "").upper() == "PASS"
+                and existing_grade_for_post_lock not in ("WIN", "LOSS", "PASS",
+                                                         "POSTPONED", "SUSPENDED")
+                and existing_bet_for_post_lock != "Y"
+                and not _game_has_started(existing.get("game_time_et", ""), iso_date)
+            )
+            effectively_locked = (
+                _pick_is_locked(existing, iso_date)
+                and not post_lock_pass_refresh_eligible
+            )
+
             # Detect pick change BEFORE we apply the lock-preserve logic.
             # We only care about pre-lockout flips (game not yet started)
             # since locked rows preserve the pick by design.
             old_label = (existing.get("pick_label") or "").strip()
             new_label = new_row["pick_label"]
-            if not _pick_is_locked(existing, iso_date) and old_label and old_label != new_label:
+            if not effectively_locked and old_label and old_label != new_label:
                 _record_pick_change(
                     iso_date    = iso_date,
                     game_pk     = str(g["game_pk"]),
@@ -843,6 +887,24 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             except Exception:    # noqa: BLE001 — advisory only
                 pass
 
+            # T-V21-2026-05-08g: when `effectively_locked` is False
+            # because of `post_lock_pass_refresh_eligible` (PASS row,
+            # no bet, game not started), fall through to the pre-lock
+            # full-refresh else-branch.  Concrete failure mode that
+            # motivated this: 2026-05-08 PIT@SF locked at PASS -
+            # STARTER PENDING because Robbie Ray hadn't been
+            # announced as the SF starter yet.  The lock froze
+            # pick_strength / home_pitcher / pitcher_q at the T-60
+            # snapshot, so even when a later predict run saw Ray in
+            # MLB's `probablePitcher` field the row stayed PENDING.
+            # Standard lock semantics protect bet_placed=Y rows from
+            # post-bet-time flips (T2.25); for PASS rows there's no
+            # money committed at the lock-time price, so re-evaluating
+            # the verdict up to first pitch is strictly upside.
+            # `preserve` still keeps grading + odds frozen, so a
+            # freshly-imported odds row stays locked even when its
+            # parent pick re-evaluates.
+
             # If the game has already started (live or final), preserve
             # EVERYTHING the predictor would normally overwrite -- the
             # snapshot the user actually bet against has to stay frozen
@@ -852,7 +914,7 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             # pick, producing an inconsistent display ("STARTER PENDING"
             # next to fully-known pitcher data, etc).  The grading and
             # odds-import flows handle their own fields outside this path.
-            if _pick_is_locked(existing, iso_date):
+            if effectively_locked:
                 # Allowed to refresh post-lockout:
                 #   - lineup JSON (purely informational; the dashboard uses
                 #     this to show WHO the pitcher faced.  Doesn't affect

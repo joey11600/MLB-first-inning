@@ -161,6 +161,76 @@ LEAN / NO EDGE / etc. (not STRONG), AND (c) the cron tick
 within 30 min of lock to fail or run late enough to miss the
 window.  Any single layer holding catches the case.
 
+---
+
+## [2026-05-08] — PASS rows can re-evaluate post-lock as long as the game hasn't started
+
+Same-day follow-up to the LINEUP/STARTER PENDING incident.
+Operator: "the pit game was stuck as starter pending still.
+we need to diagnose and fix this issue once and for all. it
+should have been automatically set."
+
+Root cause for PIT@SF specifically: at 7:58pm ET (the last
+predict run before the 9:15pm T-60 lock), MLB's
+`probablePitcher` field still showed home_pitcher=TBD --
+Robbie Ray was announced afterwards.  Once the row hit lock,
+the existing freeze policy preserved EVERYTHING the predictor
+generates -- including pitcher fields -- so even when later
+predict runs at 9:17pm and beyond saw Ray in the API, the
+row's pick_strength stayed at PASS - STARTER PENDING.
+
+The standard freeze rationale (T2.25: don't flip a STRONG
+verdict after the user is in the bet) doesn't apply to PASS
+rows: no money is committed at the lock-time PASS, so
+re-evaluating up to first pitch is strictly upside.  Three
+worst cases:
+
+  1. PASS - PENDING -> STRONG NRFI: the user gains a bet
+     they would have missed.  bet_placed=Y fires from
+     `_apply_odds_to_row`'s normal lock-window auto-bet path
+     once the next odds-import tick lands.
+  2. PASS - PENDING -> PASS - NO EDGE: the row's label
+     resolves to its actual verdict instead of staying in a
+     stale "we don't know yet" state.  Already partly
+     supported by the T2.14 `pass_label_refresh` hack but
+     that only refreshed pick_side/strength/label, not the
+     underlying inputs that drove them; now the whole row
+     refreshes consistently.
+  3. PASS - NO EDGE -> STRONG (rare): same as #1.
+
+### Fixed
+
+- `tracker._game_has_started`: new helper.  True once `now`
+  (ET) crosses the row's `game_time_et`; mirrors
+  `_is_inside_lock_window`'s defensive default for placeholder
+  game-times so the abandoned-row case is still covered by
+  defensive lock #1.
+- `tracker.log_picks`: compute
+  `post_lock_pass_refresh_eligible` once per existing row
+  (PASS / no bet / no terminal grade / game not started) and
+  thread it through both the change-detection notification
+  gate AND the lock-bypass branch.  When eligible, the row
+  follows the pre-lock full-refresh path, so pitcher / lineup
+  / weather / probabilities / label all update consistently.
+  The standard `pick_flip` Telegram fires on label changes
+  -- including post-lock PENDING -> STRONG upgrades -- so the
+  operator gets the standard "PENDING -> STRONG NRFI" ping
+  the moment the bet commits.
+
+### Net effect
+
+Tomorrow's slate: when MLB announces a starter or lineup
+post-lock-but-pre-first-pitch, the predictor will re-evaluate
+the affected row, the dashboard pill will flip from "PASS -
+STARTER PENDING" / "PASS - LINEUP PENDING" to whatever the
+resolved verdict is, and (if the resolved verdict is STRONG)
+the next odds-import tick auto-flips bet_placed to Y at the
+in-lock-window DK price.  Today's PIT@SF was already past
+first pitch when this code shipped so the row stays at the
+post-game NO EDGE label that
+`pass_label_refresh` already produced -- but the underlying
+fix is in place for the next slate.
+
 
 
 V2.1 (V2 LR + T4.2 priors-pooling + V2 calibrator) was already
