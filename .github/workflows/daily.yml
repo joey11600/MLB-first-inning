@@ -309,17 +309,40 @@ jobs:
             || echo "::warning::pick_reasoning_log failed (non-blocking): $(tail -c 200 reason_err.log)"
           set -e
 
-          # T-CLEANUP-2026-05-05: GitHub's runner IPs are in Azure
-          # ranges that DK fingerprints as bot traffic and 403s every
-          # request -- even with curl_cffi TLS impersonation.  Railway
-          # runs in Google Cloud (us-east4) which DK doesn't block,
-          # so DK scraping + odds-import both moved entirely to
-          # Railway's predictor_loop (workers/predictor_loop.py).
-          # The block that used to call scrape_dk_odds.py + --import-odds
-          # was here; both removed.  Railway scrapes every 5 min and
-          # mirrors odds to Supabase; the dashboard reads from Supabase.
-          echo "==> DK scrape + import-odds skipped on GitHub Actions" \
-               "(Railway predictor_loop owns this path)."
+          # T-V21-2026-05-09: backup DK scrape from this runner.
+          # Background: T-CLEANUP-2026-05-05 removed this block on the
+          # premise that Railway's predictor_loop would capture DK
+          # odds.  In practice Railway has gone down sporadically
+          # (most recently triggering the 2026-05-05 / 2026-05-06
+          # 40-57% fallback regression), and audit on 2026-05-09
+          # found 112 of 220 graded STRONG bets across the season
+          # had used the -110 fallback because no DK odds were ever
+          # captured.  Re-adding the scrape here gives us a second
+          # source: when this workflow runs on the self-hosted
+          # runner (RUNNER_LABEL=self-hosted, IP not in Azure ranges
+          # DK fingerprints), the scrape succeeds and patches any
+          # missing odds; when it runs on the default ubuntu-latest
+          # the scrape 403s and the soft-fail handler records the
+          # error without blocking predict.  Idempotent: import_odds
+          # honors the T2.23 bet-time lock (existing bet_placed=Y
+          # rows with captured market_*_odds skip update) so re-runs
+          # don't churn already-locked bets.
+          echo "==> DK scrape (backup) for $TODAY_ISO..."
+          DK_OUT="data/odds/dk_${TODAY_ISO}.csv"
+          if ! python scrape_dk_odds.py 2>dk_err.log; then
+            record_err "scrape-dk-odds" "$?" "$(tail -c 400 dk_err.log)"
+          elif [ -s "$DK_OUT" ]; then
+            echo "==> Importing DK odds from $DK_OUT..."
+            if ! python mlb_first_inning_predictor.py \
+                  --import-odds "$DK_OUT" --min-edge 0.02 \
+                  2>import_odds_err.log; then
+              record_err "import-odds" "$?" \
+                "$(tail -c 400 import_odds_err.log)"
+            fi
+          else
+            echo "==> No DK output produced (scrape may have 403d on " \
+                 "Azure-range runner) -- relying on Railway capture."
+          fi
 
           # T-V21-2026-05-07e: reconciliation sweep.  Asserts data +
           # notification invariants over the last 3 days and auto-heals
