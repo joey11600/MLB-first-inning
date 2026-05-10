@@ -354,6 +354,20 @@ jobs:
               "$(tail -c 400 reconcile_err.log)"
           fi
 
+          # T-V21-2026-05-10: loss-cluster streak monitor.  Watches for
+          # defined STRONG-bet feature clusters (e.g. "STRONG YRFI
+          # nrfi_p~0.40 + lambda~1.0") accumulating losses in their
+          # recent-N window, and fires loss_cluster_streak Telegram if
+          # any cluster crosses the threshold.  Operator's plan when
+          # an alert fires: skip future bets in the cluster manually
+          # OR run recalibrate_v2.py on trailing 30-60 days.  Soft-
+          # fail; idempotent (notifications_log dedup).
+          echo "==> Loss-cluster streak monitor..."
+          if ! python tools/loss_cluster_monitor.py 2>loss_cluster_err.log; then
+            record_err "loss-cluster-monitor" "$?" \
+              "$(tail -c 400 loss_cluster_err.log)"
+          fi
+
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'
         # Grade today AND yesterday (in ET).  GitHub Actions cron can fire
@@ -450,6 +464,14 @@ jobs:
           if ! python tools/reconcile.py --days 3 2>reconcile_err.log; then
             record_err "reconcile" "$?" \
               "$(tail -c 400 reconcile_err.log)"
+          fi
+
+          # T-V21-2026-05-10: loss-cluster streak monitor (same as the
+          # predict path).  Soft-fail; idempotent.
+          echo "==> Loss-cluster streak monitor..."
+          if ! python tools/loss_cluster_monitor.py 2>loss_cluster_err.log; then
+            record_err "loss-cluster-monitor" "$?" \
+              "$(tail -c 400 loss_cluster_err.log)"
           fi
 
       - name: End-of-day safety net (orphaned STRONG bets)

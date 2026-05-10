@@ -233,6 +233,56 @@ fix is in place for the next slate.
 
 ---
 
+## [2026-05-10] — Loss-cluster streak monitor
+
+Operator on 2026-05-09 noticed that **5 of the 7 STRONG losses since
+v2.1 deployed** (2026-05-06) shared a specific shape: STRONG YRFI bets
+where `nrfi_p` ≈ 0.40 + `combined_lambda` ≈ 1.0, all of which ended
+NRFI 0-0 (pitchers shut both halves down despite the model expecting
+~1 first-inning run).  Operator's directive: "keep note of these
+things where you're noticing the same type of pick is losing
+constantly. if that loses again then we will have to adjust."
+
+Added an automated watchdog that catches that signal the moment
+it crosses a clear threshold.
+
+### Added
+
+- `tools/loss_cluster_monitor.py` -- defines named feature clusters
+  and watches each one's recent-N record after every grading sweep.
+  When a cluster's last 5 graded matches show ≥4 losses with
+  hit rate ≤20%, fires a `loss_cluster_streak` Telegram alert
+  with the recent trail and the operator's documented action plan
+  (manual judgment skip OR `recalibrate_v2.py` on trailing 30-60
+  days).  Two clusters defined at launch:
+    1. **`yrfi_040_band`**: STRONG YRFI · `nrfi_p` 0.370-0.420
+       AND `combined_lambda` 0.80-1.30 AND `park_factor` 0.90-1.30.
+    2. **`nrfi_marginal_strong`**: STRONG NRFI · `nrfi_p` 0.560-0.590
+       (barely above the STRONG threshold, low variance margin).
+  Adding a new cluster: append a dict to `CLUSTERS` in the script.
+- `tracker._DEDUP_WINDOW_M["loss_cluster_streak"] = 24*60`: 24h
+  dedup per (cluster_id, date) so the alert doesn't re-spam across
+  cron ticks.
+- `tools/loss_cluster_monitor.py` wired into both predict and grade
+  paths in `.github/workflows/daily.yml`, soft-fail.
+
+### Memory
+
+- `memory/loss_cluster_yrfi_040_band.md` documents the active watch:
+  cluster definition, why it looks like drift not variance, the
+  operator's manual-skip plan, and the recalibration path if the
+  cluster confirms.
+
+### Threshold rationale
+
+Tuned against 2026-05-09 data: cluster sat at **2 losses in last 5**
+(no alert).  Today's slate (2026-05-10) has two STRONG YRFI bets
+matching the cluster (OAK@BAL, HOU@CIN) -- if both lose, recent-5
+hits 4 of 5 = 20% hit rate, alert fires.  If only one loses, alert
+holds off until next instance.
+
+---
+
 ## [2026-05-09] — Manual DK odds overrides + orphan-bet Telegram alert
 
 System audit on 2026-05-09 (operator: "make sure that the

@@ -1130,6 +1130,15 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # stamped at +0.909u.  One ping per game per slate (24h window)
     # so subsequent crons don't re-spam the same orphan.
     "strong_orphan_no_odds": 24 * 60,
+    # T-V21-2026-05-10: loss-cluster streak alert -- tools/
+    # loss_cluster_monitor.py fires this when a defined STRONG-bet
+    # feature cluster (e.g. "STRONG YRFI nrfi_p~0.40 + lambda~1.0 +
+    # neutral park") accumulates >=N losses in the trailing 14 days
+    # with hit rate <=30%.  Tells the operator the model is
+    # repeatedly mis-firing on a specific shape so they can decide
+    # to skip / recalibrate.  24h dedup per (cluster_id, date)
+    # so re-runs across crons don't re-spam.
+    "loss_cluster_streak":  24 * 60,
 }
 
 
