@@ -237,6 +237,21 @@ jobs:
               "$(tail -c 400 manual_odds_err.log)"
           fi
 
+          # T-V21-2026-05-10b: apply confirmed cluster demotions.
+          # Reads data/cluster_demotions.json (operator adds entries
+          # only after loss_cluster_monitor.py confirms a cluster is
+          # losing).  For each ungraded STRONG row matching an active
+          # demotion, sets bet_placed='N' and units_risked='' so the
+          # bet is suppressed without touching pick_side / pick_strength
+          # (model verdict still visible on the dashboard).
+          # Idempotent.  Placed before sync so the demotion's mirror
+          # lands authoritatively.  Soft-fail.
+          echo "==> Apply cluster demotions..."
+          if ! python tools/apply_cluster_demotion.py 2>cluster_demotion_err.log; then
+            record_err "apply-cluster-demotion" "$?" \
+              "$(tail -c 400 cluster_demotion_err.log)"
+          fi
+
           # T-V21-2026-05-07c: sync CSV from Supabase BEFORE any local
           # P&L computation.  Closes the chronic CSV-vs-Supabase
           # divergence: Railway's worker + import_odds writes real-odds
@@ -436,6 +451,14 @@ jobs:
               "$(tail -c 400 manual_odds_err.log)"
           fi
 
+          # T-V21-2026-05-10b: apply cluster demotions (same step as
+          # predict path).  Soft-fail.
+          echo "==> Apply cluster demotions..."
+          if ! python tools/apply_cluster_demotion.py 2>cluster_demotion_err.log; then
+            record_err "apply-cluster-demotion" "$?" \
+              "$(tail -c 400 cluster_demotion_err.log)"
+          fi
+
           # T-V21-2026-05-07c: sync CSV from Supabase BEFORE grading.
           # See predict step above for full rationale.  In the nightly
           # grade context, this also catches the case where the
@@ -472,6 +495,18 @@ jobs:
           if ! python tools/loss_cluster_monitor.py 2>loss_cluster_err.log; then
             record_err "loss-cluster-monitor" "$?" \
               "$(tail -c 400 loss_cluster_err.log)"
+          fi
+
+          # T-V21-2026-05-10b: cluster discovery digest.  Scans the
+          # season ledger for STRONG-bet feature combinations that have
+          # underperformed and prints a ranked candidate list to the
+          # workflow log.  No mutation, no Telegram -- it's a "what
+          # should I be watching" report the operator reads on the
+          # nightly grade run.  Soft-fail.
+          echo "==> Cluster discovery scan..."
+          if ! python tools/cluster_discovery.py --since "$(TZ='America/New_York' date -d '21 days ago' +%Y-%m-%d)" 2>cluster_disc_err.log; then
+            record_err "cluster-discovery" "$?" \
+              "$(tail -c 400 cluster_disc_err.log)"
           fi
 
       - name: End-of-day safety net (orphaned STRONG bets)

@@ -165,6 +165,25 @@ quoting numbers.
   `_notify_strong_orphan_no_odds_telegram` pings the operator the
   moment a STRONG bet grades without a captured DK price, with the
   exact override-CSV line to add for the heal.
+- **Loss-cluster pipeline (3 stages).** The system has tooling to
+  find feature combinations where STRONG bets keep losing, watch
+  them in real time, and skip bet placement on confirmed bad
+  clusters. See [docs/CLUSTER_DISCOVERY.md](./docs/CLUSTER_DISCOVERY.md):
+    1. `tools/cluster_discovery.py` (read-only) — runs nightly on the
+       grade cron, prints ranked candidate clusters to the workflow log.
+    2. `tools/loss_cluster_monitor.py` — defines named clusters and
+       fires `loss_cluster_streak` Telegram when a cluster's last 5
+       graded show ≥4 losses with ≤20% hit.
+    3. `tools/apply_cluster_demotion.py` — reads
+       `data/cluster_demotions.json` (operator-maintained); sets
+       `bet_placed='N'` on matching ungraded rows. Reversible.
+  The pipeline is intentionally three-stage to prevent overfitting:
+  discovery flags signal, monitor confirms it persists, demotion
+  acts. Don't add a demotion entry without going through the
+  monitor first — a cluster that LOOKS bad over n=10 may revert
+  over n=20.  Don't manually edit `pick_strength` / `pick_label`
+  to demote; use the JSON config so the change is journaled and
+  reversible.
 
 ## Test methodology rules
 

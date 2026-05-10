@@ -1,0 +1,32 @@
+{
+  "_README": [
+    "Active demotions list.  Each entry skips bet placement on STRONG",
+    "rows whose features match the predicate.  Operator adds entries",
+    "ONLY after a candidate cluster from cluster_discovery.py is",
+    "confirmed by the loss_cluster_monitor.py Telegram alert (i.e.",
+    "the cluster's recent-N record has actually crossed the bad-",
+    "performance threshold, not just looked bad in one batch).",
+    "",
+    "What demotion does: sets bet_placed='N' + units_risked='' on the",
+    "matching row.  It does NOT change pick_side / pick_strength /",
+    "pick_label -- the model's verdict stays visible on the dashboard",
+    "for transparency, but no money is committed.  Reversible: remove",
+    "the entry from this file and the next predict cron will let",
+    "future bets in the cluster auto-commit again.",
+    "",
+    "Format: each entry under 'demotions' has:",
+    "  id            stable identifier (used in pick_changes journal)",
+    "  reason        human-readable why",
+    "  side          'NRFI' | 'YRFI' | null (null = either side)",
+    "  nrfi_prob     {min, max} -- both inclusive; null skips bound",
+    "  combined_lambda {min, max} -- optional",
+    "  park_factor   {min, max} -- optional",
+    "  pitcher_quality_min  list of {sm,ltd,live,avg} the worst-quality",
+    "                pitcher must be in (e.g., ['sm','ltd']);",
+    "                null = any quality matches",
+    "  active        bool; false = present but disabled",
+    "",
+    "Apply with: python tools/apply_cluster_demotion.py"
+  ],
+  "demotions": []
+}

@@ -233,6 +233,83 @@ fix is in place for the next slate.
 
 ---
 
+## [2026-05-10] — Cluster discovery + demotion pipeline
+
+Operator: "we need to start finding more unprofitable clusters,
+then we can make micro adjustments based on different specific
+details, and then lower the total probability when certain
+specific patterns arise again if they tend to lose over and over
+again."
+
+Built out a three-stage pipeline for identifying, watching, and
+acting on loss clusters without overfitting to noise.
+
+### Pipeline shape
+
+```
+1. DISCOVER             →   2. MONITOR                →   3. DEMOTE
+   cluster_discovery.py     loss_cluster_monitor.py       apply_cluster_
+                                                           demotion.py
+   (read-only ledger        (defined cluster's            (skip bet placement
+    scan; ranked              recent-5 record;             on confirmed bad
+    candidates)               Telegram alert)              clusters via JSON)
+```
+
+Each stage is gated to prevent acting on small-sample noise.  A
+candidate from stage 1 must pass through stage 2's runtime
+confirmation (recent 5 = ≥4L) before the operator considers adding
+it to stage 3's demotion config.  Stage 3 is fully reversible via
+the JSON.
+
+### Added
+
+- `tools/cluster_discovery.py` — scans the season ledger for
+  STRONG-bet feature combinations that have underperformed.  Three
+  resolutions: (side, prob_band), (side, prob_band, lambda_band),
+  (side, prob_band, lambda_band, pitcher_min_q).  Filters on
+  sample-size and hit-rate floors; ranks by net P&L drag.  Output
+  is read-only; never mutates CSVs or fires Telegram.  Initial run
+  surfaced **STRONG YRFI with nrfi_p < 0.40 = 6W-11L (-6.0u over
+  17 bets)** as the strongest candidate.
+- `data/cluster_demotions.json` — operator-maintained demotions
+  ledger.  Each entry declares a predicate (side, nrfi_prob band,
+  lambda band, park band, pitcher_quality_min) plus an `active`
+  flag.  Empty by default at launch.
+- `tools/apply_cluster_demotion.py` — reads the JSON, finds every
+  ungraded STRONG row matching an active demotion, and sets
+  `bet_placed='N' + units_risked=''` so the bet is suppressed.
+  Does NOT change `pick_side / pick_strength / pick_label` -- the
+  model verdict stays visible on the dashboard for transparency;
+  only the money commit is suppressed.  Idempotent.  Journals
+  every demotion event to `pick_changes.csv`.
+- Both predict and grade paths in `.github/workflows/daily.yml`
+  now invoke `apply_cluster_demotion.py` before
+  `sync_csv_from_supabase` (same precedence as the manual-odds
+  override step).  Cluster discovery runs once per nightly grade
+  cron with the trailing-21-day window; output goes to the
+  workflow log for operator review.
+
+### Documentation
+
+- [docs/CLUSTER_DISCOVERY.md](./docs/CLUSTER_DISCOVERY.md) walks
+  through each stage's purpose, the operator workflow for adding
+  a new cluster (monitor) or demotion (skip), the safety rules
+  baked in, and when to back off a demotion.
+- CLAUDE.md money-rules section gets a one-paragraph pointer.
+
+### What did NOT ship (deliberate)
+
+- No automatic demotion of newly-discovered clusters.  Discovery
+  is read-only by design; the operator decides which candidates
+  graduate to monitor + demotion.
+- No probability-modification layer.  The "lower the probability"
+  framing maps cleanest to a calibrator refit
+  (`recalibrate_v2.py`); the demotion path is a tactical bet-skip,
+  not a model change.  Once enough confirmed clusters accumulate,
+  refitting the calibrator on recent data is the durable fix.
+
+---
+
 ## [2026-05-10] — Loss-cluster streak monitor
 
 Operator on 2026-05-09 noticed that **5 of the 7 STRONG losses since
