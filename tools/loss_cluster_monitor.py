@@ -86,22 +86,28 @@ def _is_strong_bet(row: dict) -> bool:
     )
 
 
-def _match_yrfi_040_band(row: dict) -> bool:
-    """STRONG YRFI cluster centered on nrfi_p ~ 0.40 + lambda ~ 1.0.
-    Defined from the 2026-05-06 → 2026-05-09 loss streak that triggered
-    this monitor.  Band widened slightly from the original
-    [0.376, 0.420] to [0.370, 0.420] so the 2026-05-07 NYM@COL loss
-    (nrfi_p=0.3759) lands inside.  Park gate is intentionally loose
-    (0.90-1.30) -- the failing pattern hits across mild parks AND
-    Coors-style hitter parks; restricting park excluded too many
-    real cluster instances on test."""
+def _match_yrfi_deep(row: dict) -> bool:
+    """STRONG YRFI cluster: nrfi_p < 0.40 (deep YRFI).
+
+    Revised 2026-05-11 after the system audit (see
+    docs/2026-05-11_system_audit.md).  Original predicate was
+    `0.370 <= p <= 0.420 AND 0.80 <= lam <= 1.30 AND 0.90 <= park <= 1.30`,
+    which straddled the true profit boundary: the trailing-30d data
+    showed nrfi_p in [0.40, 0.44] was actually a *profitable* zone
+    (14W-6L, +6.57u) while nrfi_p < 0.40 was the losing zone
+    (6W-12L, -7.00u).  Lambda + park gates were dropped because the
+    losing pattern is consistent across all lambda + park values in
+    the deep-YRFI bin -- they don't subset the cluster usefully.
+
+    Net effect: the monitor fires on the cluster that actually
+    loses, and stops firing on the cluster that wins."""
     if (row.get("pick_side") or "").strip().upper() != "YRFI":
         return False
-    f = _row_floats(row, "nrfi_prob", "combined_lambda", "park_factor")
-    p, lam, park = f["nrfi_prob"], f["combined_lambda"], f["park_factor"]
-    if p is None or lam is None or park is None:
+    f = _row_floats(row, "nrfi_prob")
+    p = f["nrfi_prob"]
+    if p is None:
         return False
-    return 0.370 <= p <= 0.420 and 0.80 <= lam <= 1.30 and 0.90 <= park <= 1.30
+    return p < 0.40
 
 
 def _match_strong_nrfi_marginal(row: dict) -> bool:
@@ -121,12 +127,14 @@ def _match_strong_nrfi_marginal(row: dict) -> bool:
 # optional threshold overrides.  Add new clusters by appending a dict here.
 CLUSTERS: list[dict] = [
     {
-        "id":           "yrfi_040_band",
-        "label":        "STRONG YRFI · nrfi_p ~0.40 / λ ~1.0",
-        "description":  "Bets where the model expects ~1 first-inning run "
-                        "but pitchers shut both halves down to 0.  Active "
-                        "since v2.1 deploy on 2026-05-06.",
-        "match":        _match_yrfi_040_band,
+        "id":           "yrfi_deep",
+        "label":        "STRONG YRFI · nrfi_p < 0.40 (deep YRFI)",
+        "description":  "Deep YRFI bets where the model is very confident "
+                        "in YRFI but the first-inning still goes 0-0.  "
+                        "Trailing 30d: 6W-12L, -7.00u.  Revised 2026-05-11 "
+                        "from the original 0.37-0.42 band predicate -- see "
+                        "docs/2026-05-11_system_audit.md.",
+        "match":        _match_yrfi_deep,
         # 14-day overall numbers reported but don't gate the alert.
         "min_losses":      5,
         "max_hit_rate":    0.30,

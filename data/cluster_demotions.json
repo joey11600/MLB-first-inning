@@ -7,12 +7,12 @@
     "the cluster's recent-N record has actually crossed the bad-",
     "performance threshold, not just looked bad in one batch).",
     "",
-    "What demotion does: sets bet_placed='N' + units_risked='' on the",
-    "matching row.  It does NOT change pick_side / pick_strength /",
-    "pick_label -- the model's verdict stays visible on the dashboard",
-    "for transparency, but no money is committed.  Reversible: remove",
-    "the entry from this file and the next predict cron will let",
-    "future bets in the cluster auto-commit again.",
+    "What demotion does: rewrites the row to render as PASS (pick_side",
+    "and pick_strength become 'PASS' / 'NO EDGE', pick_label encodes the",
+    "original verdict + cluster id, bet_placed='N' + units_risked='').",
+    "The dashboard surfaces the demotion via a tooltip on the PASS pill.",
+    "Reversible: flip 'active' to false (or remove the entry) and the",
+    "next predict cron lets future bets in the cluster auto-commit.",
     "",
     "Format: each entry under 'demotions' has:",
     "  id            stable identifier (used in pick_changes journal)",
@@ -25,16 +25,21 @@
     "                pitcher must be in (e.g., ['sm','ltd']);",
     "                null = any quality matches",
     "  active        bool; false = present but disabled",
+    "  reevaluate_after  ISO date YYYY-MM-DD (optional).  On/after this",
+    "                date, tools/demotion_reeval_reminder.py fires a",
+    "                Telegram with the current shadow-P&L snapshot so",
+    "                the operator can decide keep/flip/remove.",
     "",
     "Apply with: python tools/apply_cluster_demotion.py"
   ],
   "demotions": [
     {
       "id": "thin_pitcher_strong_v1",
-      "reason": "STRONG bets where the worst pitcher is sm or ltd quality went 6W-10L (-5.34u) over 5 days post-v2.1 deploy (5/06-5/10).  Operator chose to demote NOW + evaluate via shadow P&L over next ~10 graded skips (target re-eval 2026-05-14).  See tools/cluster_shadow_pnl.py.",
+      "reason": "STRONG bets where the worst pitcher is sm or ltd quality went 6W-10L (-5.34u) over 5 days post-v2.1 deploy (5/06-5/10).  Operator chose to demote NOW + evaluate via shadow P&L over next ~10 graded skips (target re-eval 2026-05-14).  See tools/cluster_shadow_pnl.py and docs/2026-05-11_system_audit.md.",
       "side": null,
       "pitcher_quality_min": ["sm", "ltd"],
-      "active": true
+      "active": true,
+      "reevaluate_after": "2026-05-14"
     }
   ]
 }

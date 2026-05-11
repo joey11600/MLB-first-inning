@@ -11,6 +11,92 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-11] — System audit R2/R3/R4/R5/R7/R8 — observability + candidates
+
+Follow-up to the auto-recalibrate disable.  Operator asked for the
+full R2-R8 sequence (R6 skipped per policy: no per-bucket bet sizing).
+See `docs/2026-05-11_system_audit.md` for the full report including
+data tables, candidate weights, and the multicollinearity finding on
+elite top-3 offense.
+
+### Shipped (R2-R4): observability + reminders
+
+- **R2 — `tools/loss_cluster_monitor.py`** — `yrfi_040_band` cluster
+  renamed to `yrfi_deep`; predicate simplified to `nrfi_prob < 0.40`
+  (was `0.370 <= p <= 0.420 AND lambda + park gates`).  The original
+  band straddled a profit boundary; 30-day data showed `[0.40, 0.44]`
+  is *profitable* (14W-6L, +6.57u) while `<0.40` is the actual loss
+  zone (6W-12L, -7.00u).
+- **R3 — `tools/calibration_drift_monitor.py`** (new) — wired into
+  the grade cron.  Computes per-bucket Brier on trailing 30-day
+  STRONG bets; alerts on >= +0.01 bucket delta or >= +0.005 aggregate
+  delta vs prior 30d.  Closes the drift-detection loop the disabled
+  weekly auto-recalibrator used to fill, without auto-deploying.
+- **R4 — `tools/demotion_reeval_reminder.py`** (new) + schema bump
+  on `data/cluster_demotions.json` — each demotion entry can now
+  carry a `reevaluate_after` ISO date.  On/after that date, the
+  cron fires a Telegram with the current shadow-P&L snapshot +
+  decision tree so the operator can keep/flip/remove the demotion.
+  `thin_pitcher_strong_v1` set to re-eval 2026-05-14.
+
+### Candidates built (R5, R7) — NOT deployed
+
+- **R5 — `tools/platt_candidate.py`** + `data/calibration_platt_candidate.json`
+  — Platt-scaling (logit-logistic) calibrator candidate.  Lost to
+  production isotonic on every OOS slice (Brier +0.003-0.006 worse).
+  Conclusion: isotonic flat zones are a feature, not a bug, on this
+  data -- distinct raw probs genuinely map to identical true rates.
+  **Do not deploy.**
+- **R7 — `data/candidates/lr_t1_split3.json` + `lr_b1_split3.json`**
+  — refit LR weights via `two_stage_model.py --phase-e3` on the same
+  2024+2025 truepit backtests production trained on.  Result: real
+  coefficient drift, candidate has Brier 0.2437 on 2026 vs production
+  raw Brier 0.2479 (-0.0042 improvement, clears 0.003+ threshold).
+  Root cause: production weights last refit 4/29 (Phase F) but the
+  training backtest CSVs were updated 5/03 (xwOBA->xERA proxy anchor
+  correction).  Production is stale relative to corrected training
+  data.  **Operator decides whether to deploy** -- if so, also re-run
+  `recalibrate_v2.py` so the calibrator matches the new raw distribution.
+
+### Finding (R8) — multicollinearity in top-3 power features
+
+Operator hypothesis: 5/10 NYY@MIL STRONG NRFI lost because elite
+Yankees offense wasn't priced in.  Data confirms.
+
+- Stratifying 30-day STRONG bets by `max(top3c_iso)`:
+  - STRONG YRFI + elite power (max_iso >= 0.25):  4W-1L  (80%)  +2.62u
+  - STRONG YRFI + no elite power:                 16W-17L (48%) -3.06u
+  - STRONG NRFI + elite power:                    2W-2L  (50%)  -0.49u
+  - STRONG NRFI + no elite power:                 12W-10L (55%) -0.80u
+
+- Elite power IS a +32pp signal for YRFI hits when present, but the
+  T1 LR coefficients `away_top3c_iso=+0.20` and `away_top3c_slg=-0.21`
+  have *opposite signs*.  ISO and SLG are highly correlated (both
+  measure power); the LR can't separate them and produces a
+  near-cancelling pair.  Net effect of elite NYY offense on the 5/10
+  T1 logit: -0.056 (wrong sign).
+
+- **The R7 candidate AMPLIFIES this:** iso=+0.38, slg=-0.43.  Net
+  effect on 5/10 NYY: -0.124, even more wrong.  R7's aggregate Brier
+  improvement comes at the cost of worse predictions on elite-offense
+  games.
+
+- Recommended fix: raise L2 regularization in `two_stage_model.py`
+  training.  Higher L2 shrinks correlated coefficients toward 0
+  jointly, reducing the seesaw.  Alternative: drop SLG (or ISO),
+  or replace with a composite.  See audit doc for full ranking.
+
+### Cron wiring
+
+- `daily.yml` grade step now runs:
+  1. `tools/feature_drift_monitor.py` (existing T4.5 alert)
+  2. **NEW** `tools/calibration_drift_monitor.py` (R3)
+  3. **NEW** `tools/demotion_reeval_reminder.py` (R4)
+  4. `tools/pick_reasoning_log.py` (existing T4.6)
+- All soft-failing -- no new failure mode for the grade pipeline.
+
+---
+
 ## [2026-05-11] — Disabled weekly auto-recalibrate cron (OOS validation gap)
 
 Operator audit revealed the weekly recalibrate cron in

@@ -621,6 +621,38 @@ jobs:
           python tools/feature_drift_monitor.py 2>&1 \
             || echo "::warning::feature_drift_monitor failed (non-blocking)"
 
+      - name: Calibration drift monitor (R3 — replaces the auto-recalibrator)
+        if: steps.action.outputs.what == 'grade'
+        # 2026-05-11: with the weekly auto-recalibrate cron disabled, this
+        # tool closes the drift-detection loop without auto-deploying.
+        # Tracks per-bucket Brier on trailing 30-day STRONG bets; fires
+        # Telegram if any bucket degrades by 0.01+ vs prior 30 days.
+        # Operator response: manual review + workflow_dispatch recalibrate
+        # only after OOS validation.  See
+        # tools/calibration_drift_monitor.py docstring + audit doc.
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set +e
+          python tools/calibration_drift_monitor.py 2>&1 \
+            || echo "::warning::calibration_drift_monitor failed (non-blocking)"
+
+      - name: Cluster demotion re-eval reminder (R4)
+        if: steps.action.outputs.what == 'grade'
+        # Reads data/cluster_demotions.json.  For each active entry whose
+        # `reevaluate_after` date is <= today (ET), fires a Telegram with
+        # the current shadow-P&L snapshot so the operator can decide
+        # keep/flip/remove.  Dedup'd via notifications_log so a daily
+        # run won't spam.
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set +e
+          python tools/demotion_reeval_reminder.py 2>&1 \
+            || echo "::warning::demotion_reeval_reminder failed (non-blocking)"
+
       - name: Per-pick reasoning log (T4.6)
         if: steps.action.outputs.what == 'grade'
         # For each STRONG pick on yesterday's slate, write a JSON entry
