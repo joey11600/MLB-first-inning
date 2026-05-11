@@ -11,6 +11,44 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-10] — Thin-pitcher STRONG demotion + shadow-P&L evaluator
+
+Five-day window post v2.1 deploy (5/06–5/10) showed STRONG
+NRFI/YRFI bets stratified hard on pitcher data quality:
+both-`live` pitchers went 7W-1L (+4.89u), at-least-one-thin
+(`sm`/`ltd`) went 6W-10L (-5.34u).  Operator opted to demote
+NOW + run the inverse experiment via shadow-P&L tracking,
+rather than waiting for the documented monitor-first protocol
+to confirm.  Re-evaluation target 2026-05-14.
+
+### Added
+
+- `data/cluster_demotions.json` now contains one active entry,
+  `thin_pitcher_strong_v1`: skips bet placement on STRONG
+  NRFI/YRFI rows where the worst-quality pitcher is `sm` or
+  `ltd`.  Predicate has no side / probability / lambda / park
+  bounds — pitcher-data quality alone gates it.  The
+  `apply_cluster_demotion.py` cron step picks it up on the
+  next predict tick.  Reversible via `"active": false`.
+- `tools/cluster_shadow_pnl.py` — new evaluator that, for each
+  active demotion, prints REAL (bets the system still placed
+  that match the predicate, e.g. pre-demotion history),
+  SHADOW (bets the demotion skipped — hypothetical 1u P&L
+  using captured market odds or flat -110 fallback), and
+  TOTAL (the counterfactual: what the cluster would have
+  done WITHOUT the demotion).  Use trailing shadow record to
+  decide whether to keep `active=true` or flip it off.
+  Run `python tools/cluster_shadow_pnl.py --since 2026-05-11`
+  to see only post-demotion skips.
+
+### Changed
+
+- `memory/MEMORY.md` (auto-memory index) — added
+  `thin_pitcher_demotion.md` entry so future agents see the
+  active demotion + re-evaluation criteria.
+
+---
+
 ## [2026-05-08] — Pending-pill cleanup for graded games + tentative-lean Telegram ping
 
 Reported by operator on 2026-05-08: NYY@MIL and DET@KC (both

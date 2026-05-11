@@ -28,5 +28,13 @@
     "",
     "Apply with: python tools/apply_cluster_demotion.py"
   ],
-  "demotions": []
+  "demotions": [
+    {
+      "id": "thin_pitcher_strong_v1",
+      "reason": "STRONG bets where the worst pitcher is sm or ltd quality went 6W-10L (-5.34u) over 5 days post-v2.1 deploy (5/06-5/10).  Operator chose to demote NOW + evaluate via shadow P&L over next ~10 graded skips (target re-eval 2026-05-14).  See tools/cluster_shadow_pnl.py.",
+      "side": null,
+      "pitcher_quality_min": ["sm", "ltd"],
+      "active": true
+    }
+  ]
 }
