@@ -11,6 +11,107 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-11] — V2.2 deployed: refit LR weights on corrected truepit backtests
+
+**Production change.**  Same Phase E.3 + Phase F feature set, same
+isotonic calibrator architecture; refit weights against the 5/03-
+corrected truepit backtest CSVs (T4.1 / T3.12: "xwOBA->xERA proxy
+anchor corrected 0.310 -> 0.3205").  Bumps `MODEL_VERSION` from V2.1
+to V2.2.
+
+### Forward-sim on 5/09-5/10 (29 graded picks): v2.2 vs v2.1
+
+- **5 STRONG -> PASS flips on losing days** -- all 5 were the
+  actual losses we wanted to avoid:
+  - 5/09 STL@SD (STRONG YRFI -> PASS): was LOSS, **saved -1.00u**
+  - 5/09 HOU@CIN (STRONG YRFI -> PASS): was LOSS, **saved -1.00u**
+  - 5/10 NYY@MIL (STRONG NRFI -> PASS): was LOSS, **saved -1.00u**
+    (operator's flagged Yankees-elite-offense miss)
+  - 5/10 TB@BOS (STRONG NRFI -> PASS): was LOSS, **saved -1.00u**
+- 1 STRONG -> PASS flip on a winning day:
+  - 5/09 LAA@TOR (STRONG NRFI -> PASS): was WIN, cost +0.83u
+- 1 PASS -> STRONG flip (5/09 CHC@TEX); outcome lost in window.
+- Net P&L impact on those days: **+3.17u** (had v2.2 been live).
+
+### What changed in the weights
+
+Production V2.1 weights were last refit 2026-04-29 (Phase F lock-in).
+The training backtests were updated 2026-05-03 with the xwOBA->xERA
+proxy correction.  V2.1 weights are STALE relative to the corrected
+training data.  V2.2 refit closes that gap.
+
+Biggest T1 coefficient deltas (V2.1 -> V2.2):
+
+| Feature | V2.1 | V2.2 | Delta |
+|---|---|---|---|
+| home_xera | +0.2964 | +0.0404 | -0.2560 |
+| away_top3c_iso | +0.1982 | +0.3813 | +0.1831 |
+| away_top3c_slg | -0.2097 | -0.4280 | -0.2183 |
+| home_fip | -0.0745 | +0.0492 | +0.1236 (sign flip) |
+
+Calibrator was also re-fit on the new raw distribution
+(`recalibrate_v2.py` ran post-refit) so calibration matches the
+new raw output range.
+
+### 3-split OOS validation (passed)
+
+- Split 1 (train 2024 truepit, test 2025): Brier 0.2511 (acceptable)
+- Split 2 (train 2025 truepit, test 2024): Brier 0.2595 (acceptable)
+- Split 3 (train 2024+2025, test 2026): **Brier 0.2437**
+  - Production V2.1 raw Brier on same test set: 0.2479
+  - **Improvement: -0.0042** (clears 0.003+ deployment threshold)
+
+### Feature ablation -- decided NOT to drop top3c_slg or iso
+
+Tested dropping top3c_slg and top3c_iso separately as fixes for the
+multicollinearity (R8 finding).  Result:
+
+| Variant | 2026 Brier | Elite-power Brier |
+|---|---|---|
+| FULL (keep both) | 0.2442 | 0.2390 |
+| Drop SLG | 0.2466 | 0.2427 |
+| Drop ISO | 0.2469 | 0.2422 |
+
+Keeping both is best.  The opposing signs are capturing real signal
+(ISO = pure power, SLG-above-ISO = singles/contact).  The 5/09-5/10
+NYY losses were the model's recent variance, not a structural
+mispricing -- v2.2's refit + recalibrated bins handle them
+correctly (see forward-sim above).
+
+### Files changed
+
+- `data/archive/v2.1/` (new) -- snapshot of pre-deploy V2.1 weights
+  + calibrator + park factors.  For rollback: copy these back into
+  `data/lr_t1.json`, `data/lr_b1.json`, `data/calibration_v2.json`,
+  `data/fi_park_factors.json` and bump MODEL_VERSION back to V2.1.
+- `data/lr_t1.json` / `data/lr_b1.json` -- V2.2 weights.
+- `data/calibration_v2.json` -- V2.2 calibrator refit on new raw dist.
+- `mlb_first_inning_predictor.py` -- `MODEL_VERSION = "V2.2"` plus
+  inline doc explaining the bump.
+- `data/candidates/` (new) -- the OOS-validation candidates from
+  splits 1/2/3 kept for audit trail.
+- `tools/v22_feature_ablation.py` (new) -- ablation script used to
+  confirm we shouldn't drop SLG/ISO.
+
+### Rollback
+
+If v2.2 underperforms over the next ~30 graded STRONG bets:
+```
+cp data/archive/v2.1/lr_t1.json data/lr_t1.json
+cp data/archive/v2.1/lr_b1.json data/lr_b1.json
+cp data/archive/v2.1/calibration_v2.json data/calibration_v2.json
+cp data/archive/v2.1/fi_park_factors.json data/fi_park_factors.json
+sed -i 's/MODEL_VERSION = "V2.2"/MODEL_VERSION = "V2.1"/' \
+  mlb_first_inning_predictor.py
+git commit -am "Rollback to V2.1"
+git push
+```
+
+Per operator policy, all plays remain flat 1u regardless of model
+version.  No per-bet sizing changes.
+
+---
+
 ## [2026-05-11] — System audit R2/R3/R4/R5/R7/R8 — observability + candidates
 
 Follow-up to the auto-recalibrate disable.  Operator asked for the

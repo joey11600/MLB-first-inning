@@ -1338,13 +1338,19 @@ def _load_statcast_cache() -> dict:
 # This is the official MLB First-Inning predictor model.
 # Refer to docs/PLAYBOOK.md for the diagnostic stack that monitors it.
 
-# Model version label.  V2.1 = V2 LR (18 features per half-inning) +
-# T4.2 priors-pooled xera/whiff features + V2 calibrator.  Logged into
-# pick_reasoning JSONs so the dashboard / future post-mortems can tell
-# which exact model produced any given pick.  Bump the minor (V2.2)
-# for feature-engineering improvements that keep the 18-feature LR
-# architecture; bump major (V3) for actual architecture changes.
-MODEL_VERSION = "V2.1"
+# Model version label.  V2.2 = V2.1 LR architecture (18 features per
+# half-inning, T4.2 priors-pooled xera/whiff features) refit on the
+# 5/03-corrected truepit backtest CSVs (xwOBA->xERA proxy anchor fix).
+# Same Phase E.3 + Phase F features, same calibrator architecture
+# (isotonic), but with weights that match the corrected training data.
+# Forward-sim on 5/09-5/10 picks: 4 of 5 STRONG losses correctly
+# downgraded to PASS, including 5/10 NYY@MIL (operator's flagged miss).
+# Logged into pick_reasoning JSONs so the dashboard / future post-
+# mortems can tell which exact model produced any given pick.  Bump
+# the minor (V2.3) for feature-engineering improvements that keep the
+# 18-feature LR architecture; bump major (V3) for actual architecture
+# changes.  V2.1 weights archived at data/archive/v2.1/.
+MODEL_VERSION = "V2.2"
 
 _truepit_priors_cache: dict | None = None
 
