@@ -1,7 +1,7 @@
 {
   "date": "2026-05-11",
   "model_version": "V2.1",
-  "fitted_at": "2026-05-11T04:56:03Z",
+  "fitted_at": "2026-05-11T05:55:37Z",
   "n_picks": 6,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
