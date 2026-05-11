@@ -470,6 +470,15 @@ function PickPill({
     ? (tentativeLean!.side === "NRFI" ? styles.pickLabelLeanNrfi : styles.pickLabelLeanYrfi)
     : "";
 
+  // Cluster-demoted PASS rows: pick_label encodes the original verdict as
+  // "PASS - Cluster demotion: STRONG YRFI (thin_pitcher_strong_v1)" so we
+  // can show the operator both the model's original verdict AND why the
+  // bet was skipped, without needing a separate column or detail field.
+  // See tools/apply_cluster_demotion.py::DEMOTION_LABEL_PREFIX.
+  const clusterDemotionMatch = row.pickLabel.startsWith("PASS - Cluster demotion")
+    ? row.pickLabel.match(/^PASS - Cluster demotion:\s+(STRONG|LEAN)\s+(NRFI|YRFI)\s+\(([^)]+)\)$/)
+    : null;
+
   const titleText =
     showTentative
       ? (isGraded
@@ -477,6 +486,8 @@ function PickPill({
           : `Model's tentative lean: ${tentativeLean!.strength} ${tentativeLean!.side} based on team-fallback batter stats. Will commit (or override) once MLB posts the actual lineup -- expand the row for more context.`)
     : isPreLock
       ? `Model's current lean: ${row.pickStrength} ${row.pickSide}. Pick locks at ${lockTimeStr} (60 min pre-game). Until then, the verdict can still flip with fresh lineup / weather / scratch data, so DON'T bet yet.`
+    : clusterDemotionMatch
+      ? `Skipped by cluster demotion '${clusterDemotionMatch[3]}'. Model's original verdict was ${clusterDemotionMatch[1]} ${clusterDemotionMatch[2]}, but bets matching this cluster have been losing -- so no money was committed. Counted as PASS in your official P&L. Reversible: edit data/cluster_demotions.json. Run 'python tools/cluster_shadow_pnl.py' to see how skipped bets would have done.`
     : row.pickStrength === "LOW LAMBDA"
       ? `Demoted from STRONG/LEAN YRFI: combined λ ${row.lambda.toFixed(2)} below the 0.78 floor (model expects too few total runs to bet YRFI confidently). Tested in backtest: floor adds ~+1.36u/season.`
     : row.pickStrength === "NO DATA"

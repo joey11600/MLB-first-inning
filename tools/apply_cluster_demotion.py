@@ -122,9 +122,29 @@ def _matches(row: dict, dem: dict) -> bool:
     return True
 
 
+# Magic prefix on pick_label that marks a row as already cluster-demoted.
+# Used as the canonical "is this row demoted?" signal so that re-running
+# the demotion on a row whose `bet_placed=N` was preserved by the
+# predictor's preserve list (but whose `pick_side` got regenerated back
+# to STRONG NRFI/YRFI) still recognises it as demoted -- avoiding a fresh
+# journal entry every cron tick.
+DEMOTION_LABEL_PREFIX = "PASS - Cluster demotion"
+
+
 def _row_already_demoted(row: dict) -> bool:
-    """True when the row is already in the demoted state (bet_placed=N
-    with no recorded units AND no profit_loss_units)."""
+    """True when the row is already in the demoted state.
+
+    A row is considered "already demoted" if either:
+      (a) Its pick_label still carries the DEMOTION_LABEL_PREFIX
+          (predictor hasn't regenerated since last demotion), OR
+      (b) bet_placed='N' + no units + no P&L (the historical signature
+          from the v1 demotion logic that only flipped bet_placed -- kept
+          for backward compatibility with rows demoted before the
+          pick-side rewrite landed).
+    """
+    label = (row.get("pick_label") or "").strip()
+    if label.startswith(DEMOTION_LABEL_PREFIX):
+        return True
     bp = (row.get("bet_placed") or "").strip().upper()
     units = (row.get("units_risked") or "").strip()
     pl = (row.get("profit_loss_units") or "").strip()
@@ -132,10 +152,17 @@ def _row_already_demoted(row: dict) -> bool:
 
 
 def _row_demotable(row: dict) -> bool:
-    """True if a STRONG NRFI/YRFI row is in a state that can be safely
-    demoted: not graded, no real P&L recorded.  Per the docstring, we
-    explicitly leave WIN/LOSS/PASS rows alone -- you can't un-bet a
-    settled play."""
+    """True if a row is in a state that can be safely demoted: a STRONG
+    NRFI/YRFI verdict that hasn't graded yet AND has no real P&L
+    recorded.  Per the docstring, we explicitly leave WIN/LOSS/PASS rows
+    alone -- you can't un-bet a settled play.
+
+    Also returns True when the predictor has regenerated a previously
+    demoted row's pick_side back to STRONG NRFI/YRFI (because pick_side
+    isn't in the preserve list).  In that case bet_placed='N' is still
+    preserved, and we re-apply the demoted display state but skip the
+    journal write (see `_row_already_demoted`).
+    """
     if (row.get("pick_strength") or "").upper() != "STRONG":
         return False
     if (row.get("pick_side") or "").upper() not in ("NRFI", "YRFI"):
@@ -147,6 +174,42 @@ def _row_demotable(row: dict) -> bool:
     if pl:
         return False
     return True
+
+
+def _parse_demoted_label(label: str) -> tuple[str, str] | None:
+    """Inverse of `_demoted_pick_label`.  Returns (orig_strength, orig_side)
+    from a label like
+        "PASS - Cluster demotion: STRONG YRFI (thin_pitcher_strong_v1)"
+    Returns None when the label doesn't match the expected shape.
+    """
+    if not label.startswith(DEMOTION_LABEL_PREFIX):
+        return None
+    after = label[len(DEMOTION_LABEL_PREFIX):]
+    # Expected: ": STRONG YRFI (<id>)"
+    if not after.startswith(": "):
+        return None
+    rest = after[2:]
+    # Strip trailing "(<id>)" if present
+    paren = rest.rfind(" (")
+    if paren >= 0:
+        rest = rest[:paren]
+    parts = rest.strip().split()
+    if len(parts) != 2:
+        return None
+    return parts[0].upper(), parts[1].upper()
+
+
+def _demoted_pick_label(dem_id: str, orig_strength: str, orig_side: str) -> str:
+    """Encode the original verdict + demotion id in pick_label so the
+    dashboard tooltip and `cluster_shadow_pnl.py` can recover both
+    without needing extra CSV columns.  Format:
+
+      "PASS - Cluster demotion: STRONG YRFI (thin_pitcher_strong_v1)"
+
+    The DEMOTION_LABEL_PREFIX-startswith check is the canonical
+    "is this row demoted?" test elsewhere in the system.
+    """
+    return f"{DEMOTION_LABEL_PREFIX}: {orig_strength} {orig_side} ({dem_id})"
 
 
 # --------------------------------------------------------------------------
@@ -208,31 +271,58 @@ def main() -> int:
         if match is None:
             continue
 
-        if _row_already_demoted(row):
-            no_op_count += 1
-            continue
-
         away = (row.get("away_team") or "").upper()
         home = (row.get("home_team") or "").upper()
-        old_label = (row.get("pick_label") or "").strip()
-        old_bp    = (row.get("bet_placed") or "").strip().upper()
-        old_units = (row.get("units_risked") or "").strip()
+        old_label     = (row.get("pick_label") or "").strip()
+        old_strength  = (row.get("pick_strength") or "").strip().upper()
+        old_side      = (row.get("pick_side") or "").strip().upper()
+        old_bp        = (row.get("bet_placed") or "").strip().upper()
+        old_units     = (row.get("units_risked") or "").strip()
 
-        verb = "WOULD DEMOTE" if args.dry_run else "DEMOTE"
-        print(f"  {verb}  {target_date} {away}@{home}  {old_label}  "
-              f"(was bet_placed={old_bp!r} units={old_units!r})  "
+        already_demoted = _row_already_demoted(row)
+        if already_demoted:
+            # Predictor likely just regenerated pick_side/strength/label
+            # back to STRONG NRFI/YRFI on its pre-lock refresh (those
+            # fields aren't in the preserve list).  bet_placed='N' was
+            # preserved though.  Re-apply the demoted display state so
+            # the dashboard never shows STRONG between cron ticks, but
+            # SKIP the journal write -- one journal entry per row total,
+            # not 24 per day.
+            no_op_count += 1
+
+        verb = "WOULD DEMOTE" if args.dry_run else ("RE-APPLY" if already_demoted else "DEMOTE")
+        # Recover the "true" original verdict when this is a re-apply.
+        # If the label already encodes "STRONG YRFI" from a previous
+        # demotion, use that; otherwise read the live pick_side/strength.
+        if already_demoted and old_label.startswith(DEMOTION_LABEL_PREFIX):
+            orig_strength, orig_side = _parse_demoted_label(old_label) or (old_strength, old_side)
+        else:
+            orig_strength, orig_side = old_strength, old_side
+
+        new_pick_label = _demoted_pick_label(match.get("id", "unknown"),
+                                             orig_strength, orig_side)
+        print(f"  {verb}  {target_date} {away}@{home}  {old_label!r}  "
+              f"->  {new_pick_label!r}  "
               f"reason: [{match.get('id','unknown')}] {match.get('reason','-')}")
 
         would_demote_count += 1
         if args.dry_run:
             continue
 
-        rows[idx]["bet_placed"]   = "N"
-        rows[idx]["units_risked"] = ""
-        # Don't touch profit_loss_units (it's already empty per _row_demotable)
+        rows[idx]["pick_side"]     = "PASS"
+        rows[idx]["pick_strength"] = "NO EDGE"
+        rows[idx]["pick_label"]    = new_pick_label
+        rows[idx]["bet_placed"]    = "N"
+        rows[idx]["units_risked"]  = ""
+        # Don't touch profit_loss_units; _calc_pnl already returns 0 for
+        # bet_placed=N (so the official record stays clean).
         demoted_indices.append(idx)
 
-        # Journal the demotion
+        # Journal only on TRANSITION (first demote of this row).  When
+        # the predictor regenerates STRONG every tick we'd otherwise
+        # write 24 identical entries per day.
+        if already_demoted:
+            continue
         try:
             tracker._record_pick_change(
                 iso_date    = target_date,
@@ -241,9 +331,7 @@ def main() -> int:
                 home_team   = home,
                 game_time   = (row.get("game_time_et") or ""),
                 old_label   = old_label,
-                new_label   = (
-                    f"{old_label} · CLUSTER DEMOTED ({match.get('id','unknown')})"
-                ),
+                new_label   = new_pick_label,
                 captured_at = now,
             )
         except Exception as exc:    # noqa: BLE001 -- journal advisory

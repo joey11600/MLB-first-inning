@@ -45,7 +45,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import tracker  # noqa: E402
-from tools.apply_cluster_demotion import _matches  # noqa: E402
+from tools.apply_cluster_demotion import (  # noqa: E402
+    DEMOTION_LABEL_PREFIX,
+    _matches,
+    _parse_demoted_label,
+)
 
 DEMOTIONS_FILE = ROOT / "data" / "cluster_demotions.json"
 
@@ -62,24 +66,65 @@ def _safe_float(v) -> float:
         return 0.0
 
 
-def _shadow_pnl_for_row(row: dict) -> float:
-    """Hypothetical 1u-flat P&L assuming we had taken this bet.
+def _effective_side(row: dict) -> str:
+    """Return the side that should be used for shadow-P&L bookkeeping.
 
-    WIN  → +ppu (where ppu is profit-per-unit at captured odds, else
-           0.9091 for flat -110)
-    LOSS → -1.0
+    For real bets (bet_placed=Y, pick_side in NRFI/YRFI) this is just
+    pick_side.  For cluster-demoted rows (pick_side=PASS, label encodes
+    "PASS - Cluster demotion: STRONG YRFI (...)") we recover the
+    original side from the label so we can compute "would have won"
+    even though graded_result is now PASS.
+    """
+    side = (row.get("pick_side") or "").upper()
+    if side in ("NRFI", "YRFI"):
+        return side
+    parsed = _parse_demoted_label((row.get("pick_label") or "").strip())
+    if parsed:
+        return parsed[1]
+    return ""
+
+
+def _shadow_grade(row: dict, eff_side: str) -> str:
+    """Derive WIN/LOSS for shadow rows by comparing the row's
+    `actual_result` (NRFI/YRFI/POSTPONED) to the effective side.
+
+    Real-bet rows still come in here -- in those cases graded_result is
+    already WIN/LOSS so we just return that.  For demoted-PASS rows
+    graded_result is PASS (because pick_side=PASS); we fall back to
+    actual_result.
     """
     grade = (row.get("graded_result") or "").upper()
+    if grade in ("WIN", "LOSS"):
+        return grade
+    actual = (row.get("actual_result") or "").upper()
+    if actual in ("NRFI", "YRFI") and eff_side in ("NRFI", "YRFI"):
+        return "WIN" if actual == eff_side else "LOSS"
+    return ""    # POSTPONED / SUSPENDED / not graded
+
+
+def _shadow_pnl_for_row(row: dict, eff_side: str, grade: str) -> float:
+    """Hypothetical 1u-flat P&L assuming we had taken this bet.
+
+    Prefers opened_*_odds (captured at first scrape -- closest to the
+    price we'd have bet at when the model first said STRONG) over
+    market_*_odds (latest scrape, closer to the close).  Falls back to
+    flat -110 when neither is available.
+    """
     if grade == "LOSS":
         return -1.0
     if grade != "WIN":
         return 0.0
-    side = (row.get("pick_side") or "").upper()
-    odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
-    ppu = tracker.payout_per_unit(row.get(odds_col, ""))
+    odds_col_opened = "opened_nrfi_odds" if eff_side == "NRFI" else "opened_yrfi_odds"
+    odds_col_market = "market_nrfi_odds" if eff_side == "NRFI" else "market_yrfi_odds"
+    ppu = (tracker.payout_per_unit(row.get(odds_col_opened, ""))
+           or tracker.payout_per_unit(row.get(odds_col_market, "")))
     if ppu is None:
         ppu = 100.0 / 110.0
     return ppu
+
+
+def _is_demoted_row(row: dict) -> bool:
+    return (row.get("pick_label") or "").strip().startswith(DEMOTION_LABEL_PREFIX)
 
 
 def _eval_demotion(dem: dict, rows: list[dict], since_iso: str | None) -> None:
@@ -88,30 +133,56 @@ def _eval_demotion(dem: dict, rows: list[dict], since_iso: str | None) -> None:
     if dem.get("reason"):
         print(f"    reason: {dem['reason']}")
 
-    real_bets   = []   # bet_placed=Y, matches predicate (cluster slipped past gate)
-    shadow_bets = []   # bet_placed=N, matches predicate (cluster caught it)
+    real_bets   = []   # bet_placed=Y rows where the picked side matches predicate
+    shadow_bets = []   # cluster-demoted rows whose ORIGINAL verdict matches predicate
     for r in rows:
         if since_iso and (r.get("date") or "") < since_iso:
             continue
-        if (r.get("pick_strength") or "").upper() != "STRONG":
+
+        # Determine the effective verdict for predicate matching.  For a
+        # demoted row we run the predicate against a synthetic copy that
+        # has pick_side restored to the original (otherwise the predicate
+        # would never match -- pick_side is now "PASS").
+        eff_side = _effective_side(r)
+        if eff_side not in ("NRFI", "YRFI"):
             continue
-        if (r.get("pick_side") or "").upper() not in ("NRFI", "YRFI"):
+
+        demoted = _is_demoted_row(r)
+        # For predicate matching: substitute pick_side back to original
+        # so demotions that filter by side or use pitcher quality still match.
+        candidate = dict(r)
+        if demoted:
+            candidate["pick_side"] = eff_side
+            parsed = _parse_demoted_label(r.get("pick_label", "")) or ("STRONG", eff_side)
+            candidate["pick_strength"] = parsed[0]
+        else:
+            if (r.get("pick_strength") or "").upper() != "STRONG":
+                continue
+
+        if not _matches(candidate, dem):
             continue
-        if (r.get("graded_result") or "").upper() not in ("WIN", "LOSS"):
-            continue
-        if not _matches(r, dem):
-            continue
-        bp = (r.get("bet_placed") or "").upper()
-        if bp == "Y":
-            real_bets.append(r)
-        elif bp == "N":
-            shadow_bets.append(r)
+
+        grade = _shadow_grade(r, eff_side)
+        if grade not in ("WIN", "LOSS"):
+            continue   # POSTPONED / not graded -- not yet a data point
+
+        row_with_grade = dict(r)
+        row_with_grade["_eff_side"] = eff_side
+        row_with_grade["_shadow_grade"] = grade
+
+        if demoted:
+            shadow_bets.append(row_with_grade)
+        else:
+            # Real bet that pre-dates the demotion (already settled with
+            # bet_placed=Y at real odds).
+            real_bets.append(row_with_grade)
 
     def _summarize(bucket: list[dict], label: str, *, hypothetical: bool) -> tuple[int, int, float]:
-        wins = sum(1 for r in bucket if (r.get("graded_result") or "").upper() == "WIN")
+        wins = sum(1 for r in bucket if r["_shadow_grade"] == "WIN")
         losses = len(bucket) - wins
         if hypothetical:
-            pnl = sum(_shadow_pnl_for_row(r) for r in bucket)
+            pnl = sum(_shadow_pnl_for_row(r, r["_eff_side"], r["_shadow_grade"])
+                      for r in bucket)
         else:
             pnl = sum(_safe_float(r.get("profit_loss_units")) for r in bucket)
         hit = (wins / len(bucket) * 100.0) if bucket else 0.0
@@ -132,11 +203,14 @@ def _eval_demotion(dem: dict, rows: list[dict], since_iso: str | None) -> None:
     if shadow_bets:
         print(f"    --- shadow trail (most recent first) ---")
         for r in sorted(shadow_bets, key=lambda x: x.get("date", ""), reverse=True)[:10]:
-            sp = _shadow_pnl_for_row(r)
-            grade = (r.get("graded_result") or "").upper()
-            side = (r.get("pick_side") or "").upper()
-            odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
-            odds_val = (r.get(odds_col) or "-").strip() or "-"
+            side = r["_eff_side"]
+            grade = r["_shadow_grade"]
+            sp = _shadow_pnl_for_row(r, side, grade)
+            odds_col = "opened_nrfi_odds" if side == "NRFI" else "opened_yrfi_odds"
+            odds_val = (r.get(odds_col) or "").strip()
+            if not odds_val:
+                odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+                odds_val = (r.get(odds_col) or "-").strip() or "-"
             paw = (r.get("away_pitcher_q") or "?")[:4]
             phw = (r.get("home_pitcher_q") or "?")[:4]
             print(f"      {r.get('date','?'):<11} "
