@@ -7,6 +7,8 @@ import { todayEtIso } from "@/lib/date";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { SummaryStrip } from "./SummaryStrip";
 import { OpsHealthCard } from "./OpsHealthCard";
+import { DemotionsBanner } from "./DemotionsBanner";
+import { ShadowPnlCard } from "./ShadowPnlCard";
 import { RoiPanel } from "./RoiPanel";
 import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
@@ -373,6 +375,11 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
 
       <OpsHealthCard />
 
+      {/* 2026-05-11: surfaces active cluster demotions so an
+          experiment that should be 4 days doesn't quietly become
+          permanent.  Renders nothing if no demotions are active. */}
+      <DemotionsBanner />
+
       {/* T3.21: SummaryStrip slimmed -- no longer needs details since
           P&L/CLV moved into RoiPanel.  RoiPanel now receives rows +
           details so its TODAY window can aggregate locally without
@@ -384,6 +391,11 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         rows={data.rows}
         details={data.details}
       />
+
+      {/* 2026-05-11: side-by-side comparison of placed (REAL) vs
+          skipped (SHADOW) bets for each active cluster demotion.
+          Renders nothing if no demotions are active. */}
+      <ShadowPnlCard />
 
       <ControlPanel
         dates={data.availableDates}

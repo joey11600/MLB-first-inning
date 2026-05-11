@@ -263,6 +263,18 @@ jobs:
               "$(tail -c 400 cluster_demotion_err.log)"
           fi
 
+          # 2026-05-11: V2.1 shadow track.  Runs AFTER apply_cluster_demotion
+          # so the row's pick_side/strength reflect the live (V2.2) state;
+          # the shadow records what V2.1 would have predicted independently.
+          # See tools/v21_shadow_predict.py docstring + the v2.2 deploy entry
+          # in CHANGELOG.  Soft-fail (shadow data is observability, not
+          # a critical-path bet decision).
+          echo "==> V2.1 shadow predict..."
+          if ! python tools/v21_shadow_predict.py 2>v21_shadow_err.log; then
+            record_err "v21-shadow-predict" "$?" \
+              "$(tail -c 400 v21_shadow_err.log)"
+          fi
+
           # T-V21-2026-05-07c: sync CSV from Supabase BEFORE any local
           # P&L computation.  Closes the chronic CSV-vs-Supabase
           # divergence: Railway's worker + import_odds writes real-odds
@@ -470,6 +482,14 @@ jobs:
               "$(tail -c 400 cluster_demotion_err.log)"
           fi
 
+          # 2026-05-11: V2.1 shadow track (same step as predict path).
+          # Soft-fail; observability only.
+          echo "==> V2.1 shadow predict..."
+          if ! python tools/v21_shadow_predict.py 2>v21_shadow_err.log; then
+            record_err "v21-shadow-predict" "$?" \
+              "$(tail -c 400 v21_shadow_err.log)"
+          fi
+
           # T-V21-2026-05-07c: sync CSV from Supabase BEFORE grading.
           # See predict step above for full rationale.  In the nightly
           # grade context, this also catches the case where the
@@ -637,6 +657,20 @@ jobs:
           set +e
           python tools/calibration_drift_monitor.py 2>&1 \
             || echo "::warning::calibration_drift_monitor failed (non-blocking)"
+
+      - name: V2.1 vs V2.2 shadow comparison + alert
+        if: steps.action.outputs.what == 'grade'
+        # 2026-05-11 V2.2 deploy safety net: compares V2.2 (live) to
+        # V2.1 (shadow recorded by tools/v21_shadow_predict.py).  Fires
+        # Telegram if V2.2 underperforms by 3u+ over 30 graded STRONG
+        # picks.  Dry-run safe: alert dedup is keyed on date.
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set +e
+          python tools/v21_vs_v22_compare.py 2>&1 \
+            || echo "::warning::v21_vs_v22_compare failed (non-blocking)"
 
       - name: Cluster demotion re-eval reminder (R4)
         if: steps.action.outputs.what == 'grade'

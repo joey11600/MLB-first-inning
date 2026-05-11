@@ -133,6 +133,15 @@ FIELDS = [
     "opened_yrfi_odds",
     "opened_captured_at",
     "clv_pct",
+    # V2.1 shadow track (added 2026-05-11 after the V2.1 -> V2.2 deploy).
+    # Each predict cron tick also runs the archived V2.1 weights on the
+    # SAME features and stores what V2.1 would have predicted.  Tools
+    # like tools/v21_vs_v22_compare.py use these to detect regressions
+    # in V2.2 within the first ~30 graded picks.  Blank for rows
+    # generated before the shadow tracker landed.
+    "v21_shadow_nrfi_prob",
+    "v21_shadow_pick_side",
+    "v21_shadow_pick_strength",
 ]
 
 # ---------------------------------------------------------------------------

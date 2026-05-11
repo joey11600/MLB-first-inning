@@ -11,6 +11,89 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-11] — V2.1 shadow tracker + dashboard demotion banner + shadow-P&L card
+
+Three shipped changes to make the V2.2 deploy reversible and the
+ongoing demotion experiments visible at a glance.
+
+### 1. V2.1 shadow tracker (safety net for the V2.2 deploy)
+
+- `tracker.py FIELDS`: three new optional columns:
+  - `v21_shadow_nrfi_prob`
+  - `v21_shadow_pick_side`
+  - `v21_shadow_pick_strength`
+  Schema-evolution code in `_read_rows` backfills blanks on first
+  write; nothing breaks for older rows.
+- `tools/v21_shadow_predict.py` (new): rebuilds T1/B1 feature
+  vectors from CSV row columns, loads archived V2.1 weights from
+  `data/archive/v2.1/`, computes calibrated P(NRFI) under V2.1, and
+  stamps the three shadow columns.  Idempotent.  Wired into the
+  predict + grade cron in `daily.yml` after `apply_cluster_demotion`
+  so the shadow records V2.1's verdict independent of demotion policy.
+- `tools/v21_vs_v22_compare.py` (new): reads the shadow + live
+  columns, reports day-by-day + trailing-30 W-L + P&L for both
+  versions, and fires Telegram if V2.2 underperforms V2.1 by 3u+
+  over 30 graded STRONG picks.  Wired into the grade cron.
+- Comparison treats cluster-demoted V2.2 rows as PASS for accounting
+  (we didn't bet them) but uses the original verdict from the label
+  for the "what V2.2 intended" intent check.
+
+The shadow data accumulates from this commit forward.  After ~30
+graded STRONG bets, we have a real apples-to-apples comparison and
+can either ratify V2.2 or roll back per the procedure in the
+"V2.2 deployed" entry below.
+
+### 2. Active demotions banner (`/api/active-demotions` +
+`dashboard/components/DemotionsBanner.tsx`)
+
+- New API route reads `data/cluster_demotions.json`, counts how many
+  of today's + trailing-7d rows were demoted under each active rule
+  (matched on the `"PASS - Cluster demotion: ... (id)"` prefix the
+  applier stamps), and returns a summary per cluster including
+  `reevaluateAfter` + days-until.
+- Component renders a small banner above the board with the cluster
+  id, re-eval countdown (color-coded: green / amber / red), and
+  today + trailing-7d demoted counts.  Renders nothing when no
+  demotions are active.
+
+Why: a 4-day demotion experiment can quietly become permanent if
+nobody remembers to look at the data on day 4.  The banner makes
+the active state unmissable + the countdown reminds the operator
+when to evaluate.
+
+### 3. Shadow P&L card (`/api/shadow-pnl` +
+`dashboard/components/ShadowPnlCard.tsx`)
+
+- New API route mirrors `tools/cluster_shadow_pnl.py` logic in
+  TypeScript: for each active demotion, splits matching graded
+  rows into REAL (placed-before-demotion) / SHADOW (skipped) /
+  TOTAL with W-L counts and P&L.
+- Component shows a compact 3-column card next to RoiPanel with
+  the decision-tree footer (≥ 5W-2L = over-corrected, ≤ 2W-5L =
+  real signal, mixed = wait).
+
+Why: previously you had to run `python tools/cluster_shadow_pnl.py`
+from CLI to see how the demotion was doing.  Now it's a glance
+on the dashboard.
+
+### Files changed
+
+- `tracker.py` — three new optional CSV columns.
+- `tools/v21_shadow_predict.py` (new)
+- `tools/v21_vs_v22_compare.py` (new)
+- `.github/workflows/daily.yml` — shadow-predict step (predict +
+  grade paths) + v21_vs_v22_compare alert (grade only).
+- `dashboard/app/api/active-demotions/route.ts` (new)
+- `dashboard/app/api/shadow-pnl/route.ts` (new)
+- `dashboard/components/DemotionsBanner.tsx` + `.module.css` (new)
+- `dashboard/components/ShadowPnlCard.tsx` + `.module.css` (new)
+- `dashboard/components/DashboardShell.tsx` — imports + renders
+  both new components.
+
+All TypeScript clean (`tsc --noEmit` exit 0).
+
+---
+
 ## [2026-05-11] — V2.2 deployed: refit LR weights on corrected truepit backtests
 
 **Production change.**  Same Phase E.3 + Phase F feature set, same
