@@ -329,6 +329,32 @@
   background: color-mix(in oklab, var(--secondary) 12%, transparent);
 }
 
+/* 2026-05-11 -- PASS reason chip.  Sits inline next to the PASS pill
+   so the operator can see WHY a row is PASS at a glance (thin pitcher
+   demotion, no edge, etc.) without expanding the row or hovering for
+   the tooltip.  Skipped for LINEUP PENDING / STARTER PENDING / LOW
+   LAMBDA -- those reasons are already in the pill text. */
+.passReason {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 2px 8px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--secondary) 35%, var(--border));
+  background: color-mix(in oklab, var(--secondary) 8%, var(--background));
+  color: color-mix(in oklab, var(--foreground) 80%, var(--secondary));
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: help;
+  flex-shrink: 0;
+}
+
 /* Doubleheader chip */
 .dhTag {
   display: inline-flex;

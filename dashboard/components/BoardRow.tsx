@@ -380,6 +380,7 @@ export function BoardRowItem({
             slateDate={slateDate ?? ""}
             tentativeLean={tentativeLean}
           />
+          <PassReasonChip row={row} />
           <OddsChip row={row} detail={detail} />
         </span>
 
@@ -517,6 +518,70 @@ function PickPill({
           pickLabelText(row.pickSide, row.pickStrength, isPreLock, lockTimeStr)
         )}
       </span>
+    </span>
+  );
+}
+
+/** Short human-readable reason for a PASS row, returned as
+ *  {text, tooltip} when worth showing.  Null when the pill itself
+ *  already conveys the reason (LINEUP PENDING / STARTER PENDING /
+ *  LOW LAMBDA all spell themselves out in the pill text).
+ *
+ *  Goal: glance-able "why was this PASS?" without needing to expand
+ *  the row or read the tooltip.  Stays under ~12 chars so it fits
+ *  inline with the pill on a single line. */
+function passReasonText(
+  row: BoardRow,
+): { text: string; tooltip: string } | null {
+  if (row.pickSide !== "PASS") return null;
+
+  // Cluster-demoted rows: pull short label from a known-id map so the
+  // chip says "thin pitcher" instead of the full cluster id.  Default
+  // to "demoted" for ids we haven't named yet.
+  if (row.pickLabel.startsWith("PASS - Cluster demotion")) {
+    const m = row.pickLabel.match(/\(([^)]+)\)\s*$/);
+    const id = m ? m[1] : "";
+    const shortById: Record<string, string> = {
+      "thin_pitcher_strong_v1": "thin pitcher",
+      "yrfi_deep":              "deep YRFI",
+    };
+    const text = shortById[id] || "demoted";
+    const verdictMatch = row.pickLabel.match(/STRONG (NRFI|YRFI)/);
+    const verdict = verdictMatch ? `${verdictMatch[1]} (${verdictMatch[0]})` : "";
+    return {
+      text,
+      tooltip: id
+        ? `Cluster demotion '${id}'${verdict ? ` -- model originally said ${verdictMatch![0]}` : ""}. Hover the PASS pill for the full explanation.`
+        : "Cluster-demoted by an active rule in data/cluster_demotions.json.",
+    };
+  }
+
+  // These already spell themselves out in the pill text -- no chip.
+  if (row.pickStrength === "LINEUP PENDING")  return null;
+  if (row.pickStrength === "STARTER PENDING") return null;
+  if (row.pickStrength === "LOW LAMBDA")      return null;
+  if (row.pickStrength === "NO DATA")         return null;   // NO DATA pill is distinct enough already
+
+  // The "true PASS" case: calibrated P(NRFI) landed in the PASS zone
+  // (between PASS_LO 44% and STRONG_NRFI 56%).  Model isn't confident
+  // either way -- no bet warranted.
+  if (row.pickStrength === "NO EDGE") {
+    return {
+      text: "no edge",
+      tooltip:
+        `Calibrated P(NRFI) ${row.nrfiPct.toFixed(0)}% sits between the PASS thresholds ` +
+        `(44% PASS_LO / 56% STRONG_NRFI) -- model has no confident lean either way.`,
+    };
+  }
+  return null;
+}
+
+function PassReasonChip({ row }: { row: BoardRow }) {
+  const reason = passReasonText(row);
+  if (!reason) return null;
+  return (
+    <span className={styles.passReason} title={reason.tooltip}>
+      {reason.text}
     </span>
   );
 }
