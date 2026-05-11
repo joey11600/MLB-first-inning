@@ -11,6 +11,49 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-11] — Cluster-demoted rows render as PASS with explanatory tooltip
+
+Operator feedback after the 5/10 thin-pitcher demotion landed:
+"if we're not betting on it or tracking the units for our
+official record, then it should just say PASS with an
+explanation in the dropdown why it's a PASS."  Previously the
+demotion only flipped `bet_placed=N` and left `pick_side` /
+`pick_strength` as STRONG NRFI/YRFI, which left the dashboard
+showing a STRONG-toned pill that was actually a no-bet.
+
+### Changed
+
+- `tools/apply_cluster_demotion.py` — on a match, now also
+  overwrites `pick_side='PASS'`, `pick_strength='NO EDGE'`, and
+  encodes the original verdict + cluster id in `pick_label`
+  using the magic prefix
+  `"PASS - Cluster demotion: STRONG YRFI (thin_pitcher_strong_v1)"`.
+  The prefix is the canonical "is this row demoted?" test
+  everywhere downstream (shadow PnL tool, dashboard tooltip).
+  Re-running on a row that already carries the prefix
+  re-applies the demoted display state (in case the predictor
+  regenerated pick_side back to STRONG on its pre-lock refresh,
+  since pick_side isn't in the preserve list) but skips the
+  journal write — one `pick_changes.csv` entry per row total,
+  not 24 per day.
+- `tools/cluster_shadow_pnl.py` — parses the original verdict
+  out of `pick_label` for demoted rows; falls back to
+  `actual_result` (NRFI/YRFI) for shadow W/L derivation since
+  `graded_result` is now "PASS" for demoted rows.  Also prefers
+  `opened_*_odds` (FIRST scrape captured by the T4.28 CLV
+  pipeline, closest to the price we'd have bet at) over
+  `market_*_odds` (latest scrape, closer to the close) when
+  computing hypothetical P&L.
+- `dashboard/components/BoardRow.tsx` — `PickPill` now matches
+  the demotion prefix on `row.pickLabel` and renders a tooltip
+  that names the demotion id, surfaces the model's original
+  verdict, and points to `data/cluster_demotions.json` +
+  `tools/cluster_shadow_pnl.py` for evaluation.  No new fields
+  on `BoardRow` / `GameDetail` — everything reads from
+  pickLabel.  TypeScript clean (`tsc --noEmit` exit 0).
+
+---
+
 ## [2026-05-10] — Thin-pitcher STRONG demotion + shadow-P&L evaluator
 
 Five-day window post v2.1 deploy (5/06–5/10) showed STRONG

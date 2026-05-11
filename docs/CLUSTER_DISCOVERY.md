@@ -75,10 +75,24 @@ action plan (manual judgment skip OR `recalibrate_v2.py` on trailing
 ## Stage 3: Demotion (auto-skip)
 
 `tools/apply_cluster_demotion.py` reads `data/cluster_demotions.json`
-and sets `bet_placed='N' + units_risked=''` on every ungraded STRONG
-row matching an active demotion.  **It does NOT change pick_side /
-pick_strength / pick_label** -- the model's verdict stays visible on
-the dashboard for transparency; only the money commit is suppressed.
+and rewrites every ungraded STRONG row matching an active demotion:
+
+- `pick_side` → `PASS`
+- `pick_strength` → `NO EDGE`
+- `pick_label` → `"PASS - Cluster demotion: STRONG YRFI (<id>)"`
+- `bet_placed` → `N`
+- `units_risked` → empty
+
+The model's original verdict is encoded in `pick_label` after the
+"PASS - Cluster demotion:" prefix so `cluster_shadow_pnl.py` and the
+dashboard tooltip can recover what the model would have bet (e.g. for
+shadow P&L tracking) without needing extra CSV columns.
+
+The dashboard shows the row as a plain `PASS` pill; hovering reveals a
+tooltip explaining the demotion id, the model's original verdict, and
+how to re-evaluate.  The row counts as a `PASS` in your official P&L
+(`profit_loss_units = 0`), but `tools/cluster_shadow_pnl.py` can still
+compute what the bet would have done.
 
 Operator workflow:
 
