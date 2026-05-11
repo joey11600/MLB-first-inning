@@ -780,6 +780,36 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     "blended_inputs",
                 ]
 
+            # 2026-05-11: Cluster-demotion preserve.  When a row has been
+            # stamped by apply_cluster_demotion.py (pick_label starts with
+            # "PASS - Cluster demotion:"), every subsequent predict refresh
+            # must leave the demoted display state in place.  Otherwise
+            # Railway's predictor_loop (workers/predictor_loop.py runs every
+            # 5 min and does NOT call apply_cluster_demotion) would re-
+            # classify the row back to STRONG NRFI/YRFI on each tick, the
+            # dashboard would flicker back to STRONG between the GHA cron's
+            # hourly demotion step and the next Railway predict, and the
+            # operator would see contradictory state.  Investigated 5/11
+            # when SF@LAD + LAA@CLE showed STRONG YRFI on the dashboard
+            # despite being demoted locally -- Supabase had Railway's
+            # post-demotion overwrite.
+            #
+            # We preserve pick_side / pick_strength / pick_label so the
+            # demoted-PASS display stays, AND bet_placed / units_risked so
+            # the no-bet state stays.  Probabilities (nrfi_prob, lambda*,
+            # etc.) still refresh so the dashboard's tentative-classifier
+            # shows up-to-date numbers -- only the final verdict pins.
+            #
+            # To un-demote: flip "active": false in cluster_demotions.json
+            # AND manually clear the pick_label prefix on affected rows
+            # (or re-run apply_cluster_demotion with a future --reset flag).
+            existing_pick_label = (existing.get("pick_label") or "").strip()
+            if existing_pick_label.startswith("PASS - Cluster demotion"):
+                preserve += [
+                    "pick_side", "pick_strength", "pick_label",
+                    "bet_placed", "units_risked",
+                ]
+
             # T-V21-2026-05-08g: compute post-lock PASS-row refresh
             # eligibility once and reuse it both as the notification
             # gate (so a PASS -> STRONG upgrade post-lock fires the
