@@ -61,7 +61,18 @@ on:
     - cron: "0 1 * * *"    # 9pm EDT / 8pm EST   -- catches 10pm + west-coast games
     - cron: "0 2 * * *"    # 10pm EDT / 9pm EST  -- final pre-lock for west-coast
     - cron: "30 3 * * *"   # 11:30pm EDT / 10:30pm EST  -- nightly grade
-    - cron: "45 4 * * 1"   # 12:45am EDT / 11:45pm EST Sun -- weekly recal
+    # 2026-05-11: weekly auto-recalibrate cron DISABLED.  Per CLAUDE.md,
+    # "Out-of-sample validation is non-negotiable for any model change."
+    # The weekly cron was refitting calibration_v2.json + fi_park_factors.json
+    # every Monday with no OOS validation, no Brier-regression guard, no
+    # rollback path.  The 5/11 audit showed the practical impact is small
+    # (bin shifts of 1-2pp, OOS Brier within +/-0.001 between refits), but
+    # the GHA runner has no way to KNOW whether a given week's refit is
+    # net-positive before shipping it -- which directly violates the rule.
+    # Manual recalibration is still available via workflow_dispatch action
+    # "recalibrate" (line ~88); run it only after `test_*.py`-style 3-split
+    # OOS validation confirms no regression.
+    # - cron: "45 4 * * 1"   # 12:45am EDT / 11:45pm EST Sun -- weekly recal
     # T-CLEANUP-2026-05-05: removed every-5-min odds-only cron.
     # Railway's predictor_loop (Procfile / mlb-first-inning service) now
     # owns DK scraping + odds import, running every 5 min on a clean

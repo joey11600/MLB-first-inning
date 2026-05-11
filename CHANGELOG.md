@@ -11,6 +11,56 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-11] — Disabled weekly auto-recalibrate cron (OOS validation gap)
+
+Operator audit revealed the weekly recalibrate cron in
+`.github/workflows/daily.yml` was refitting the production
+calibrator + park-factor file every Monday at 04:45 UTC with
+**no out-of-sample validation, no Brier-regression guard, no
+rollback path**.  Per CLAUDE.md:
+
+> Out-of-sample validation is non-negotiable for any model change.
+
+The 5/11 forensic audit showed the practical impact of each
+weekly refit is small (bin shifts of 1-2pp, OOS Brier within
+±0.001 between refits — see commit ledger entries below for the
+5/04 vs 5/11 comparison), but the GHA runner has no way to KNOW
+whether a given week's refit is net-positive before shipping it.
+That's the structural risk.
+
+The 5/11 refit itself passed audit (Brier improved -0.0011 on
+the 82-row 5/05-5/10 OOS slice) and stays in production; the
+issue is the next refit was scheduled to ship blindly.
+
+### Changed
+
+- `.github/workflows/daily.yml` — commented out the Monday
+  04:45 UTC `cron: "45 4 * * 1"` schedule.  Manual recalibration
+  still available via `workflow_dispatch action: recalibrate`;
+  guidance in the inline comment is to run the test_*.py 3-split
+  OOS validation first and only ship if no regression.
+
+### Forensic note: 5/05-5/10 was not a model regression
+
+Day-by-day actual NRFI rates over the suspect window showed
+the calibrator was correct on average -- it just lived through
+back-to-back streaks in opposite directions:
+
+| Window | Actual NRFI rate | Model predicted | Bias |
+|---|---|---|---|
+| 5/05-5/07 (won +7.23u) | 39.5% | 48.5% | +9.05pp |
+| 5/08-5/10 (lost -5.22u) | 59.1% | 49.4% | -9.68pp |
+| 5/05-5/10 combined | 50.0% | 49.0% | **+1.00pp** |
+
+Combined window has near-zero bias.  The losing streak was
+small-sample variance reverting from a hot streak, not a
+recalibration drift.  The yrfi_040_band cluster (1W-5L on YRFI
+in that specific shape) is a real localized signal -- which is
+why we kept the thin-pitcher demotion -- but it does NOT
+indicate a global model failure.
+
+---
+
 ## [2026-05-11] — Cluster-demoted rows render as PASS with explanatory tooltip
 
 Operator feedback after the 5/10 thin-pitcher demotion landed:
