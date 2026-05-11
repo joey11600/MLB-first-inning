@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { BoardRow, GameDetail, PickSide, PickStrength, PickThresholds } from "@/lib/types";
+import type { BatterLine, BoardRow, GameDetail, PickSide, PickStrength, PickThresholds } from "@/lib/types";
 import type { LiveGameState } from "@/lib/useLiveGameState";
 import { GameDetails } from "./GameDetails";
 import styles from "./BoardRow.module.css";
@@ -381,6 +381,7 @@ export function BoardRowItem({
             tentativeLean={tentativeLean}
           />
           <PassReasonChip row={row} />
+          <EliteHitterChip detail={detail} />
           <OddsChip row={row} detail={detail} />
         </span>
 
@@ -559,8 +560,21 @@ function passReasonText(
   // These already spell themselves out in the pill text -- no chip.
   if (row.pickStrength === "LINEUP PENDING")  return null;
   if (row.pickStrength === "STARTER PENDING") return null;
-  if (row.pickStrength === "LOW LAMBDA")      return null;
   if (row.pickStrength === "NO DATA")         return null;   // NO DATA pill is distinct enough already
+
+  // LOW LAMBDA: pill text already says "PASS · LOW λ" but doesn't show
+  // the actual value.  Surface it: operator can see "λ 0.72" and judge
+  // how close to the 0.78 floor we are (a 0.77 demotion feels different
+  // than a 0.55 demotion, even though both demote).
+  if (row.pickStrength === "LOW LAMBDA") {
+    return {
+      text: `λ ${row.lambda.toFixed(2)}`,
+      tooltip:
+        `Combined λ ${row.lambda.toFixed(2)} below the 0.78 floor -- would-be ` +
+        `STRONG YRFI demoted to PASS.  Model expects too few total ` +
+        `first-inning runs for YRFI to clear the betting edge.`,
+    };
+  }
 
   // The "true PASS" case: calibrated P(NRFI) landed in the PASS zone
   // (between PASS_LO 44% and STRONG_NRFI 56%).  Model isn't confident
@@ -582,6 +596,94 @@ function PassReasonChip({ row }: { row: BoardRow }) {
   return (
     <span className={styles.passReason} title={reason.tooltip}>
       {reason.text}
+    </span>
+  );
+}
+
+/** Mean top-3 ISO for a posted lineup.  Null when the lineup is empty
+ *  (LINEUP PENDING -- no per-batter data yet to look at).
+ *  ISO = SLG - BA, measures pure power output (extra bases per AB). */
+function meanTop3Iso(lineup: BatterLine[] | undefined): number | null {
+  if (!lineup || lineup.length === 0) return null;
+  const isos = lineup.slice(0, 3)
+    .map((b) => b.iso)
+    .filter((v): v is number => v != null && Number.isFinite(v));
+  if (isos.length === 0) return null;
+  return isos.reduce((a, b) => a + b, 0) / isos.length;
+}
+
+/** Single-batter peak ISO from the top 3 -- catches the Aaron-Judge
+ *  case where one elite hitter pulls the team mean up.  Null when
+ *  lineup empty. */
+function peakTop3Iso(lineup: BatterLine[] | undefined): { iso: number; name: string } | null {
+  if (!lineup || lineup.length === 0) return null;
+  let best: { iso: number; name: string } | null = null;
+  for (const b of lineup.slice(0, 3)) {
+    if (b.iso == null || !Number.isFinite(b.iso)) continue;
+    if (best == null || b.iso > best.iso) {
+      best = { iso: b.iso, name: b.name || "?" };
+    }
+  }
+  return best;
+}
+
+/** "Elite power" heads-up chip.  Renders when at least one side has
+ *  meaningful top-3 power (mean ISO >= 0.220) OR a single top-3
+ *  batter has ISO >= 0.300.  Tooltip names which side + which player.
+ *
+ *  Why this exists: the LR model has both top3c_iso and top3c_slg
+ *  as features, but they're high-magnitude opposite-sign coefficients
+ *  that can mostly cancel.  When elite power is on the field the
+ *  signal still leaks through, but the operator might still want a
+ *  visible "watch out for the Yankees lineup" reminder regardless of
+ *  what the model said. */
+function EliteHitterChip({ detail }: { detail: GameDetail | undefined }) {
+  if (!detail) return null;
+  const awayMean = meanTop3Iso(detail.away?.lineup);
+  const homeMean = meanTop3Iso(detail.home?.lineup);
+  const awayPeak = peakTop3Iso(detail.away?.lineup);
+  const homePeak = peakTop3Iso(detail.home?.lineup);
+
+  // Thresholds: 0.220 team-mean = solid power; 0.300 individual = elite.
+  // (League-avg ISO ~ 0.169; 0.220 ≈ 75th percentile lineups,
+  //  0.300 ≈ top ~20 hitters.)
+  const MEAN_FLOOR = 0.220;
+  const INDIVIDUAL_FLOOR = 0.300;
+
+  type Side = { teamLabel: string; mean: number | null; peak: { iso: number; name: string } | null };
+  const sides: Side[] = [
+    { teamLabel: detail.away?.team || "away", mean: awayMean, peak: awayPeak },
+    { teamLabel: detail.home?.team || "home", mean: homeMean, peak: homePeak },
+  ];
+  const flagged = sides.filter(
+    (s) => (s.mean != null && s.mean >= MEAN_FLOOR)
+        || (s.peak != null && s.peak.iso >= INDIVIDUAL_FLOOR),
+  );
+  if (flagged.length === 0) return null;
+
+  // Build the tooltip: list each flagged side's mean + the peak hitter.
+  const parts: string[] = [];
+  for (const s of flagged) {
+    const segs: string[] = [];
+    if (s.mean != null && s.mean >= MEAN_FLOOR) {
+      segs.push(`top-3 ISO ${s.mean.toFixed(3)}`);
+    }
+    if (s.peak != null && s.peak.iso >= INDIVIDUAL_FLOOR) {
+      segs.push(`${s.peak.name} ISO ${s.peak.iso.toFixed(3)}`);
+    }
+    parts.push(`${s.teamLabel}: ${segs.join(", ")}`);
+  }
+  const tooltip =
+    `Elite top-3 power detected (heads-up, not a pick override):\n• `
+    + parts.join("\n• ")
+    + `\n\nLeague-average top-3 ISO ~0.169.  Watch out for first-inning home runs.`;
+
+  return (
+    <span
+      className={`${styles.passReason} ${styles.eliteHitter}`}
+      title={tooltip}
+    >
+      elite power
     </span>
   );
 }

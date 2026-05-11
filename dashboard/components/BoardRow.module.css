@@ -355,6 +355,16 @@
   flex-shrink: 0;
 }
 
+/* Elite-hitter chip -- attention-grabber tone (warmer / brighter)
+   so it stands out from the calmer passReason chip.  Same shape,
+   different color. */
+.eliteHitter {
+  border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
+  background: color-mix(in oklab, var(--primary) 12%, var(--background));
+  color: color-mix(in oklab, var(--foreground) 80%, var(--primary));
+  font-weight: 600;
+}
+
 /* Doubleheader chip */
 .dhTag {
   display: inline-flex;
