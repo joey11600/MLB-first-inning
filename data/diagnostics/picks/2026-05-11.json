@@ -1,7 +1,7 @@
 {
   "date": "2026-05-11",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-11T17:23:55Z",
+  "fitted_at": "2026-05-11T17:51:28Z",
   "n_picks": 6,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -237,10 +237,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3833,
-      "raw_p_run_b1": 0.3101,
-      "raw_p_nrfi": 0.4255,
-      "calibrated_p_nrfi": 0.4102,
+      "raw_p_run_t1": 0.3861,
+      "raw_p_run_b1": 0.3107,
+      "raw_p_nrfi": 0.4231,
+      "calibrated_p_nrfi": 0.4026,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -351,10 +351,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.324,
-      "raw_p_run_b1": 0.267,
-      "raw_p_nrfi": 0.4955,
-      "calibrated_p_nrfi": 0.4731,
+      "raw_p_run_t1": 0.3213,
+      "raw_p_run_b1": 0.2632,
+      "raw_p_nrfi": 0.5001,
+      "calibrated_p_nrfi": 0.4803,
       "calibrator_band": {
         "band": "bin_7-8",
         "is_flat": true,
@@ -364,10 +364,10 @@
       "top_drivers_t1": [
         {
           "name": "wx_humidity",
-          "value": 25.0,
-          "z": -2.117,
+          "value": 27.0,
+          "z": -1.99,
           "weight": -0.0631,
-          "contribution": 0.1337,
+          "contribution": 0.1256,
           "outlier": false
         },
         {
@@ -579,10 +579,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2829,
-      "raw_p_run_b1": 0.335,
-      "raw_p_nrfi": 0.4768,
-      "calibrated_p_nrfi": 0.4506,
+      "raw_p_run_t1": 0.2805,
+      "raw_p_run_b1": 0.3341,
+      "raw_p_nrfi": 0.4791,
+      "calibrated_p_nrfi": 0.4604,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": true,
@@ -607,14 +607,6 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 39.0,
-          "z": -1.224,
-          "weight": -0.0631,
-          "contribution": 0.0773,
-          "outlier": false
-        },
-        {
           "name": "away_top3c_iso",
           "value": 0.169,
           "z": -0.202,
@@ -628,6 +620,14 @@
           "z": 1.673,
           "weight": -0.04,
           "contribution": -0.0669,
+          "outlier": false
+        },
+        {
+          "name": "wx_humidity",
+          "value": 42.0,
+          "z": -1.033,
+          "weight": -0.0631,
+          "contribution": 0.0652,
           "outlier": false
         }
       ],
