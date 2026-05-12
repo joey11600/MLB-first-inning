@@ -3299,15 +3299,15 @@ def _apply_odds_to_row(
             else:
                 row["bet_placed"]   = "N"   # pending, will commit at lock
             row["units_risked"] = _fmt(would_be_units, 2)
-        elif edge_pick is not None and edge_pick >= min_edge and would_be_units > 0:
-            # LEAN with edge above threshold -> bet (lock-gated too).
-            if inside_lock:
-                row["bet_placed"]   = "Y"
-            else:
-                row["bet_placed"]   = "N"
-            row["units_risked"] = _fmt(would_be_units, 2)
         else:
-            # LEAN below edge threshold -> skip but record the would-be stake.
+            # Phase 1.3 (MLB_MODEL_IMPROVEMENT_PLAYBOOK.md 2026-05-12):
+            # LEAN tier is TRACK-ONLY -- never auto-bet regardless of edge
+            # or lock-window status.  The would-be stake is still recorded
+            # in units_risked so we can compute counterfactual P&L for the
+            # 60-bet break-even analysis (Phase 1.3 acceptance criterion).
+            # The previous "LEAN with edge >= min_edge -> bet" path is
+            # intentionally removed; if we ever want to bet LEAN again,
+            # restore it deliberately, not by accident.
             row["bet_placed"]   = "N"
             row["units_risked"] = _fmt(would_be_units, 2) if would_be_units > 0 else ""
     else:

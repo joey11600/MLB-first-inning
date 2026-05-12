@@ -927,11 +927,20 @@ _FI_PARK_NRFI_DEFAULT = 0.50
 # new calibrator, leaving 70+ profitable YRFI picks classified PASS.
 # Loosening to 0.56 / 0.44 recaptures those (live rebet: +27.7u, best
 # of season vs +17.7u at 0.58/0.42 and +23.82u for the prior model).
-# LEAN zones still collapsed -- only STRONG and PASS exist.
+# Phase 1.3 (MLB_MODEL_IMPROVEMENT_PLAYBOOK.md 2026-05-12): split the
+# 0.44-0.56 dead zone into two LEAN bands so the model's medium-edge
+# signal is logged instead of collapsed into PASS.  LEAN picks are
+# TRACK-ONLY (bet_placed forced to 'N' in tracker._apply_odds_to_row);
+# the threshold change here only affects what gets WRITTEN to the
+# ledger, not what gets BET.  Threshold spec:
+#   LEAN NRFI:  0.50 <= p_nrfi < 0.56
+#   LEAN YRFI:  0.44 <  p_nrfi < 0.50  AND lambda >= YRFI floor (0.78)
+# After 60 graded LEAN picks we compare hit rate to 52.4% break-even
+# (see Phase 1.3 in the playbook).
 _LR_STRONG_NRFI_P = 0.56
-_LR_LEAN_NRFI_P   = 0.56
+_LR_LEAN_NRFI_P   = 0.50
 _LR_PASS_LO_P     = 0.44
-_LR_LEAN_YRFI_P   = 0.44
+_LR_LEAN_YRFI_P   = 0.50
 
 # Lambda floor for STRONG YRFI: minimum expected 1st-inning runs the
 # model must project before we'll fire a STRONG YRFI bet, even when
@@ -1741,24 +1750,46 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     YRFI demotion rule: if a game would otherwise classify as STRONG/LEAN
     YRFI but its lambda is below the floor, demote to PASS.  T4.3 makes
     the floor weather-aware (±0.02 per condition).
+
+    Phase 1.3 (2026-05-12): LEAN tier resurrected as track-only.  Carves
+    the 0.44-0.56 dead zone into:
+      LEAN NRFI  :  0.50 <= p_nrfi < 0.56
+      LEAN YRFI  :  0.44 <  p_nrfi < 0.50  AND lambda >= weather-adjusted
+                                                  YRFI floor (default 0.78)
+    `bet_placed` is forced to 'N' for any LEAN pick downstream in
+    tracker._apply_odds_to_row regardless of edge.  STRONG zones are
+    unchanged.  p_nrfi == _LR_PASS_LO_P (0.44) stays PASS NO EDGE so
+    the asymmetric STRONG-YRFI threshold (strict <) is preserved.
     """
     if data_pts == 0:
         return "PASS", "NO DATA"
+
+    # STRONG NRFI: p_nrfi >= 0.56
     if p_nrfi >= _LR_STRONG_NRFI_P:
         return "NRFI", "STRONG"
+
+    # LEAN NRFI: 0.50 <= p_nrfi < 0.56  (track-only)
     if p_nrfi >= _LR_LEAN_NRFI_P:
         return "NRFI", "LEAN"
-    if p_nrfi >= _LR_PASS_LO_P:
-        return "PASS", "NO EDGE"
-    # Below the PASS_LO threshold we'd normally fire a YRFI pick.  Apply
-    # the (weather-adjusted) lambda floor first -- if the model's raw
-    # expected runs is below the floor, the YRFI signal isn't strong
-    # enough to bet on.  Tag "LOW LAMBDA" so the demotion is visible.
+
+    # Weather-adjusted YRFI lambda floor -- reused for both LEAN YRFI gate
+    # and STRONG YRFI demotion.
     floor = _weather_adjusted_floor(_LR_LAMBDA_YRFI_FLOOR, wx_temp_c, wx_wind_kmh, wx_is_dome)
+
+    # Legacy PASS dead zone of [PASS_LO_P, LEAN_NRFI_P) is now split:
+    # the upper half went to LEAN NRFI above; the lower half (strictly
+    # above PASS_LO_P) becomes LEAN YRFI when lambda clears the floor,
+    # else PASS NO EDGE.  Equality at PASS_LO_P stays PASS.
+    if p_nrfi > _LR_PASS_LO_P:                # 0.44 < p_nrfi < 0.50
+        if lambda_total is not None and lambda_total >= floor:
+            return "YRFI", "LEAN"
+        return "PASS", "NO EDGE"
+    if p_nrfi >= _LR_PASS_LO_P:               # exactly == 0.44
+        return "PASS", "NO EDGE"
+
+    # p_nrfi < 0.44 -- STRONG YRFI candidate, gated by the lambda floor.
     if lambda_total is not None and lambda_total < floor:
         return "PASS", "LOW LAMBDA"
-    if p_nrfi >= _LR_LEAN_YRFI_P:
-        return "YRFI", "LEAN"
     return "YRFI", "STRONG"
 
 

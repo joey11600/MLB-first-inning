@@ -67,6 +67,25 @@ export interface ZoneRoi {
   edgeVsBreakEven: number;
 }
 
+/** Aggregate paper-trade performance for the LEAN tier (Phase 1.3,
+ *  2026-05-12).  LEAN picks are TRACK-ONLY -- bet_placed='N' so they
+ *  contribute 0 to real P&L.  This struct surfaces what they WOULD
+ *  have made at flat -110, computed from graded W/L counts, so the
+ *  operator can compare LEAN hit rate to the 52.4% break-even bar
+ *  after 60 graded LEAN picks per the playbook's tier-expansion
+ *  acceptance criterion.  Hypothetical only -- never rolled into
+ *  the real-money TOTAL. */
+export interface LeanPaperTrade {
+  picks:   number;
+  wins:    number;
+  losses:  number;
+  bets:    number;
+  hitRate: number;
+  /** Hypothetical P&L at flat -110, computed from W/L counts. */
+  paperPL: number;
+  edgeVsBreakEven: number;
+}
+
 export interface RoiResponse {
   window: RoiWindow;
   startDate: string;     // ISO yyyy-mm-dd, inclusive
@@ -77,13 +96,23 @@ export interface RoiResponse {
   gradedPicks: number;
   /** distinct slate dates included in the window */
   daysIncluded: number;
-  /** zones we'd actually bet on (excludes PASS) */
+  /** zones we'd actually bet on (excludes PASS).  LEAN zones display
+   *  HYPOTHETICAL P&L at flat -110, not realized P&L (which is 0 for
+   *  bet_placed='N'); STRONG zones display the realized number from
+   *  the CSV's `profit_loss_units` column. */
   betZones:  ZoneRoi[];
   /** PASS zones (informational; never bet) */
   passZones: ZoneRoi[];
-  /** aggregate over all bet-eligible picks (zones that aren't PASS) */
+  /** Aggregate over STRONG bet zones ONLY -- the real-money performance
+   *  metric.  Phase 1.3 (2026-05-12): LEAN tier is intentionally excluded
+   *  from TOTAL so the "+X.Yu" headline figure keeps its prior meaning
+   *  (real bets only).  Use `leanPaperTrade` for the hypothetical LEAN
+   *  paper-trade summary. */
   total:     ZoneRoi;
-  /** rolling cumulative P&L by date for the bet zones */
+  /** Hypothetical paper-trade summary for LEAN picks (Phase 1.3). */
+  leanPaperTrade: LeanPaperTrade;
+  /** rolling cumulative P&L by date for STRONG bet zones only (LEAN
+   *  excluded -- paper-trade does not move the bankroll curve). */
   cumulativePL: { date: string; units: number }[];
 }
 
@@ -227,6 +256,10 @@ export async function loadRoi(
     betZones:  [],
     passZones: [],
     total: emptyZone("TOTAL", "NRFI", "STRONG"),
+    leanPaperTrade: {
+      picks: 0, wins: 0, losses: 0, bets: 0,
+      hitRate: NaN, paperPL: 0, edgeVsBreakEven: NaN,
+    },
     cumulativePL: [],
   };
 
@@ -284,25 +317,38 @@ export async function loadRoi(
       if (graded === "WIN") z.wins += 1;
       else                  z.losses += 1;
 
-      // Prefer the realized profit_loss_units column (populated by
-      // tracker._calc_pnl using actual market odds when imported, or
-      // flat -110 as fallback).  Recompute from graded_result only when
-      // the column is blank (legacy rows or pre-odds-system data).
-      const plRaw = (r.profit_loss_units ?? "").trim();
-      let pl = NaN;
-      if (plRaw) {
-        const parsed = Number.parseFloat(plRaw);
-        if (Number.isFinite(parsed)) pl = parsed;
-      }
-      if (!Number.isFinite(pl)) {
+      // Phase 1.3 (2026-05-12): LEAN tier is track-only (bet_placed='N'),
+      // so the CSV's `profit_loss_units` for LEAN rows is "0.000".  Using
+      // that here would zero out the LEAN zone display and hide the whole
+      // point of the paper-trade analysis -- so for LEAN we COMPUTE a
+      // hypothetical P&L at flat -110 from the graded W/L instead.
+      // STRONG rows still use realized profit_loss_units (real DK odds
+      // when imported, flat -110 fallback when not).
+      let pl: number;
+      if (strength === "LEAN" && (side === "NRFI" || side === "YRFI")) {
         pl = graded === "WIN" ? DEFAULT_WIN_PROFIT_UNITS : DEFAULT_LOSS_UNITS;
+      } else {
+        const plRaw = (r.profit_loss_units ?? "").trim();
+        let parsedPL = NaN;
+        if (plRaw) {
+          const parsed = Number.parseFloat(plRaw);
+          if (Number.isFinite(parsed)) parsedPL = parsed;
+        }
+        pl = Number.isFinite(parsedPL)
+          ? parsedPL
+          : (graded === "WIN" ? DEFAULT_WIN_PROFIT_UNITS : DEFAULT_LOSS_UNITS);
       }
 
       // Track realized P&L at both zone (for breakdown) and day (for chart) level.
       const zKey = `${side}|${strength}`;
       zonePL.set(zKey, (zonePL.get(zKey) ?? 0) + pl);
-      const prev = dayPL.get(date) ?? 0;
-      dayPL.set(date, prev + pl);
+      // Phase 1.3: cumulativePL must remain the real-money bankroll
+      // curve.  LEAN paper-trade P&L feeds zonePL only -- the chart
+      // and TOTAL aggregate stay STRONG-only.
+      if (strength !== "LEAN") {
+        const prev = dayPL.get(date) ?? 0;
+        dayPL.set(date, prev + pl);
+      }
     } else if (graded === "POSTPONED" || graded === "SUSPENDED") {
       z.postponed += 1;
     } else if (graded === "PASS") {
@@ -344,12 +390,16 @@ export async function loadRoi(
   const betZones  = finalized.filter((z) => z.side !== "PASS");
   const passZones = finalized.filter((z) => z.side === "PASS");
 
-  // Total = aggregate of all bet zones (sum realized P&L from each zone so
-  // it matches the per-zone breakdown when actual odds are imported)
+  // Phase 1.3 (2026-05-12): TOTAL aggregates STRONG zones only.  LEAN
+  // is track-only (bet_placed='N') and rolling it into TOTAL would
+  // silently redefine the operator's real-money performance metric
+  // (e.g. "+35.5u" picks up unrelated LEAN W/L counts).  LEAN summary
+  // lives in `leanPaperTrade` below.
+  const strongBetZones = betZones.filter((z) => z.strength === "STRONG");
   const total = emptyZone("TOTAL", "NRFI", "STRONG");
   total.label = "TOTAL";
   let totalPL = 0;
-  for (const z of betZones) {
+  for (const z of strongBetZones) {
     total.picks     += z.picks;
     total.wins      += z.wins;
     total.losses    += z.losses;
@@ -358,6 +408,28 @@ export async function loadRoi(
     totalPL         += z.unitsPL;
   }
   const totalFinal = finalize(total, totalPL);
+
+  // Phase 1.3: LEAN paper-trade aggregate.  Sums hypothetical-at-flat-110
+  // P&L across LEAN NRFI + LEAN YRFI so the dashboard can render a
+  // dedicated paper-trade card.  zonePL already carries the flat-110
+  // numbers because the per-row loop above used DEFAULT_WIN_PROFIT_UNITS /
+  // DEFAULT_LOSS_UNITS for LEAN strength.
+  const leanZones = betZones.filter((z) => z.strength === "LEAN");
+  const leanPaperTrade: LeanPaperTrade = {
+    picks: 0, wins: 0, losses: 0, bets: 0,
+    hitRate: NaN, paperPL: 0, edgeVsBreakEven: NaN,
+  };
+  for (const z of leanZones) {
+    leanPaperTrade.picks   += z.picks;
+    leanPaperTrade.wins    += z.wins;
+    leanPaperTrade.losses  += z.losses;
+    leanPaperTrade.paperPL += z.unitsPL;
+  }
+  leanPaperTrade.bets = leanPaperTrade.wins + leanPaperTrade.losses;
+  if (leanPaperTrade.bets > 0) {
+    leanPaperTrade.hitRate         = leanPaperTrade.wins / leanPaperTrade.bets;
+    leanPaperTrade.edgeVsBreakEven = leanPaperTrade.hitRate - DEFAULT_BREAK_EVEN_RATE;
+  }
 
   // Cumulative P&L sorted by date
   const dates = Array.from(dayPL.keys()).sort();
@@ -378,6 +450,7 @@ export async function loadRoi(
     betZones,
     passZones,
     total: totalFinal,
+    leanPaperTrade,
     cumulativePL,
   };
 }

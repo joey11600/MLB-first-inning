@@ -134,32 +134,53 @@ function noDataReason(detail: GameDetail | undefined): string {
 }
 
 /** Default classifier thresholds -- exported for GameDetails so the
- *  tentative-lean section can run the same classification as the row. */
+ *  tentative-lean section can run the same classification as the row.
+ *  Phase 1.3 (2026-05-12): LEAN tier reactivated as track-only with
+ *  leanNrfiP=0.50 / leanYrfiP=0.50.  Defaults here match the values
+ *  the predictor writes to data/thresholds.json on every run -- they
+ *  are a fallback for the first render before the file loads. */
 export const DEFAULT_THRESHOLDS: PickThresholds = {
   strongNrfiP:     0.56,
-  leanNrfiP:       0.56,
+  leanNrfiP:       0.50,
   passLoP:         0.44,
-  leanYrfiP:       0.44,
+  leanYrfiP:       0.50,
   lambdaYrfiFloor: 0.78,
 };
 
 /** Mirror of mlb_first_inning_predictor.classify_pick_lr -- given an
  *  NRFI probability and combined lambda, returns what the model WOULD
  *  pick under the supplied thresholds (ignores LINEUP / STARTER
- *  PENDING guards).  Exported for GameDetails' tentative-lean section. */
+ *  PENDING guards).  Exported for GameDetails' tentative-lean section.
+ *
+ *  Phase 1.3 (2026-05-12): restructured to fire LEAN YRFI for
+ *  passLoP < pNrfi < leanYrfiP when lambda clears the floor.  The
+ *  previous structure short-circuited that band into PASS NO EDGE
+ *  before the LEAN-YRFI check could fire. */
 export function classifyTentative(
   pNrfi:       number,
   lambdaTotal: number | null,
   th:          PickThresholds | undefined,
 ): { side: PickSide; strength: PickStrength } {
   const t = th ?? DEFAULT_THRESHOLDS;
+
   if (pNrfi >= t.strongNrfiP) return { side: "NRFI", strength: "STRONG" };
   if (pNrfi >= t.leanNrfiP)   return { side: "NRFI", strength: "LEAN" };
+
+  // LEAN YRFI band: strictly above passLoP, below leanNrfiP, lambda >= floor.
+  if (pNrfi > t.passLoP) {
+    if (lambdaTotal != null && lambdaTotal >= t.lambdaYrfiFloor) {
+      return { side: "YRFI", strength: "LEAN" };
+    }
+    return { side: "PASS", strength: "NO EDGE" };
+  }
+  // p_nrfi == passLoP -- stays PASS NO EDGE to preserve the asymmetric
+  // STRONG-YRFI boundary (strict <).
   if (pNrfi >= t.passLoP)     return { side: "PASS", strength: "NO EDGE" };
+
+  // p_nrfi < passLoP -- STRONG YRFI candidate, gated by the lambda floor.
   if (lambdaTotal != null && lambdaTotal < t.lambdaYrfiFloor) {
     return { side: "PASS", strength: "LOW LAMBDA" };
   }
-  if (pNrfi >= t.leanYrfiP)   return { side: "YRFI", strength: "LEAN" };
   return { side: "YRFI", strength: "STRONG" };
 }
 

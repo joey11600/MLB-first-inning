@@ -119,6 +119,64 @@
 }
 .totalCard_neutral { /* default */ }
 
+/* ---- LEAN paper-trade card (Phase 1.3, 2026-05-12) ---- */
+/* Visually distinct from .totalCard via dashed border + diagonal "PAPER"
+   watermark so the operator never mistakes paper-trade P&L for real
+   bankroll movement.  Shares the same grid layout so it slots in
+   directly under the TotalCard. */
+.leanCard {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 28px;
+  align-items: stretch;
+  padding: 22px 26px;
+  border-radius: var(--radius);
+  border: 1px dashed color-mix(in oklab, var(--border) 80%, var(--muted-foreground));
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  position: relative;
+  overflow: hidden;
+  /* Muted tone vs totalCard -- this is HYPOTHETICAL money. */
+  opacity: 0.96;
+}
+.leanCard_win {
+  border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--primary) 6%, var(--card)) 0%,
+    var(--card) 70%);
+}
+.leanCard_loss {
+  border-color: color-mix(in oklab, var(--destructive) 28%, var(--border));
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--destructive) 6%, var(--card)) 0%,
+    var(--card) 70%);
+}
+.leanCard_neutral { /* default */ }
+.leanCard_win  .totalUnits { color: var(--primary); }
+.leanCard_loss .totalUnits { color: var(--destructive); }
+
+/* Diagonal "PAPER" watermark sitting behind the content.  font-size and
+   color are tuned to be readable as "this isn't real" without competing
+   with the actual P&L number for attention. */
+.leanWatermark {
+  position: absolute;
+  top: 50%;
+  right: 28px;
+  transform: translateY(-50%) rotate(-12deg);
+  font-family: var(--font-mono);
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+.leanCard .totalLeft,
+.leanCard .totalRight {
+  position: relative;
+  z-index: 1;
+}
+
 .totalLeft {
   display: flex;
   flex-direction: column;

@@ -25,7 +25,7 @@
  */
 
 import type { BoardRow, GameDetail, PickSide, PickStrength } from "./types";
-import type { RoiResponse, ZoneRoi } from "./roi";
+import type { LeanPaperTrade, RoiResponse, ZoneRoi } from "./roi";
 
 const DEFAULT_WIN_PROFIT_UNITS = 100 / 110;       // 0.9091
 const DEFAULT_LOSS_UNITS       = -1.0;
@@ -127,14 +127,23 @@ export function aggregateTodayRoi(
       if (graded === "WIN") z.wins += 1;
       else                  z.losses += 1;
 
+      // Phase 1.3 (2026-05-12): LEAN tier is track-only.  Its
+      // profit_loss_units in the CSV is 0 (bet_placed='N'); compute
+      // a hypothetical at flat -110 from the W/L grade so the LEAN
+      // zone display is informative.  STRONG keeps the realized number.
       let pl: number;
-      if (typeof plRaw === "number" && Number.isFinite(plRaw)) {
+      if (r.pickStrength === "LEAN" && (r.pickSide === "NRFI" || r.pickSide === "YRFI")) {
+        pl = graded === "WIN" ? DEFAULT_WIN_PROFIT_UNITS : DEFAULT_LOSS_UNITS;
+      } else if (typeof plRaw === "number" && Number.isFinite(plRaw)) {
         pl = plRaw;
       } else {
         pl = graded === "WIN" ? DEFAULT_WIN_PROFIT_UNITS : DEFAULT_LOSS_UNITS;
       }
       zonePL.set(key, (zonePL.get(key) ?? 0) + pl);
-      dayPL += pl;
+      // Phase 1.3: LEAN paper-trade does NOT move the real bankroll curve.
+      if (r.pickStrength !== "LEAN") {
+        dayPL += pl;
+      }
     } else if (graded === "POSTPONED" || graded === "SUSPENDED") {
       z.postponed += 1;
     } else if (graded === "PASS") {
@@ -168,10 +177,12 @@ export function aggregateTodayRoi(
   const betZones  = finalized.filter((z) => z.side !== "PASS");
   const passZones = finalized.filter((z) => z.side === "PASS");
 
+  // Phase 1.3 (2026-05-12): TOTAL = STRONG zones only -- matches loadRoi.
+  const strongBetZones = betZones.filter((z) => z.strength === "STRONG");
   const total = emptyZone("TOTAL", "NRFI", "STRONG");
   total.label = "TOTAL";
   let totalPL = 0;
-  for (const z of betZones) {
+  for (const z of strongBetZones) {
     total.picks     += z.picks;
     total.wins      += z.wins;
     total.losses    += z.losses;
@@ -180,6 +191,24 @@ export function aggregateTodayRoi(
     totalPL         += z.unitsPL;
   }
   const totalFinal = finalize(total, totalPL);
+
+  // Phase 1.3: LEAN paper-trade summary (hypothetical at flat -110).
+  const leanZones = betZones.filter((z) => z.strength === "LEAN");
+  const leanPaperTrade: LeanPaperTrade = {
+    picks: 0, wins: 0, losses: 0, bets: 0,
+    hitRate: NaN, paperPL: 0, edgeVsBreakEven: NaN,
+  };
+  for (const z of leanZones) {
+    leanPaperTrade.picks   += z.picks;
+    leanPaperTrade.wins    += z.wins;
+    leanPaperTrade.losses  += z.losses;
+    leanPaperTrade.paperPL += z.unitsPL;
+  }
+  leanPaperTrade.bets = leanPaperTrade.wins + leanPaperTrade.losses;
+  if (leanPaperTrade.bets > 0) {
+    leanPaperTrade.hitRate         = leanPaperTrade.wins / leanPaperTrade.bets;
+    leanPaperTrade.edgeVsBreakEven = leanPaperTrade.hitRate - DEFAULT_BREAK_EVEN_RATE;
+  }
 
   // Single-point cumulative PL for shape parity.  HistoryView won't
   // render a chart from this; the dashboard hides the equity curve
@@ -198,6 +227,7 @@ export function aggregateTodayRoi(
     betZones,
     passZones,
     total:        totalFinal,
+    leanPaperTrade,
     cumulativePL,
   };
 }

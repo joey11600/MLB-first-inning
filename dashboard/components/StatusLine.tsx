@@ -14,10 +14,12 @@ export function StatusLine({
   filters: Filters;
   date: string;
 }) {
-  // Pretty-print the strength filter so "LEAN+" leftovers in stored
-  // state don't show up as "LEAN+" -- LEAN tier was removed.
+  // Pretty-print the strength filter for the status bar.
+  // LEAN+ is "STRONG + LEAN" (Phase 1.3 reactivated LEAN tier as
+  // track-only on 2026-05-12 -- bets only fire on STRONG, but LEAN
+  // is logged for break-even analysis).
   const strLabel =
-    filters.strength === "LEAN+"  ? "ALL" :
+    filters.strength === "LEAN+"  ? "STRONG+LEAN" :
     filters.strength === "STRONG" ? "STRONG" : "ALL";
 
   const parts = [

@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import styles from "./ControlPanel.module.css";
 
 export type SideFilter = "ALL" | "NRFI" | "YRFI" | "PASS";
-// LEAN tier was removed when thresholds collapsed to STRONG-only --
-// keep "ALL" and "STRONG" only.  "LEAN+" type kept for backward compat
-// with stored filter state (treated as "ALL" if encountered).
+// Strength filter values.
+//   ALL    : every row regardless of strength
+//   STRONG : STRONG NRFI + STRONG YRFI only (the rows actually bet)
+//   LEAN+  : STRONG + LEAN (Phase 1.3, 2026-05-12, reactivated LEAN as
+//            track-only; LEAN picks are logged with bet_placed=N for
+//            the 60-bet break-even analysis).
 export type StrengthFilter = "ALL" | "STRONG" | "LEAN+";
 export type SortKey = "lambda-desc" | "lambda-asc" | "nrfi-desc" | "yrfi-desc" | "rank";
 

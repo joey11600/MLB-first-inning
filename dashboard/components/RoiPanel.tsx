@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BoardRow, GameDetail } from "@/lib/types";
-import type { RoiResponse, RoiWindow, ZoneRoi } from "@/lib/roi";
+import type { LeanPaperTrade, RoiResponse, RoiWindow, ZoneRoi } from "@/lib/roi";
 import { aggregateTodayRoi, aggregateTodayClv } from "@/lib/roi-today";
 import styles from "./RoiPanel.module.css";
 
@@ -154,6 +154,9 @@ export function RoiPanel({
           window={window}
           clv={window === "today" ? todayClv : null}
         />
+        {view?.leanPaperTrade && view.leanPaperTrade.picks > 0 && (
+          <LeanPaperTradeCard paper={view.leanPaperTrade} />
+        )}
         <div className={styles.zoneGrid}>
           {(view?.betZones ?? []).map((z) => (
             <ZoneCard key={z.label} zone={z} />
@@ -242,6 +245,62 @@ function TotalCard({
           label={thirdLabel}
           value={thirdValue}
           tone={thirdTone}
+          variant="num"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** LEAN paper-trade card (Phase 1.3, 2026-05-12).
+ *
+ *  Visually distinct from TotalCard via dashed border + "PAPER" watermark
+ *  so the operator can't mistake it for real-money performance.  Shows
+ *  hit rate, hypothetical P&L at flat -110, and pick count for graded
+ *  LEAN picks.  Renders only when at least one LEAN pick exists in the
+ *  window.  Hypothetical: bet_placed='N' on every LEAN row so no real
+ *  money was wagered.  We use this card to evaluate whether LEAN clears
+ *  the 52.4% break-even bar after 60 graded picks, per the playbook's
+ *  tier-expansion acceptance criterion. */
+function LeanPaperTradeCard({ paper }: { paper: LeanPaperTrade }) {
+  const tone: "win" | "loss" | "neutral" =
+    paper.bets === 0      ? "neutral"
+    : paper.paperPL > 0.05  ? "win"
+    : paper.paperPL < -0.05 ? "loss"
+    : "neutral";
+
+  const subText = paper.bets > 0
+    ? `paper units across ${paper.bets} graded LEAN (${paper.wins}W-${paper.losses}L)`
+    : `${paper.picks} LEAN ungraded -- nothing to evaluate yet`;
+
+  return (
+    <div className={`${styles.leanCard} ${styles[`leanCard_${tone}`]}`}>
+      <div className={styles.leanWatermark} aria-hidden>PAPER</div>
+      <div className={styles.totalLeft}>
+        <span className={styles.totalEyebrow}>
+          LEAN paper-trade · NOT BET
+        </span>
+        <span className={styles.totalUnits}>
+          {paper.bets > 0 ? formatUnits(paper.paperPL) : "—"}
+        </span>
+        <span className={styles.totalSub}>{subText}</span>
+      </div>
+      <div className={styles.totalRight}>
+        <Stat
+          label="Picks"
+          value={String(paper.picks)}
+          variant="num"
+        />
+        <Stat
+          label="Hit rate"
+          value={Number.isNaN(paper.hitRate) ? "—" : pctText(paper.hitRate)}
+          tone={tone}
+          variant="num"
+        />
+        <Stat
+          label="vs break-even"
+          value={Number.isNaN(paper.edgeVsBreakEven) ? "—" : signedPctText(paper.edgeVsBreakEven)}
+          tone={tone}
           variant="num"
         />
       </div>

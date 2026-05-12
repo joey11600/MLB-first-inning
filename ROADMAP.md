@@ -17,6 +17,7 @@ Companion to:
 
 | Date | Ref | Item |
 |---|---|---|
+| 2026-05-12 | _held for AM review_ | **PLAYBOOK Phase 1.3** — LEAN tier resurrected as TRACK-ONLY (`bet_placed='N'` always) so the playbook's 60-bet break-even analysis has data.  Thresholds: `_LR_LEAN_NRFI_P` 0.56→0.50, `_LR_LEAN_YRFI_P` 0.44→0.50.  `classify_pick_lr` restructured.  STRONG zones unchanged.  Ships with a dashboard fix that filters TOTAL P&L strictly to STRONG so the +35.5u headline survives (LEAN paper-trade gets its own clearly-labeled "PAPER" card).  Sanity-checked: season TOTAL through new TS logic = +35.535u, exact match with `pl_calc.py`.  Held on the worktree branch overnight for operator review before deploying to production.  |
 | 2026-05-12 | _pending push_ | **PLAYBOOK Phase 1.1 + 1.2** — Zero-risk logging additions per `MLB_MODEL_IMPROVEMENT_PLAYBOOK.md`.  (1.1) `data/improvement_log.csv` created -- canonical model-change record.  (1.2) `tools/v21_v22_disagreements_log.py` (new) + cron wiring -- slim CSV of V2.1/V2.2 disagreements only.  Prerequisite `data/archive/v2.2/` backup created for future rollback.  No model behavior change.  |
 | 2026-05-02 | `2de0c3a` | **T2.29** — Rebalance board grid so PASS-row OddsChip stops clipping |
 | 2026-05-02 | `bae3f34` | **T2.30 / Phase 1.5** — Supabase dual-write from `tracker.py` |

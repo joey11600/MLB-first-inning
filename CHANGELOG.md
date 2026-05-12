@@ -11,6 +11,86 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-12] — Playbook Phase 1.3: LEAN tier (track-only) + dashboard TOTAL preserves real-money meaning
+
+Resurrects the LEAN classifier tier as TRACK-ONLY (never bet) so the
+playbook's 60-graded-LEAN-pick break-even analysis has data to feed
+on.  Ships with a dashboard fix that protects the season +35.5u
+"real-money" P&L number from being silently redefined to include
+hypothetical LEAN picks.
+
+### Changed — Classifier thresholds + structure
+
+- `mlb_first_inning_predictor.py`: `_LR_LEAN_NRFI_P` 0.56 → 0.50 and
+  `_LR_LEAN_YRFI_P` 0.44 → 0.50.  Carves the legacy 0.44-0.56 PASS
+  dead zone into two LEAN bands:
+  - LEAN NRFI: `0.50 <= p_nrfi < 0.56`
+  - LEAN YRFI: `0.44 <  p_nrfi < 0.50` AND combined lambda ≥
+    weather-adjusted YRFI floor (default 0.78)
+- `classify_pick_lr` restructured.  The previous structure short-
+  circuited the 0.44-0.50 band into PASS NO EDGE before the LEAN
+  YRFI branch could fire.  The new structure mirrors the playbook
+  spec exactly.  STRONG NRFI / STRONG YRFI / LOW LAMBDA boundaries
+  are unchanged.  13 boundary tests pass.
+- `tracker._apply_odds_to_row`: LEAN picks ALWAYS take the
+  `bet_placed = 'N'` path regardless of edge.  The previous
+  "LEAN with edge ≥ min_edge → bet" branch is intentionally removed.
+  `units_risked` is still recorded (0.5u default) so the playbook's
+  60-graded-LEAN-pick break-even analysis has counterfactual stakes.
+- `data/thresholds.json`: regenerated with the new constants;
+  dashboard's tentative-classifier reads this file at request time.
+
+### Changed — Dashboard TOTAL P&L preserves its prior meaning
+
+Operator caught the contamination risk before push: rolling LEAN into
+TOTAL would have silently redefined the +35.5u headline metric to
+"STRONG + LEAN performance" instead of "real-money STRONG only."  Fix:
+
+- `dashboard/lib/roi.ts` + `dashboard/lib/roi-today.ts`: TOTAL
+  aggregation now strictly filters to STRONG zones.  LEAN's hypothetical
+  P&L is computed in a separate `leanPaperTrade` field on the
+  `RoiResponse` (LEAN's realized `profit_loss_units` is 0 because
+  `bet_placed='N'`; we substitute a flat -110 hypothetical for the
+  paper-trade view only).  `cumulativePL` chart series also excludes
+  LEAN -- the bankroll curve stays a real-money curve.
+- `dashboard/components/RoiPanel.tsx` + `.module.css`: new
+  `LeanPaperTradeCard` component rendered only when at least one LEAN
+  pick exists in the window.  Visually distinct from the TOTAL card
+  via a dashed border and a diagonal "PAPER" watermark.  Eyebrow:
+  "LEAN paper-trade · NOT BET".  Shows hit rate, hypothetical paper P&L
+  at flat -110, pick count, and edge vs the 52.4% break-even bar.
+- `dashboard/components/BoardRow.tsx`: TS mirror `classifyTentative`
+  restructured to match the new Python classifier; default thresholds
+  updated to `leanNrfiP=0.50` / `leanYrfiP=0.50`.
+- `dashboard/components/ControlPanel.tsx` / `StatusLine.tsx`:
+  stale "LEAN tier was removed" comments updated; LEAN+ filter is
+  now first-class (already had the right behavior in DashboardShell).
+
+### Sanity check
+
+- Ported the new TS aggregation logic to Python and ran it against
+  the live `data/picks_2026.csv`.  Season TOTAL = +35.535u, record
+  141W-90L (61.0%).  Exact match with `python tools/pl_calc.py
+  --window season`, which is the canonical P&L oracle.  The +35.5u
+  headline survives the change unchanged.
+- LEAN paper-trade currently shows 0 picks (Phase 1.3 hasn't run
+  the cron yet); card will appear once LEAN rows accumulate.
+
+### Operational notes
+
+- `MODEL_VERSION` stays at `V2.2`.  This is a classifier-threshold
+  change, not a weight change -- no retraining performed.
+- LEAN picks now appear in `picks_2026.csv` with `pick_strength=LEAN`
+  and `bet_placed=N` once lineups post and the next cron tick runs.
+  Historical replay against existing rows (290 in the dead-zone band)
+  produces 27 LEAN NRFI + 236 LEAN YRFI + 27 PASS (lambda gate fails)
+  under the new logic.  The ~9:1 YRFI:NRFI split is a real property
+  of the calibrator's output distribution (mass concentrated in
+  [0.46, 0.50]; only 10 historical rows in [0.50, 0.54]) -- the
+  classifier is symmetric across both bands.
+
+---
+
 ## [2026-05-12] — Playbook Phase 1.1 + 1.2 foundation logging
 
 Two zero-risk logging additions per `MLB_MODEL_IMPROVEMENT_PLAYBOOK.md`
