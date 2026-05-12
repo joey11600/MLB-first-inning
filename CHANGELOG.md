@@ -11,6 +11,53 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-12] — Playbook Phase 1.1 + 1.2 foundation logging
+
+Two zero-risk logging additions per `MLB_MODEL_IMPROVEMENT_PLAYBOOK.md`
+Phase 1.  No predictor, tracker, classifier, or dashboard behavior
+changes; only new files plus a cron hook.  Setup ahead of Phase 1.3
+(LEAN tier reactivation) which is held on the candidate branch for
+operator review.
+
+### Added — Phase 1.1: improvement-log file
+
+- `data/improvement_log.csv` (new): canonical record of every model
+  change attempted from here on.  Columns mirror the playbook spec
+  (`test_id, date_started, date_decided, change_description,
+  brier_s1, brier_s2, brier_s3, walkforward_pnl, shadow_pnl,
+  gate_result, notes`).  First row documents this Phase 1 setup itself.
+
+### Added — Phase 1.2: V2.1/V2.2 disagreement-only log
+
+- `tools/v21_v22_disagreements_log.py` (new): writes
+  `data/diagnostics/v21_v22_disagreements.csv` containing only the
+  picks where V2.1 (shadow) and V2.2 (live) disagree.  Agreements
+  carry no comparative signal; disagreements are 100% of the
+  informative sample.  Wired into the grade cron in `daily.yml`
+  immediately after the existing `v21_vs_v22_compare` step (soft-fail
+  with `set +e` so a bug here can never break the grade cycle).
+- Columns: `date, game_pk, v21_pick, v22_pick, v21_prob, v22_prob,
+  actual_outcome, v21_correct, v22_correct`.  Idempotent overwrite
+  each run via atomic tempfile+os.replace.
+
+### Prerequisite work
+
+- `data/archive/v2.2/`: backup of V2.2 weights (`lr_t1.json`,
+  `lr_b1.json`, `calibration_v2.json`, `fi_park_factors.json`) so a
+  future rollback has a snapshot to copy from.  Mirrors the
+  `data/archive/v2.1/` pattern.
+
+### Operational notes
+
+- `MODEL_VERSION` stays at `V2.2`.  No model weights, thresholds,
+  or classifier behavior changed in this commit.
+- The disagreement log starts populating on the next grade cron tick.
+  As of this push the shadow tracker only has ~6 picks of history (V2.1
+  shadow predict started 2026-05-11), so expect <5 disagreement rows
+  initially.  Sample grows ~10/day.
+
+---
+
 ## [2026-05-11] — V2.1 shadow tracker + dashboard demotion banner + shadow-P&L card
 
 Three shipped changes to make the V2.2 deploy reversible and the

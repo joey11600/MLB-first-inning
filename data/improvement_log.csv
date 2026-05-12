@@ -1,0 +1,2 @@
+test_id,date_started,date_decided,change_description,brier_s1,brier_s2,brier_s3,walkforward_pnl,shadow_pnl,gate_result,notes
+2026-05-12-phase1-foundation,2026-05-12,2026-05-12,"Phase 1 foundation setup: created improvement_log.csv, disagreement-only V2.1/V2.2 log, LEAN tier as track-only (bet_placed=N). No model weights changed.",n/a,n/a,n/a,n/a,n/a,SETUP,"Pre-feature-work baseline. V2.2 weights archived to data/archive/v2.2/. Playbook: MLB_MODEL_IMPROVEMENT_PLAYBOOK.md."

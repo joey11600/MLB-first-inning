@@ -17,6 +17,7 @@ Companion to:
 
 | Date | Ref | Item |
 |---|---|---|
+| 2026-05-12 | _pending push_ | **PLAYBOOK Phase 1.1 + 1.2** — Zero-risk logging additions per `MLB_MODEL_IMPROVEMENT_PLAYBOOK.md`.  (1.1) `data/improvement_log.csv` created -- canonical model-change record.  (1.2) `tools/v21_v22_disagreements_log.py` (new) + cron wiring -- slim CSV of V2.1/V2.2 disagreements only.  Prerequisite `data/archive/v2.2/` backup created for future rollback.  No model behavior change.  |
 | 2026-05-02 | `2de0c3a` | **T2.29** — Rebalance board grid so PASS-row OddsChip stops clipping |
 | 2026-05-02 | `bae3f34` | **T2.30 / Phase 1.5** — Supabase dual-write from `tracker.py` |
 | 2026-05-02 | `d078dbc` | **T2.31 / Phase 2** — Dashboard read-side cutover to Supabase + Realtime push |

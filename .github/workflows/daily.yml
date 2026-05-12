@@ -672,6 +672,18 @@ jobs:
           python tools/v21_vs_v22_compare.py 2>&1 \
             || echo "::warning::v21_vs_v22_compare failed (non-blocking)"
 
+      - name: V2.1 vs V2.2 disagreement-only log (Phase 1.2)
+        if: steps.action.outputs.what == 'grade'
+        # Per MLB_MODEL_IMPROVEMENT_PLAYBOOK.md Phase 1.2: write a slim
+        # CSV containing only the picks where V2.1 and V2.2 disagree.
+        # Agreements provide zero signal; disagreements are the only
+        # informative samples for evaluating the version delta.
+        # Output: data/diagnostics/v21_v22_disagreements.csv.
+        run: |
+          set +e
+          python tools/v21_v22_disagreements_log.py 2>&1 \
+            || echo "::warning::v21_v22_disagreements_log failed (non-blocking)"
+
       - name: Cluster demotion re-eval reminder (R4)
         if: steps.action.outputs.what == 'grade'
         # Reads data/cluster_demotions.json.  For each active entry whose
