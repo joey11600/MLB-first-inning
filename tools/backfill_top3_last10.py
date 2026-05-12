@@ -166,10 +166,12 @@ def main() -> int:
                 continue
             try:
                 top3 = fetch_top3_batters(int(game_pk))
-                away_ids = [b.get("id") for b in (top3.get("away") or [])][:3]
-                home_ids = [b.get("id") for b in (top3.get("home") or [])][:3]
-                away_ids = [pid for pid in away_ids if isinstance(pid, int)]
-                home_ids = [pid for pid in home_ids if isinstance(pid, int)]
+                # fetch_top3_batters returns {"away_top3": [int,int,int],
+                # "home_top3": [int,int,int]} -- bare player IDs, not
+                # dicts.  Lists may be shorter than 3 when the lineup
+                # hasn't fully posted.
+                away_ids = [pid for pid in (top3.get("away_top3") or []) if isinstance(pid, int)][:3]
+                home_ids = [pid for pid in (top3.get("home_top3") or []) if isinstance(pid, int)][:3]
                 cache_warmups += 1
             except Exception as exc:    # noqa: BLE001
                 skipped_no_lineup += 1
