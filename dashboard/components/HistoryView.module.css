@@ -450,6 +450,20 @@
   stroke: none;
 }
 
+/* 2026-05-12 -- Expected-trend line.  Anchored at 0 on day 0, lands
+   on the current equity point at the end of the window, so it
+   represents "average daily P&L extrapolated linearly."  Drawn as
+   a thin dashed line so it's clearly secondary to the actual
+   equity line. */
+.equityTrendLine {
+  fill: none;
+  stroke: color-mix(in oklab, var(--foreground) 45%, transparent);
+  stroke-width: 1.4;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
 /* Stats panel under the equity chart */
 .equityStats {
   display: grid;
@@ -547,6 +561,15 @@
   filter: drop-shadow(
     0 0 3px color-mix(in oklab, var(--primary) 55%, transparent)
   );
+}
+.legendLine[data-tone="trend"] {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  vertical-align: middle;
+  margin-right: 4px;
+  border-top: 2px dashed color-mix(in oklab, var(--foreground) 45%, transparent);
+  opacity: 0.85;
 }
 
 /* ---- Table ---- */

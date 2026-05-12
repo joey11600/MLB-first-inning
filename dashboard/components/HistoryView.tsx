@@ -164,6 +164,19 @@ export function HistoryView({
             <span className={styles.legendItem}>
               <span className={styles.legendSwatch} data-tone="drawdown" /> Drawdown
             </span>
+            <span
+              className={styles.legendItem}
+              title={
+                "Trend line: average daily P&L × days elapsed.  If equity " +
+                "is ABOVE this line, you're running hot vs the model's " +
+                "long-run rate; BELOW this line means cold streak.  " +
+                "Helps separate variance from drift -- a cold gap that " +
+                "stays cold is a signal; a cold gap that closes is " +
+                "normal variance."
+              }
+            >
+              <span className={styles.legendLine} data-tone="trend" /> Expected (avg trend)
+            </span>
           </div>
         </div>
         <EquityCurveChart days={days} />
@@ -375,6 +388,27 @@ function EquityCurveChart({ days }: { days: DayRecord[] }) {
     .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(d.cumulative).toFixed(1)}`)
     .join(" ");
 
+  // 2026-05-12: Expected-trend line.  Linear extrapolation of "if every
+  // day had returned the average daily P&L for this window, where would
+  // equity be?"  Gap between actual equity and expected line = variance
+  // accumulated so far.  Above the trend = running hot (variance
+  // favourable); below = cold streak (variance unfavourable).  When a
+  // cold gap KEEPS WIDENING over many days that's a drift signal; a
+  // cold gap that closes is normal mean reversion.
+  //
+  // Anchored at 0 on day 0 so it's directly comparable to the equity
+  // line (which also starts at 0).  Slope = final_cum / (days - 1)
+  // so the trend line lands exactly on the final point at the end of
+  // the window -- by construction equity[end] == trend[end].
+  const finalCum = days[days.length - 1].cumulative;
+  const slope = days.length > 1 ? finalCum / (days.length - 1) : 0;
+  const trendPath = days
+    .map((_, i) => {
+      const v = slope * i;   // day 0 = 0, day N-1 = finalCum
+      return `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(v).toFixed(1)}`;
+    })
+    .join(" ");
+
   // Build the area-fill path (line down to baseline = 0, back to start)
   const areaPath =
     `M ${xFor(0).toFixed(1)} ${yZero.toFixed(1)} ` +
@@ -461,6 +495,10 @@ function EquityCurveChart({ days }: { days: DayRecord[] }) {
               red where below).  Drawn FIRST so the line + DD shading
               render on top. */}
           <path d={areaPath} className={styles.equityArea} />
+
+          {/* Expected-trend line (dashed) -- drawn BEFORE the equity
+              line so the actual equity sits on top visually. */}
+          <path d={trendPath} className={styles.equityTrendLine} />
 
           {/* Equity line */}
           <path d={linePath} className={styles.equityLine} />
