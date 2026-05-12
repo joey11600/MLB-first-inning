@@ -1,7 +1,7 @@
 {
   "date": "2026-05-12",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-12T21:50:35Z",
+  "fitted_at": "2026-05-12T22:05:18Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -9,17 +9,17 @@
       "matchup": "KC@CWS",
       "game_pk": "824604",
       "pick_side": "YRFI",
-      "pick_strength": "LEAN",
+      "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3126,
-      "raw_p_run_b1": 0.3676,
-      "raw_p_nrfi": 0.4347,
-      "calibrated_p_nrfi": 0.4401,
+      "raw_p_run_t1": 0.3134,
+      "raw_p_run_b1": 0.3707,
+      "raw_p_nrfi": 0.4321,
+      "calibrated_p_nrfi": 0.4319,
       "calibrator_band": {
-        "band": "bin_1-2",
+        "band": "bin_0-1",
         "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.4400684931506849
+        "flat_size": 5,
+        "flat_rate": 0.3082191780821918
       },
       "top_drivers_t1": [
         {
@@ -116,7 +116,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "calibrator flat zone: 4 bins all map to rate 0.4401 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.3082 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -353,9 +353,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3119,
-      "raw_p_run_b1": 0.332,
-      "raw_p_nrfi": 0.4597,
+      "raw_p_run_t1": 0.3117,
+      "raw_p_run_b1": 0.3311,
+      "raw_p_nrfi": 0.4604,
       "calibrated_p_nrfi": 0.4401,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -468,8 +468,8 @@
       "pick_strength": "LEAN",
       "graded_result": "",
       "raw_p_run_t1": 0.2622,
-      "raw_p_run_b1": 0.2787,
-      "raw_p_nrfi": 0.5322,
+      "raw_p_run_b1": 0.279,
+      "raw_p_nrfi": 0.5319,
       "calibrated_p_nrfi": 0.5274,
       "calibrator_band": {
         "band": "bin_13-14",
@@ -554,10 +554,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 30.1,
-          "z": 3.294,
+          "value": 30.4,
+          "z": 3.349,
           "weight": 0.0268,
-          "contribution": 0.0882,
+          "contribution": 0.0897,
           "outlier": true
         }
       ],
@@ -572,7 +572,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "B1: feature wx_wind_kmh=30.100 is z=+3.29 sigma from training mean -- contribution +0.088 to logit",
+        "B1: feature wx_wind_kmh=30.400 is z=+3.35 sigma from training mean -- contribution +0.090 to logit",
         "calibrator flat zone: 4 bins all map to rate 0.5274 (multiple distinct raw probs collapse here)"
       ]
     },
@@ -582,9 +582,9 @@
       "pick_side": "YRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.3145,
-      "raw_p_run_b1": 0.3528,
-      "raw_p_nrfi": 0.4437,
+      "raw_p_run_t1": 0.3125,
+      "raw_p_run_b1": 0.3606,
+      "raw_p_nrfi": 0.4395,
       "calibrated_p_nrfi": 0.4401,
       "calibrator_band": {
         "band": "bin_1-2",
@@ -661,10 +661,10 @@
         },
         {
           "name": "home_plate_ump_nrfi_rate",
-          "value": 0.4727,
-          "z": -1.013,
+          "value": 0.4845,
+          "z": -0.701,
           "weight": 0.0882,
-          "contribution": -0.0893,
+          "contribution": -0.0619,
           "outlier": false
         },
         {
@@ -696,9 +696,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.221,
-      "raw_p_run_b1": 0.4199,
-      "raw_p_nrfi": 0.4519,
+      "raw_p_run_t1": 0.2173,
+      "raw_p_run_b1": 0.4411,
+      "raw_p_nrfi": 0.4374,
       "calibrated_p_nrfi": 0.4401,
       "calibrator_band": {
         "band": "bin_1-2",
@@ -1151,10 +1151,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2197,
-      "raw_p_run_b1": 0.3002,
-      "raw_p_nrfi": 0.546,
-      "calibrated_p_nrfi": 0.5284,
+      "raw_p_run_t1": 0.2195,
+      "raw_p_run_b1": 0.2994,
+      "raw_p_nrfi": 0.5468,
+      "calibrated_p_nrfi": 0.5297,
       "calibrator_band": {
         "band": "bin_15-16",
         "is_flat": true,
