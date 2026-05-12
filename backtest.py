@@ -1343,6 +1343,141 @@ def current_season_top3_per_batter(
 
 
 # ---------------------------------------------------------------------------
+# Phase G (2026-05-12): top-3 batter recent-form stats (last 10 games)
+# ---------------------------------------------------------------------------
+#
+# Same idea as current_season_to_date_batter, but rolls a window of LAST N
+# GAMES (default 10) rather than all season-to-date.  Catches hot/cold
+# streaks the season average smears over.
+#
+# Falls back to prior-season's last-10 if current-season has < 5 games of
+# data (early-April / call-up edge case).  Beyond that the model gets the
+# top3c_last10_* features set to None and downstream code uses
+# league-default fallbacks.
+#
+# See docs/PHASE_G_recent_form.md for full design.
+
+
+def recent_form_batter(
+    player_id:       int,
+    target_date_iso: str,
+    target_season:   int,
+    n_games:         int = 10,
+    use_cache:       bool = True,
+) -> dict | None:
+    """Batter's aggregated last-N-games hitting stats as of target_date.
+
+    Returns {ab, pa, obp, slg, iso, avg, hr, n_games_used} or None when
+    we have < 3 games of data even after prior-season fallback.
+
+    Aggregates COUNTS (h, ab, bb, etc.) then computes rates -- never
+    averages per-game rates (a 1-AB game would weight equally with a
+    4-AB game, biasing the result).
+    """
+    if not player_id:
+        return None
+
+    # Pull current season first.
+    cur_log = fetch_batter_gamelog(player_id, target_season, use_cache)
+    relevant = [g for g in cur_log if g["date"] < target_date_iso]
+    relevant.sort(key=lambda g: g["date"])
+    relevant = relevant[-n_games:]   # keep most recent N
+
+    # If current-season window is thin (< 5 games), top up with prior-season
+    # tail to reach n_games.  Common in early April + after call-ups.
+    if len(relevant) < 5:
+        prior_log = fetch_batter_gamelog(player_id, target_season - 1, use_cache)
+        prior_log.sort(key=lambda g: g["date"])
+        needed = n_games - len(relevant)
+        # Take the LAST `needed` games of the prior season (closest in time)
+        relevant = prior_log[-needed:] + relevant
+
+    if len(relevant) < 3:
+        return None
+
+    ab  = sum(g["ab"]  for g in relevant)
+    pa  = sum(g["pa"]  for g in relevant)
+    h   = sum(g["h"]   for g in relevant)
+    bb  = sum(g["bb"]  for g in relevant)
+    hbp = sum(g["hbp"] for g in relevant)
+    sf  = sum(g["sf"]  for g in relevant)
+    tb  = sum(g["tb"]  for g in relevant)
+    if pa == 0 or ab == 0:
+        return None
+
+    obp_denom = ab + bb + hbp + sf
+    obp = (h + bb + hbp) / obp_denom if obp_denom > 0 else 0.0
+    avg = h  / ab
+    slg = tb / ab
+    iso = max(0.0, slg - avg)
+    return {
+        "ab":           ab,
+        "pa":           pa,
+        "obp":          obp,
+        "slg":          slg,
+        "iso":          iso,
+        "avg":          avg,
+        "hr":           sum(g["hr"] for g in relevant),
+        "n_games_used": len(relevant),
+    }
+
+
+def top3_last10_stats(
+    player_ids:      list[int],
+    target_date_iso: str,
+    target_season:   int,
+    n_games:         int = 10,
+    use_cache:       bool = True,
+    min_ab_per:      int  = 5,
+) -> dict:
+    """PA-weighted last-N-games aggregate across the top 3 batters.
+
+    Mirrors `current_season_top3_stats` structurally so the predictor
+    can drop it into the existing feature pipeline.  Returns
+    {obp, slg, iso, n_with_data, source}.  When ALL three batters
+    lack usable recent data, source='fallback' and we return
+    league-average proxies (0.318 / 0.414 / 0.169) so the LR doesn't
+    see a zero -- consistent with the same fallback the season-to-date
+    path uses.
+    """
+    LEAGUE_OBP, LEAGUE_SLG, LEAGUE_ISO = 0.318, 0.414, 0.169
+
+    total_ab = total_pa = 0.0
+    obp_x = slg_x = iso_x = 0.0
+    n_with_data = 0
+
+    for pid in player_ids[:3]:
+        if not pid:
+            continue
+        s = recent_form_batter(pid, target_date_iso, target_season, n_games, use_cache)
+        if not s or s["ab"] < min_ab_per:
+            continue
+        n_with_data += 1
+        total_ab += s["ab"]
+        total_pa += s["pa"]
+        obp_x += s["obp"] * s["pa"]
+        slg_x += s["slg"] * s["ab"]
+        iso_x += s["iso"] * s["ab"]
+
+    if n_with_data == 0 or total_pa == 0 or total_ab == 0:
+        return {
+            "obp":         LEAGUE_OBP,
+            "slg":         LEAGUE_SLG,
+            "iso":         LEAGUE_ISO,
+            "n_with_data": 0,
+            "source":      "fallback",
+        }
+
+    return {
+        "obp":         obp_x / total_pa,
+        "slg":         slg_x / total_ab,
+        "iso":         iso_x / total_ab,
+        "n_with_data": n_with_data,
+        "source":      "last10",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Empirical first-inning park factor (NRFI rate per park)
 # ---------------------------------------------------------------------------
 

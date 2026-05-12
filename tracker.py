@@ -142,6 +142,16 @@ FIELDS = [
     "v21_shadow_nrfi_prob",
     "v21_shadow_pick_side",
     "v21_shadow_pick_strength",
+    # Phase G recent-form features (added 2026-05-12).  Top-3 batters'
+    # last-10-games OBP/SLG/ISO -- captures hot/cold streaks the
+    # season-to-date averages smear over.  Populated by
+    # tools/backfill_top3_last10.py and (once the LR is retrained
+    # to consume them) by mlb_first_inning_predictor.py at predict
+    # time.  Blank for rows generated before the backfill ran.
+    # See docs/PHASE_G_recent_form.md.
+    "away_top3c_last10_obp", "home_top3c_last10_obp",
+    "away_top3c_last10_slg", "home_top3c_last10_slg",
+    "away_top3c_last10_iso", "home_top3c_last10_iso",
 ]
 
 # ---------------------------------------------------------------------------
