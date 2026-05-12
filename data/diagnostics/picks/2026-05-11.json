@@ -1,7 +1,7 @@
 {
   "date": "2026-05-11",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-12T00:03:23Z",
+  "fitted_at": "2026-05-12T00:45:32Z",
   "n_picks": 6,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -10,7 +10,7 @@
       "game_pk": "824199",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2356,
       "raw_p_run_b1": 0.2693,
       "raw_p_nrfi": 0.5585,
@@ -122,7 +122,7 @@
       "game_pk": "822901",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2562,
       "raw_p_run_b1": 0.2891,
       "raw_p_nrfi": 0.5287,
@@ -237,9 +237,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.296,
-      "raw_p_run_b1": 0.3143,
-      "raw_p_nrfi": 0.4827,
+      "raw_p_run_t1": 0.2933,
+      "raw_p_run_b1": 0.3133,
+      "raw_p_nrfi": 0.4853,
       "calibrated_p_nrfi": 0.4726,
       "calibrator_band": {
         "band": "bin_5-6",
@@ -281,11 +281,11 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 41.0,
-          "z": -1.097,
-          "weight": -0.0631,
-          "contribution": 0.0693,
+          "name": "home_xera",
+          "value": 5.9092,
+          "z": 1.625,
+          "weight": 0.0404,
+          "contribution": 0.0657,
           "outlier": false
         }
       ],
