@@ -48,6 +48,22 @@ from lr_baseline import LogReg
 from calibration import ProbCalibrator
 
 LEAGUE_AVG_ERA = 4.20
+
+# Phase 2.1: FI-specific fallback for blank home/away_first_inning_era
+# cells.  Distinct from LEAGUE_AVG_ERA (4.20, full-season) because the
+# first-inning environment runs ~0.2 ERA hotter than overall MLB ERA.
+# Set to 4.40 as the simple average across the year-indexed prior table
+# LEAGUE_FI_AVG_ERA_BY_TARGET_SEASON in backtest.py:
+#   (2024: 4.3836 + 2025: 4.4100 + 2026: 4.4100) / 3 = 4.4012 ~= 4.40
+#
+# Why a single constant rather than passing target_season through to
+# gather() coerce defaults: avoids touching gather()'s signature for an
+# 89-cell (<1% of corpus) edge case.  Train/predict divergence shrinks
+# from ~0.20 ERA (using LEAGUE_AVG_ERA=4.20 as fallback) to ~0.01 ERA
+# (this constant vs the year-indexed predict-time prior 4.38-4.41).
+# Audit row 2026-05-13-bug-fie-fallback-inconsistency remains filed
+# as the V1.1 work item to thread season context through properly.
+LEAGUE_FI_AVG_ERA_FALLBACK = 4.40
 LEAGUE_AVG_HR9 = 1.20
 LEAGUE_AVG_BB9 = 3.20
 LEAGUE_AVG_OBP = 0.318
@@ -163,6 +179,15 @@ B1_PHASE_G_FEATURES = B1_PHASE_E3_FEATURES + [
     "home_top3c_last10_iso",
 ]
 
+# Phase 2.1 FIE (2026-05-13): adds Bayesian-blended first-inning ERA for the
+# pitcher pitching THIS half-inning, on top of whatever base variant is
+# selected.  Designed to compose with --phase-e3 (and optionally --phase-g).
+# Source: backtest.fetch_pitcher_first_inning_era; year-indexed prior table
+# LEAGUE_FI_AVG_ERA_BY_TARGET_SEASON.  See improvement_log.csv row
+# 2026-05-12-phase2.1-fie for the empirical derivation.
+T1_FIE_FEATURES = ["home_first_inning_era"]
+B1_FIE_FEATURES = ["away_first_inning_era"]
+
 # Defaults for Phase E.3 features when CSV cell is missing
 LEAGUE_NRFI_RATE     = 0.50
 LEAGUE_AVG_XERA      = 4.20
@@ -190,6 +215,7 @@ def _ump_rate_for(r, ump_cache, ump_rates_data):
 def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
            slim_k9: bool = False, slim_weather: bool = False,
            phase_e3: bool = False, phase_g: bool = False,
+           fie: bool = False,
            ump_cache=None, ump_rates_data=None,
            clean_only: bool = False) -> dict:
     """Returns dict of stacked numpy arrays for both halves' features and
@@ -299,6 +325,19 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                         coerce(r.get("home_top3c_last10_slg"), LEAGUE_AVG_SLG),
                         coerce(r.get("home_top3c_last10_iso"), LEAGUE_AVG_ISO),
                     ]
+                # Phase 2.1 FIE: append home/away first-inning ERA on top of
+                # whatever base e3 (+optional g) vector was assembled.  Blank
+                # cells (47 from 2024 postponements, 35 from 2025, 7 from
+                # 2026 missing-PID slots; ~89 / 10726 = 0.83% of corpus) fall
+                # back to LEAGUE_FI_AVG_ERA_FALLBACK = 4.40 via coerce -- the
+                # first-inning-environment-averaged league mean, NOT the
+                # full-season LEAGUE_AVG_ERA (4.20) which would systematically
+                # under-shrink the blank rows.  See audit row
+                # 2026-05-13-bug-fie-fallback-inconsistency for the V1.1
+                # target of true year-indexed fallbacks.
+                if fie:
+                    t1_x.append(coerce(r.get("home_first_inning_era"), LEAGUE_FI_AVG_ERA_FALLBACK))
+                    b1_x.append(coerce(r.get("away_first_inning_era"), LEAGUE_FI_AVG_ERA_FALLBACK))
             elif slim_weather:
                 wx = [
                     coerce(r.get("wx_temp_c"),    WX_TEMP_DEFAULT),
@@ -417,6 +456,12 @@ def main():
     ap.add_argument("--phase-g", action="store_true",
                     help="Phase G: phase-e3 + top-3 batters' last-10-games OBP/SLG/ISO "
                          "(21 features per half).  Requires --phase-e3.  Test before deploy.")
+    ap.add_argument("--fie", action="store_true",
+                    help="Phase 2.1 -- append home/away_first_inning_era to "
+                         "both half-inning vectors (Bayesian-blended; "
+                         "see backtest.LEAGUE_FI_AVG_ERA_BY_TARGET_SEASON).  "
+                         "Requires --phase-e3 (auto-enabled if not given). "
+                         "Composes with --phase-g.")
     ap.add_argument("--clean-only", action="store_true",
                     help="Drop rows where pitcher_q == 'avg' on either side "
                          "(synthetic league-avg defaults; ~22%% of historical)")
@@ -436,6 +481,12 @@ def main():
             print(f"  Loaded umpire data: cache={len(ump_cache or {})} games, rates={len((ump_rates_data or {}).get('umpires', {}))} umps")
         except Exception as e:
             print(f"  [warn] umpire data not loaded: {e}")
+    # Phase 2.1: --fie depends on phase-e3 (parallel to --phase-g's dependency).
+    # Promote args.phase_e3 BEFORE the if/elif chain so the base block runs.
+    if args.fie and not args.phase_e3:
+        print("[note] --fie requires --phase-e3; enabling phase-e3 automatically")
+        args.phase_e3 = True
+
     if args.phase_g:
         if not args.phase_e3:
             print("[note] --phase-g requires --phase-e3; enabling phase-e3 automatically")
@@ -464,6 +515,20 @@ def main():
         b1_feats = B1_FEATURES
         variant = "FULL"
 
+    # Phase 2.1: layer FIE on top of whichever base was chosen, AFTER the
+    # base block ran.  Composes with --phase-g (e3+g+fie = 23 features per half).
+    if args.fie:
+        t1_feats = t1_feats + T1_FIE_FEATURES
+        b1_feats = b1_feats + B1_FIE_FEATURES
+        variant = variant + "+FIE"
+
+    # Explicit startup print so the operator sees the variant + feature count
+    # before any training math runs.  Designed to make the "silent V2.2
+    # retraining" failure mode (forgot --fie, got 18 features instead of 19)
+    # visible at line 1 of stdout rather than 100 lines later in the Brier
+    # comparison.
+    print(f"  Active variant: {variant}  (T1={len(t1_feats)} features, B1={len(b1_feats)} features)")
+
     # ---------- T4.7: Holdout integrity check ----------
     # Refuse to train if the test file is also in the train list.
     # This is the canonical leakage failure mode -- catching it here
@@ -488,6 +553,7 @@ def main():
     train_blocks = [gather(Path(p), park, slim=args.slim, slim_k9=args.slim_k9,
                            slim_weather=args.slim_weather,
                            phase_e3=args.phase_e3, phase_g=args.phase_g,
+                           fie=args.fie,
                            ump_cache=ump_cache, ump_rates_data=ump_rates_data,
                            clean_only=args.clean_only)
                     for p in args.train]
@@ -526,6 +592,7 @@ def main():
     # of the holdout period to mirror what happens in production.
     te = gather(Path(args.test), park, slim=args.slim, slim_k9=args.slim_k9,
                 slim_weather=args.slim_weather, phase_e3=args.phase_e3, phase_g=args.phase_g,
+                fie=args.fie,
                 ump_cache=ump_cache, ump_rates_data=ump_rates_data,
                 clean_only=False)
     if not te:

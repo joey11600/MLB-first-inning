@@ -71,6 +71,45 @@ BACKTEST_DIR = Path(__file__).parent / "data" / "backtests"
 API_SLEEP = 0.10
 
 # ---------------------------------------------------------------------------
+# Phase 2.1: first-inning ERA Bayesian shrinkage prior (2026-05-12)
+#
+# Year-indexed prior table for the new `home_first_inning_era` /
+# `away_first_inning_era` features.  Each value is the league-average
+# earned-run-equivalent FI ERA used as the shrinkage target when the
+# fetcher blends an individual pitcher's observed FI ER + IP toward
+# the league.  Computed under the rule "target season + 1 prior season
+# when target data exists":
+#
+#   2024: 2023 (API team_stats sitCodes=i01) + 2024 (backtest CSV * 0.96 earned)
+#   2025: 2024 + 2025 (both backtest CSV * 0.96 earned)
+#   2026: same as 2025 -- no 2026 full-season data yet.  ROADMAP.md
+#         tracks a planned All-Star-break refresh: if 2026 YTD diverges
+#         from this baseline by > 0.2 ERA, update via isolated PR.
+#
+# See improvement_log.csv entries dated 2026-05-12 for the empirical
+# derivation, year-over-year drift discussion, and the rule-revision
+# from "trailing 2 closed seasons" to "target + 1 prior" (chosen so
+# 2024 pitchers shrink toward an era that includes 2024 itself, not
+# only the hotter 2023 environment).
+LEAGUE_FI_AVG_ERA_BY_TARGET_SEASON: dict[int, float] = {
+    2024: 4.3836,
+    2025: 4.4100,
+    2026: 4.4100,
+}
+
+# Bayesian prior strength for the FI ERA shrinkage, in IP-equivalents.
+# At ~30 FI IP a regular starter contributes equal weight to the league
+# prior -- matches the empirical signal-to-noise ratio (one-sigma noise
+# on observed FI ERA at 30 IP is ~1.16, comparable to the cross-pitcher
+# SD of ~1.5-2.0).
+N_PRIOR_FI: float = 30.0
+
+# Fallback prior used when as_of_date's target_season is not in the
+# table above.  Kept conservative at the 2024+2025-combined value so
+# out-of-range backfills get sensible behavior rather than a key error.
+_LEAGUE_FI_AVG_ERA_FALLBACK: float = 4.4100
+
+# ---------------------------------------------------------------------------
 # Cache layer (filesystem JSON, one file per object)
 #
 # Per-category TTL (in seconds).  Categories not listed are cached forever
@@ -90,6 +129,7 @@ CACHE_TTL_SECONDS: dict[str, int] = {
     "pitcher_yearbyyear":    12 * 3600,    # 12h: stats refresh as season advances
     "batter_yearbyyear":     12 * 3600,    # 12h
     "pitcher_fi":            12 * 3600,    # 12h: 1st-inning splits update with starts
+    "pitcher_fi_era":        12 * 3600,    # 12h: Phase 2.1 Bayesian-blended FI ERA (target-season-keyed)
     # Short-TTL caches (refreshed during hourly intraday runs):
     "schedule":              30 * 60,     # 30m: probable pitchers + game times can change
     "boxscore_top3":         30 * 60,     # 30m: lineup posts in the 1-3 hours pre-game
@@ -677,6 +717,121 @@ def prior_season_pitcher_fi(
 
     _cache_put("pitcher_fi", cache_key, {})
     return None
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.1 (2026-05-12): point-in-time Bayesian-blended first-inning ERA
+# ---------------------------------------------------------------------------
+
+def fetch_pitcher_first_inning_era(
+    player_id: int | None,
+    as_of_date: str,
+    use_cache: bool = True,
+) -> tuple[float, str]:
+    """
+    Point-in-time Bayesian-blended first-inning ERA for one pitcher as
+    of `as_of_date` (ISO YYYY-MM-DD).  New feature for Phase 2.1 per
+    MLB_MODEL_IMPROVEMENT_PLAYBOOK.md.
+
+    Pulls statSplits sitCodes=[i01] for the two prior seasons
+    (target_season - 1 and target_season - 2), aggregates ER + IP, then
+    shrinks the observed ERA toward the year-indexed league mean
+    LEAGUE_FI_AVG_ERA_BY_TARGET_SEASON[target_season] using the Bayesian
+    weight  w_obs = sum_ip / (sum_ip + N_PRIOR_FI).
+
+    Why prior seasons only (no current-season-to-date): the statSplits
+    endpoint returns full-season totals when keyed by season, so a 2024
+    backfill using "season=2024" would leak future games into a
+    mid-season pick.  Point-in-time current-season would require per-
+    game first-inning aggregation -- V1 omits it and defers to V1.1.
+
+    Why two prior seasons (not just one): a regular starter has ~30 FI
+    IP per season; two seasons gives ~60 IP which is the 2/3 own-weight
+    point under the prior.  Diminishing returns from going to 3+ seasons.
+
+    Why season < 2021 is the cutoff: 2020 was COVID-shortened so the
+    distribution is unreliable; pre-2020 is pre-three-batter-minimum.
+    Pitch clock came in 2023 -- the *training* data already excludes
+    pre-2023, but for the *Bayesian prior* fetch we allow 2021-2022 to
+    pad sample sizes for veteran pitchers without compromising data
+    quality.  See improvement_log.csv 2026-05-12 design note 2.
+
+    Returns (era, quality):
+        "live" -- combined FI IP >= 30  (full-season-equivalent or more)
+        "ltd"  -- 10-30 FI IP
+        "sm"   --  3-10 FI IP
+        "avg"  -- < 3 FI IP or no data; falls back to league prior.
+
+    Latent bug awareness: `prior_season_pitcher_fi` above uses
+    sitCodes=[i1] which the MLB Stats API silently returns 0 splits
+    for; verified 2026-05-12 that sitCodes=[i01] is the correct code.
+    This new fetcher uses [i01].  The existing function is left alone
+    per the Phase 2.1 isolation rule (see improvement_log.csv audit row
+    2026-05-12-bug-prior-season-pitcher-fi-i1).
+    """
+    target_season = int(as_of_date[:4]) if as_of_date else 2026
+    prior_mean = LEAGUE_FI_AVG_ERA_BY_TARGET_SEASON.get(
+        target_season, _LEAGUE_FI_AVG_ERA_FALLBACK
+    )
+
+    if not player_id:
+        return prior_mean, "avg"
+
+    cache_key = f"{player_id}_{as_of_date}"
+    cached = _cache_get("pitcher_fi_era", cache_key, use_cache)
+    if cached is not None:
+        return (
+            float(cached.get("era", prior_mean)),
+            str(cached.get("quality", "avg")),
+        )
+
+    sum_ip = 0.0
+    sum_er = 0.0
+    for season in (target_season - 1, target_season - 2):
+        if season < 2021:
+            break   # Skip 2020 (COVID) and earlier.  See design note 2.
+        try:
+            data = _api_get("person", {
+                "personId": player_id,
+                "hydrate": f"stats(group=[pitching],type=[statSplits],"
+                           f"sitCodes=[i01],season={season})",
+            })
+        except Exception:
+            continue
+        splits = (data.get("people", [{}])[0]
+                      .get("stats", [{}])[0]
+                      .get("splits", []))
+        for sp in splits:
+            s = sp.get("stat", {})
+            ip = safe_float(s.get("inningsPitched"), 0.0)
+            er = safe_float(s.get("earnedRuns"), 0.0)
+            if ip > 0:
+                sum_ip += ip
+                sum_er += er
+
+    if sum_ip < 3.0:
+        out = {"era": prior_mean, "quality": "avg"}
+        _cache_put("pitcher_fi_era", cache_key, out)
+        return prior_mean, "avg"
+
+    observed_era = sum_er / sum_ip * 9.0
+    # Pre-blend sanity clamp: prevents a 25-IP outlier season with
+    # ERA 18.0 from pulling the prior catastrophically before the
+    # Bayesian average has had a chance to attenuate it.
+    observed_era = max(1.0, min(observed_era, 12.0))
+
+    w_obs   = sum_ip / (sum_ip + N_PRIOR_FI)
+    blended = w_obs * observed_era + (1.0 - w_obs) * prior_mean
+    blended = max(1.0, min(blended, 9.0))
+
+    if   sum_ip >= 30: quality = "live"
+    elif sum_ip >= 10: quality = "ltd"
+    elif sum_ip >=  3: quality = "sm"
+    else:              quality = "avg"
+
+    out = {"era": float(blended), "quality": quality}
+    _cache_put("pitcher_fi_era", cache_key, out)
+    return float(blended), quality
 
 
 # ---------------------------------------------------------------------------
