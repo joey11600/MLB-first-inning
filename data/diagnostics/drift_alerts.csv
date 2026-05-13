@@ -46,3 +46,4 @@ date,severity,metric,note
 2026-05-11,HIGH,home_pitcher_q=ltd,home_pitcher_q=ltd: today=50.0% baseline=19.6% shift=+30.4%
 2026-05-11,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 1/6 extreme values (outside [5.0, 95.0]); max=89.00"
 2026-05-11,MEDIUM,away_top3c_iso_extreme,"away_top3c_iso has 1/6 extreme values (outside [0.08, 0.3]); max=0.31"
+2026-05-12,HIGH,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 6 (>=4 = HIGH; >=3 = MEDIUM)
