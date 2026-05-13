@@ -658,49 +658,6 @@ def main():
     print(f"    V2 Q5 NRFI    : {q5w}-{q5n - q5w} ({q5r*100:.1f}%)")
     print(f"    V2 Q1 YRFI    : {q1w}-{q1n - q1w} ({q1r*100:.1f}%)")
 
-    # ---------- Sensitivity: user's elite-home + trash-away scenario ----------
-    print("\n" + "-" * 70)
-    print("  User's scenario test: elite home pitcher, trash away pitcher")
-    print("-" * 70)
-    for label, away_fip, away_hr9, away_bb9 in [
-        ("ELITE",   2.50, 0.50, 1.50),
-        ("AVERAGE", 4.20, 1.20, 3.20),
-        ("TRASH",   6.00, 2.50, 5.00),
-    ]:
-        if args.phase_e3:
-            wx_neutral = [WX_TEMP_DEFAULT, WX_WIND_DEFAULT, WX_HUMIDITY_DEFAULT, 0.0]
-            # T1: home pitcher elite (era 2.50), gap = 2.50 - matching scenario away ERA
-            era_t1 = 2.50 - {"ELITE": 2.50, "AVERAGE": 4.20, "TRASH": 6.00}[label]
-            era_b1 = -era_t1
-            extras_t1 = [LEAGUE_NRFI_RATE, LEAGUE_AVG_OBP, LEAGUE_NRFI_RATE,
-                         LEAGUE_AVG_XERA, NEUTRAL_PCT_RANK, era_t1]
-            extras_b1 = [LEAGUE_NRFI_RATE, LEAGUE_AVG_OBP, LEAGUE_NRFI_RATE,
-                         LEAGUE_AVG_XERA, NEUTRAL_PCT_RANK, era_b1]
-            x_t1 = np.asarray([[0.50, 2.50, 0.318] + wx_neutral + extras_t1])
-            x_b1 = np.asarray([[0.50, away_fip, 0.318] + wx_neutral + extras_b1])
-        elif args.slim_weather:
-            wx_neutral = [WX_TEMP_DEFAULT, WX_WIND_DEFAULT, WX_HUMIDITY_DEFAULT, 0.0]
-            x_t1 = np.asarray([[0.50, 2.50, 0.318] + wx_neutral])
-            x_b1 = np.asarray([[0.50, away_fip, 0.318] + wx_neutral])
-        elif args.slim_k9:
-            x_t1 = np.asarray([[0.50, 2.50, 8.9, 0.318]])
-            x_b1 = np.asarray([[0.50, away_fip, 8.9, 0.318]])
-        elif args.slim:
-            x_t1 = np.asarray([[0.50, 2.50, 0.318]])
-            x_b1 = np.asarray([[0.50, away_fip, 0.318]])
-        else:
-            x_t1 = np.asarray([[0.50, 2.50, 0.50, 1.50, 0.318, 0.414]])
-            x_b1 = np.asarray([[0.50, away_fip, away_hr9, away_bb9, 0.318, 0.414]])
-        p_t1_one = float(m_t1.predict_proba(x_t1)[0])
-        p_b1_one = float(m_b1.predict_proba(x_b1)[0])
-        p_nrfi_one = (1 - p_t1_one) * (1 - p_b1_one)
-        print(f"  away pitcher = {label:<7}  "
-              f"P(T1 run)={p_t1_one*100:5.1f}%  "
-              f"P(B1 run)={p_b1_one*100:5.1f}%  "
-              f"P(NRFI)={p_nrfi_one*100:5.1f}%")
-
-    print()
-
 
 if __name__ == "__main__":
     main()
