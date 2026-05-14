@@ -208,6 +208,22 @@ B1_FIE_FEATURES = ["away_first_inning_era"]
 T1_FPS_FEATURES = ["home_first_pitch_strike_pct"]
 B1_FPS_FEATURES = ["away_first_pitch_strike_pct"]
 
+# Phase 2.3 LEADOFF (2026-05-14): SPLIT (not add) -- replaces
+# away_top3c_obp / home_top3c_obp with two separate features per side:
+# the leadoff hitter's OBP and the AB-weighted combined OBP of the
+# 2nd and 3rd hitters.  Q5 pre-diagnostic showed mean |delta| = 6.08pp
+# (5.66pp with leadoff AB >= 40 filter) and within-lineup corr = -0.16
+# (strengthening to -0.27 under the AB filter) -- the aggregate top3c_obp
+# averages two anti-correlated quantities, so the split exposes signal
+# the aggregate destroys.  Composes with --phase-e3 (auto-enabled) and
+# --phase-g (which keeps its top3c_last10_* features unchanged).
+# Source for both new features: away_lineup_json / home_lineup_json
+# (production schema; backfilled across 2024+2025+2026 by tools/
+# backfill_lineup_json.py 2026-05-14).  Fallback for null cells: same
+# LEAGUE_AVG_OBP = 0.318 the aggregate uses, so missing-data regime
+# does NOT change between baseline and candidate -- Gate A cleanly
+# measures "does the split help" rather than "split + fallback delta."
+
 # Defaults for Phase E.3 features when CSV cell is missing
 LEAGUE_NRFI_RATE     = 0.50
 LEAGUE_AVG_XERA      = 4.20
@@ -220,6 +236,90 @@ def coerce(s, default):
         return f if math.isfinite(f) else default
     except (TypeError, ValueError):
         return default
+
+
+def _extract_leadoff_features(lineup_json: str) -> tuple[float, float]:
+    """Parse a *_lineup_json CSV cell and return
+    (leadoff_obp, two_three_combined_obp).
+
+    Edge cases (each returns LEAGUE_AVG_OBP for the affected feature):
+
+      a) lineup_json is empty/'[]'/missing/unparseable JSON
+          -> json.loads either raises or returns []; both -> two-fallback.
+      b) lineup has fewer than 3 entries
+          -> use what's there for slots 0/1/2 that exist; fall back to
+             LEAGUE_AVG_OBP for missing slots.
+      c) lineup[0]["obp"] is None (early-season callup, < 10 AB)
+          -> leadoff_obp = LEAGUE_AVG_OBP.
+      d) Exactly one of lineup[1]/lineup[2] has obp non-null
+          -> two_three_combined_obp = that batter's obp (degenerate
+             single-element AB-weighted average).
+      e) BOTH lineup[1] and lineup[2] have obp null
+          -> two_three_combined_obp = LEAGUE_AVG_OBP.
+      f) ab is None where obp isn't (defensive; shouldn't happen given
+         producer guarantees ab/obp are set together)
+          -> skip that batter entirely from the pair average.
+
+    The producer (backtest.current_season_top3_per_batter) emits OBP
+    using strict <-date cutoffs verified leakage-free 2026-05-14.
+    """
+    leadoff_obp = LEAGUE_AVG_OBP
+    two_three_obp = LEAGUE_AVG_OBP
+
+    # Case (a): empty / missing / unparseable
+    try:
+        lineup = json.loads(lineup_json) if lineup_json else []
+    except (json.JSONDecodeError, TypeError):
+        return (leadoff_obp, two_three_obp)
+    if not isinstance(lineup, list) or not lineup:
+        return (leadoff_obp, two_three_obp)
+
+    # Case (c): leadoff obp null -> fallback.  Otherwise extract.
+    if len(lineup) >= 1:
+        v = lineup[0].get("obp")
+        if v is not None:
+            try:
+                leadoff_obp = float(v)
+            except (TypeError, ValueError):
+                pass  # malformed -> leave at LEAGUE_AVG_OBP
+
+    # Cases (b), (d), (e), (f): collect non-null (obp, ab) for slots 1+2
+    pair_obps: list[tuple[float, float]] = []
+    for i in (1, 2):
+        if i >= len(lineup):
+            continue  # case (b): slot missing
+        b = lineup[i]
+        obp_v = b.get("obp")
+        ab_v  = b.get("ab")
+        if obp_v is None or ab_v is None:
+            continue  # cases (e), (f): skip this batter
+        try:
+            pair_obps.append((float(obp_v), float(ab_v)))
+        except (TypeError, ValueError):
+            pass
+
+    if pair_obps:
+        total_ab = sum(ab for _, ab in pair_obps)
+        if total_ab > 0:
+            # Case (d) reduces to single-element weighted average == that value
+            two_three_obp = sum(obp * ab for obp, ab in pair_obps) / total_ab
+        # else: total_ab == 0 (both batters have 0 AB); leave at LEAGUE_AVG_OBP
+    # else: case (e) -- pair_obps empty; leave at LEAGUE_AVG_OBP
+
+    return (leadoff_obp, two_three_obp)
+
+
+def _swap_top3c_obp_for_leadoff(features: list[str], side: str) -> list[str]:
+    """Return a copy of `features` with `<side>_top3c_obp` replaced by
+    [`<side>_leadoff_obp`, `<side>_2_3_combined_obp`].  No-op (returns a
+    copy unchanged) if the slot isn't present, so the helper is safe to
+    call on any base feature list."""
+    old = f"{side}_top3c_obp"
+    if old not in features:
+        return list(features)
+    idx = features.index(old)
+    return features[:idx] + [f"{side}_leadoff_obp",
+                              f"{side}_2_3_combined_obp"] + features[idx+1:]
 
 
 def _ump_rate_for(r, ump_cache, ump_rates_data):
@@ -237,6 +337,7 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
            phase_e3: bool = False, phase_g: bool = False,
            fie: bool = False,
            fps: bool = False,
+           leadoff: bool = False,
            ump_cache=None, ump_rates_data=None,
            clean_only: bool = False,
            emit_meta: bool = False) -> dict:
@@ -303,13 +404,28 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                 a_era = coerce(r.get("away_era"), LEAGUE_AVG_ERA)
                 era_gap_t1 = h_era - a_era
                 era_gap_b1 = a_era - h_era
+
+                # Phase 2.3 LEADOFF: parse lineup_json once per row, extract
+                # leadoff_obp + 2_3_combined_obp per side.  See
+                # _extract_leadoff_features for full edge-case handling
+                # (lineup_json missing/'[]'/unparseable; <3 entries;
+                # individual null obps; both pair-batters null).
+                if leadoff:
+                    a_leadoff, a_pair = _extract_leadoff_features(
+                        r.get("away_lineup_json") or "")
+                    h_leadoff, h_pair = _extract_leadoff_features(
+                        r.get("home_lineup_json") or "")
+
                 t1_x = [
                     fi_park,
                     coerce(r.get("home_fip"), LEAGUE_AVG_ERA),
                     coerce(r.get("away_obp"), LEAGUE_AVG_OBP),
                 ] + wx + [
                     coerce(r.get("home_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
-                    coerce(r.get("away_top3c_obp"),            LEAGUE_AVG_OBP),
+                ] + (
+                    [a_leadoff, a_pair] if leadoff else
+                    [coerce(r.get("away_top3c_obp"), LEAGUE_AVG_OBP)]
+                ) + [
                     ump_rate,
                     coerce(r.get("home_xera"),                 LEAGUE_AVG_XERA),
                     coerce(r.get("home_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
@@ -327,7 +443,10 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     coerce(r.get("home_obp"), LEAGUE_AVG_OBP),
                 ] + wx + [
                     coerce(r.get("away_p_last5_pitcher_nrfi"), LEAGUE_NRFI_RATE),
-                    coerce(r.get("home_top3c_obp"),            LEAGUE_AVG_OBP),
+                ] + (
+                    [h_leadoff, h_pair] if leadoff else
+                    [coerce(r.get("home_top3c_obp"), LEAGUE_AVG_OBP)]
+                ) + [
                     ump_rate,
                     coerce(r.get("away_xera"),                 LEAGUE_AVG_XERA),
                     coerce(r.get("away_whiff_pct_rank"),       NEUTRAL_PCT_RANK),
@@ -522,6 +641,12 @@ def main():
                          "see backtest.LEAGUE_FPS_1ST_AVG = 0.62).  "
                          "Requires --phase-e3 (auto-enabled if not given). "
                          "Composes with --phase-g and --fie.")
+    ap.add_argument("--leadoff", action="store_true",
+                    help="Phase 2.3 -- SPLIT (not add): replace home/away_top3c_obp "
+                         "with home/away_leadoff_obp + home/away_2_3_combined_obp "
+                         "(parsed from *_lineup_json columns).  T1/B1 each go "
+                         "from 18 features -> 19.  Requires --phase-e3 (auto-enabled "
+                         "if not given).  Composes with --phase-g, --fie, --fps.")
     ap.add_argument("--clean-only", action="store_true",
                     help="Drop rows where pitcher_q == 'avg' on either side "
                          "(synthetic league-avg defaults; ~22%% of historical)")
@@ -561,6 +686,11 @@ def main():
         print("[note] --fps requires --phase-e3; enabling phase-e3 automatically")
         args.phase_e3 = True
 
+    # Phase 2.3: same auto-enable for --leadoff.
+    if args.leadoff and not args.phase_e3:
+        print("[note] --leadoff requires --phase-e3; enabling phase-e3 automatically")
+        args.phase_e3 = True
+
     if args.phase_g:
         if not args.phase_e3:
             print("[note] --phase-g requires --phase-e3; enabling phase-e3 automatically")
@@ -588,6 +718,17 @@ def main():
         t1_feats = T1_FEATURES
         b1_feats = B1_FEATURES
         variant = "FULL"
+
+    # Phase 2.3 LEADOFF: applies AFTER base variant selection so it works
+    # with both PHASE_E3 and PHASE_G.  Order matters relative to FIE/FPS:
+    # LEADOFF swaps the top3c_obp slot in the BASE feature list, then FIE
+    # and FPS append their features to the tail of whatever's been
+    # assembled.  So with --leadoff --fie --fps the order is:
+    #   <PHASE_E3 with top3c_obp swapped> + FIE + FPS  (= 21 features)
+    if args.leadoff:
+        t1_feats = _swap_top3c_obp_for_leadoff(t1_feats, "away")
+        b1_feats = _swap_top3c_obp_for_leadoff(b1_feats, "home")
+        variant = variant + "+LEADOFF"
 
     # Phase 2.1: layer FIE on top of whichever base was chosen, AFTER the
     # base block ran.  Composes with --phase-g (e3+g+fie = 23 features per half).
@@ -639,6 +780,7 @@ def main():
                            phase_e3=args.phase_e3, phase_g=args.phase_g,
                            fie=args.fie,
                            fps=args.fps,
+                           leadoff=args.leadoff,
                            ump_cache=ump_cache, ump_rates_data=ump_rates_data,
                            clean_only=args.clean_only)
                     for p in args.train]
@@ -679,6 +821,7 @@ def main():
                 slim_weather=args.slim_weather, phase_e3=args.phase_e3, phase_g=args.phase_g,
                 fie=args.fie,
                 fps=args.fps,
+                leadoff=args.leadoff,
                 ump_cache=ump_cache, ump_rates_data=ump_rates_data,
                 clean_only=False,
                 emit_meta=bool(args.emit_rowwise))

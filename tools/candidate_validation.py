@@ -148,7 +148,7 @@ def _resolve_flags(args) -> tuple[list[str], list[str], str, str]:
     # Auto-enable --phase-e3 if a candidate-only flag was given.  Mirror
     # the two_stage_model.py behavior so the validation script doesn't
     # diverge from the underlying script's autoload rules.
-    if (args.phase_g or args.fie or args.fps) and not args.phase_e3:
+    if (args.phase_g or args.fie or args.fps or args.leadoff) and not args.phase_e3:
         print("[note] candidate add-on flags require --phase-e3; enabling phase-e3 automatically")
         args.phase_e3 = True
 
@@ -164,6 +164,9 @@ def _resolve_flags(args) -> tuple[list[str], list[str], str, str]:
     if args.fps:
         candidate_flags.append("--fps")
         candidate_extras.append("FPS")
+    if args.leadoff:
+        candidate_flags.append("--leadoff")
+        candidate_extras.append("LEADOFF")
 
     baseline_label = "PHASE_E3"
     candidate_label = "PHASE_E3" + ("+" + "+".join(candidate_extras) if candidate_extras else "")
@@ -184,6 +187,9 @@ def main() -> int:
                    help="Candidate add-on: Phase 2.1 first-inning ERA Bayesian blend.")
     p.add_argument("--fps", action="store_true",
                    help="Candidate add-on: Phase 2.2 first-pitch strike % in 1st inning.")
+    p.add_argument("--leadoff", action="store_true",
+                   help="Candidate add-on: Phase 2.3 leadoff isolation -- split "
+                        "top3c_obp into leadoff_obp + 2_3_combined_obp per side.")
     p.add_argument("--candidate", required=True, type=Path,
                    help="Directory for the candidate's trained weights "
                         "(lr_t1.json + lr_b1.json).")
