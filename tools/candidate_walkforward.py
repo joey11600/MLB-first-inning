@@ -292,6 +292,8 @@ def main() -> int:
                    help="Candidate add-on: top-3 last-10-games batter features.")
     p.add_argument("--fie", action="store_true",
                    help="Candidate add-on: Phase 2.1 first-inning ERA Bayesian blend.")
+    p.add_argument("--fps", action="store_true",
+                   help="Candidate add-on: Phase 2.2 first-pitch strike % in 1st inning.")
     p.add_argument("--candidate", required=True, type=Path,
                    help="Directory for the walk-forward log CSV.  Trained "
                         "weights themselves are NOT persisted (each day's "

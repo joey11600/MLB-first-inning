@@ -110,6 +110,51 @@ N_PRIOR_FI: float = 30.0
 _LEAGUE_FI_AVG_ERA_FALLBACK: float = 4.4100
 
 # ---------------------------------------------------------------------------
+# Phase 2.2: first-pitch strike % in 1st inning -- Bayesian shrinkage prior
+# (2026-05-14)
+#
+# Single league constant (not year-indexed like FI ERA), because:
+#   (a) per-pitch Statcast data is naturally point-in-time, no leakage
+#       workaround needed -- we can include current-season-to-date data;
+#   (b) post-pitch-clock FPS rates are environment-stable year-to-year;
+#   (c) Q5 diagnostic (2026-05-13) showed strong inning-1 specificity
+#       across pitchers (mean |delta| 4.3pp vs season-overall, stddev
+#       5.2pp), so the feature carries real signal independent of the
+#       prior's exact calibration.
+#
+# Empirically verified 2026-05-13 during the Phase 2.2 backfill:
+# 0.6194 across 92,547 first-inning first-pitch events spanning 2021-2026.
+# Year-by-year FPS_1st (from data/cache/pitcher_fps_perpitch aggregation):
+#   2021 0.6212  |  2022 0.6202  |  2023 0.6197  |  2024 0.6207  |  2025 0.6183
+#   2026 YTD 0.6103 (partial sample; ~4716 events through 2026-05-13)
+# Closed-only 2021-2025: 0.6199.  Max-min spread across 5 closed seasons:
+# 0.3pp -- year-over-year stability is sufficient that a single league
+# constant suffices (no year-indexing needed, unlike Phase 2.1 FI ERA).
+# Locked at 0.62 (rounded empirical) rather than 0.61 placeholder.
+LEAGUE_FPS_1ST_AVG: float = 0.62
+
+# Bayesian prior strength for the FPS shrinkage, in event-equivalents.
+# A regular starter accumulates ~120 first-inning first-pitch events per
+# full season (vs ~30 FI IP for FI ERA), so we use a lighter prior than
+# FI ERA's 30.  At 20 events a pitcher's half-season sample carries 50/50
+# weight against the league prior; a full-season starter is 86% own weight.
+N_PRIOR_FPS: float = 20.0
+
+# Outcome descriptions counted as "strike" on a 0-0 count.  Matches the
+# canonical Baseball Savant "first-pitch strike" semantic: anything that
+# isn't a clean ball, hit-by-pitch, or pitchout.
+_FPS_STRIKE_DESCS: frozenset[str] = frozenset({
+    "called_strike", "swinging_strike", "swinging_strike_blocked",
+    "foul", "foul_tip", "foul_bunt", "missed_bunt", "hit_into_play",
+})
+
+# Earliest season included in the FPS pool.  2020 was COVID-shortened
+# and 2019-and-earlier predates the modern pitch-clock-influenced
+# command environment, so we hard-cap at >= 2021 (same convention as
+# Phase 2.1 FI ERA's design note 2).
+_FPS_SEASON_FLOOR: int = 2021
+
+# ---------------------------------------------------------------------------
 # Cache layer (filesystem JSON, one file per object)
 #
 # Per-category TTL (in seconds).  Categories not listed are cached forever
@@ -831,6 +876,104 @@ def fetch_pitcher_first_inning_era(
 
     out = {"era": float(blended), "quality": quality}
     _cache_put("pitcher_fi_era", cache_key, out)
+    return float(blended), quality
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.2 (2026-05-14): point-in-time Bayesian-blended first-pitch strike %
+# in the 1st inning.  Stateless fetcher reading from a per-pitch cache
+# populated by tools/backfill_first_pitch_strike.py.
+# ---------------------------------------------------------------------------
+
+def fetch_pitcher_first_pitch_strike_pct(
+    player_id: int | None,
+    as_of_date: str,
+    use_cache: bool = True,
+) -> tuple[float, str]:
+    """
+    Point-in-time Bayesian-blended first-pitch strike % (1st inning only)
+    for one pitcher as of `as_of_date`.  New feature for Phase 2.2 per
+    MLB_MODEL_IMPROVEMENT_PLAYBOOK.md.
+
+    Reads cached per-pitcher per-season per-pitch records from
+    `data/cache/pitcher_fps_perpitch/perpitch_<pid>_<year>.json` -- one
+    file per (pitcher, season).  The cache is populated by
+    `tools/backfill_first_pitch_strike.py`, which pulls per-pitch data
+    via pybaseball.statcast_pitcher and filters to inning=1, balls=0,
+    strikes=0 (the first pitch of each first-inning plate appearance).
+
+    Pools events from all cached seasons in `[_FPS_SEASON_FLOOR=2021,
+    target_season]` with `game_date < as_of_date`.  No leakage concern
+    because per-pitch data carries explicit game_date -- unlike Phase
+    2.1 FI ERA's statSplits endpoint, current-season-to-date pitches
+    are safe to include.
+
+    Bayesian shrinkage: `w_obs = sum_events / (sum_events + N_PRIOR_FPS)`,
+    then `blended = w_obs * observed + (1 - w_obs) * LEAGUE_FPS_1ST_AVG`.
+    See module constants for the design rationale.
+
+    Returns (fps_blended, quality):
+        "live" -- combined events >= 60 (half-season-equivalent or more)
+        "ltd"  -- 20-60 events
+        "sm"   --  5-20 events
+        "avg"  -- < 5 events or no data; returns the league prior.
+
+    Cache-only at predict time.  If the cache is missing or empty for a
+    pitcher we've never seen, returns the league prior (quality='avg')
+    -- the predictor degrades gracefully rather than blocking on an
+    API call inside the live predict path.
+
+    `use_cache` parameter is accepted for API parity with the FI ERA
+    fetcher but has no effect here -- the aggregate-result cache was
+    dropped during Phase 2.2 design review because it offered ~zero
+    hit rate across distinct as_of_date values.  Recompute from the
+    per-pitch cache is <10ms.  Audit row 2026-05-14-cleanup-vestigial-
+    use-cache-param tracks dropping this parameter in a future PR.
+    """
+    if not player_id:
+        return LEAGUE_FPS_1ST_AVG, "avg"
+
+    target_season = int(as_of_date[:4]) if as_of_date else 2026
+    fps_perpitch_root = CACHE_ROOT / "pitcher_fps_perpitch"
+
+    # Pool per-pitch events across [_FPS_SEASON_FLOOR, target_season] with
+    # game_date < as_of_date.  No aggregate-result cache: recompute is
+    # cheap (sum a few hundred booleans), aggregate cache would offer
+    # ~zero hit rate across distinct as_of_date values, and staleness
+    # risk relative to per-pitch refreshes isn't worth the complexity.
+    sum_events = 0
+    sum_strikes = 0
+    for season in range(_FPS_SEASON_FLOOR, target_season + 1):
+        path = fps_perpitch_root / f"perpitch_{player_id}_{season}.json"
+        if not path.exists():
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            continue
+        for ev in data.get("events", []):
+            d = ev.get("game_date") or ""
+            if not d or d >= as_of_date:
+                continue
+            sum_events += 1
+            if ev.get("is_strike"):
+                sum_strikes += 1
+
+    if sum_events < 5:
+        return LEAGUE_FPS_1ST_AVG, "avg"
+
+    observed = sum_strikes / sum_events
+    w_obs = sum_events / (sum_events + N_PRIOR_FPS)
+    blended = w_obs * observed + (1.0 - w_obs) * LEAGUE_FPS_1ST_AVG
+    # Bound to [0, 1] just in case -- the math should already guarantee it.
+    blended = max(0.0, min(blended, 1.0))
+
+    if   sum_events >= 60: quality = "live"
+    elif sum_events >= 20: quality = "ltd"
+    elif sum_events >=  5: quality = "sm"
+    else:                  quality = "avg"
+
     return float(blended), quality
 
 
