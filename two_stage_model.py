@@ -47,6 +47,14 @@ sys.path.insert(0, str(ROOT))
 from lr_baseline import LogReg
 from calibration import ProbCalibrator
 
+# Phase 2.2: single-source-of-truth FPS league prior.  Unlike
+# LEAGUE_FI_AVG_ERA_FALLBACK which duplicates locally at 4.40 (intentional
+# divergence from predict-time's year-indexed 4.38-4.41 priors), the FPS
+# constant is identical at train and predict time -- so we import it.
+# Updates to backtest.LEAGUE_FPS_1ST_AVG automatically propagate to
+# training without needing a parallel constant in this file.
+from backtest import LEAGUE_FPS_1ST_AVG
+
 LEAGUE_AVG_ERA = 4.20
 
 # Phase 2.1: FI-specific fallback for blank home/away_first_inning_era
@@ -188,6 +196,18 @@ B1_PHASE_G_FEATURES = B1_PHASE_E3_FEATURES + [
 T1_FIE_FEATURES = ["home_first_inning_era"]
 B1_FIE_FEATURES = ["away_first_inning_era"]
 
+# Phase 2.2 FPS (2026-05-14): adds Bayesian-blended first-pitch strike % in
+# the 1st inning for the pitcher pitching THIS half-inning.  Composes with
+# --phase-e3 (and optionally --phase-g, --fie).  Source:
+# backtest.fetch_pitcher_first_pitch_strike_pct; league prior
+# LEAGUE_FPS_1ST_AVG = 0.62 (empirically verified 0.6194 across 92,547
+# events 2021-2026 during the 2026-05-13 backfill; rounded to 0.62).
+# See improvement_log.csv row 2026-05-12-phase2.2-fps for the empirical
+# derivation, Q5 redundancy diagnostic, and named-pitcher smell-test
+# verification.
+T1_FPS_FEATURES = ["home_first_pitch_strike_pct"]
+B1_FPS_FEATURES = ["away_first_pitch_strike_pct"]
+
 # Defaults for Phase E.3 features when CSV cell is missing
 LEAGUE_NRFI_RATE     = 0.50
 LEAGUE_AVG_XERA      = 4.20
@@ -216,15 +236,24 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
            slim_k9: bool = False, slim_weather: bool = False,
            phase_e3: bool = False, phase_g: bool = False,
            fie: bool = False,
+           fps: bool = False,
            ump_cache=None, ump_rates_data=None,
-           clean_only: bool = False) -> dict:
+           clean_only: bool = False,
+           emit_meta: bool = False) -> dict:
     """Returns dict of stacked numpy arrays for both halves' features and
     binary labels (1 if that half had a run).
 
     clean_only=True drops rows where pitcher_q == 'avg' on either side
     (synthetic league-average defaults; ~22% of historical backtests).
-    Training on those rows trains the LR on noise."""
+    Training on those rows trains the LR on noise.
+
+    emit_meta=True additionally captures per-surviving-row metadata
+    (date, game_pk, home_top3c_iso, away_top3c_iso) into the returned
+    dict under key 'meta'.  Used by --emit-rowwise to write a rowwise
+    CSV that downstream Gate C analysis filters on iso >= 0.25.  Adds
+    one dict per row to memory; no effect on training math."""
     rows = []
+    meta = []  # only populated when emit_meta=True
     n_dropped_avg = 0
     with open(csv_path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
@@ -338,6 +367,16 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                 if fie:
                     t1_x.append(coerce(r.get("home_first_inning_era"), LEAGUE_FI_AVG_ERA_FALLBACK))
                     b1_x.append(coerce(r.get("away_first_inning_era"), LEAGUE_FI_AVG_ERA_FALLBACK))
+                # Phase 2.2 FPS: append home/away first-pitch strike % on
+                # top of whatever base + optional fie vector was assembled.
+                # Blank cells (89 from postponement-cascade unresolved PIDs
+                # across 2024+2025+2026, same tie-out as FIE) fall back to
+                # LEAGUE_FPS_1ST_AVG = 0.62 (the league prior, imported from
+                # backtest.py so train and predict use identical fallback).
+                # No train/predict divergence audit needed -- single SOT.
+                if fps:
+                    t1_x.append(coerce(r.get("home_first_pitch_strike_pct"), LEAGUE_FPS_1ST_AVG))
+                    b1_x.append(coerce(r.get("away_first_pitch_strike_pct"), LEAGUE_FPS_1ST_AVG))
             elif slim_weather:
                 wx = [
                     coerce(r.get("wx_temp_c"),    WX_TEMP_DEFAULT),
@@ -397,11 +436,23 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     coerce(r.get("home_slg"), LEAGUE_AVG_SLG),
                 ]
             rows.append((t1_x, t1_y, b1_x, b1_y, actual.upper()))
+            if emit_meta:
+                # Capture metadata AFTER all gather() filters so the meta
+                # list aligns 1:1 with rows[] (and therefore with the
+                # X_t1/X_b1/y_nrfi arrays).  ISO falls back to LEAGUE_AVG_ISO
+                # on blank cells so the downstream elite-power filter at
+                # >= 0.25 never spuriously fires on missing data.
+                meta.append({
+                    "date":           r.get("date") or "",
+                    "game_pk":        r.get("game_pk") or "",
+                    "home_top3c_iso": coerce(r.get("home_top3c_iso"), LEAGUE_AVG_ISO),
+                    "away_top3c_iso": coerce(r.get("away_top3c_iso"), LEAGUE_AVG_ISO),
+                })
     if clean_only and n_dropped_avg:
         print(f"  [{Path(csv_path).name}] dropped {n_dropped_avg} 'avg'-quality rows")
     if not rows:
         return None
-    return {
+    result = {
         "X_t1": np.asarray([r[0] for r in rows], dtype=float),
         "y_t1": np.asarray([r[1] for r in rows], dtype=int),
         "X_b1": np.asarray([r[2] for r in rows], dtype=float),
@@ -409,6 +460,9 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
         "y_nrfi": np.asarray([1 if r[4] == "NRFI" else 0 for r in rows], dtype=int),
         "n": len(rows),
     }
+    if emit_meta:
+        result["meta"] = meta
+    return result
 
 
 def load_fi_park():
@@ -462,9 +516,24 @@ def main():
                          "see backtest.LEAGUE_FI_AVG_ERA_BY_TARGET_SEASON).  "
                          "Requires --phase-e3 (auto-enabled if not given). "
                          "Composes with --phase-g.")
+    ap.add_argument("--fps", action="store_true",
+                    help="Phase 2.2 -- append home/away_first_pitch_strike_pct "
+                         "to both half-inning vectors (Bayesian-blended; "
+                         "see backtest.LEAGUE_FPS_1ST_AVG = 0.62).  "
+                         "Requires --phase-e3 (auto-enabled if not given). "
+                         "Composes with --phase-g and --fie.")
     ap.add_argument("--clean-only", action="store_true",
                     help="Drop rows where pitcher_q == 'avg' on either side "
                          "(synthetic league-avg defaults; ~22%% of historical)")
+    ap.add_argument("--emit-rowwise", default=None, metavar="PATH",
+                    help="Path to write per-row test predictions for Gate C "
+                         "analysis.  CSV columns: date, game_pk, p_nrfi_pred, "
+                         "y_actual, brier_row, home_top3c_iso, away_top3c_iso. "
+                         "p_nrfi_pred is the RAW two-stage probability "
+                         "(uncalibrated) -- matches the printed 'Two-stage "
+                         "Brier' so Gate A and Gate C share an apples-to-apples "
+                         "basis.  No-op when --test is absent.  Consumed by "
+                         "tools/candidate_validation.py --gate-c-elite-power.")
     args = ap.parse_args()
 
     park = load_fi_park()
@@ -485,6 +554,11 @@ def main():
     # Promote args.phase_e3 BEFORE the if/elif chain so the base block runs.
     if args.fie and not args.phase_e3:
         print("[note] --fie requires --phase-e3; enabling phase-e3 automatically")
+        args.phase_e3 = True
+
+    # Phase 2.2: same auto-enable for --fps.
+    if args.fps and not args.phase_e3:
+        print("[note] --fps requires --phase-e3; enabling phase-e3 automatically")
         args.phase_e3 = True
 
     if args.phase_g:
@@ -522,6 +596,16 @@ def main():
         b1_feats = b1_feats + B1_FIE_FEATURES
         variant = variant + "+FIE"
 
+    # Phase 2.2: layer FPS on top of whatever's been assembled (e3 + optional
+    # g + optional fie).  Order is intentional: FPS comes LAST so the variant
+    # label reads "...+FPS" at the end and the feature-name list ends with
+    # the FPS columns.  Saved JSON's feature_names array reflects the
+    # composed order.
+    if args.fps:
+        t1_feats = t1_feats + T1_FPS_FEATURES
+        b1_feats = b1_feats + B1_FPS_FEATURES
+        variant = variant + "+FPS"
+
     # Explicit startup print so the operator sees the variant + feature count
     # before any training math runs.  Designed to make the "silent V2.2
     # retraining" failure mode (forgot --fie, got 18 features instead of 19)
@@ -554,6 +638,7 @@ def main():
                            slim_weather=args.slim_weather,
                            phase_e3=args.phase_e3, phase_g=args.phase_g,
                            fie=args.fie,
+                           fps=args.fps,
                            ump_cache=ump_cache, ump_rates_data=ump_rates_data,
                            clean_only=args.clean_only)
                     for p in args.train]
@@ -593,8 +678,10 @@ def main():
     te = gather(Path(args.test), park, slim=args.slim, slim_k9=args.slim_k9,
                 slim_weather=args.slim_weather, phase_e3=args.phase_e3, phase_g=args.phase_g,
                 fie=args.fie,
+                fps=args.fps,
                 ump_cache=ump_cache, ump_rates_data=ump_rates_data,
-                clean_only=False)
+                clean_only=False,
+                emit_meta=bool(args.emit_rowwise))
     if not te:
         sys.exit("No test rows.")
 
@@ -614,6 +701,26 @@ def main():
     q1r, q1w, q1n = q1_yrfi(p_nrfi, y_nrfi)
     print(f"  Two-stage Q5 NRFI: {q5w}-{q5n - q5w} ({q5r*100:.1f}%)")
     print(f"  Two-stage Q1 YRFI: {q1w}-{q1n - q1w} ({q1r*100:.1f}%)")
+
+    # Phase 2.3: rowwise emit for downstream Gate C elite-power filter.
+    # Lands AFTER the all-rows Brier print so a downstream parser that
+    # was relying on stdout sees the same line ordering it always saw.
+    if args.emit_rowwise:
+        out_path = Path(args.emit_rowwise)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["date", "game_pk", "p_nrfi_pred", "y_actual",
+                        "brier_row", "home_top3c_iso", "away_top3c_iso"])
+            for i, m in enumerate(te["meta"]):
+                p_i = float(p_nrfi[i])
+                y_i = int(y_nrfi[i])
+                w.writerow([m["date"], m["game_pk"],
+                            f"{p_i:.6f}", y_i,
+                            f"{(p_i - y_i) ** 2:.6f}",
+                            f"{m['home_top3c_iso']:.4f}",
+                            f"{m['away_top3c_iso']:.4f}"])
+        print(f"  Rowwise CSV saved -> {out_path}  (N={len(te['meta'])})")
 
     # ---------- Side-by-side: V2 baseline ----------
     print("\n  Loading current V2 production model + calibrator for comparison...")

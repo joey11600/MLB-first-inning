@@ -56,6 +56,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import subprocess
 import sys
@@ -70,7 +71,8 @@ def _run_one_train(label: str,
                    train: list[str],
                    test: str,
                    save_t1: Path,
-                   save_b1: Path) -> dict:
+                   save_b1: Path,
+                   emit_rowwise: Path | None = None) -> dict:
     """Spawn two_stage_model.py with the given flags + save paths.
     Returns dict with brier_two_stage (the candidate's two-stage Brier),
     brier_v2 (the script's incidental V2-single-LR baseline), stdout,
@@ -81,6 +83,8 @@ def _run_one_train(label: str,
            + ["--train"] + train
            + ["--test", test]
            + ["--save-t1", str(save_t1), "--save-b1", str(save_b1)])
+    if emit_rowwise is not None:
+        cmd += ["--emit-rowwise", str(emit_rowwise)]
     print(f"    spawn: {' '.join(cmd)}")
     out = subprocess.run(cmd, capture_output=True, text=True, timeout=900, cwd=str(ROOT))
 
@@ -102,6 +106,40 @@ def _run_one_train(label: str,
             "returncode":       out.returncode}
 
 
+def _read_rowwise_brier(path: Path, elite_iso_threshold: float = 0.25
+                        ) -> dict:
+    """Read a rowwise CSV emitted by two_stage_model.py --emit-rowwise
+    and compute both the all-rows Brier and the elite-power subset
+    Brier (rows where home_top3c_iso >= threshold OR away_top3c_iso
+    >= threshold).  Returns dict with all_brier, all_n, elite_brier,
+    elite_n.  NaN Brier when the relevant N is zero."""
+    if not path.exists():
+        return {"all_brier": float("nan"), "all_n": 0,
+                "elite_brier": float("nan"), "elite_n": 0}
+    import csv as _csv
+    all_se = elite_se = 0.0
+    all_n  = elite_n  = 0
+    with open(path, encoding="utf-8") as f:
+        for r in _csv.DictReader(f):
+            try:
+                br = float(r["brier_row"])
+                hiso = float(r["home_top3c_iso"])
+                aiso = float(r["away_top3c_iso"])
+            except (KeyError, ValueError):
+                continue
+            all_se += br
+            all_n  += 1
+            if hiso >= elite_iso_threshold or aiso >= elite_iso_threshold:
+                elite_se += br
+                elite_n  += 1
+    return {
+        "all_brier":   (all_se / all_n)     if all_n   else float("nan"),
+        "all_n":       all_n,
+        "elite_brier": (elite_se / elite_n) if elite_n else float("nan"),
+        "elite_n":     elite_n,
+    }
+
+
 def _resolve_flags(args) -> tuple[list[str], list[str], str, str]:
     """From parsed args, return (baseline_flags, candidate_flags,
     baseline_label, candidate_label).  Baseline is always --phase-e3
@@ -110,8 +148,8 @@ def _resolve_flags(args) -> tuple[list[str], list[str], str, str]:
     # Auto-enable --phase-e3 if a candidate-only flag was given.  Mirror
     # the two_stage_model.py behavior so the validation script doesn't
     # diverge from the underlying script's autoload rules.
-    if (args.phase_g or args.fie) and not args.phase_e3:
-        print("[note] --phase-g/--fie require --phase-e3; enabling phase-e3 automatically")
+    if (args.phase_g or args.fie or args.fps) and not args.phase_e3:
+        print("[note] candidate add-on flags require --phase-e3; enabling phase-e3 automatically")
         args.phase_e3 = True
 
     baseline_flags = ["--phase-e3"]
@@ -123,6 +161,9 @@ def _resolve_flags(args) -> tuple[list[str], list[str], str, str]:
     if args.fie:
         candidate_flags.append("--fie")
         candidate_extras.append("FIE")
+    if args.fps:
+        candidate_flags.append("--fps")
+        candidate_extras.append("FPS")
 
     baseline_label = "PHASE_E3"
     candidate_label = "PHASE_E3" + ("+" + "+".join(candidate_extras) if candidate_extras else "")
@@ -141,6 +182,8 @@ def main() -> int:
                    help="Candidate add-on: top-3 last-10-games batter features.")
     p.add_argument("--fie", action="store_true",
                    help="Candidate add-on: Phase 2.1 first-inning ERA Bayesian blend.")
+    p.add_argument("--fps", action="store_true",
+                   help="Candidate add-on: Phase 2.2 first-pitch strike % in 1st inning.")
     p.add_argument("--candidate", required=True, type=Path,
                    help="Directory for the candidate's trained weights "
                         "(lr_t1.json + lr_b1.json).")
@@ -151,6 +194,13 @@ def main() -> int:
     p.add_argument("--quick", action="store_true",
                    help="(reserved) skip slowest test; currently no-op since "
                         "walk-forward lives in tools/candidate_walkforward.py.")
+    p.add_argument("--gate-c-elite-power", action="store_true",
+                   help="After each split, also compute Brier on the "
+                        "elite-power subset (home_top3c_iso >= 0.25 OR "
+                        "away_top3c_iso >= 0.25).  Requires per-subprocess "
+                        "rowwise CSVs (added automatically via "
+                        "--emit-rowwise to the spawned two_stage_model.py).  "
+                        "Locked threshold: S3 elite-power Brier delta <= +0.005.")
     args = p.parse_args()
 
     baseline_flags, candidate_flags, baseline_label, candidate_label = _resolve_flags(args)
@@ -184,15 +234,36 @@ def main() -> int:
     ]
     wins = losses = 0
     s3_base = s3_cand = None
+    s3_base_elite = s3_cand_elite = None
+    s3_base_elite_n = s3_cand_elite_n = 0
     any_failure = False
 
     for label, train, test in splits:
+        # Gate C: pre-compute rowwise CSV paths.  Files live in a dedicated
+        # rowwise/ subdir to keep the parent candidate / baseline dirs
+        # uncluttered (those dirs hold the trained model artifact -- weights
+        # only).  Split ID parsed from the label so an S1/S2/S3 reordering
+        # doesn't break filename mapping.
+        #
+        # Baseline rowwise files at <baseline_tmp>/rowwise/s*.csv are
+        # overwritten on every candidate run.  Safe because baseline training
+        # is deterministic: same --phase-e3 flags + same train CSV + same
+        # L2 = same weights = same predictions = byte-identical rowwise CSV.
+        if args.gate_c_elite_power:
+            split_id = label.split(":")[0].strip().lower()   # "s1","s2","s3"
+            base_rowwise = args.baseline_tmp / "rowwise" / f"{split_id}.csv"
+            cand_rowwise = args.candidate    / "rowwise" / f"{split_id}.csv"
+        else:
+            base_rowwise = cand_rowwise = None
+
         base = _run_one_train(label, baseline_flags, train, test,
                               args.baseline_tmp / "lr_t1.json",
-                              args.baseline_tmp / "lr_b1.json")
+                              args.baseline_tmp / "lr_b1.json",
+                              emit_rowwise=base_rowwise)
         cand = _run_one_train(label, candidate_flags, train, test,
                               args.candidate / "lr_t1.json",
-                              args.candidate / "lr_b1.json")
+                              args.candidate / "lr_b1.json",
+                              emit_rowwise=cand_rowwise)
         if base["returncode"] != 0 or cand["returncode"] != 0:
             any_failure = True
             print(f"  {label:<28}  SUBPROCESS FAILURE (rc base={base['returncode']} cand={cand['returncode']})")
@@ -213,6 +284,44 @@ def main() -> int:
         if delta < 0: wins += 1
         elif delta > 0: losses += 1
         print(f"  {label:<28}  {b22:>11.4f}  {bcd:>11.4f}  {delta:>+7.4f}  {verdict}")
+
+        # Gate C: elite-power subset Brier comparison.  Reads the rowwise
+        # CSVs both subprocesses wrote.  N reported in parens; small N (esp
+        # S3 ~71 rows) means the delta has wide confidence bands -- the
+        # locked threshold (+0.005) is intentionally looser than Gate A's
+        # -0.003 because of that.
+        if args.gate_c_elite_power and base_rowwise is not None and cand_rowwise is not None:
+            br_b = _read_rowwise_brier(base_rowwise)
+            br_c = _read_rowwise_brier(cand_rowwise)
+            d_elite = br_c["elite_brier"] - br_b["elite_brier"]
+            if math.isnan(d_elite):
+                print(f"    [elite-power]  rowwise CSV missing or empty subset")
+            else:
+                v = ("CAND BETTER" if d_elite < -0.001
+                     else "BASE BETTER" if d_elite > 0.001
+                     else "TIE")
+                print(f"    [elite-power]  base={br_b['elite_brier']:.4f} (n={br_b['elite_n']})  "
+                      f"cand={br_c['elite_brier']:.4f} (n={br_c['elite_n']})  "
+                      f"delta={d_elite:+.4f}  {v}")
+            # Verify row alignment by game_pk between baseline and candidate
+            # CSVs (cheap insurance; row-index alignment is already guaranteed
+            # by gather()'s feature-flag-independent row survival).
+            try:
+                import csv as _csv
+                with open(base_rowwise, encoding="utf-8") as f:
+                    base_pks = [r["game_pk"] for r in _csv.DictReader(f)]
+                with open(cand_rowwise, encoding="utf-8") as f:
+                    cand_pks = [r["game_pk"] for r in _csv.DictReader(f)]
+                if base_pks != cand_pks:
+                    print(f"    [elite-power]  WARN: baseline/candidate game_pk lists differ "
+                          f"(base N={len(base_pks)}, cand N={len(cand_pks)}); "
+                          f"row alignment broken -- treat the elite-power delta with suspicion")
+            except Exception:
+                pass
+            if label.startswith("S3"):
+                s3_base_elite, s3_cand_elite = br_b["elite_brier"], br_c["elite_brier"]
+                s3_base_elite_n, s3_cand_elite_n = br_b["elite_n"], br_c["elite_n"]
+
         if label.startswith("S3"):
             s3_base, s3_cand = b22, bcd
 
@@ -234,6 +343,22 @@ def main() -> int:
         print(f"  S3 Brier delta <= -0.003:       {g2}")
     else:
         print(f"  S3 Brier delta <= -0.003:       UNKNOWN (S3 did not produce Brier)")
+
+    # Gate C decision (only when --gate-c-elite-power active).  Threshold
+    # is a code literal (+0.005), not a CLI flag, to match the Gate A
+    # -0.003 pattern -- the threshold should be locked before the test
+    # runs, not tunable post-hoc.
+    if args.gate_c_elite_power:
+        if (s3_base_elite is not None and s3_cand_elite is not None
+                and not math.isnan(s3_base_elite) and not math.isnan(s3_cand_elite)):
+            d = s3_cand_elite - s3_base_elite
+            gC = "PASS" if d <= 0.005 else "FAIL"
+            print(f"  S3 elite-power Brier <= +0.005: {gC}   "
+                  f"delta={d:+.4f} (base n={s3_base_elite_n}, cand n={s3_cand_elite_n})")
+        else:
+            print(f"  S3 elite-power Brier <= +0.005: UNKNOWN "
+                  f"(rowwise CSV missing or zero elite-power rows)")
+
     print()
     print("  Walk-forward (Gate B) is a separate step.  Run:")
     print(f"      python tools/candidate_walkforward.py {' '.join(candidate_flags)} "
