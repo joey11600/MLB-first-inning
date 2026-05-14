@@ -1,7 +1,7 @@
 {
   "date": "2026-05-14",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-14T21:18:26Z",
+  "fitted_at": "2026-05-14T22:01:42Z",
   "n_picks": 11,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -348,9 +348,9 @@
       "pick_side": "YRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.385,
-      "raw_p_run_b1": 0.2554,
-      "raw_p_nrfi": 0.458,
+      "raw_p_run_t1": 0.3906,
+      "raw_p_run_b1": 0.2563,
+      "raw_p_nrfi": 0.4532,
       "calibrated_p_nrfi": 0.4401,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -576,10 +576,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2562,
-      "raw_p_run_b1": 0.3563,
-      "raw_p_nrfi": 0.4788,
-      "calibrated_p_nrfi": 0.459,
+      "raw_p_run_t1": 0.257,
+      "raw_p_run_b1": 0.3565,
+      "raw_p_nrfi": 0.4781,
+      "calibrated_p_nrfi": 0.4563,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": true,
@@ -604,19 +604,19 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 26.0,
+          "z": -2.054,
+          "weight": -0.0631,
+          "contribution": 0.1297,
+          "outlier": false
+        },
+        {
           "name": "home_fip",
           "value": 2.796,
           "z": -2.568,
           "weight": 0.0492,
           "contribution": -0.1262,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 27.0,
-          "z": -1.99,
-          "weight": -0.0631,
-          "contribution": 0.1256,
           "outlier": false
         },
         {
@@ -804,9 +804,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2711,
-      "raw_p_run_b1": 0.289,
-      "raw_p_nrfi": 0.5183,
+      "raw_p_run_t1": 0.2725,
+      "raw_p_run_b1": 0.2887,
+      "raw_p_nrfi": 0.5175,
       "calibrated_p_nrfi": 0.5,
       "calibrator_band": {
         "band": "bin_10-11",
