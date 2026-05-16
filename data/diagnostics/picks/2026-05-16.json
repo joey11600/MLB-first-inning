@@ -1,7 +1,7 @@
 {
   "date": "2026-05-16",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-16T21:34:55Z",
+  "fitted_at": "2026-05-16T21:40:54Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -238,10 +238,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3507,
-      "raw_p_run_b1": 0.3394,
-      "raw_p_nrfi": 0.4289,
-      "calibrated_p_nrfi": 0.4215,
+      "raw_p_run_t1": 0.3506,
+      "raw_p_run_b1": 0.3391,
+      "raw_p_nrfi": 0.4292,
+      "calibrated_p_nrfi": 0.4224,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -325,10 +325,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 19.6,
-          "z": 1.373,
+          "value": 19.3,
+          "z": 1.319,
           "weight": 0.0268,
-          "contribution": 0.0368,
+          "contribution": 0.0353,
           "outlier": false
         }
       ],
@@ -811,9 +811,9 @@
       "pick_strength": "LEAN",
       "graded_result": "",
       "raw_p_run_t1": 0.2666,
-      "raw_p_run_b1": 0.2888,
-      "raw_p_nrfi": 0.5216,
-      "calibrated_p_nrfi": 0.5084,
+      "raw_p_run_b1": 0.2889,
+      "raw_p_nrfi": 0.5215,
+      "calibrated_p_nrfi": 0.508,
       "calibrator_band": {
         "band": "bin_11-12",
         "is_flat": true,
@@ -924,10 +924,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.437,
-      "raw_p_run_b1": 0.2669,
-      "raw_p_nrfi": 0.4128,
-      "calibrated_p_nrfi": 0.3686,
+      "raw_p_run_t1": 0.4368,
+      "raw_p_run_b1": 0.2665,
+      "raw_p_nrfi": 0.4131,
+      "calibrated_p_nrfi": 0.3696,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -1039,9 +1039,9 @@
       "pick_side": "YRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2845,
-      "raw_p_run_b1": 0.3845,
-      "raw_p_nrfi": 0.4404,
+      "raw_p_run_t1": 0.2847,
+      "raw_p_run_b1": 0.3855,
+      "raw_p_nrfi": 0.4396,
       "calibrated_p_nrfi": 0.4401,
       "calibrator_band": {
         "band": "bin_1-2",
