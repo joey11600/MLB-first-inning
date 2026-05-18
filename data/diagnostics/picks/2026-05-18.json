@@ -1,7 +1,7 @@
 {
   "date": "2026-05-18",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-18T19:36:22Z",
+  "fitted_at": "2026-05-18T19:45:22Z",
   "n_picks": 14,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1486,34 +1486,42 @@
     {
       "matchup": "BOS@KC",
       "game_pk": "824114",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2916,
-      "raw_p_run_b1": 0.2709,
-      "raw_p_nrfi": 0.5165,
-      "calibrated_p_nrfi": 0.5,
+      "raw_p_run_t1": 0.2203,
+      "raw_p_run_b1": 0.2735,
+      "raw_p_nrfi": 0.5665,
+      "calibrated_p_nrfi": 0.5547,
       "calibrator_band": {
-        "band": "bin_10-11",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_17-18",
+        "is_flat": true,
+        "flat_size": 3,
+        "flat_rate": 0.541095890410959
       },
       "top_drivers_t1": [
         {
           "name": "away_top3c_slg",
-          "value": 0.3703,
-          "z": -1.158,
+          "value": 0.3844,
+          "z": -0.928,
           "weight": -0.428,
-          "contribution": 0.4958,
+          "contribution": 0.3972,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_iso",
+          "value": 0.1365,
+          "z": -0.92,
+          "weight": 0.3813,
+          "contribution": -0.3509,
           "outlier": false
         },
         {
           "name": "away_top3c_obp",
-          "value": 0.312,
-          "z": -0.895,
+          "value": 0.3122,
+          "z": -0.888,
           "weight": 0.1726,
-          "contribution": -0.1544,
+          "contribution": -0.1532,
           "outlier": false
         },
         {
@@ -1530,14 +1538,6 @@
           "z": 1.263,
           "weight": -0.0631,
           "contribution": -0.0798,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.202,
-          "weight": 0.3813,
-          "contribution": -0.0772,
           "outlier": false
         }
       ],
@@ -1593,7 +1593,9 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": []
+      "warnings": [
+        "calibrator flat zone: 3 bins all map to rate 0.5411 (multiple distinct raw probs collapse here)"
+      ]
     }
   ]
 }
