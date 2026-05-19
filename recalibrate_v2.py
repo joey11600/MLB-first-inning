@@ -74,6 +74,8 @@ T1_FEATURES = [
     "away_top3c_iso",
     "home_pvt_nrfi_rate",
     "home_avg_ip_per_start",
+    # 2026-05-19 VSHAND: top-3 OPS vs opposing starter's hand
+    "away_top3_ops_vs_oppHand",
 ]
 B1_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -89,7 +91,10 @@ B1_FEATURES = [
     "home_top3c_iso",
     "away_pvt_nrfi_rate",
     "away_avg_ip_per_start",
+    # 2026-05-19 VSHAND: top-3 OPS vs opposing starter's hand
+    "home_top3_ops_vs_oppHand",
 ]
+LEAGUE_AVG_OPS_VSHAND = 0.720    # matches archive backfill convention
 
 
 def _load_one(path: Path, expected: list[str]) -> dict:
@@ -182,6 +187,8 @@ def _build_t1_b1_phase_e3(r, fi_park):
         # Phase F:
         coerce_float(r.get("home_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
         coerce_float(r.get("home_avg_ip_per_start"),     5.0),
+        # 2026-05-19 VSHAND:
+        coerce_float(r.get("away_top3_ops_vs_oppHand"),  LEAGUE_AVG_OPS_VSHAND),
     ]
     b1_vec = [
         fi_park,
@@ -200,6 +207,8 @@ def _build_t1_b1_phase_e3(r, fi_park):
         # Phase F:
         coerce_float(r.get("away_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
         coerce_float(r.get("away_avg_ip_per_start"),     5.0),
+        # 2026-05-19 VSHAND:
+        coerce_float(r.get("home_top3_ops_vs_oppHand"),  LEAGUE_AVG_OPS_VSHAND),
     ]
     return t1_vec, b1_vec
 

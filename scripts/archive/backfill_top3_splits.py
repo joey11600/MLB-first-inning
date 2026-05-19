@@ -26,7 +26,7 @@ try:
 except ImportError:
     sys.exit("Install: pip install mlb-statsapi")
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parents[2]  # repo root (script lives at scripts/archive/)
 LINEUP_CACHE  = ROOT / "data" / "cache" / "lineup"
 SPLITS_CACHE  = ROOT / "data" / "cache" / "batter_splits"
 PHAND_CACHE   = ROOT / "data" / "cache" / "pitcher_hand"

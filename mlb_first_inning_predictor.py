@@ -1018,6 +1018,8 @@ _T1_EXPECTED_FEATURES = [
     # Phase F: pitcher-vs-team familiarity + opener detection
     "home_pvt_nrfi_rate",      # career NRFI rate vs this opposing team (Bayesian-shrunk)
     "home_avg_ip_per_start",   # last-5 avg IP; <3 IP suggests opener
+    # 2026-05-19 (VSHAND): top-3 OPS vs opposing starter's hand
+    "away_top3_ops_vs_oppHand",
 ]
 _B1_EXPECTED_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -1034,12 +1036,15 @@ _B1_EXPECTED_FEATURES = [
     # Phase F: pitcher-vs-team familiarity + opener detection
     "away_pvt_nrfi_rate",
     "away_avg_ip_per_start",
+    # 2026-05-19 (VSHAND): top-3 OPS vs opposing starter's hand
+    "home_top3_ops_vs_oppHand",
 ]
 
 # Defaults for new features when fetch fails (used in feature builders below)
 _LEAGUE_NRFI_RATE = 0.50
 _LEAGUE_AVG_XERA  = 4.20
 _NEUTRAL_PCT_RANK = 50.0
+_LEAGUE_AVG_OPS_VSHAND = 0.720    # archive backfill convention
 
 
 def _load_lr_models() -> tuple[dict | None, dict | None]:
@@ -1529,6 +1534,7 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  home_pvt_nrfi:   float = _LEAGUE_NRFI_RATE,
                  home_avg_ip_per_start: float = 5.0,
+                 away_top3_ops_vs_oppHand: float = _LEAGUE_AVG_OPS_VSHAND,
                  season: int = 2026,
                  date_iso: str | None = None) -> list[float]:
     """T1 (top of 1st) feature vector: home pitcher vs away offense at home park.
@@ -1570,6 +1576,7 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
         away_top3c_iso,
         home_pvt_nrfi,                # Phase F: pitcher vs this team familiarity
         home_avg_ip_per_start,        # Phase F: opener detection (low IP -> opener)
+        away_top3_ops_vs_oppHand,     # 2026-05-19 VSHAND: top3 OPS vs home pitcher's hand
     ]
 
 
@@ -1585,6 +1592,7 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
                  ump_rate:        float = _LEAGUE_NRFI_RATE,
                  away_pvt_nrfi:   float = _LEAGUE_NRFI_RATE,
                  away_avg_ip_per_start: float = 5.0,
+                 home_top3_ops_vs_oppHand: float = _LEAGUE_AVG_OPS_VSHAND,
                  season: int = 2026,
                  date_iso: str | None = None) -> list[float]:
     """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park.
@@ -1620,6 +1628,7 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
         home_top3c_iso,
         away_pvt_nrfi,                # Phase F: pitcher vs this team familiarity
         away_avg_ip_per_start,        # Phase F: opener detection
+        home_top3_ops_vs_oppHand,     # 2026-05-19 VSHAND: top3 OPS vs away pitcher's hand
     ]
 
 
@@ -2214,6 +2223,31 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 )
         except Exception: pass
 
+        # 2026-05-19 VSHAND: top-3 batters' OPS vs opposing starter's hand.
+        # Imports the (currently-archived) helpers that handle pitcher hand
+        # + per-batter handedness-split OPS lookup with on-disk cache.
+        away_top3_ops_vs_oppHand = _LEAGUE_AVG_OPS_VSHAND
+        home_top3_ops_vs_oppHand = _LEAGUE_AVG_OPS_VSHAND
+        away_p_throws = home_p_throws = ""
+        try:
+            from scripts.archive.backfill_top3_splits import (
+                fetch_pitcher_hand, top3_ops_vs_hand,
+            )
+            away_p_throws = fetch_pitcher_hand(int(game["away_pitcher_id"]), season)
+            home_p_throws = fetch_pitcher_hand(int(game["home_pitcher_id"]), season)
+            if top3.get("away_top3"):
+                # away batters face HOME pitcher's hand
+                away_top3_ops_vs_oppHand = top3_ops_vs_hand(
+                    top3["away_top3"], home_p_throws, season,
+                )
+            if top3.get("home_top3"):
+                # home batters face AWAY pitcher's hand
+                home_top3_ops_vs_oppHand = top3_ops_vs_hand(
+                    top3["home_top3"], away_p_throws, season,
+                )
+        except Exception:
+            pass
+
         # Home plate umpire NRFI rate (Phase D)
         ump_id, ump_rate = fetch_umpire_rate(int(game["game_pk"]))
 
@@ -2247,6 +2281,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             ump_rate=ump_rate,
             home_pvt_nrfi=home_pvt_nrfi,           # Phase F: familiarity
             home_avg_ip_per_start=home_avg_ip,     # Phase F: opener detection
+            away_top3_ops_vs_oppHand=away_top3_ops_vs_oppHand,   # 2026-05-19 VSHAND
             season=season,
             date_iso=target_iso,                   # T4.2: priors-pooled Statcast
         )
@@ -2262,6 +2297,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             ump_rate=ump_rate,
             away_pvt_nrfi=away_pvt_nrfi,
             away_avg_ip_per_start=away_avg_ip,
+            home_top3_ops_vs_oppHand=home_top3_ops_vs_oppHand,   # 2026-05-19 VSHAND
             season=season,
             date_iso=target_iso,                   # T4.2: priors-pooled Statcast
         )
@@ -2463,6 +2499,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "away_pvt_nrfi_rate":         away_pvt_nrfi,
             "home_avg_ip_per_start":      home_avg_ip,
             "away_avg_ip_per_start":      away_avg_ip,
+            # 2026-05-19 VSHAND: top-3 OPS vs opposing starter's hand
+            "away_top3_ops_vs_oppHand":   away_top3_ops_vs_oppHand,
+            "home_top3_ops_vs_oppHand":   home_top3_ops_vs_oppHand,
+            "away_pitcher_throws_hand":   away_p_throws,
+            "home_pitcher_throws_hand":   home_p_throws,
             "pick_side":     pick_side,
             "pick_conf":     pick_conf,
             # T2.53: full ordered list of PASS reasons (empty for non-PASS

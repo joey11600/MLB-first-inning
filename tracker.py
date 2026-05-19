@@ -98,6 +98,9 @@ FIELDS = [
     # --- Phase F: pitcher-vs-team familiarity + opener detection ---
     "home_pvt_nrfi_rate", "away_pvt_nrfi_rate",
     "home_avg_ip_per_start", "away_avg_ip_per_start",
+    # --- 2026-05-19 VSHAND: top-3 OPS vs opposing starter's hand ---
+    "away_top3_ops_vs_oppHand", "home_top3_ops_vs_oppHand",
+    "away_pitcher_throws_hand", "home_pitcher_throws_hand",
     # --- result (filled by --grade) ---
     "actual_result",     # NRFI | YRFI | POSTPONED | SUSPENDED
     "graded_result",     # WIN | LOSS | PASS | POSTPONED | SUSPENDED
@@ -740,6 +743,11 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "away_pvt_nrfi_rate":         _fmt(g.get("away_pvt_nrfi_rate"),       4),
             "home_avg_ip_per_start":      _fmt(g.get("home_avg_ip_per_start"),    2),
             "away_avg_ip_per_start":      _fmt(g.get("away_avg_ip_per_start"),    2),
+            # 2026-05-19 VSHAND: top-3 OPS vs opposing starter's hand
+            "away_top3_ops_vs_oppHand":   _fmt(g.get("away_top3_ops_vs_oppHand"), 4),
+            "home_top3_ops_vs_oppHand":   _fmt(g.get("home_top3_ops_vs_oppHand"), 4),
+            "away_pitcher_throws_hand":   g.get("away_pitcher_throws_hand", ""),
+            "home_pitcher_throws_hand":   g.get("home_pitcher_throws_hand", ""),
             # result fields start empty (preserved if already set)
             "actual_result": "", "graded_result": "",
             "fi_away_runs":  "", "fi_home_runs":  "", "fi_total_runs": "",
