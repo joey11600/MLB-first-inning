@@ -23,6 +23,7 @@ This script:
 After running, regenerate today's picks: `python mlb_first_inning_predictor.py`
 """
 
+import argparse
 import csv
 import json
 import math
@@ -40,15 +41,15 @@ ROOT          = Path(__file__).parent
 LR_T1_PATH    = ROOT / "data" / "lr_t1.json"
 LR_B1_PATH    = ROOT / "data" / "lr_b1.json"
 FI_PARK_PATH  = ROOT / "data" / "fi_park_factors.json"
-BT_2025_PATH  = ROOT / "data" / "backtests" / "backtest_2025-04-01_to_2025-09-30.csv"
+BT_2025_PATH  = ROOT / "data" / "backtests" / "backtest_2025-04-01_to_2025-09-30_truepit.csv"
 PICKS_2026    = ROOT / "data" / "picks_2026.csv"
 CAL_OUT_PATH  = ROOT / "data" / "calibration_v2.json"
 
-LEAGUE_AVG_ERA = 4.20
-LEAGUE_AVG_HR9 = 1.20
-LEAGUE_AVG_BB9 = 3.20
-LEAGUE_AVG_OBP = 0.318
-LEAGUE_AVG_SLG = 0.414
+LEAGUE_AVG_ERA = 4.17
+LEAGUE_AVG_HR9 = 1.21
+LEAGUE_AVG_BB9 = 2.93
+LEAGUE_AVG_OBP = 0.316
+LEAGUE_AVG_SLG = 0.407
 LEAGUE_AVG_ISO = 0.169
 FI_PARK_DEFAULT = 0.50
 WX_TEMP_DEFAULT     = 20.0
@@ -258,8 +259,28 @@ def brier(p, y):
 
 
 def main():
+    ap = argparse.ArgumentParser(
+        description="Refit two-stage LR isotonic calibrator on graded picks."
+    )
+    ap.add_argument(
+        "--since",
+        default=None,
+        help="ISO date (YYYY-MM-DD).  When set, only include picks with date >= --since.  "
+             "If the cutoff is past the end of 2025 (i.e. >= 2025-10-01), 2025 backtest is "
+             "skipped entirely.  Useful for a trailing-window refit that's responsive to "
+             "current run environment.",
+    )
+    args = ap.parse_args()
+
+    cutoff = args.since.strip() if args.since else None
+    skip_2025 = bool(cutoff and cutoff >= "2025-10-01")
+
     print("=" * 64)
-    print("  Recalibrating two-stage LR isotonic mapping on 2025 + 2026 combined")
+    if cutoff:
+        print(f"  Recalibrating: trailing window from {cutoff} onwards"
+              f"{'  (2025 backtest skipped)' if skip_2025 else ''}")
+    else:
+        print("  Recalibrating two-stage LR isotonic mapping on 2025 + 2026 combined")
     print("=" * 64)
 
     if not LR_T1_PATH.exists() or not LR_B1_PATH.exists():
@@ -268,19 +289,32 @@ def main():
     t1_model, b1_model = load_lr_models()
     fi_park_map = load_fi_park()
 
-    # 2025 backtest
-    with open(BT_2025_PATH, encoding="utf-8") as f:
-        bt_rows = list(csv.DictReader(f))
-    X25_t1, X25_b1, y25, skip25 = gather_from_backtest(bt_rows, fi_park_map)
-    p25 = lr_predict_two_stage(t1_model, b1_model, X25_t1, X25_b1)
-    print(f"\n2025 holdout : N={len(y25)} (skipped {skip25})")
-    print(f"  Mean raw pred   : {p25.mean()*100:.2f}%")
-    print(f"  Actual NRFI rate: {y25.mean()*100:.2f}%")
-    print(f"  Raw Brier       : {brier(p25, y25):.4f}")
+    # 2025 backtest -- skip entirely if cutoff is past 2025
+    if skip_2025:
+        X25_t1 = np.zeros((0, 18))
+        X25_b1 = np.zeros((0, 18))
+        y25 = np.zeros(0, dtype=int)
+        p25 = np.zeros(0)
+        skip25 = 0
+        print(f"\n2025 holdout : SKIPPED (cutoff {cutoff} >= 2025-10-01)")
+    else:
+        with open(BT_2025_PATH, encoding="utf-8") as f:
+            bt_rows = list(csv.DictReader(f))
+        if cutoff:
+            bt_rows = [r for r in bt_rows if (r.get("date") or "") >= cutoff]
+        X25_t1, X25_b1, y25, skip25 = gather_from_backtest(bt_rows, fi_park_map)
+        p25 = lr_predict_two_stage(t1_model, b1_model, X25_t1, X25_b1)
+        print(f"\n2025 holdout : N={len(y25)} (skipped {skip25})")
+        if len(y25):
+            print(f"  Mean raw pred   : {p25.mean()*100:.2f}%")
+            print(f"  Actual NRFI rate: {y25.mean()*100:.2f}%")
+            print(f"  Raw Brier       : {brier(p25, y25):.4f}")
 
-    # 2026 graded so far
+    # 2026 graded so far -- always apply cutoff if provided
     with open(PICKS_2026, encoding="utf-8") as f:
         pk_rows = list(csv.DictReader(f))
+    if cutoff:
+        pk_rows = [r for r in pk_rows if (r.get("date") or "") >= cutoff]
     X26_t1, X26_b1, y26, skip26 = gather_from_picks(pk_rows, fi_park_map)
     p26 = lr_predict_two_stage(t1_model, b1_model, X26_t1, X26_b1)
     print(f"\n2026 graded  : N={len(y26)} (skipped {skip26})")

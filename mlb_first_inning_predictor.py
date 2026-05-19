@@ -62,21 +62,23 @@ def _today_et() -> date:
 # ---------------------------------------------------------------------------
 # League-wide constants  (T3.11 — version-stamped)
 # ---------------------------------------------------------------------------
-# Source: MLB league averages, 2023-2024 seasons (combined).
-# Last verified: 2026-01-15.
+# Source: MLB league averages, 2024-2025 seasons combined.
+# Derived empirically from data/backtests/backtest_{2024,2025}-*_truepit.csv
+# (n=9,604 first half-innings, n=9,604 pitcher-row samples).
+# Last verified: 2026-05-19.
 # When updating: refresh ALL constants to the same source season range,
 # rebuild park factors (rebuild_park_factors.py), and refit the calibrator
 # (recalibrate_v2.py).  Mismatched-vintage constants silently bias the
 # Bayesian-blend toward older data when you only update one.
-LEAGUE_CONSTANTS_VERSION  = "2023-2024"
-LEAGUE_CONSTANTS_VERIFIED = "2026-01-15"
+LEAGUE_CONSTANTS_VERSION  = "2024-2025"
+LEAGUE_CONSTANTS_VERIFIED = "2026-05-19"
 
-LEAGUE_FIRST_INNING_RUNS = 0.475   # avg runs per team per first half-inning
-LEAGUE_AVG_ERA           = 4.20
-LEAGUE_AVG_WHIP          = 1.25
-LEAGUE_AVG_OPS           = 0.728
-LEAGUE_AVG_RPG           = 4.45
-FIP_CONSTANT             = 3.10
+LEAGUE_FIRST_INNING_RUNS = 0.510   # avg runs per team per first half-inning
+LEAGUE_AVG_ERA           = 4.17
+LEAGUE_AVG_WHIP          = 1.26
+LEAGUE_AVG_OPS           = 0.723
+LEAGUE_AVG_RPG           = 4.50
+FIP_CONSTANT             = 3.23
 
 # Bayesian shrinkage: how many "prior" IP/games we add before trusting real data.
 # At IP=PITCHER_PRIOR_IP  ->  50% real / 50% league avg.
@@ -84,14 +86,14 @@ FIP_CONSTANT             = 3.10
 PITCHER_PRIOR_IP  = 40.0
 TEAM_PRIOR_GAMES  = 15.0
 
-# League averages for expanded pitcher stats (2023-2024 MLB starters)
-LEAGUE_AVG_K9   = 8.9
-LEAGUE_AVG_BB9  = 3.20  # matches recalibrate_v2.py + regrade_and_rebet.py
-LEAGUE_AVG_HR9  = 1.20  # matches recalibrate_v2.py + regrade_and_rebet.py
+# League averages for expanded pitcher stats (2024-2025 MLB starters)
+LEAGUE_AVG_K9   = 8.75
+LEAGUE_AVG_BB9  = 2.93  # matches recalibrate_v2.py + regrade_and_rebet.py
+LEAGUE_AVG_HR9  = 1.21  # matches recalibrate_v2.py + regrade_and_rebet.py
 
 # League averages for expanded offense stats
-LEAGUE_AVG_OBP  = 0.318
-LEAGUE_AVG_SLG  = 0.414
+LEAGUE_AVG_OBP  = 0.316
+LEAGUE_AVG_SLG  = 0.407
 
 # Weather defaults -- match the trainer (two_stage_model.py).  Used both
 # for outdoor games where the open-meteo lookup failed and for indoor /
@@ -664,7 +666,7 @@ def _try_fetch_pitcher_fi_stats(player_id: int | None, season: int) -> dict | No
     try:
         data = statsapi.get("person", {
             "personId": player_id,
-            "hydrate": f"stats(group=[pitching],type=[statSplits],sitCodes=[i1],season={season})",
+            "hydrate": f"stats(group=[pitching],type=[statSplits],sitCodes=[i01],season={season})",
         })
         splits = (
             data.get("people", [{}])[0]
@@ -955,7 +957,7 @@ _LR_LEAN_YRFI_P   = 0.50
 #
 # NRFI does NOT need a ceiling: all 39 graded STRONG NRFI picks have
 # lambda <= 0.54, well below average, no bad zone to clip.
-_LR_LAMBDA_YRFI_FLOOR = 0.78
+_LR_LAMBDA_YRFI_FLOOR = 0.838   # 0.78 mechanically scaled by 0.510/0.475 in Phase 2 league-constants refresh
 
 
 def _write_thresholds_json() -> None:

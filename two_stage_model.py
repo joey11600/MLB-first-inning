@@ -47,11 +47,11 @@ sys.path.insert(0, str(ROOT))
 from lr_baseline import LogReg
 from calibration import ProbCalibrator
 
-LEAGUE_AVG_ERA = 4.20
-LEAGUE_AVG_HR9 = 1.20
-LEAGUE_AVG_BB9 = 3.20
-LEAGUE_AVG_OBP = 0.318
-LEAGUE_AVG_SLG = 0.414
+LEAGUE_AVG_ERA = 4.17
+LEAGUE_AVG_HR9 = 1.21
+LEAGUE_AVG_BB9 = 2.93
+LEAGUE_AVG_OBP = 0.316
+LEAGUE_AVG_SLG = 0.407
 LEAGUE_AVG_ISO = 0.169
 FI_PARK_DEFAULT = 0.50
 

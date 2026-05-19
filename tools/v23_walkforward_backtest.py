@@ -60,7 +60,7 @@ BT_25 = ROOT / "data" / "backtests" / "backtest_2025-04-01_to_2025-09-30_truepit
 
 STRONG_NRFI_P     = 0.56
 PASS_LO_P         = 0.44
-LAMBDA_YRFI_FLOOR = 0.78
+LAMBDA_YRFI_FLOOR = 0.838
 MIN_TRAIN_N       = 100   # below this, fall back to 2024+2025 production model
 THIN_PQ           = {"sm", "ltd"}
 

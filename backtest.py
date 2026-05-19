@@ -651,7 +651,7 @@ def prior_season_pitcher_fi(
     try:
         data = _api_get("person", {
             "personId": player_id,
-            "hydrate": f"stats(group=[pitching],type=[statSplits],sitCodes=[i1],season={season})",
+            "hydrate": f"stats(group=[pitching],type=[statSplits],sitCodes=[i01],season={season})",
         })
     except Exception:
         _cache_put("pitcher_fi", cache_key, {})

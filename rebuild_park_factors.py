@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
-BT_2025 = ROOT / "data" / "backtests" / "backtest_2025-04-01_to_2025-09-30.csv"
+BT_2025 = ROOT / "data" / "backtests" / "backtest_2025-04-01_to_2025-09-30_truepit.csv"
 PICKS_26 = ROOT / "data" / "picks_2026.csv"
 OUT_PATH = ROOT / "data" / "fi_park_factors.json"
 

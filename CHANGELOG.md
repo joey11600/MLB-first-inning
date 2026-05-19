@@ -11,6 +11,79 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-19] — Model-refresh ship: i01 fix + 2024-2025 vintage constants + park factor refresh
+
+Lands the bug-fix portion of a wider model-refresh investigation
+(2026-05-19 session).  Two architectural experiments (FIE retest with
+the i01 fix in place, and offense×pitcher interaction terms) were both
+tested and FAILED Gate A — those experiments are NOT shipped.  The
+shipped diff is the hygienic vintage refresh plus the i01 typo fix.
+
+### Fixed — pitcher first-inning ERA fetch (i01 sitCode typo)
+
+- `backtest.py:654` and `mlb_first_inning_predictor.py:667`:
+  `sitCodes=[i1]` → `sitCodes=[i01]`.  The `i1` code silently returned
+  empty splits for ~3 weeks (since commit a82677a, 2026-04-25), causing
+  `prior_season_pitcher_fi` to always fall through to the no-FI-data
+  branch.  Verified post-fix against Skubal 2025 (31.0 IP / 1.45 ERA),
+  Webb 2025 (34.0 IP / 3.71 ERA), Cole 2023 (33.0 IP / 2.73 ERA).
+  Pre-existing improvement_log row 2026-05-12-bug-prior-season-pitcher-fi-i1.
+  Real-world impact on LR picks: minimal — production LR doesn't
+  consume FI ERA directly (the legacy lambda diagnostic does).
+
+### Changed — league constants refreshed 2023-2024 → 2024-2025
+
+- `mlb_first_inning_predictor.py`, `two_stage_model.py`,
+  `recalibrate_v2.py`, `tools/v21_shadow_predict.py`: 9 LEAGUE_AVG_*
+  constants now derived empirically from
+  `data/backtests/backtest_{2024,2025}-*_truepit.csv` (n=9,604 first
+  half-innings).
+  Largest deltas (>1% from prior values):
+  - `LEAGUE_FIRST_INNING_RUNS`: 0.475 → 0.510  (+7.5%)
+  - `LEAGUE_AVG_BB9`:           3.20  → 2.93   (-8.4%)
+  - `LEAGUE_AVG_K9`:            8.9   → 8.75   (-1.7%)
+  - `LEAGUE_AVG_SLG`:           0.414 → 0.407  (-1.7%)
+  - `FIP_CONSTANT`:             3.10  → 3.23   (re-aligned to new ERA)
+  Other constants moved <1%.  Per the predictor's own LEAGUE_CONSTANTS
+  block warning, all constants and park factors refresh together.
+  Pre-existing improvement_log row 2026-05-12-bug-league-first-inning-runs-stale.
+- `_LR_LAMBDA_YRFI_FLOOR`: 0.78 → 0.838 in
+  `mlb_first_inning_predictor.py:958`, `tools/v21_shadow_predict.py`,
+  `tools/v23_walkforward_backtest.py`.  Mechanical scaling of
+  0.78 × (0.510/0.475) to keep the STRONG YRFI gate internally
+  consistent with the new league base rate.  Empirical re-derivation
+  deferred (future work).
+
+### Changed — park factors rebuilt on 2025+2026 to-date
+
+- `rebuild_park_factors.py`: BT_2025 path now points at the `_truepit`
+  CSV (non-truepit version was archived during May rev pass).
+- `data/fi_park_factors.json`: rebuilt.  Source mix 2025 (n=2393) +
+  2026 to-date (n=596) = 2989 graded games.  Base NRFI rate 49.78%.
+  All parks shifted <1pp from prior values — refresh was mostly
+  cosmetic but keeps the data current.
+
+### Added — recalibrate_v2.py `--since` flag + walk-forward tool
+
+- `recalibrate_v2.py`: optional `--since YYYY-MM-DD` argument for
+  trailing-window calibrator refits.  Default behavior unchanged
+  (full 2025+2026 fit).  Also updated `BT_2025_PATH` to truepit CSV.
+- `tools/walkforward_model_refresh.py`: new validation tool that
+  re-scores historical picks under proposed model changes and compares
+  hypothetical vs actual P&L.
+
+### Deferred — architecture work for next session
+
+The session's architectural experiments (FIE retest and offense ×
+pitcher interaction terms) both FAILED Gate A with the same +0.0014
+Brier delta on a small n=201 holdout — strong indication that the LR
+is at its plateau on current features under linear architecture.
+Future work needs a genuinely non-linear stage (gradient boost on
+residuals, or MLP) — explicit multi-week project, not in this commit.
+Companion improvement_log row 2026-05-14-finding-phase3-interaction-architecture.
+
+---
+
 ## [2026-05-12] — Playbook Phase 1.3: LEAN tier (track-only) + dashboard TOTAL preserves real-money meaning
 
 Resurrects the LEAN classifier tier as TRACK-ONLY (never bet) so the

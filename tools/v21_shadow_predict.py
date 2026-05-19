@@ -54,12 +54,12 @@ ET = ZoneInfo("America/New_York")
 # Same thresholds as production -- mirror predictor's classification logic.
 STRONG_NRFI_P    = 0.56
 PASS_LO_P        = 0.44
-LAMBDA_YRFI_FLOOR = 0.78
+LAMBDA_YRFI_FLOOR = 0.838
 
 # Same default constants as recalibrate_v2 / two_stage_model
-LEAGUE_AVG_ERA = 4.20
-LEAGUE_AVG_OBP = 0.318
-LEAGUE_AVG_SLG = 0.414
+LEAGUE_AVG_ERA = 4.17
+LEAGUE_AVG_OBP = 0.316
+LEAGUE_AVG_SLG = 0.407
 LEAGUE_AVG_ISO = 0.169
 FI_PARK_DEFAULT = 0.50
 WX_TEMP_DEFAULT, WX_WIND_DEFAULT, WX_HUMIDITY_DEFAULT = 20.0, 10.0, 60.0
