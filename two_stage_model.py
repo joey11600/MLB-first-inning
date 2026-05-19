@@ -163,9 +163,19 @@ B1_PHASE_G_FEATURES = B1_PHASE_E3_FEATURES + [
     "home_top3c_last10_iso",
 ]
 
+# Phase E.3 + VSHAND (2026-05-19): top-3 OPS vs starter handedness.
+# Raw column from truepit CSVs (2024 100%, 2025 90%, 2026 0%).
+T1_PHASE_E3_VSHAND_FEATURES = T1_PHASE_E3_FEATURES + ["away_top3_ops_vs_oppHand"]
+B1_PHASE_E3_VSHAND_FEATURES = B1_PHASE_E3_FEATURES + ["home_top3_ops_vs_oppHand"]
+
+# Phase E.3 + VSHAND_DIFF (2026-05-19): engineered orthogonal-to-OPS variant.
+T1_PHASE_E3_VSHAND_DIFF_FEATURES = T1_PHASE_E3_FEATURES + ["away_top3_vs_oppHand_diff"]
+B1_PHASE_E3_VSHAND_DIFF_FEATURES = B1_PHASE_E3_FEATURES + ["home_top3_vs_oppHand_diff"]
+
 # Defaults for Phase E.3 features when CSV cell is missing
 LEAGUE_NRFI_RATE     = 0.50
 LEAGUE_AVG_XERA      = 4.20
+LEAGUE_AVG_OPS       = 0.723   # OBP + SLG empirical 2024-2025
 NEUTRAL_PCT_RANK     = 50
 
 
@@ -190,6 +200,7 @@ def _ump_rate_for(r, ump_cache, ump_rates_data):
 def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
            slim_k9: bool = False, slim_weather: bool = False,
            phase_e3: bool = False, phase_g: bool = False,
+           phase_e3_vshand: bool = False, phase_e3_vshand_diff: bool = False,
            ump_cache=None, ump_rates_data=None,
            clean_only: bool = False) -> dict:
     """Returns dict of stacked numpy arrays for both halves' features and
@@ -284,6 +295,22 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                     coerce(r.get("away_pvt_nrfi_rate"),        LEAGUE_NRFI_RATE),
                     coerce(r.get("away_avg_ip_per_start"),     5.0),
                 ]
+                # Phase E.3 + VSHAND: append raw vs-handedness OPS.
+                if phase_e3_vshand:
+                    t1_x.append(coerce(r.get("away_top3_ops_vs_oppHand"), LEAGUE_AVG_OPS))
+                    b1_x.append(coerce(r.get("home_top3_ops_vs_oppHand"), LEAGUE_AVG_OPS))
+                # Phase E.3 + VSHAND_DIFF: engineered orthogonal-to-OPS variant.
+                if phase_e3_vshand_diff:
+                    a_vsh = coerce(r.get("away_top3_ops_vs_oppHand"), None)
+                    a_obp = coerce(r.get("away_top3c_obp"), None)
+                    a_slg = coerce(r.get("away_top3c_slg"), None)
+                    a_diff = 0.0 if any(v is None for v in (a_vsh, a_obp, a_slg)) else a_vsh - (a_obp + a_slg)
+                    t1_x.append(a_diff)
+                    h_vsh = coerce(r.get("home_top3_ops_vs_oppHand"), None)
+                    h_obp = coerce(r.get("home_top3c_obp"), None)
+                    h_slg = coerce(r.get("home_top3c_slg"), None)
+                    h_diff = 0.0 if any(v is None for v in (h_vsh, h_obp, h_slg)) else h_vsh - (h_obp + h_slg)
+                    b1_x.append(h_diff)
                 # Phase G: append top-3 last-10 OBP/SLG/ISO to both halves.
                 # Skipped rows (no Phase G data backfilled) get league averages
                 # so the LR doesn't crash; expectation is the backfill ran
@@ -417,6 +444,11 @@ def main():
     ap.add_argument("--phase-g", action="store_true",
                     help="Phase G: phase-e3 + top-3 batters' last-10-games OBP/SLG/ISO "
                          "(21 features per half).  Requires --phase-e3.  Test before deploy.")
+    ap.add_argument("--phase-e3-vshand", action="store_true",
+                    help="Phase E.3 + raw VSHAND OPS (19 features per half).")
+    ap.add_argument("--phase-e3-vshand-diff", action="store_true",
+                    help="Phase E.3 + VSHAND_DIFF (vs-oppHand minus season OPS, "
+                         "engineered to be orthogonal to top3c_obp+slg).")
     ap.add_argument("--clean-only", action="store_true",
                     help="Drop rows where pitcher_q == 'avg' on either side "
                          "(synthetic league-avg defaults; ~22%% of historical)")
@@ -443,6 +475,18 @@ def main():
         t1_feats = T1_PHASE_G_FEATURES
         b1_feats = B1_PHASE_G_FEATURES
         variant = "PHASE_G"
+    elif args.phase_e3_vshand:
+        if not args.phase_e3:
+            args.phase_e3 = True
+        t1_feats = T1_PHASE_E3_VSHAND_FEATURES
+        b1_feats = B1_PHASE_E3_VSHAND_FEATURES
+        variant = "PHASE_E3_VSHAND"
+    elif args.phase_e3_vshand_diff:
+        if not args.phase_e3:
+            args.phase_e3 = True
+        t1_feats = T1_PHASE_E3_VSHAND_DIFF_FEATURES
+        b1_feats = B1_PHASE_E3_VSHAND_DIFF_FEATURES
+        variant = "PHASE_E3_VSHAND_DIFF"
     elif args.phase_e3:
         t1_feats = T1_PHASE_E3_FEATURES
         b1_feats = B1_PHASE_E3_FEATURES
@@ -487,7 +531,7 @@ def main():
     print("=" * 70)
     train_blocks = [gather(Path(p), park, slim=args.slim, slim_k9=args.slim_k9,
                            slim_weather=args.slim_weather,
-                           phase_e3=args.phase_e3, phase_g=args.phase_g,
+                           phase_e3=args.phase_e3, phase_g=args.phase_g, phase_e3_vshand=args.phase_e3_vshand, phase_e3_vshand_diff=args.phase_e3_vshand_diff,
                            ump_cache=ump_cache, ump_rates_data=ump_rates_data,
                            clean_only=args.clean_only)
                     for p in args.train]
@@ -525,7 +569,7 @@ def main():
     # Test set is always evaluated WITHOUT clean_only -- we want full coverage
     # of the holdout period to mirror what happens in production.
     te = gather(Path(args.test), park, slim=args.slim, slim_k9=args.slim_k9,
-                slim_weather=args.slim_weather, phase_e3=args.phase_e3, phase_g=args.phase_g,
+                slim_weather=args.slim_weather, phase_e3=args.phase_e3, phase_g=args.phase_g, phase_e3_vshand=args.phase_e3_vshand, phase_e3_vshand_diff=args.phase_e3_vshand_diff,
                 ump_cache=ump_cache, ump_rates_data=ump_rates_data,
                 clean_only=False)
     if not te:
