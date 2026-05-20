@@ -30,12 +30,18 @@ This script runs in three independently-idempotent phases:
      env vars are missing -- safe to call always.
 
   3. Telegram notify phase.  Fires the standard
-     _notify_strong_graded_telegram for each row.  notifications_log
-     has a 24h dedup window for event_type=strong_graded so re-runs
-     won't double-ping.
+     _notify_strong_graded_telegram ONLY for rows that this run
+     actually healed (csv_mutated_indices).  Previously fired
+     unconditionally on every target row -- the 24h notifications_log
+     dedup expired between daily cron runs so the operator got a
+     "STRONG NRFI · DET @ KC · WIN" ping for these games re-fired
+     every ~24h forever (fixed 2026-05-20).  Trade-off: if the first
+     run with the heal happens in a no-Telegram-env environment, the
+     ping is lost forever.  Acceptable vs daily spam.
 
 Net: safe to call every cron tick.  First run with full env applies
-all three phases, subsequent runs are no-ops.
+all three phases, subsequent runs are no-ops (mirror is idempotent,
+ping is suppressed).
 
 Usage:
   python tools/heal_2026_05_08_lineup_wins.py            # apply heal
@@ -106,7 +112,7 @@ def main() -> int:
         target_indices.append(target_idx)
 
         if _row_already_healed(row):
-            print(f"{tag}: CSV already healed (WIN / bet=Y / STRONG NRFI) -- mirror+notify only")
+            print(f"{tag}: CSV already healed (WIN / bet=Y / STRONG NRFI) -- mirror only, ping suppressed")
             continue
 
         old_label = (row.get("pick_label") or "").strip()
@@ -180,17 +186,24 @@ def main() -> int:
         print(f"  Supabase mirror failed (will retry next run): {exc!r}",
               file=sys.stderr)
 
-    # Always fire the standard STRONG WIN Telegram for each target row
-    # so the operator gets the same notification path a normally-bet
-    # STRONG WIN would produce.  Today record / P&L recomputed against
-    # the freshly-mutated row set so the running totals are accurate.
-    today_record, today_pl = tracker._aggregate_today_record(rows, ISO_DATE)
-    for idx in target_indices:
-        try:
-            tracker._notify_strong_graded_telegram(rows[idx], today_record, today_pl)
-        except Exception as exc:    # noqa: BLE001
-            print(f"  Telegram ping failed for row {idx} (non-fatal): {exc!r}",
-                  file=sys.stderr)
+    # Fire the standard STRONG WIN Telegram ONLY for rows that this run
+    # actually healed (i.e., were not already in healed shape at entry).
+    # Previously this fired unconditionally on every cron tick, and the
+    # 24h notifications_log dedup window expired between daily runs so
+    # the operator got a fresh "STRONG NRFI · DET @ KC · WIN" ping every
+    # ~24h forever.  Restricting to csv_mutated_indices makes the ping a
+    # true one-shot tied to the actual heal event.  Trade-off: if the
+    # FIRST run with the heal happens in a no-Telegram-env situation, the
+    # ping is lost forever -- acceptable, since the alternative is daily
+    # spam pings for the rest of the season.
+    if csv_mutated_indices:
+        today_record, today_pl = tracker._aggregate_today_record(rows, ISO_DATE)
+        for idx in csv_mutated_indices:
+            try:
+                tracker._notify_strong_graded_telegram(rows[idx], today_record, today_pl)
+            except Exception as exc:    # noqa: BLE001
+                print(f"  Telegram ping failed for row {idx} (non-fatal): {exc!r}",
+                      file=sys.stderr)
 
     if csv_mutated_indices:
         print(f"\nHealed {len(csv_mutated_indices)} CSV row(s); mirrored {len(target_indices)} target(s).")
