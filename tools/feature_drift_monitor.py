@@ -89,6 +89,22 @@ NUMERIC_FEATURES = [
     ("away_p_last5_pitcher_nrfi",      0.0, 1.0),
     ("home_p_last10_pitcher_nrfi",     0.0, 1.0),
     ("away_p_last10_pitcher_nrfi",     0.0, 1.0),
+    # 2026-05-20: VSHAND feature shipped in commit 680c9ed; track mean
+    # and extreme-count drift so cross-year platoon shifts don't go
+    # silent.  Extreme bounds derived from 2024-2025 backtest range
+    # (0.44-1.01).
+    ("away_top3_ops_vs_oppHand",       0.500, 1.050),
+    ("home_top3_ops_vs_oppHand",       0.500, 1.050),
+]
+
+# Features that fall back to a known league-avg default when the upstream
+# data fetch fails (e.g. lineup not yet posted).  Heavy defaulting at
+# grade-time means the predict pipeline never recovered the real value
+# even by the time we graded -- a real ops alert worth catching.
+# (col, default_value, tolerance)
+DEFAULT_RATE_FEATURES = [
+    ("away_top3_ops_vs_oppHand",       0.720, 0.005),
+    ("home_top3_ops_vs_oppHand",       0.720, 0.005),
 ]
 
 CATEGORICAL_FEATURES = [
@@ -161,6 +177,35 @@ def categorical_dist(rows: list[dict], col: str) -> dict[str, float]:
     cnt = Counter(vals)
     total = len(vals)
     return {tag: count / total for tag, count in cnt.items()}
+
+
+def default_rate(rows: list[dict], col: str,
+                 default_value: float, tol: float = 0.005) -> tuple[int, int]:
+    """Count rows where `col` is approximately equal to `default_value`
+    (within `tol`).  Returns (n_default, n_total).  A high default rate
+    at grade-time means the predict pipeline never recovered the real
+    upstream value -- e.g. lineup-pending VSHAND fetches that never
+    re-fired after the lineup posted."""
+    n_default = 0
+    n_total = 0
+    for r in rows:
+        v = to_f(r.get(col))
+        if v is None:
+            continue
+        n_total += 1
+        if abs(v - default_value) <= tol:
+            n_default += 1
+    return n_default, n_total
+
+
+def severity_for_default_rate(frac: float) -> str:
+    if frac >= 0.50:
+        return "HIGH"
+    if frac >= 0.30:
+        return "MEDIUM"
+    if frac >= 0.15:
+        return "LOW"
+    return "OK"
 
 
 def pick_cluster_count(rows: list[dict], window: float = 0.005) -> int:
@@ -407,6 +452,27 @@ def main():
                 "note":      note,
             })
             alerts.append((sev_ex, f"{col}_extreme", note))
+
+    # --- default-rate (feature pipeline never recovered real value) ---
+    for col, default_val, tol in DEFAULT_RATE_FEATURES:
+        n_def, n_tot = default_rate(today_rows, col, default_val, tol)
+        if n_tot == 0:
+            continue
+        frac = n_def / n_tot
+        sev = severity_for_default_rate(frac)
+        note = (f"{col} defaulted to {default_val} in {n_def}/{n_tot} rows "
+                f"({frac*100:.0f}%); heavy defaulting = predict pipeline failed")
+        report_rows.append({
+            "category":  "default_rate",
+            "metric":    f"{col}_default_rate",
+            "today":     f"{frac:.4f}",
+            "baseline":  f"{default_val:.4f}",
+            "delta":     f"{n_def}/{n_tot}",
+            "severity":  sev,
+            "note":      note,
+        })
+        if sev in ("MEDIUM", "HIGH"):
+            alerts.append((sev, f"{col}_default_rate", note))
 
     # --- pick clustering (bin collapse) ---
     cluster = pick_cluster_count(today_rows, window=0.005)
