@@ -1,7 +1,7 @@
 {
   "date": "2026-05-21",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-21T05:05:39Z",
+  "fitted_at": "2026-05-21T06:07:00Z",
   "n_picks": 7,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -691,15 +691,15 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.3011,
-      "raw_p_run_b1": 0.3472,
-      "raw_p_nrfi": 0.4562,
-      "calibrated_p_nrfi": 0.4349,
+      "raw_p_run_t1": 0.3116,
+      "raw_p_run_b1": 0.3547,
+      "raw_p_nrfi": 0.4442,
+      "calibrated_p_nrfi": 0.4227,
       "calibrator_band": {
-        "band": "bin_2-3",
+        "band": "bin_1-2",
         "is_flat": true,
-        "flat_size": 3,
-        "flat_rate": 0.434878587196468
+        "flat_size": 5,
+        "flat_rate": 0.3841059602649007
       },
       "top_drivers_t1": [
         {
@@ -745,11 +745,27 @@
       ],
       "top_drivers_b1": [
         {
+          "name": "away_avg_ip_per_start",
+          "value": 1.17,
+          "z": -4.855,
+          "weight": -0.0374,
+          "contribution": 0.1817,
+          "outlier": true
+        },
+        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4526,
           "z": -1.116,
           "weight": -0.0974,
           "contribution": 0.1088,
+          "outlier": false
+        },
+        {
+          "name": "away_whiff_pct_rank",
+          "value": 83.0,
+          "z": 1.419,
+          "weight": -0.0714,
+          "contribution": -0.1013,
           "outlier": false
         },
         {
@@ -767,36 +783,21 @@
           "weight": 0.042,
           "contribution": 0.0391,
           "outlier": false
-        },
-        {
-          "name": "home_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.473,
-          "weight": 0.0792,
-          "contribution": -0.0374,
-          "outlier": false
-        },
-        {
-          "name": "away_p_last5_pitcher_nrfi",
-          "value": 0.5,
-          "z": -1.011,
-          "weight": -0.0355,
-          "contribution": 0.0359,
-          "outlier": false
         }
       ],
       "priors_vs_raw": {
         "home_xera_raw": 4.2,
         "home_xera_pooled": 4.2,
-        "away_xera_raw": 4.2,
-        "away_xera_pooled": null
+        "away_xera_raw": 3.26,
+        "away_xera_pooled": 3.2598
       },
       "pitcher_q": {
         "home_pitcher_q": "live",
-        "away_pitcher_q": "avg"
+        "away_pitcher_q": "ltd"
       },
       "warnings": [
-        "calibrator flat zone: 3 bins all map to rate 0.4349 (multiple distinct raw probs collapse here)"
+        "B1: feature away_avg_ip_per_start=1.170 is z=-4.86 sigma from training mean -- contribution +0.182 to logit",
+        "calibrator flat zone: 5 bins all map to rate 0.3841 (multiple distinct raw probs collapse here)"
       ]
     }
   ]
