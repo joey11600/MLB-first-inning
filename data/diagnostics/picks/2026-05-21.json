@@ -1,7 +1,7 @@
 {
   "date": "2026-05-21",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-21T17:32:02Z",
+  "fitted_at": "2026-05-21T17:53:44Z",
   "n_picks": 7,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2579,
-      "raw_p_run_b1": 0.3847,
-      "raw_p_nrfi": 0.4566,
+      "raw_p_run_t1": 0.2594,
+      "raw_p_run_b1": 0.3848,
+      "raw_p_nrfi": 0.4556,
       "calibrated_p_nrfi": 0.4349,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -239,12 +239,12 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2159,
-      "raw_p_run_b1": 0.3541,
-      "raw_p_nrfi": 0.5064,
+      "raw_p_run_t1": 0.2208,
+      "raw_p_run_b1": 0.3571,
+      "raw_p_nrfi": 0.5009,
       "calibrated_p_nrfi": 0.4901,
       "calibrator_band": {
-        "band": "bin_8-9",
+        "band": "bin_7-8",
         "is_flat": true,
         "flat_size": 7,
         "flat_rate": 0.4900662251655629
@@ -268,10 +268,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 86.0,
-          "z": 1.774,
+          "value": 79.0,
+          "z": 1.327,
           "weight": -0.0635,
-          "contribution": -0.1126,
+          "contribution": -0.0842,
           "outlier": false
         },
         {
@@ -691,9 +691,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.3061,
-      "raw_p_run_b1": 0.3431,
-      "raw_p_nrfi": 0.4558,
+      "raw_p_run_t1": 0.3057,
+      "raw_p_run_b1": 0.3439,
+      "raw_p_nrfi": 0.4555,
       "calibrated_p_nrfi": 0.4349,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -770,10 +770,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 1.5,
-          "z": -1.937,
+          "value": 2.6,
+          "z": -1.736,
           "weight": 0.027,
-          "contribution": -0.0524,
+          "contribution": -0.0469,
           "outlier": false
         },
         {
