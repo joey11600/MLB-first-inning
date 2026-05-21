@@ -1,22 +1,22 @@
 {
   "date": "2026-05-21",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-21T22:02:44Z",
+  "fitted_at": "2026-05-21T22:11:48Z",
   "n_picks": 7,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
     {
       "matchup": "OAK@LAA",
       "game_pk": "824031",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "YRFI",
+      "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.2564,
+      "raw_p_run_t1": 0.2374,
       "raw_p_run_b1": 0.383,
-      "raw_p_nrfi": 0.4588,
+      "raw_p_nrfi": 0.4705,
       "calibrated_p_nrfi": 0.4349,
       "calibrator_band": {
-        "band": "bin_2-3",
+        "band": "bin_3-4",
         "is_flat": true,
         "flat_size": 3,
         "flat_rate": 0.434878587196468
@@ -24,10 +24,26 @@
       "top_drivers_t1": [
         {
           "name": "away_top3c_slg",
-          "value": 0.4024,
-          "z": -0.634,
+          "value": 0.5368,
+          "z": 1.561,
           "weight": -0.4271,
-          "contribution": 0.2708,
+          "contribution": -0.6665,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_iso",
+          "value": 0.2251,
+          "z": 1.037,
+          "weight": 0.3432,
+          "contribution": 0.3558,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_obp",
+          "value": 0.4171,
+          "z": 2.653,
+          "weight": 0.1333,
+          "contribution": 0.3536,
           "outlier": false
         },
         {
@@ -39,27 +55,11 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.202,
-          "weight": 0.3432,
-          "contribution": -0.0695,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4526,
           "z": -1.116,
           "weight": -0.0577,
           "contribution": 0.0644,
-          "outlier": false
-        },
-        {
-          "name": "away_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.504,
-          "weight": 0.1244,
-          "contribution": -0.0627,
           "outlier": false
         }
       ],
@@ -421,14 +421,6 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_slg",
-          "value": 0.4047,
-          "z": -0.589,
-          "weight": -0.1273,
-          "contribution": 0.075,
-          "outlier": false
-        },
-        {
           "name": "era_gap_b1",
           "value": 1.533,
           "z": 1.894,
@@ -442,6 +434,14 @@
           "z": 0.642,
           "weight": -0.0714,
           "contribution": -0.0458,
+          "outlier": false
+        },
+        {
+          "name": "away_p_last10_pitcher_nrfi",
+          "value": 0.5,
+          "z": -1.269,
+          "weight": -0.0333,
+          "contribution": 0.0422,
           "outlier": false
         }
       ],
