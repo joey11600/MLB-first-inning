@@ -1,7 +1,7 @@
 {
   "date": "2026-05-21",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-21T21:42:33Z",
+  "fitted_at": "2026-05-21T22:02:44Z",
   "n_picks": 7,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2568,
-      "raw_p_run_b1": 0.3845,
-      "raw_p_nrfi": 0.4575,
+      "raw_p_run_t1": 0.2564,
+      "raw_p_run_b1": 0.383,
+      "raw_p_nrfi": 0.4588,
       "calibrated_p_nrfi": 0.4349,
       "calibrator_band": {
         "band": "bin_2-3",
