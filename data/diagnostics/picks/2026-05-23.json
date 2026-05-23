@@ -1,7 +1,7 @@
 {
   "date": "2026-05-23",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-23T04:48:14Z",
+  "fitted_at": "2026-05-23T05:49:18Z",
   "n_picks": 16,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -353,9 +353,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2904,
-      "raw_p_run_b1": 0.3473,
-      "raw_p_nrfi": 0.4632,
+      "raw_p_run_t1": 0.2907,
+      "raw_p_run_b1": 0.3466,
+      "raw_p_nrfi": 0.4634,
       "calibrated_p_nrfi": 0.4349,
       "calibrator_band": {
         "band": "bin_3-4",
@@ -366,10 +366,10 @@
       "top_drivers_t1": [
         {
           "name": "away_top3c_slg",
-          "value": 0.4032,
-          "z": -0.621,
+          "value": 0.4024,
+          "z": -0.634,
           "weight": -0.4271,
-          "contribution": 0.2652,
+          "contribution": 0.2708,
           "outlier": false
         },
         {
@@ -382,10 +382,10 @@
         },
         {
           "name": "away_top3c_obp",
-          "value": 0.3222,
-          "z": -0.55,
+          "value": 0.3214,
+          "z": -0.577,
           "weight": 0.1333,
-          "contribution": -0.0734,
+          "contribution": -0.077,
           "outlier": false
         },
         {
@@ -416,18 +416,18 @@
         },
         {
           "name": "home_top3c_slg",
-          "value": 0.383,
-          "z": -0.944,
+          "value": 0.3823,
+          "z": -0.956,
           "weight": -0.1273,
-          "contribution": 0.1202,
+          "contribution": 0.1217,
           "outlier": false
         },
         {
           "name": "home_obp",
-          "value": 0.297,
-          "z": -1.622,
+          "value": 0.296,
+          "z": -1.708,
           "weight": 0.042,
-          "contribution": -0.0681,
+          "contribution": -0.0717,
           "outlier": false
         },
         {
