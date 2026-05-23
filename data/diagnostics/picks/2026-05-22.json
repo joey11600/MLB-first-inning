@@ -1,7 +1,7 @@
 {
   "date": "2026-05-22",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-23T00:44:47Z",
+  "fitted_at": "2026-05-23T01:15:15Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,10 +11,10 @@
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.3271,
-      "raw_p_run_b1": 0.2988,
-      "raw_p_nrfi": 0.4719,
-      "calibrated_p_nrfi": 0.4401,
+      "raw_p_run_t1": 0.323,
+      "raw_p_run_b1": 0.2991,
+      "raw_p_nrfi": 0.4745,
+      "calibrated_p_nrfi": 0.4516,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": true,
@@ -1262,9 +1262,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3025,
-      "raw_p_run_b1": 0.2442,
-      "raw_p_nrfi": 0.5272,
+      "raw_p_run_t1": 0.3001,
+      "raw_p_run_b1": 0.2444,
+      "raw_p_nrfi": 0.5288,
       "calibrated_p_nrfi": 0.4901,
       "calibrator_band": {
         "band": "bin_12-13",
@@ -1376,9 +1376,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2939,
-      "raw_p_run_b1": 0.2701,
-      "raw_p_nrfi": 0.5153,
+      "raw_p_run_t1": 0.2909,
+      "raw_p_run_b1": 0.271,
+      "raw_p_nrfi": 0.5169,
       "calibrated_p_nrfi": 0.4901,
       "calibrator_band": {
         "band": "bin_10-11",
@@ -1413,10 +1413,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 83.0,
-          "z": 1.582,
+          "value": 87.0,
+          "z": 1.837,
           "weight": -0.0635,
-          "contribution": -0.1004,
+          "contribution": -0.1166,
           "outlier": false
         },
         {
@@ -1438,19 +1438,19 @@
           "outlier": false
         },
         {
+          "name": "wx_wind_kmh",
+          "value": 25.8,
+          "z": 2.508,
+          "weight": 0.027,
+          "contribution": 0.0678,
+          "outlier": false
+        },
+        {
           "name": "away_whiff_pct_rank",
           "value": 29.0,
           "z": -0.912,
           "weight": -0.0714,
           "contribution": 0.0651,
-          "outlier": false
-        },
-        {
-          "name": "wx_wind_kmh",
-          "value": 24.4,
-          "z": 2.251,
-          "weight": 0.027,
-          "contribution": 0.0609,
           "outlier": false
         },
         {
