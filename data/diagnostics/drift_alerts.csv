@@ -77,3 +77,4 @@ date,severity,metric,note
 2026-05-21,MEDIUM,away_whiff_pct_rank_extreme,"away_whiff_pct_rank has 2/7 extreme values (outside [5.0, 95.0]); max=97.00"
 2026-05-21,HIGH,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = HIGH; >=3 = MEDIUM)
 2026-05-22,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 3 (>=4 = HIGH; >=3 = MEDIUM)
+2026-05-22,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 3 (>=4 = HIGH; >=3 = MEDIUM)
