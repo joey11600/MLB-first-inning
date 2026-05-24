@@ -1,7 +1,7 @@
 {
   "date": "2026-05-24",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-24T13:03:13Z",
+  "fitted_at": "2026-05-24T13:28:24Z",
   "n_picks": 16,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1719,15 +1719,15 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2814,
-      "raw_p_run_b1": 0.2958,
-      "raw_p_nrfi": 0.506,
-      "calibrated_p_nrfi": 0.4901,
+      "raw_p_run_t1": 0.3088,
+      "raw_p_run_b1": 0.3077,
+      "raw_p_nrfi": 0.4785,
+      "calibrated_p_nrfi": 0.4688,
       "calibrator_band": {
-        "band": "bin_8-9",
+        "band": "bin_4-5",
         "is_flat": true,
-        "flat_size": 7,
-        "flat_rate": 0.4900662251655629
+        "flat_size": 5,
+        "flat_rate": 0.434878587196468
       },
       "top_drivers_t1": [
         {
@@ -1736,14 +1736,6 @@
           "z": -0.99,
           "weight": -0.4271,
           "contribution": 0.4228,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 92.0,
-          "z": 2.156,
-          "weight": -0.0635,
-          "contribution": -0.1369,
           "outlier": false
         },
         {
@@ -1768,6 +1760,14 @@
           "z": -0.202,
           "weight": 0.3432,
           "contribution": -0.0695,
+          "outlier": false
+        },
+        {
+          "name": "away_top3_ops_vs_oppHand",
+          "value": 0.72,
+          "z": -0.504,
+          "weight": 0.1244,
+          "contribution": -0.0627,
           "outlier": false
         }
       ],
@@ -1824,7 +1824,7 @@
         "away_pitcher_q": "avg"
       },
       "warnings": [
-        "calibrator flat zone: 7 bins all map to rate 0.4901 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.4349 (multiple distinct raw probs collapse here)"
       ]
     }
   ]
