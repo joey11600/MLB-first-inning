@@ -324,6 +324,58 @@ class ProbCalibrator:
         t = (p - c0) / (c1 - c0)
         return r0 + t * (r1 - r0)
 
+    def predict_with_band(self, p: float) -> tuple[float, dict]:
+        """Calibrated P(NRFI) plus band/flat-zone metadata about where
+        the input landed in the isotonic curve.
+
+        Returned dict contains:
+          band       : "below_min" / "above_max" / "bin_<lo>-<hi>"
+          is_flat    : True if flat_size >= 3 (multiple bins share rate)
+          flat_size  : number of consecutive bins around (lo, hi) that
+                       share the same rate as r[lo] (leftward) and r[hi]
+                       (rightward).  Picks landing in a high flat_size
+                       region are ones the calibrator cannot meaningfully
+                       distinguish from neighboring games -- at the
+                       margin, STRONG picks here are guessing.
+          flat_rate  : the shared rate, if is_flat; else None
+
+        Used by the predictor's flat-zone guard to demote ambiguous
+        STRONG picks, and by tools/pick_reasoning_log.py for the per-
+        pick diagnostic JSON.
+        """
+        c, r = self.centers, self.rates
+        if not c:
+            return p, {"band": "no_calibrator", "is_flat": False, "flat_size": 0, "flat_rate": None}
+        if p <= c[0]:
+            return r[0], {"band": "below_min", "is_flat": False, "flat_size": 0, "flat_rate": None}
+        if p >= c[-1]:
+            return r[-1], {"band": "above_max", "is_flat": False, "flat_size": 0, "flat_rate": None}
+        lo, hi = 0, len(c) - 1
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if c[mid] <= p:
+                lo = mid
+            else:
+                hi = mid
+        if c[hi] == c[lo]:
+            return (r[lo] + r[hi]) / 2, {"band": f"bin_{lo}-{hi}", "is_flat": False, "flat_size": 0, "flat_rate": None}
+        # Walk outward to measure the flat zone surrounding (lo, hi).
+        flat_left = lo
+        flat_right = hi
+        while flat_left > 0 and abs(r[flat_left - 1] - r[lo]) < 1e-9:
+            flat_left -= 1
+        while flat_right < len(r) - 1 and abs(r[flat_right + 1] - r[hi]) < 1e-9:
+            flat_right += 1
+        flat_size = flat_right - flat_left + 1
+        t = (p - c[lo]) / (c[hi] - c[lo])
+        cal_p = r[lo] + t * (r[hi] - r[lo])
+        return cal_p, {
+            "band":       f"bin_{lo}-{hi}",
+            "is_flat":    flat_size >= 3,
+            "flat_size":  flat_size,
+            "flat_rate":  r[lo] if flat_size >= 3 else None,
+        }
+
     def save(self, path: str | Path) -> None:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)

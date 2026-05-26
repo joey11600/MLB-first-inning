@@ -624,6 +624,7 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "LINEUP PENDING":  "Lineup pending",
                 "LOW LAMBDA":      "Low lambda",
                 "NO EDGE":         "No edge",
+                "FLAT ZONE":       "Flat zone",
             }
             reasons = g.get("pass_reasons") or []
             if not reasons:
@@ -636,6 +637,8 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     label = "PASS - Lineup pending"
                 elif conf == "LOW LAMBDA":
                     label = "PASS - Low lambda"
+                elif conf == "FLAT ZONE":
+                    label = "PASS - Flat zone"
                 else:
                     label = "PASS - No edge"
             else:

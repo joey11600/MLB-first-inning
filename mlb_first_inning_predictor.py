@@ -959,6 +959,19 @@ _LR_LEAN_YRFI_P   = 0.50
 # lambda <= 0.54, well below average, no bad zone to clip.
 _LR_LAMBDA_YRFI_FLOOR = 0.838   # 0.78 mechanically scaled by 0.510/0.475 in Phase 2 league-constants refresh
 
+# Flat-zone STRONG guard (2026-05-26).  Set to 99 = DISABLED based on
+# empirical study (tools/filter_impact_check.py over 30-day window
+# 2026-04-27 -> 2026-05-26): picks landing in the calibrator's flat
+# zones HIT AT A HIGHER RATE than picks elsewhere (21W/12L = 63.6%
+# for flat_size>=3 over 109 STRONG bets; demoting them would cost
+# +6.79u over that window).  The calibrator's "I can't tell these
+# games apart" is a statement about TRAINING data noise, not about
+# today's pick quality.  Kept the constant + the guard wiring in
+# place so a future experiment with stricter heuristics (e.g. tighten
+# only when ALSO outside the lambda floor) can re-enable easily.
+# To re-enable: set to the desired flat_size threshold (e.g. 4).
+_FLAT_ZONE_DEMOTE_SIZE = 99
+
 
 def _write_thresholds_json() -> None:
     """Write the classifier thresholds to data/thresholds.json so the
@@ -2322,7 +2335,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # alternate calibrators (e.g. Variant K in db/variants.py uses raw +
         # calibration_v3 to compare v3 vs v2 production calibrator).  Keeping
         # raw at predict-time avoids the lossy calibrator-inversion path.
-        lr_nrfi = cal.predict(lr_nrfi_raw)
+        lr_nrfi, cal_band = cal.predict_with_band(lr_nrfi_raw)
         nrfi_p, yrfi_p = lr_nrfi, 1.0 - lr_nrfi
         nrfi_p_raw = lr_nrfi_raw
         yrfi_p_raw = 1.0 - lr_nrfi_raw
@@ -2347,6 +2360,19 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # the row showed only "PASS - No data" -- operator couldn't
         # tell the lineup also wasn't posted.
         pass_reasons: list[str] = []
+
+        # T4.16 (2026-05-26): flat-zone STRONG guard.  When the calibrator
+        # collapses flat_size >= _FLAT_ZONE_DEMOTE_SIZE adjacent bins to
+        # the same rate around this pick's raw P(NRFI), the calibrator
+        # can't meaningfully distinguish it from neighboring games.
+        # STRONG verdicts in that region are guessing at the margin.
+        # Demote to PASS "FLAT ZONE" so we don't bet on indistinguishable
+        # picks.  Threshold matches the HIGH severity rule in
+        # tools/feature_drift_monitor.py (pick_cluster >= 4 = HIGH).
+        if (pick_conf == "STRONG"
+                and int(cal_band.get("flat_size") or 0) >= _FLAT_ZONE_DEMOTE_SIZE):
+            pick_side = "PASS"
+            pass_reasons.append("FLAT ZONE")
 
         # Lineup-pending guard: lineup data drives top3c_obp / top3c_slg /
         # top3c_iso (the strongest offense features).  When lineups haven't
@@ -2422,8 +2448,8 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             # Stable order: LINEUP PENDING first (transient -- resolves on
             # its own when the lineup posts).  STARTER PENDING / NO DATA
             # are permanent for the day, surfaced after the transient one.
-            order = ["LINEUP PENDING", "STARTER PENDING", "NO DATA",
-                     "LOW LAMBDA", "NO EDGE"]
+            order = ["FLAT ZONE", "LINEUP PENDING", "STARTER PENDING",
+                     "NO DATA", "LOW LAMBDA", "NO EDGE"]
             pass_reasons.sort(key=lambda r: order.index(r) if r in order else 99)
             # Primary token = first in the ordered list (most actionable)
             pick_conf = pass_reasons[0]
@@ -2631,6 +2657,7 @@ _BOARD_ZONE: dict[tuple[str, str], tuple[str, str, str]] = {
     ("PASS", "STARTER PENDING"): ("[GRAY] ", "WHITE", "--  STARTER PEND."),
     ("PASS", "LINEUP PENDING"):  ("[GRAY] ", "WHITE", "--  LINEUP PEND. "),
     ("PASS", "LOW LAMBDA"):      ("[GRAY] ", "WHITE", "--  LOW LAMBDA   "),
+    ("PASS", "FLAT ZONE"):       ("[GRAY] ", "WHITE", "--  FLAT ZONE    "),
     ("YRFI", "LEAN"):   ("[RED]  ", "RED",    "*  LEAN YRFI  "),
     ("YRFI", "STRONG"): ("[RED]  ", "RED",    "** STRONG YRFI"),
 }

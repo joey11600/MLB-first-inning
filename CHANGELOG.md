@@ -11,6 +11,111 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-05-26] — Sliding-window retrain: T1+B1+calibrator refit on 2024+2025+2026YTD, validated weekly-retrain workflow
+
+After two weeks of slow losses (−5.33u realized 5/12–5/26), investigated
+whether retraining on more recent data would help.  Built a candidate
+model trained on 2024 + 2025 + 2026 through 5/11, validated against
+multiple holdout windows.
+
+### Added — sliding-window retrain shipped
+
+- Trained Phase E.3 + VSHAND (19 features per half) on combined
+  2024+2025+2026YTD truepit data (n=2933 graded games).  Replaced
+  production `data/lr_t1.json`, `data/lr_b1.json`,
+  `data/calibration_v2.json`; old files preserved as
+  `*.bak-2026-05-26-prod-prephase`.
+- Architecture is unchanged from previous production; the only
+  difference is the training window includes 2026 partial.
+- Validation:
+  - **14-day holdout (5/12-5/26) head-to-head**: candidate −1.48u
+    vs production −11.82u at flat −110 (apples-to-apples eval
+    pipeline, no production guards applied).  Net **+10.34u**.
+  - **6-week walk-forward (4/14-5/25)**: candidate +18.64u vs
+    production +12.18u over 565 games at flat −110, net **+6.45u**.
+    Candidate wins or ties 5 of 6 weeks.
+  - **2025 in-sample check**: candidate Brier 0.244 vs production
+    0.245 — no degradation.
+  - **LR weight comparison**: shifts are principled (stronger park
+    + pitcher quality + home offense signals; weaker humidity +
+    redundant offense signals), not chaotic.
+
+### Added — validated weekly retrain workflow (manual trigger)
+
+- `tools/weekly_refit.py`: fits a candidate on
+  (2024+2025+2026 through last week), evaluates BOTH candidate and
+  current production on the most recent 7-day window, ships only if
+  candidate P&L ≥ prod P&L − 1.0u AND candidate Brier ≤ prod Brier
+  + 0.005.  Backs up production files before overwriting.  Exit
+  codes: 0 ship, 1 validation fail, 2 script error.
+- `.github/workflows/weekly_retrain.yml`: workflow_dispatch trigger
+  for `tools/weekly_refit.py`.  Commits + pushes new model files
+  ONLY if the gate passed.  **No schedule yet** — manual trigger
+  for ~4 weeks while we watch behavior, then convert to weekly
+  cron.  Respects the 2026-05-11 policy in `daily.yml` ("weekly
+  auto-recalibrate was disabled because it shipped without
+  validation"): this workflow has the validation built in.
+- First post-ship invocation correctly REFUSED to ship a 5/18-
+  trained refit because it underperformed the just-shipped 5/11
+  candidate by −2.18u on the 5/19-5/25 holdout.  Gate works.
+
+### Added — calibrator flat-zone diagnostic (DISABLED guard)
+
+- `calibration.py`: new `ProbCalibrator.predict_with_band(p)`
+  method returns `(calibrated_p, band_info)` where `band_info`
+  exposes `band`, `is_flat`, `flat_size`, `flat_rate`.  Mirrors
+  the inline detection logic in `tools/pick_reasoning_log.py`.
+- `mlb_first_inning_predictor.py`: added `_FLAT_ZONE_DEMOTE_SIZE`
+  constant and a guard that demotes STRONG → PASS "FLAT ZONE"
+  when a pick lands in a calibrator flat zone with flat_size
+  ≥ threshold.  Wired through to `tracker.py` pick-label
+  composition.
+- Threshold set to 99 = **DISABLED** based on empirical study
+  (`tools/filter_impact_check.py`): picks landing in flat zones
+  hit at **63.6%** over a 109-bet 30-day window — they're our
+  best picks, not our worst.  The calibrator's flat zones are a
+  statement about training-data noise, not about pick quality.
+  Filter wiring left in place for future experimentation; raise
+  threshold to enable.
+
+### Tools
+
+- `tools/build_2026_truepit.py`: augments `picks_2026.csv` with
+  `actual_side` + `fi_park_nrfi_rate` so it can be used as a
+  truepit-format training CSV by `two_stage_model.py`.
+- `tools/sliding_window_eval.py`: head-to-head candidate vs
+  production on a holdout, with hypothetical P&L using logged
+  DK odds.
+- `tools/walk_forward_eval.py`: walks across weekly windows
+  comparing static-train vs sliding-window training.  Used to
+  validate the +6.45u multi-week signal.
+- `tools/filter_impact_check.py`: empirical study of which
+  STRONG picks the flat-zone filter would demote and what the
+  P&L impact would be.
+
+### Performance snapshot (2026-04-27 to 2026-05-26, STRONG bets only)
+
+- Pre-ship production (2024+2025-trained):  
+  64W / 53L (54.7% hit), realized P&L **−0.79u** over 117 bets.
+- Eval-pipeline projection of the new shipped candidate on the
+  same period:  
+  ~+6u improvement projected at flat −110 (real-money result
+  will depend on DK odds we actually take).
+
+### Rollback
+
+If the shipped candidate underperforms over the next 5–7 days:
+```
+cp data/lr_t1.json.bak-2026-05-26-prod-prephase data/lr_t1.json
+cp data/lr_b1.json.bak-2026-05-26-prod-prephase data/lr_b1.json
+cp data/calibration_v2.json.bak-2026-05-26-prod-prephase data/calibration_v2.json
+git add data/*.json
+git commit -m "revert 2026-05-26 sliding-window retrain (underperformed live)"
+git push origin claude/mlb-inning-run-predictor-QyazL
+```
+
+---
+
 ## [2026-05-19] — Model-refresh ship: i01 fix + 2024-2025 vintage constants + park factor refresh
 
 Lands the bug-fix portion of a wider model-refresh investigation
