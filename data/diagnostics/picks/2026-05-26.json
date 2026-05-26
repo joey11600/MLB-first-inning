@@ -1,7 +1,7 @@
 {
   "date": "2026-05-26",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-26T23:01:14Z",
+  "fitted_at": "2026-05-26T23:33:47Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO DATA",
       "graded_result": "",
-      "raw_p_run_t1": 0.3142,
-      "raw_p_run_b1": 0.4077,
-      "raw_p_nrfi": 0.4062,
+      "raw_p_run_t1": 0.3133,
+      "raw_p_run_b1": 0.4054,
+      "raw_p_nrfi": 0.4083,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_1-2",
@@ -125,9 +125,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.2686,
-      "raw_p_run_b1": 0.4177,
-      "raw_p_nrfi": 0.4259,
+      "raw_p_run_t1": 0.2684,
+      "raw_p_run_b1": 0.4172,
+      "raw_p_nrfi": 0.4264,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -924,7 +924,7 @@
       "game_pk": "822811",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.19,
       "raw_p_run_b1": 0.3035,
       "raw_p_nrfi": 0.5642,
@@ -1040,9 +1040,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3102,
-      "raw_p_run_b1": 0.3052,
-      "raw_p_nrfi": 0.4793,
+      "raw_p_run_t1": 0.3092,
+      "raw_p_run_b1": 0.3028,
+      "raw_p_nrfi": 0.4817,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
         "band": "bin_7-8",
@@ -1077,10 +1077,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 29.8,
-          "z": 3.879,
+          "value": 28.7,
+          "z": 3.646,
           "weight": 0.021,
-          "contribution": 0.0815,
+          "contribution": 0.0766,
           "outlier": true
         },
         {
@@ -1095,10 +1095,10 @@
       "top_drivers_b1": [
         {
           "name": "wx_wind_kmh",
-          "value": 29.8,
-          "z": 3.879,
+          "value": 28.7,
+          "z": 3.646,
           "weight": 0.0497,
-          "contribution": 0.1927,
+          "contribution": 0.1811,
           "outlier": true
         },
         {
@@ -1145,8 +1145,8 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "T1: feature wx_wind_kmh=29.800 is z=+3.88 sigma from training mean -- contribution +0.082 to logit",
-        "B1: feature wx_wind_kmh=29.800 is z=+3.88 sigma from training mean -- contribution +0.193 to logit",
+        "T1: feature wx_wind_kmh=28.700 is z=+3.65 sigma from training mean -- contribution +0.077 to logit",
+        "B1: feature wx_wind_kmh=28.700 is z=+3.65 sigma from training mean -- contribution +0.181 to logit",
         "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
@@ -1156,9 +1156,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3572,
-      "raw_p_run_b1": 0.1778,
-      "raw_p_nrfi": 0.5285,
+      "raw_p_run_t1": 0.3574,
+      "raw_p_run_b1": 0.1781,
+      "raw_p_nrfi": 0.5281,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_12-13",
@@ -1386,10 +1386,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2651,
-      "raw_p_run_b1": 0.3017,
-      "raw_p_nrfi": 0.5132,
-      "calibrated_p_nrfi": 0.5287,
+      "raw_p_run_t1": 0.2653,
+      "raw_p_run_b1": 0.3022,
+      "raw_p_nrfi": 0.5127,
+      "calibrated_p_nrfi": 0.526,
       "calibrator_band": {
         "band": "bin_10-11",
         "is_flat": true,
@@ -1499,7 +1499,7 @@
       "game_pk": "823379",
       "pick_side": "PASS",
       "pick_strength": "NO DATA",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.225,
       "raw_p_run_b1": 0.3466,
       "raw_p_nrfi": 0.5064,
