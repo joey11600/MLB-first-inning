@@ -196,8 +196,14 @@ def main() -> int:
     # FIRST run with the heal happens in a no-Telegram-env situation, the
     # ping is lost forever -- acceptable, since the alternative is daily
     # spam pings for the rest of the season.
+    #
+    # 2026-05-28 fix: today_record / today_pl were only assigned inside
+    # the `if csv_mutated_indices:` block but referenced unconditionally
+    # below for the status print -> UnboundLocalError on every no-op
+    # heal (which is every cron tick after the heal already ran once).
+    # Compute them eagerly so the status print always works.
+    today_record, today_pl = tracker._aggregate_today_record(rows, ISO_DATE)
     if csv_mutated_indices:
-        today_record, today_pl = tracker._aggregate_today_record(rows, ISO_DATE)
         for idx in csv_mutated_indices:
             try:
                 tracker._notify_strong_graded_telegram(rows[idx], today_record, today_pl)
