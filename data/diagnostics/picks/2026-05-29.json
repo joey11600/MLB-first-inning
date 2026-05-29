@@ -1,7 +1,7 @@
 {
   "date": "2026-05-29",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-29T22:05:16Z",
+  "fitted_at": "2026-05-29T22:27:41Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,13 +11,15 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.4549,
+      "raw_p_run_t1": 0.387,
       "raw_p_run_b1": 0.3874,
-      "raw_p_nrfi": 0.334,
-      "calibrated_p_nrfi": 0.3219,
+      "raw_p_nrfi": 0.3755,
+      "calibrated_p_nrfi": 0.3803,
       "calibrator_band": {
-        "band": "below_min",
-        "is_flat": false
+        "band": "bin_0-1",
+        "is_flat": true,
+        "flat_size": 4,
+        "flat_rate": 0.3219178082191781
       },
       "top_drivers_t1": [
         {
@@ -29,19 +31,19 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_slg",
-          "value": 0.392,
-          "z": -0.749,
-          "weight": -0.3266,
-          "contribution": 0.2445,
-          "outlier": false
-        },
-        {
           "name": "era_gap_t1",
           "value": 1.883,
           "z": 2.216,
           "weight": 0.0923,
           "contribution": 0.2045,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_slg",
+          "value": 0.4656,
+          "z": 0.393,
+          "weight": -0.3266,
+          "contribution": -0.1283,
           "outlier": false
         },
         {
@@ -115,7 +117,8 @@
       },
       "warnings": [
         "T1: feature wx_wind_kmh=29.900 is z=+3.90 sigma from training mean -- contribution +0.082 to logit",
-        "B1: feature wx_wind_kmh=29.900 is z=+3.90 sigma from training mean -- contribution +0.194 to logit"
+        "B1: feature wx_wind_kmh=29.900 is z=+3.90 sigma from training mean -- contribution +0.194 to logit",
+        "calibrator flat zone: 4 bins all map to rate 0.3219 (multiple distinct raw probs collapse here)"
       ]
     },
     {
