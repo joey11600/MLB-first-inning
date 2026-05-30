@@ -1,7 +1,7 @@
 {
   "date": "2026-05-30",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-30T21:04:31Z",
+  "fitted_at": "2026-05-30T21:09:11Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.4143,
-      "raw_p_run_b1": 0.515,
-      "raw_p_nrfi": 0.2841,
+      "raw_p_run_t1": 0.3495,
+      "raw_p_run_b1": 0.526,
+      "raw_p_nrfi": 0.3083,
       "calibrated_p_nrfi": 0.3219,
       "calibrator_band": {
         "band": "below_min",
@@ -30,10 +30,10 @@
         },
         {
           "name": "away_top3c_slg",
-          "value": 0.3928,
-          "z": -0.736,
+          "value": 0.4623,
+          "z": 0.342,
           "weight": -0.3266,
-          "contribution": 0.2404,
+          "contribution": -0.1116,
           "outlier": false
         },
         {
@@ -45,19 +45,19 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
-          "outlier": false
-        },
-        {
           "name": "home_xera",
           "value": 4.7432,
           "z": 0.581,
           "weight": 0.1107,
           "contribution": 0.0643,
+          "outlier": false
+        },
+        {
+          "name": "era_gap_t1",
+          "value": 0.539,
+          "z": 0.639,
+          "weight": 0.0923,
+          "contribution": 0.059,
           "outlier": false
         }
       ],
