@@ -1,7 +1,7 @@
 {
   "date": "2026-05-31",
   "model_version": "V2.2",
-  "fitted_at": "2026-05-31T21:49:28Z",
+  "fitted_at": "2026-05-31T22:05:29Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -468,14 +468,14 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2309,
-      "raw_p_run_b1": 0.3558,
-      "raw_p_nrfi": 0.4955,
-      "calibrated_p_nrfi": 0.4792,
+      "raw_p_run_t1": 0.2344,
+      "raw_p_run_b1": 0.3665,
+      "raw_p_nrfi": 0.485,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_8-9",
+        "band": "bin_7-8",
         "is_flat": true,
-        "flat_size": 5,
+        "flat_size": 3,
         "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
@@ -546,19 +546,19 @@
           "outlier": false
         },
         {
-          "name": "wx_wind_kmh",
-          "value": 2.2,
-          "z": -1.97,
-          "weight": 0.0497,
-          "contribution": -0.0978,
-          "outlier": false
-        },
-        {
           "name": "home_top3c_obp",
           "value": 0.3671,
           "z": 0.926,
           "weight": 0.1015,
           "contribution": 0.094,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_iso",
+          "value": 0.1981,
+          "z": 0.394,
+          "weight": 0.2289,
+          "contribution": 0.0901,
           "outlier": false
         }
       ],
@@ -574,7 +574,7 @@
       },
       "warnings": [
         "B1: feature away_p_last10_pitcher_nrfi=0.000 is z=-4.13 sigma from training mean -- contribution +0.235 to logit",
-        "calibrator flat zone: 5 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
