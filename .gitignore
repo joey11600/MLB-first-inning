@@ -17,3 +17,14 @@ data/cache/
 data/backtests/logs/
 # Odds templates are generated per-day, no need to commit
 data/odds/template_*.csv
+
+# Merge-conflict workaround artifacts -- e.g. a file moved aside to allow a
+# fast-forward pull (drift_*.csv.local-backup).  Always cruft; never tracked.
+*.local-backup
+
+# NOTE: a `*.bak-*` rule was considered to suppress ad-hoc local backup
+# snapshots, but the weekly_retrain workflow commits its model rollback
+# backups via `git add data/*.bak-*`; ignoring them would need a matching
+# `git add -f` in that workflow, and editing .github/workflows/ requires
+# GitHub `workflow` OAuth scope this client lacks.  Left out to avoid a
+# half-applied change that would silently break the retrain backup commit.
