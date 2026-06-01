@@ -955,9 +955,38 @@ _LR_LEAN_YRFI_P   = 0.50
 # bucket (9 picks: 4W-5L) lifts the season +1.36u with no downside.
 # Going higher than 0.78 starts cutting profitable bets.
 #
-# NRFI does NOT need a ceiling: all 39 graded STRONG NRFI picks have
-# lambda <= 0.54, well below average, no bad zone to clip.
+# NOTE (superseded 2026-06-01): the line below used to say "NRFI does
+# NOT need a ceiling: all 39 graded STRONG NRFI picks have lambda <=
+# 0.54."  That was true under the old model.  After the 2026-05-26
+# sliding-window retrain + the late-May league shift toward more
+# first-inning runs, STRONG NRFI picks started landing at lambda_lr_total
+# 0.55-0.58 and bleeding badly (see _LR_LAMBDA_NRFI_CEILING below).
 _LR_LAMBDA_YRFI_FLOOR = 0.838   # 0.78 mechanically scaled by 0.510/0.475 in Phase 2 league-constants refresh
+
+# Lambda CEILING for STRONG NRFI (T1-NRFI-2026-06-01).  Mirror image of
+# the YRFI floor above: don't fire a STRONG NRFI bet when the model's
+# OWN expected first-inning runs (lambda_lr_total) is too HIGH.  A high
+# lambda means the model itself expects a run -- betting NRFI there is
+# internally contradictory, and empirically those bets bleed.
+#
+# Evidence (tools/walk_forward_eval-style study, 2026-04-27 -> 2026-06-01):
+#   - Baseline STRONG NRFI (no ceiling): 20W/23L bet, 26W/25L all-graded,
+#     ~ -8.6u (bet) / -5.3u (all-graded flat -110).
+#   - True walk-forward (threshold chosen on prior weeks only, applied
+#     blind to next week): +9.57u vs no-gate; threshold stabilized at 0.50.
+#   - Robustness (all 51 graded STRONG NRFI, flat -110): a contiguous
+#     "basin" of good caps 0.48/0.50/0.52 = +2.33 / +5.89 / +5.44u,
+#     degrading smoothly to no-gate (-5.31u).  Not a knife-edge.
+#   - Cap kept bets hit 71-76% vs 51% ungated.
+# 0.52 chosen (loose edge of the basin) to keep a few more NRFI bets as
+# insurance if the league reverts to a NRFI-friendly environment; 0.50
+# was the in-sample optimum.  One-constant change to retune.
+#
+# YRFI INVARIANCE: this ceiling is checked ONLY inside the STRONG-NRFI
+# branch of classify_pick_lr (p_nrfi >= 0.56).  A YRFI pick has
+# p_nrfi < 0.44 and never reaches that branch, so this constant cannot
+# affect any YRFI verdict.  Set to a large value (e.g. 99) to disable.
+_LR_LAMBDA_NRFI_CEILING = 0.52
 
 # Flat-zone STRONG guard (2026-05-26).  Set to 99 = DISABLED based on
 # empirical study (tools/filter_impact_check.py over 30-day window
@@ -985,6 +1014,7 @@ def _write_thresholds_json() -> None:
         "passLoP":         _LR_PASS_LO_P,
         "leanYrfiP":       _LR_LEAN_YRFI_P,
         "lambdaYrfiFloor": _LR_LAMBDA_YRFI_FLOOR,
+        "lambdaNrfiCeiling": _LR_LAMBDA_NRFI_CEILING,
         "writtenAtUtc":    datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds") + "Z",
     }
     try:
@@ -1790,6 +1820,15 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
 
     # STRONG NRFI: p_nrfi >= 0.56
     if p_nrfi >= _LR_STRONG_NRFI_P:
+        # T1-NRFI-2026-06-01: NRFI lambda ceiling.  If the model's own
+        # expected first-inning runs is too high, the STRONG NRFI verdict
+        # is internally contradictory (it says "no run" while projecting
+        # a run) and empirically bleeds.  Demote to PASS "HIGH LAMBDA".
+        # Mirror image of the STRONG YRFI "LOW LAMBDA" demotion below.
+        # This branch is unreachable for YRFI picks (p_nrfi < 0.44), so
+        # it CANNOT affect YRFI behavior.
+        if lambda_total is not None and lambda_total > _LR_LAMBDA_NRFI_CEILING:
+            return "PASS", "HIGH LAMBDA"
         return "NRFI", "STRONG"
 
     # LEAN NRFI: 0.50 <= p_nrfi < 0.56  (track-only)
@@ -2449,7 +2488,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             # its own when the lineup posts).  STARTER PENDING / NO DATA
             # are permanent for the day, surfaced after the transient one.
             order = ["FLAT ZONE", "LINEUP PENDING", "STARTER PENDING",
-                     "NO DATA", "LOW LAMBDA", "NO EDGE"]
+                     "NO DATA", "HIGH LAMBDA", "LOW LAMBDA", "NO EDGE"]
             pass_reasons.sort(key=lambda r: order.index(r) if r in order else 99)
             # Primary token = first in the ordered list (most actionable)
             pick_conf = pass_reasons[0]
@@ -2657,6 +2696,7 @@ _BOARD_ZONE: dict[tuple[str, str], tuple[str, str, str]] = {
     ("PASS", "STARTER PENDING"): ("[GRAY] ", "WHITE", "--  STARTER PEND."),
     ("PASS", "LINEUP PENDING"):  ("[GRAY] ", "WHITE", "--  LINEUP PEND. "),
     ("PASS", "LOW LAMBDA"):      ("[GRAY] ", "WHITE", "--  LOW LAMBDA   "),
+    ("PASS", "HIGH LAMBDA"):     ("[GRAY] ", "WHITE", "--  HIGH LAMBDA  "),
     ("PASS", "FLAT ZONE"):       ("[GRAY] ", "WHITE", "--  FLAT ZONE    "),
     ("YRFI", "LEAN"):   ("[RED]  ", "RED",    "*  LEAN YRFI  "),
     ("YRFI", "STRONG"): ("[RED]  ", "RED",    "** STRONG YRFI"),

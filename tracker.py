@@ -623,6 +623,7 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "STARTER PENDING": "Starter pending",
                 "LINEUP PENDING":  "Lineup pending",
                 "LOW LAMBDA":      "Low lambda",
+                "HIGH LAMBDA":     "High lambda",
                 "NO EDGE":         "No edge",
                 "FLAT ZONE":       "Flat zone",
             }
@@ -637,6 +638,8 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     label = "PASS - Lineup pending"
                 elif conf == "LOW LAMBDA":
                     label = "PASS - Low lambda"
+                elif conf == "HIGH LAMBDA":
+                    label = "PASS - High lambda"
                 elif conf == "FLAT ZONE":
                     label = "PASS - Flat zone"
                 else:

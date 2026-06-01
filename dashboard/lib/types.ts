@@ -6,7 +6,9 @@ export type PickStrength =
   | "NO DATA"
   | "STARTER PENDING"
   | "LINEUP PENDING"
-  | "LOW LAMBDA";
+  | "LOW LAMBDA"
+  | "HIGH LAMBDA"
+  | "FLAT ZONE";
 export type DataQuality = "live" | "ltd" | "sm" | "avg" | "";
 
 export interface BoardRow {
@@ -161,6 +163,7 @@ export interface PickThresholds {
   passLoP:        number;   // NRFI prob >= this -> PASS NO EDGE
   leanYrfiP:      number;   // NRFI prob >= this (and below passLoP) -> LEAN YRFI
   lambdaYrfiFloor: number;  // would-be YRFI demoted to LOW LAMBDA when below
+  lambdaNrfiCeiling?: number; // would-be STRONG NRFI demoted to HIGH LAMBDA when above (optional: older deploys omit)
 }
 
 export interface BoardResponse {

@@ -11,6 +11,83 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-06-01] — NRFI lambda ceiling (T1-NRFI): stop STRONG NRFI bleed without touching YRFI
+
+The 2026-05-26 sliding-window retrain made the YRFI side excellent
+(STRONG YRFI 17W/6L over the next 5 days, +7.56u) but STRONG NRFI kept
+bleeding (20W/23L bet, ~−8.6u over 30d).  Root-cause investigation +
+a pressure-tested fix.
+
+### Why NRFI was bleeding (investigation)
+
+- League-wide first-inning NRFI rate dropped Apr 49.9% -> early-May
+  48.9% -> late-May 46.0%.  The retrained model + calibrator were tuned
+  to a higher base rate, so STRONG NRFI ran overconfident: at cal_p>=0.65
+  the actual hit rate was 40%; at 0.56-0.60 it was 36%.
+- A full recalibration was tested and REJECTED: it would have cut YRFI
+  bet volume ~59% (70 -> 29 on the 14-day holdout) and turned +2.3u into
+  −10.8u.  The current YRFI edge is an *exploitable* gap between our
+  model and DK's slow-moving line; "honest" recalibration removes the
+  exaggeration that makes YRFI profitable.  (tools/recalibrate_only.py
+  documents this — DO NOT recalibrate without re-reading it.)
+- Feature-level study of NRFI losses: 53% were the HOME team scoring in
+  the bottom of the first; home top-3 OBP was the most robust separator
+  of NRFI wins vs losses (Cohen's d 0.34/0.43 across both halves of the
+  sample).  Conceptual gap: the model uses "top-3 by OPS," not the actual
+  1-2-3 batting order that determines first-inning scoring.  -> Track 2.
+
+### Added — `_LR_LAMBDA_NRFI_CEILING` (NRFI-only lambda ceiling)
+
+- `mlb_first_inning_predictor.py`: STRONG NRFI is demoted to PASS
+  "HIGH LAMBDA" when the model's own `lambda_lr_total` (expected
+  first-inning runs) exceeds **0.52**.  Mirror image of the existing
+  `_LR_LAMBDA_YRFI_FLOOR`.  Resolves the internal contradiction where
+  the model fired STRONG NRFI while projecting >0.5 runs.
+- **Pressure-test evidence** (2026-04-27 -> 2026-06-01):
+  - True walk-forward (threshold chosen on prior weeks only, applied
+    blind): **+9.57u** vs no-gate; threshold stabilized at 0.50.
+  - Robustness, all 51 graded STRONG NRFI at flat −110: a contiguous
+    BASIN of good caps 0.48/0.50/0.52 = +2.33 / +5.89 / +5.44u,
+    degrading smoothly to no-gate (−5.31u).  Not a knife-edge.
+  - Kept bets hit 71-76% vs 51% ungated.
+  - Chose 0.52 (loose edge of basin) to keep volume as insurance if the
+    league reverts NRFI-friendly; 0.50 was the in-sample optimum.
+- **YRFI INVARIANCE PROVEN, not assumed**: the ceiling check lives ONLY
+  inside the `p_nrfi >= 0.56` branch of `classify_pick_lr`.  A 20,200-cell
+  grid test (every p_nrfi x lambda combo) confirmed **0 changes** on the
+  YRFI/PASS side (p_nrfi < 0.56) and changes only on the NRFI side.  The
+  5-day YRFI winning structure is mathematically untouched.
+
+### Changed — display + plumbing for the new PASS reason
+
+- `tracker.py`: "HIGH LAMBDA" -> "High lambda" label; added to the
+  PASS-reason label map.
+- `mlb_first_inning_predictor.py`: "HIGH LAMBDA" added to the PASS-reason
+  sort order, the board zone map, and `data/thresholds.json` output
+  (`lambdaNrfiCeiling`).
+- Dashboard parity (so the tentative classifier never drifts from
+  Python): `lib/types.ts` (PickStrength gains HIGH LAMBDA + FLAT ZONE;
+  PickThresholds gains optional `lambdaNrfiCeiling`), `components/
+  BoardRow.tsx` (classifyTentative mirrors the ceiling; "PASS · HIGH λ"
+  pill), `lib/board.ts` + `lib/board-supabase.ts` (parse the optional
+  ceiling without rejecting older thresholds payloads).  Dashboard
+  `npm run build` passes.
+
+### Deferred — Track 2 (the real NRFI fix)
+
+- Start capturing FULL batting order at predict time (currently only
+  top-3-by-OPS is stored), then build an NRFI feature that uses the
+  actual 1-2-3 hitters' on-base.  Must pass 3-split out-of-sample
+  validation before shipping.  This ceiling is the interim bleed-stopper.
+
+### Rollback
+
+One constant: set `_LR_LAMBDA_NRFI_CEILING = 99` in
+`mlb_first_inning_predictor.py`, commit, push.  Next cron run reverts to
+ungated STRONG NRFI within the hour.  YRFI unaffected either way.
+
+---
+
 ## [2026-05-26] — Sliding-window retrain: T1+B1+calibrator refit on 2024+2025+2026YTD, validated weekly-retrain workflow
 
 After two weeks of slow losses (−5.33u realized 5/12–5/26), investigated

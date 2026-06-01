@@ -81,7 +81,9 @@ function normalizePickStrength(s: string): PickStrength {
     up === "NO DATA" ||
     up === "STARTER PENDING" ||
     up === "LINEUP PENDING" ||
-    up === "LOW LAMBDA"
+    up === "LOW LAMBDA" ||
+    up === "HIGH LAMBDA" ||
+    up === "FLAT ZONE"
   )
     return up as PickStrength;
   return "NO EDGE";
@@ -405,9 +407,15 @@ async function loadThresholds(): Promise<import("./types").PickThresholds | unde
       leanYrfiP:       num(obj.leanYrfiP),
       lambdaYrfiFloor: num(obj.lambdaYrfiFloor),
     };
-    // All five must be present and numeric or we treat as missing.
+    // The five core fields must be present and numeric or we treat as
+    // missing.  lambdaNrfiCeiling is OPTIONAL (older deploys omit it) --
+    // add it separately so its absence never invalidates the core five.
     if (Object.values(t).some((v) => v == null)) return undefined;
-    return t as import("./types").PickThresholds;
+    const ceiling = num(obj.lambdaNrfiCeiling);
+    return {
+      ...t,
+      ...(ceiling != null ? { lambdaNrfiCeiling: ceiling } : {}),
+    } as import("./types").PickThresholds;
   } catch {
     return undefined;
   }

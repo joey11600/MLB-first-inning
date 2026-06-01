@@ -38,6 +38,8 @@ function pickLabelText(
   if (strength === "STARTER PENDING") return "STARTER PENDING";
   if (strength === "LINEUP PENDING")  return "LINEUP PENDING";
   if (strength === "LOW LAMBDA")      return "PASS · LOW λ";
+  if (strength === "HIGH LAMBDA")     return "PASS · HIGH λ";
+  if (strength === "FLAT ZONE")       return "PASS · FLAT";
   if (side === "PASS") return "PASS";
   // Pre-lock STRONG / LEAN -> show as PENDING with countdown.
   if (preLock && (strength === "STRONG" || strength === "LEAN")) {
@@ -145,6 +147,7 @@ export const DEFAULT_THRESHOLDS: PickThresholds = {
   passLoP:         0.44,
   leanYrfiP:       0.50,
   lambdaYrfiFloor: 0.78,
+  lambdaNrfiCeiling: 0.52,
 };
 
 /** Mirror of mlb_first_inning_predictor.classify_pick_lr -- given an
@@ -163,7 +166,17 @@ export function classifyTentative(
 ): { side: PickSide; strength: PickStrength } {
   const t = th ?? DEFAULT_THRESHOLDS;
 
-  if (pNrfi >= t.strongNrfiP) return { side: "NRFI", strength: "STRONG" };
+  if (pNrfi >= t.strongNrfiP) {
+    // T1-NRFI-2026-06-01: mirror the Python NRFI lambda ceiling -- a
+    // would-be STRONG NRFI with too-high projected runs is demoted to
+    // PASS "HIGH LAMBDA".  Only fires inside the STRONG-NRFI branch, so
+    // it cannot affect any YRFI verdict.  Older deploys omit the field;
+    // skip the check when it's undefined.
+    if (t.lambdaNrfiCeiling != null && lambdaTotal != null && lambdaTotal > t.lambdaNrfiCeiling) {
+      return { side: "PASS", strength: "HIGH LAMBDA" };
+    }
+    return { side: "NRFI", strength: "STRONG" };
+  }
   if (pNrfi >= t.leanNrfiP)   return { side: "NRFI", strength: "LEAN" };
 
   // LEAN YRFI band: strictly above passLoP, below leanNrfiP, lambda >= floor.
