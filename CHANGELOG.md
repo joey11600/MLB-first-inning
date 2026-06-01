@@ -11,6 +11,51 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-06-01] — Fix: dashboard false-BROKEN from malformed writtenAtUtc timestamp
+
+Investigating why nrfi-terminal.vercel.app showed status BROKEN / "no
+refresh in 522 min" while picks were current, the root cause turned out
+to be NOT the alias (which correctly points at the latest production
+deployment) and NOT the cron (which runs hourly) — it was a malformed
+timestamp.
+
+### Root cause
+
+- `mlb_first_inning_predictor._write_thresholds_json` wrote
+  `writtenAtUtc` as `datetime.now(ZoneInfo("UTC")).isoformat(timespec=
+  "seconds") + "Z"`.  Because the datetime is tz-AWARE, isoformat()
+  already appends `+00:00`, so the result was `"...+00:00Z"` — an
+  invalid ISO-8601 string carrying BOTH an offset and a Z.
+- `dashboard/app/api/health/route.ts` does `Date.parse(writtenAtUtc)`,
+  which returns `NaN` for that malformed form, so `lastPredictAt`
+  stayed null and the route fell back to the most-recent
+  `pick_changes.csv` flip time.  On quiet pick-flip days (e.g. today,
+  4 stable picks) the last flip was hours old -> false "BROKEN".
+  On busy days frequent flips masked the bug, which is why it was
+  intermittent.
+- This was the only production site with the bug: every other
+  `isoformat() + "Z"` in the tree uses a NAIVE `datetime.utcnow()` (or
+  `.replace(tzinfo=None)`), which yields a valid `"...Z"`.
+
+### Fixed
+
+- `mlb_first_inning_predictor.py`: emit `writtenAtUtc` via
+  `strftime("%Y-%m-%dT%H:%M:%SZ")` — a clean, parseable UTC stamp.
+- `dashboard/app/api/health/route.ts`: defensively strip a redundant
+  trailing `Z` when an offset is present before `Date.parse`, so old
+  bundled snapshots and any future producer slip can't regress this.
+  Dashboard `npm run build` passes.
+
+### Impact
+
+Display/health-status only — zero effect on picks, bets, P&L, or the
+model.  The alias was never stale (confirmed via Vercel API:
+nrfi-terminal.vercel.app -> latest READY production deployment).  The
+dashboard self-heals on the next predict run (writes a valid timestamp
++ triggers a redeploy that bundles it).
+
+---
+
 ## [2026-06-01] — NRFI lambda ceiling (T1-NRFI): stop STRONG NRFI bleed without touching YRFI
 
 The 2026-05-26 sliding-window retrain made the YRFI side excellent

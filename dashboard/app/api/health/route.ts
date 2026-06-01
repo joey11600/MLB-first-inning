@@ -78,7 +78,15 @@ export async function GET() {
     const tjson = await safeRead(path.join(dir, "thresholds.json"));
     if (tjson) {
       const obj = JSON.parse(tjson) as { writtenAtUtc?: string };
-      const t = Date.parse(obj.writtenAtUtc ?? "");
+      // 2026-06-01: tolerate a historical malformed format that carried
+      // BOTH an offset and a trailing Z (e.g. "2026-06-01T15:02:52+00:00Z"),
+      // which Date.parse() rejects as NaN -> caused a false-BROKEN fall
+      // back to the stale pick_changes.csv timestamp.  Strip the redundant
+      // trailing Z when an explicit +/- offset is already present.  (The
+      // predictor now emits a clean "...Z" form; this guard keeps old
+      // bundled snapshots and any future producer slip from regressing.)
+      const rawTs = (obj.writtenAtUtc ?? "").replace(/([+-]\d{2}:\d{2})Z$/, "$1");
+      const t = Date.parse(rawTs);
       if (Number.isFinite(t)) lastPredictAt = new Date(t);
     }
   } catch { /* ignore */ }

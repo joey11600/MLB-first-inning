@@ -1015,7 +1015,14 @@ def _write_thresholds_json() -> None:
         "leanYrfiP":       _LR_LEAN_YRFI_P,
         "lambdaYrfiFloor": _LR_LAMBDA_YRFI_FLOOR,
         "lambdaNrfiCeiling": _LR_LAMBDA_NRFI_CEILING,
-        "writtenAtUtc":    datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds") + "Z",
+        # 2026-06-01: must be a VALID ISO-8601 string.  The old form
+        # `datetime.now(ZoneInfo("UTC")).isoformat() + "Z"` produced
+        # "...+00:00Z" (BOTH an offset AND a Z) because the datetime is
+        # tz-aware -- JS Date.parse() rejects that as NaN, which made the
+        # dashboard /api/health fall back to a stale pick_changes.csv
+        # timestamp and falsely report BROKEN on quiet pick-flip days.
+        # strftime with a literal Z gives a clean, parseable UTC stamp.
+        "writtenAtUtc":    datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     try:
         path = Path(__file__).parent / "data" / "thresholds.json"
