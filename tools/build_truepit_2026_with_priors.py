@@ -305,6 +305,35 @@ def main():
     }
     out_path = REPO_ROOT / args.out
     out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 2026-06-02: degenerate-rebuild guard.  When the per-pitch Statcast
+    # cache is empty (e.g. the backfill step failed -- pybaseball missing
+    # or Statcast rate-limited), this rebuild produces ~0 pitchers.  Writing
+    # that empty file would clobber the last-good priors and make daily.yml's
+    # sanity check abort the whole run (exit 1) -- the recurring daily
+    # failure this guards against.  If the fresh result is degenerate AND a
+    # healthy file already exists, KEEP the existing file and exit 0 so the
+    # run stays green and the model keeps the last-good priors.  The real
+    # refresh resumes automatically once the cache repopulates.
+    SANE_MIN_PITCHERS = 100
+    n_fresh = len(pooled_by_pitcher)
+    if n_fresh < SANE_MIN_PITCHERS and out_path.exists():
+        try:
+            with open(out_path, encoding="utf-8") as f:
+                existing_n = len((json.load(f) or {}).get("per_pitcher") or {})
+        except Exception:    # noqa: BLE001
+            existing_n = 0
+        if existing_n >= SANE_MIN_PITCHERS:
+            print(f"\n  [guard] fresh rebuild produced only {n_fresh} pitchers "
+                  f"(per-pitch cache likely empty -- backfill failed upstream).")
+            print(f"  KEEPING existing {existing_n}-pitcher priors file; not "
+                  f"overwriting.  Run stays green on last-good priors.")
+            print(f"  (unchanged) -> {out_path}")
+            return
+        print(f"\n  [guard] fresh rebuild is degenerate ({n_fresh} pitchers) and "
+              f"the existing file is also unusable ({existing_n}); writing anyway "
+              f"so the failure still surfaces downstream.")
+
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
     print(f"\n  Saved -> {out_path}")

@@ -40,8 +40,10 @@ Compares to a trailing 7-day baseline.  Flags:
   LOW       informational only
   MEDIUM    >= 2σ deviation OR tag-distribution shift >= 20pp
             -> writes data/system_errors.csv
-  HIGH      >= 3σ deviation OR tag-shift >= 30pp OR pick-cluster >= 4
+  HIGH      >= 3σ deviation OR tag-shift >= 30pp
             -> writes data/system_errors.csv AND sends Telegram alert
+            (pick-cluster is capped at MEDIUM as of 2026-06-02 -- it is
+             not predictive of pick quality, so it no longer Telegrams)
 
 OUTPUTS
 -------
@@ -276,10 +278,17 @@ NOISY_CATEGORICAL = {"home_top3c_source", "away_top3c_source"}
 
 
 def severity_for_pick_cluster(n: int) -> str:
+    # 2026-06-02: pick clustering is NOT predictive of pick quality.  The
+    # flat-zone study (tools/filter_impact_check.py) showed STRONG picks
+    # landing in a tight calibrated-prob cluster hit ~64% -- BETTER than
+    # average, not worse.  This used to return HIGH at >=4, which fired a
+    # near-daily false-alarm Telegram.  Capped at MEDIUM so the cluster
+    # size still appears in the drift CSV + summary for visibility, but it
+    # never triggers the HIGH-only Telegram alert again.
     if n >= 4:
-        return "HIGH"
+        return "MEDIUM"   # was HIGH (demoted 2026-06-02 -- no longer Telegrams)
     if n >= 3:
-        return "MEDIUM"
+        return "LOW"      # was MEDIUM
     return "OK"
 
 
@@ -478,7 +487,7 @@ def main():
     cluster = pick_cluster_count(today_rows, window=0.005)
     sev_cluster = severity_for_pick_cluster(cluster)
     note = (f"largest cluster of picks within 0.005 calibrated P(NRFI): "
-            f"{cluster} (>=4 = HIGH; >=3 = MEDIUM)")
+            f"{cluster} (>=4 = MEDIUM; informational -- not predictive of pick quality)")
     report_rows.append({
         "category":  "pick_cluster",
         "metric":    "max_cluster_size",

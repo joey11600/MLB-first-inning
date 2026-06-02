@@ -11,6 +11,57 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-06-02] — Fix: stop the daily refresh-priors failure + silence false-alarm drift Telegrams
+
+Investigated recurring GitHub Actions failures + recurring Telegram
+"error" pings.  Two independent root causes, both fixed in Python (no
+workflow-file edit -- this client lacks GitHub `workflow` OAuth scope).
+
+### Fixed #1 — daily `refresh-priors` workflow failure (GitHub red X + email)
+
+- Root cause: `pybaseball` was never in `requirements.txt`, so the CI
+  backfill (`tools/backfill_truepit_2026.py`) hits
+  `sys.exit("pip install pybaseball")` on import.  The `refresh-priors`
+  job (cron `0 6 * * *`, once daily) wipes the per-pitch cache first,
+  so the failed backfill leaves it empty; `build_truepit_2026_with_priors.py`
+  then rebuilds 0 pitchers and writes an empty JSON; daily.yml's sanity
+  check sees <100 pitchers and aborts (exit 1).  Failing every morning
+  since ~2026-05-04 (when the priors JSON was last built locally).
+- Impact was ZERO on the model: the sanity check correctly blocked the
+  empty file from ever being committed, so production ran on the 206-
+  pitcher 2026-05-04 priors the whole time.  Loud-but-safe.
+- Fix: `build_truepit_2026_with_priors.py` now guards the write -- if a
+  rebuild is degenerate (<100 pitchers) AND a healthy file already
+  exists, it KEEPS the existing file and exits 0 instead of clobbering
+  it.  daily.yml's sanity check then reads the preserved 206-pitcher
+  file and passes; the commit step sees no change ("nothing to commit",
+  exit 0).  Net: the run goes green, the model is unchanged, and a real
+  refresh resumes automatically if/when the cache repopulates.
+
+### Fixed #3 — daily false-alarm "feature drift HIGH" Telegram
+
+- `tools/feature_drift_monitor.py` fired a HIGH-severity Telegram on
+  `pick_cluster >= 4` (largest set of picks within 0.005 calibrated
+  P(NRFI)).  That HIGH fired ~daily.  But the flat-zone study
+  (tools/filter_impact_check.py, 2026-05-26) already proved clustered
+  STRONG picks hit ~64% -- clustering is NOT predictive of bad
+  outcomes.  So this was a daily false alarm.
+- Fix: `severity_for_pick_cluster` now caps at MEDIUM (>=4 -> MEDIUM,
+  >=3 -> LOW).  Telegram fires on HIGH only, so the cluster pings stop;
+  the cluster size still appears in the drift CSV + summary for
+  visibility.  Real drift signals (>=3sigma feature moves, >=30pp tag
+  shifts) still escalate to HIGH and still Telegram.
+
+### Deferred #2 — actually un-freezing the priors (NOT done)
+
+- Adding `pybaseball` to make the daily refresh truly work would feed
+  fresher Statcast into the model -- i.e. it CAN change picks.  With the
+  model winning on the frozen priors, this is held pending an explicit
+  decision; it also adds a heavy dep to all ~25 daily runs + a 30-50min
+  flaky Statcast pull.  Tracked separately.
+
+---
+
 ## [2026-06-01] — Fix: dashboard false-BROKEN from malformed writtenAtUtc timestamp
 
 Investigating why nrfi-terminal.vercel.app showed status BROKEN / "no
