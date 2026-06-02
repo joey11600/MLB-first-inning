@@ -104,3 +104,5 @@ date,severity,metric,note
 2026-05-31,HIGH,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = HIGH; >=3 = MEDIUM)
 2026-06-01,HIGH,away_pitcher_q=sm,away_pitcher_q=sm: today=44.4% baseline=9.6% shift=+34.9%
 2026-06-01,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 2/9 extreme values (outside [5.0, 95.0]); max=100.00"
+2026-06-01,HIGH,away_pitcher_q=sm,away_pitcher_q=sm: today=44.4% baseline=9.6% shift=+34.9%
+2026-06-01,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 2/9 extreme values (outside [5.0, 95.0]); max=100.00"
