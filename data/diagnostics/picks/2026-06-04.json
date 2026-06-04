@@ -1,7 +1,7 @@
 {
   "date": "2026-06-04",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-04T21:50:21Z",
+  "fitted_at": "2026-06-04T22:06:39Z",
   "n_picks": 9,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -125,15 +125,15 @@
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.3232,
-      "raw_p_run_b1": 0.3184,
-      "raw_p_nrfi": 0.4613,
-      "calibrated_p_nrfi": 0.4611,
+      "raw_p_run_t1": 0.3209,
+      "raw_p_run_b1": 0.3129,
+      "raw_p_nrfi": 0.4666,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_6-7",
         "is_flat": true,
-        "flat_size": 5,
-        "flat_rate": 0.4383561643835616
+        "flat_size": 3,
+        "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
         {
@@ -231,7 +231,7 @@
       },
       "warnings": [
         "T1: feature home_avg_ip_per_start=1.000 is z=-5.03 sigma from training mean -- contribution +0.134 to logit",
-        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -695,12 +695,12 @@
       "matchup": "OAK@CHC",
       "game_pk": "824672",
       "pick_side": "PASS",
-      "pick_strength": "NO EDGE",
+      "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.2661,
-      "raw_p_run_b1": 0.3034,
-      "raw_p_nrfi": 0.5113,
-      "calibrated_p_nrfi": 0.5173,
+      "raw_p_run_t1": 0.2678,
+      "raw_p_run_b1": 0.3078,
+      "raw_p_nrfi": 0.5068,
+      "calibrated_p_nrfi": 0.49,
       "calibrator_band": {
         "band": "bin_10-11",
         "is_flat": true,
@@ -775,19 +775,19 @@
           "outlier": false
         },
         {
+          "name": "wx_wind_kmh",
+          "value": 23.8,
+          "z": 2.608,
+          "weight": 0.0497,
+          "contribution": 0.1295,
+          "outlier": false
+        },
+        {
           "name": "home_obp",
           "value": 0.33,
           "z": 1.401,
           "weight": 0.081,
           "contribution": 0.1134,
-          "outlier": false
-        },
-        {
-          "name": "wx_wind_kmh",
-          "value": 21.8,
-          "z": 2.184,
-          "weight": 0.0497,
-          "contribution": 0.1085,
           "outlier": false
         }
       ],
@@ -923,14 +923,14 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.1538,
-      "raw_p_run_b1": 0.375,
-      "raw_p_nrfi": 0.5289,
-      "calibrated_p_nrfi": 0.5479,
+      "raw_p_run_t1": 0.1489,
+      "raw_p_run_b1": 0.3542,
+      "raw_p_nrfi": 0.5496,
+      "calibrated_p_nrfi": 0.5509,
       "calibrator_band": {
-        "band": "bin_12-13",
+        "band": "bin_14-15",
         "is_flat": true,
-        "flat_size": 3,
+        "flat_size": 5,
         "flat_rate": 0.547945205479452
       },
       "top_drivers_t1": [
@@ -1001,19 +1001,19 @@
           "outlier": false
         },
         {
+          "name": "wx_wind_kmh",
+          "value": 3.8,
+          "z": -1.631,
+          "weight": 0.0497,
+          "contribution": -0.081,
+          "outlier": false
+        },
+        {
           "name": "away_p_last10_pitcher_nrfi",
           "value": 0.5,
           "z": -1.251,
           "weight": -0.057,
           "contribution": 0.0713,
-          "outlier": false
-        },
-        {
-          "name": "home_obp",
-          "value": 0.323,
-          "z": 0.796,
-          "weight": 0.081,
-          "contribution": 0.0644,
           "outlier": false
         }
       ],
@@ -1028,7 +1028,7 @@
         "away_pitcher_q": "ltd"
       },
       "warnings": [
-        "calibrator flat zone: 3 bins all map to rate 0.5479 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.5479 (multiple distinct raw probs collapse here)"
       ]
     }
   ]
