@@ -352,6 +352,7 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     away: r.away,
     home: r.home,
     lambda: Number(r.lambda) || 0,
+    lambdaLrTotal: toNumber(r.lambda_lr_total),
     pickSide: normalizePickSide(r.pick_side),
     pickStrength: normalizePickStrength(r.pick_strength),
     pickLabel: r.pick_label,

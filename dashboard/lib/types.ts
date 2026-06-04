@@ -15,7 +15,8 @@ export interface BoardRow {
   rank: number;
   away: string;
   home: string;
-  lambda: number;
+  lambda: number;          // combined_lambda -- legacy display/sort value
+  lambdaLrTotal: number | null;  // the model's own run projection; what the YRFI floor actually checks
   pickSide: PickSide;
   pickStrength: PickStrength;
   pickLabel: string;

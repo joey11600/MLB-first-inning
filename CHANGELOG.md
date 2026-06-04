@@ -11,6 +11,39 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-06-04] — Fix self-contradicting "PASS · LOW λ" tooltip (wrong lambda + stale floor)
+
+### Fixed
+
+- The board's `PASS · LOW λ` demotion tooltip showed nonsense like
+  *"Combined λ 1.13 below the 0.78 floor"* — 1.13 is plainly **above**
+  0.78. Operator caught it (BAL@BOS 6/04). Two bugs underneath:
+  1. **Wrong lambda displayed against the floor.** The tooltip printed
+     `combined_lambda` (the legacy Poisson display value, 1.13), but the
+     YRFI floor demotion is actually decided by `lambda_lr_total` (the
+     production model's own first-inning run projection — 0.80 for that
+     game). The two are different numbers from different models; comparing
+     the *displayed* one to the floor was never meaningful.
+  2. **Stale floor value.** The tooltip strings hardcoded `0.78`; the real
+     production floor (`_LR_LAMBDA_YRFI_FLOOR`) has been `0.838` since the
+     5/26 ship. `DEFAULT_THRESHOLDS.lambdaYrfiFloor` was also still `0.78`.
+- Now: the demotion tooltips reference the model's actual run projection
+  (`lambda_lr_total`, 0.80) vs the correct floor (0.838), so "0.80 below
+  the 0.84 floor" reads true. The big "λ" chip still shows
+  `combined_lambda` (unchanged — it's what the board sorts by), but its
+  hover note now explains the floor uses the model projection, not the
+  displayed value.
+- Plumbing: added `lambdaLrTotal` to the `BoardRow` type and populated it
+  in both board builders (`lib/board.ts` CSV path via `toNumber`,
+  `lib/board-supabase.ts` live path via `nullableNum`) so missing values
+  are `null` (no false "0.00 below floor"). No model/bet behavior changed
+  — display/explanation only. Fixed `DEFAULT_THRESHOLDS.lambdaYrfiFloor`
+  0.78 → 0.838. Files: `dashboard/components/BoardRow.tsx`,
+  `dashboard/lib/types.ts`, `dashboard/lib/board.ts`,
+  `dashboard/lib/board-supabase.ts`.
+
+---
+
 ## [2026-06-04] — STRONG NRFI threshold 0.56 → 0.62 (validated): stop betting the vig-break-even band
 
 Diagnosed *why* NRFI accuracy was poor (operator pushed past "it's

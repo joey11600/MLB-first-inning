@@ -146,7 +146,7 @@ export const DEFAULT_THRESHOLDS: PickThresholds = {
   leanNrfiP:       0.50,
   passLoP:         0.44,
   leanYrfiP:       0.50,
-  lambdaYrfiFloor: 0.78,
+  lambdaYrfiFloor: 0.838,
   lambdaNrfiCeiling: 0.52,
 };
 
@@ -221,11 +221,15 @@ function shortBook(name: string): string {
 function lambdaTooltip(row: BoardRow): string {
   const lam = row.lambda.toFixed(2);
   const yrfi = row.yrfiPct.toFixed(1);
+  const floor = DEFAULT_THRESHOLDS.lambdaYrfiFloor;          // 0.838 (the real YRFI floor)
+  const lr = row.lambdaLrTotal;                              // the run estimate the floor actually checks
   const note =
-    row.lambda < 0.78
-      ? "\n• Below 0.78 floor → would-be YRFI demoted to PASS - LOW λ"
-      : "\n• Above 0.78 floor → YRFI bets enabled when YRFI% high enough";
-  return `Combined λ ${lam} (expected total 1st-inning runs)\nP(YRFI) ${yrfi}%${note}`;
+    lr == null
+      ? ""
+      : lr < floor
+        ? `\n• Model's run projection ${lr.toFixed(2)} is below the ${floor.toFixed(2)} YRFI floor → would-be YRFI demoted to PASS - LOW λ`
+        : `\n• Model's run projection ${lr.toFixed(2)} is above the ${floor.toFixed(2)} YRFI floor → YRFI bets enabled when YRFI% high enough`;
+  return `Combined λ ${lam} (rough total-runs estimate; the betting floor uses the model projection below)\nP(YRFI) ${yrfi}%${note}`;
 }
 
 function normalizeAmericanOdds(raw: string): string {
@@ -525,7 +529,7 @@ function PickPill({
     : clusterDemotionMatch
       ? `Skipped by cluster demotion '${clusterDemotionMatch[3]}'. Model's original verdict was ${clusterDemotionMatch[1]} ${clusterDemotionMatch[2]}, but bets matching this cluster have been losing -- so no money was committed. Counted as PASS in your official P&L. Reversible: edit data/cluster_demotions.json. Run 'python tools/cluster_shadow_pnl.py' to see how skipped bets would have done.`
     : row.pickStrength === "LOW LAMBDA"
-      ? `Demoted from STRONG/LEAN YRFI: combined λ ${row.lambda.toFixed(2)} below the 0.78 floor (model expects too few total runs to bet YRFI confidently). Tested in backtest: floor adds ~+1.36u/season.`
+      ? `Demoted from STRONG/LEAN YRFI: the model's first-inning run projection (${(row.lambdaLrTotal ?? row.lambda).toFixed(2)}) is below the ${DEFAULT_THRESHOLDS.lambdaYrfiFloor.toFixed(2)} floor, so it expects too few total runs to bet YRFI confidently. Tested in backtest: floor adds ~+1.36u/season.`
     : row.pickStrength === "NO DATA"
       ? noDataReason(detail)
       : undefined;
@@ -601,12 +605,15 @@ function passReasonText(
   // how close to the 0.78 floor we are (a 0.77 demotion feels different
   // than a 0.55 demotion, even though both demote).
   if (row.pickStrength === "LOW LAMBDA") {
+    const lr = (row.lambdaLrTotal ?? row.lambda).toFixed(2);
+    const floor = DEFAULT_THRESHOLDS.lambdaYrfiFloor.toFixed(2);
     return {
       text: `λ ${row.lambda.toFixed(2)}`,
       tooltip:
-        `Combined λ ${row.lambda.toFixed(2)} below the 0.78 floor -- would-be ` +
-        `STRONG YRFI demoted to PASS.  Model expects too few total ` +
-        `first-inning runs for YRFI to clear the betting edge.`,
+        `Would-be STRONG YRFI demoted to PASS.  The model's own first-inning ` +
+        `run projection (${lr}) is below the ${floor} floor needed to bet YRFI, ` +
+        `so it expects too few runs to hold an edge.  (The λ ${row.lambda.toFixed(2)} on the ` +
+        `row is a separate rough estimate -- the floor checks the model's ${lr}.)`,
     };
   }
 

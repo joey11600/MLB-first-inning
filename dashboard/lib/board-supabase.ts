@@ -177,6 +177,7 @@ function rowToBoardRow(r: PickRow, rank: number): BoardRow {
     // Stick to combined_lambda; fall back to lambda_lr_total only for
     // legacy rows that pre-date combined_lambda.
     lambda:         num(r.combined_lambda ?? r.lambda_lr_total),
+    lambdaLrTotal:  nullableNum(r.lambda_lr_total),
     pickSide:       normalizePickSide(str(r.pick_side)),
     pickStrength:   normalizePickStrength(str(r.pick_strength)),
     pickLabel:      str(r.pick_label),
