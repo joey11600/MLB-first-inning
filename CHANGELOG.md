@@ -11,6 +11,66 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-06-04] — STRONG NRFI threshold 0.56 → 0.62 (validated): stop betting the vig-break-even band
+
+Diagnosed *why* NRFI accuracy was poor (operator pushed past "it's
+variance"): a real, localized calibration problem, not noise.
+
+### Why
+
+- Calibration reliability on all graded games: when the model says
+  `nrfi_prob` 0.56-0.62 it actually goes NRFI only ~56-57% -- right at
+  the ~-130 vig break-even, i.e. NO edge -- while 0.62-0.66 goes 64%
+  and 0.66+ goes 71% (clears the vig).  Robust signal (shows in May and
+  June), unlike the weather lead which died on the 4,802-game backtest.
+- The STRONG NRFI threshold (0.56) sat inside that dead band.  It was
+  *previously* 0.62; the 2026-04-29 loosening to 0.56 was a YRFI-focused
+  change (recapture 0.43-band YRFI picks) that dragged NRFI down with it.
+- This raise REVERTS NRFI to the previously-validated 0.62.
+
+### Validation (tools/nrfi_threshold_study.py, tools/edge_reality_check.py)
+
+- Realized ROI on placed STRONG NRFI bets rises monotonically with the
+  threshold: 0.56=-16%, 0.60=-8%, 0.62=-3%, 0.64=+6%.
+- **TRUE walk-forward** (threshold chosen on prior weeks, applied blind):
+  **+4.26u** vs leaving it at 0.56.  Clears the same bar the lambda
+  ceiling did (+9.57u) -- and that the lower-YRFI-floor idea FAILED
+  (-3.56u, not shipped).
+- Effect: turns STRONG NRFI from a -16% / -7.3u drag into ~break-even by
+  skipping the band where the model paid vig for a coin flip.  It does
+  not make NRFI a strong bet; it stops the bleed.
+
+### Changed
+
+- `mlb_first_inning_predictor.py`: `_LR_STRONG_NRFI_P` 0.56 → 0.62.  The
+  0.56-0.62 band now classifies as LEAN NRFI (track-only, `bet_placed=N`).
+  Comments + the LEAN-band docstring updated.
+- `dashboard/components/BoardRow.tsx`: `DEFAULT_THRESHOLDS.strongNrfiP`
+  0.56 → 0.62 so the tentative classifier matches.  `npm run build` passes.
+- `data/thresholds.json` picks up the new value on the next predict run.
+
+### YRFI INVARIANCE (proven, not assumed)
+
+20,200-cell grid test (every `p_nrfi` × `lambda`): **0 changes** where
+`p_nrfi < 0.56` (the YRFI/PASS side), changes only on the NRFI side.
+The winning YRFI engine is mathematically untouched.
+
+### Context
+
+This sits on top of the existing NRFI lambda ceiling (0.52): the
+threshold filters low-confidence NRFI, the ceiling filters
+high-projected-runs NRFI.  Complementary.  Also note the honest finding
+from this session: across 139 real-odds bets the overall edge is NOT yet
+statistically proven (bootstrap 95% CIs span 0); the recent profit was
+concentrated in one week.  This change is about removing a *known* −EV
+band, not claiming a proven edge.
+
+### Rollback
+
+`_LR_STRONG_NRFI_P = 0.56` in mlb_first_inning_predictor.py, commit, push.
+
+---
+
 ## [2026-06-02] — Fix: stop the daily refresh-priors failure + silence false-alarm drift Telegrams
 
 Investigated recurring GitHub Actions failures + recurring Telegram

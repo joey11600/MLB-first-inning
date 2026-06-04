@@ -939,7 +939,27 @@ _FI_PARK_NRFI_DEFAULT = 0.50
 #   LEAN YRFI:  0.44 <  p_nrfi < 0.50  AND lambda >= YRFI floor (0.78)
 # After 60 graded LEAN picks we compare hit rate to 52.4% break-even
 # (see Phase 1.3 in the playbook).
-_LR_STRONG_NRFI_P = 0.56
+#
+# 2026-06-04 (T-NRFI-CAL): STRONG NRFI threshold raised 0.56 -> 0.62.
+# This REVERTS the NRFI side toward the previously-validated 0.62 (see
+# the 0.60->0.62 forensic above); the 4/29 loosening to 0.56 was a
+# YRFI-focused change (recapture 0.43-band YRFI picks) that also dragged
+# the NRFI threshold down into a badly-calibrated band.  Evidence
+# (tools/nrfi_threshold_study.py + the calibration reliability check):
+#   - Calibration on all graded games: nrfi_prob 0.56-0.62 actually goes
+#     NRFI only ~56-57% (right at the ~-130 vig break-even -> no edge),
+#     while 0.62-0.66 goes 64% and 0.66+ goes 71% (clears the vig).
+#   - Realized ROI on placed STRONG NRFI bets rises monotonically with
+#     the threshold: 0.56=-16%, 0.60=-8%, 0.62=-3%, 0.64=+6%.
+#   - TRUE walk-forward (threshold chosen on prior weeks, applied blind):
+#     +4.26u vs leaving it at 0.56.  (Contrast: the YRFI-floor-lower idea
+#     FAILED its walk-forward at -3.56u and was NOT shipped.)
+#   - Effect: turns STRONG NRFI from a -16% / -7.3u drag into ~break-even
+#     by skipping the band where the model pays vig for a coin flip.
+# The 0.56-0.62 picks now fall into LEAN NRFI (track-only, not bet).
+# YRFI INVARIANCE: this only moves the nrfi_prob>=0.56 boundary; YRFI
+# is the nrfi_prob<0.44 side -> mathematically cannot change a YRFI pick.
+_LR_STRONG_NRFI_P = 0.62
 _LR_LEAN_NRFI_P   = 0.50
 _LR_PASS_LO_P     = 0.44
 _LR_LEAN_YRFI_P   = 0.50
@@ -1813,8 +1833,9 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     the floor weather-aware (±0.02 per condition).
 
     Phase 1.3 (2026-05-12): LEAN tier resurrected as track-only.  Carves
-    the 0.44-0.56 dead zone into:
-      LEAN NRFI  :  0.50 <= p_nrfi < 0.56
+    the PASS/lean zone into (NRFI upper bound is _LR_STRONG_NRFI_P, 0.62
+    since 2026-06-04):
+      LEAN NRFI  :  0.50 <= p_nrfi < 0.62  (track-only)
       LEAN YRFI  :  0.44 <  p_nrfi < 0.50  AND lambda >= weather-adjusted
                                                   YRFI floor (default 0.78)
     `bet_placed` is forced to 'N' for any LEAN pick downstream in
@@ -1825,7 +1846,8 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     if data_pts == 0:
         return "PASS", "NO DATA"
 
-    # STRONG NRFI: p_nrfi >= 0.56
+    # STRONG NRFI: p_nrfi >= 0.62 (raised from 0.56 on 2026-06-04 -- the
+    # 0.56-0.62 band was only ~56% NRFI = vig break-even; see constant note)
     if p_nrfi >= _LR_STRONG_NRFI_P:
         # T1-NRFI-2026-06-01: NRFI lambda ceiling.  If the model's own
         # expected first-inning runs is too high, the STRONG NRFI verdict
@@ -1838,7 +1860,8 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
             return "PASS", "HIGH LAMBDA"
         return "NRFI", "STRONG"
 
-    # LEAN NRFI: 0.50 <= p_nrfi < 0.56  (track-only)
+    # LEAN NRFI: 0.50 <= p_nrfi < 0.62  (track-only; upper bound is the
+    # STRONG threshold, raised to 0.62 on 2026-06-04)
     if p_nrfi >= _LR_LEAN_NRFI_P:
         return "NRFI", "LEAN"
 

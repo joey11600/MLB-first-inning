@@ -142,7 +142,7 @@ function noDataReason(detail: GameDetail | undefined): string {
  *  the predictor writes to data/thresholds.json on every run -- they
  *  are a fallback for the first render before the file loads. */
 export const DEFAULT_THRESHOLDS: PickThresholds = {
-  strongNrfiP:     0.56,
+  strongNrfiP:     0.62,
   leanNrfiP:       0.50,
   passLoP:         0.44,
   leanYrfiP:       0.50,
