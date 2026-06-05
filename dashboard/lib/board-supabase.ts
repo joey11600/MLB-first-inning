@@ -93,6 +93,25 @@ function nullableNum(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// Mirror of mlb_first_inning_predictor.py `_weather_adjusted_floor` (T4.3).
+// The YRFI lambda floor is nudged by weather AT DECISION TIME, so the
+// dashboard must surface the SAME adjusted floor the predictor used --
+// otherwise a demotion reads as self-contradictory (e.g. "0.85 below the
+// 0.84 floor" when the real, hot-game floor was actually 0.86).
+// KEEP IN SYNC with the Python: hot >=28C +0.02, cold <=12C -0.02,
+// strong wind >=24km/h +0.02, dome neutralises weather entirely.
+const YRFI_FLOOR_BASE = 0.838;
+function weatherAdjustedYrfiFloor(r: PickRow): number {
+  if (num(r.wx_is_dome) >= 0.5) return YRFI_FLOOR_BASE;
+  const temp = nullableNum(r.wx_temp_c);
+  const wind = nullableNum(r.wx_wind_kmh);
+  let d = 0;
+  if (temp != null && temp >= 28) d += 0.02;
+  else if (temp != null && temp <= 12) d -= 0.02;
+  if (wind != null && wind >= 24) d += 0.02;
+  return Math.max(0.40, Math.min(1.20, YRFI_FLOOR_BASE + d));
+}
+
 function str(v: unknown): string {
   return v == null ? "" : String(v);
 }
@@ -178,6 +197,7 @@ function rowToBoardRow(r: PickRow, rank: number): BoardRow {
     // legacy rows that pre-date combined_lambda.
     lambda:         num(r.combined_lambda ?? r.lambda_lr_total),
     lambdaLrTotal:  nullableNum(r.lambda_lr_total),
+    yrfiFloorUsed:  weatherAdjustedYrfiFloor(r),
     pickSide:       normalizePickSide(str(r.pick_side)),
     pickStrength:   normalizePickStrength(str(r.pick_strength)),
     pickLabel:      str(r.pick_label),

@@ -11,6 +11,35 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-06-05] — Show the *weather-adjusted* YRFI floor in the demotion tooltip
+
+### Fixed
+
+- Follow-up to yesterday's tooltip fix. Operator caught a still-wrong
+  case: CWS@PHI 6/05 read *"the model's run projection (0.85) is below
+  the 0.84 floor"* — 0.85 is **above** 0.84. The demotion was correct;
+  the displayed floor was not.
+- **Root cause: the YRFI lambda floor is weather-adjusted at decision
+  time** (`mlb_first_inning_predictor.py::_weather_adjusted_floor`, T4.3).
+  Hot (≥28 °C) or windy (≥24 km/h) games raise the floor +0.02 each;
+  cold lowers it 0.02; dome neutralises. CWS@PHI was 32.7 °C, so the real
+  floor was **0.858**, not the 0.838 base — and `lambda_lr_total = 0.8525`
+  is below 0.858. The dashboard had been showing the static base.
+- Fix: the dashboard now recomputes the **same per-game floor the
+  predictor used** and shows it — *"0.85 below this game's 0.86 floor
+  (raised because it's a hot/windy park today)"*. Added a `yrfiFloorUsed`
+  field to `BoardRow`, computed in `lib/board-supabase.ts` (live path,
+  which has the weather columns via `select *`) by a TS mirror of
+  `_weather_adjusted_floor` — flagged KEEP-IN-SYNC with the Python. CSV
+  fallback path uses the 0.838 base (board snapshots carry no weather).
+- Also added a tie-safe number formatter so a projection within ~0.003 of
+  the floor never renders as "0.84 below 0.84" (bumps to 3 dp only on a
+  tie). Display-only; no model or bet behavior changed. Files:
+  `dashboard/components/BoardRow.tsx`, `dashboard/lib/board-supabase.ts`,
+  `dashboard/lib/board.ts`, `dashboard/lib/types.ts`.
+
+---
+
 ## [2026-06-04] — Fix self-contradicting "PASS · LOW λ" tooltip (wrong lambda + stale floor)
 
 ### Fixed

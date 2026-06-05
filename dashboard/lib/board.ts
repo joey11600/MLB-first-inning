@@ -353,6 +353,11 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     home: r.home,
     lambda: Number(r.lambda) || 0,
     lambdaLrTotal: toNumber(r.lambda_lr_total),
+    // CSV board snapshots don't carry weather columns, so we can't recompute
+    // the weather-adjusted floor here; fall back to the base. The live
+    // (Supabase) path computes the true per-game floor. Base must match
+    // mlb_first_inning_predictor.py `_LR_LAMBDA_YRFI_FLOOR`.
+    yrfiFloorUsed: 0.838,
     pickSide: normalizePickSide(r.pick_side),
     pickStrength: normalizePickStrength(r.pick_strength),
     pickLabel: r.pick_label,

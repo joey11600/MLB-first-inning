@@ -218,17 +218,26 @@ function shortBook(name: string): string {
   return name.slice(0, 3).toUpperCase();
 }
 
+/** Render a projection and the floor it's compared against so the two never
+ *  display as the same rounded value (which would read as a contradiction
+ *  like "0.84 below 0.84"). 2 dp normally; 3 dp only when they'd tie. */
+function fmtFloorPair(proj: number, floor: number): { proj: string; floor: string } {
+  let p = proj.toFixed(2), f = floor.toFixed(2);
+  if (p === f) { p = proj.toFixed(3); f = floor.toFixed(3); }
+  return { proj: p, floor: f };
+}
+
 function lambdaTooltip(row: BoardRow): string {
   const lam = row.lambda.toFixed(2);
   const yrfi = row.yrfiPct.toFixed(1);
-  const floor = DEFAULT_THRESHOLDS.lambdaYrfiFloor;          // 0.838 (the real YRFI floor)
   const lr = row.lambdaLrTotal;                              // the run estimate the floor actually checks
-  const note =
-    lr == null
-      ? ""
-      : lr < floor
-        ? `\n• Model's run projection ${lr.toFixed(2)} is below the ${floor.toFixed(2)} YRFI floor → would-be YRFI demoted to PASS - LOW λ`
-        : `\n• Model's run projection ${lr.toFixed(2)} is above the ${floor.toFixed(2)} YRFI floor → YRFI bets enabled when YRFI% high enough`;
+  let note = "";
+  if (lr != null) {
+    const f = fmtFloorPair(lr, row.yrfiFloorUsed);           // weather-adjusted floor the predictor used
+    note = lr < row.yrfiFloorUsed
+      ? `\n• Model's run projection ${f.proj} is below this game's ${f.floor} YRFI floor → would-be YRFI demoted to PASS - LOW λ`
+      : `\n• Model's run projection ${f.proj} is above this game's ${f.floor} YRFI floor → YRFI bets enabled when YRFI% high enough`;
+  }
   return `Combined λ ${lam} (rough total-runs estimate; the betting floor uses the model projection below)\nP(YRFI) ${yrfi}%${note}`;
 }
 
@@ -519,6 +528,7 @@ function PickPill({
     ? row.pickLabel.match(/^PASS - Cluster demotion:\s+(STRONG|LEAN)\s+(NRFI|YRFI)\s+\(([^)]+)\)$/)
     : null;
 
+  const lowLamFloor = fmtFloorPair(row.lambdaLrTotal ?? row.lambda, row.yrfiFloorUsed);
   const titleText =
     showTentative
       ? (isGraded
@@ -529,7 +539,7 @@ function PickPill({
     : clusterDemotionMatch
       ? `Skipped by cluster demotion '${clusterDemotionMatch[3]}'. Model's original verdict was ${clusterDemotionMatch[1]} ${clusterDemotionMatch[2]}, but bets matching this cluster have been losing -- so no money was committed. Counted as PASS in your official P&L. Reversible: edit data/cluster_demotions.json. Run 'python tools/cluster_shadow_pnl.py' to see how skipped bets would have done.`
     : row.pickStrength === "LOW LAMBDA"
-      ? `Demoted from STRONG/LEAN YRFI: the model's first-inning run projection (${(row.lambdaLrTotal ?? row.lambda).toFixed(2)}) is below the ${DEFAULT_THRESHOLDS.lambdaYrfiFloor.toFixed(2)} floor, so it expects too few total runs to bet YRFI confidently. Tested in backtest: floor adds ~+1.36u/season.`
+      ? `Demoted from STRONG/LEAN YRFI: the model's first-inning run projection (${lowLamFloor.proj}) is below this game's ${lowLamFloor.floor} YRFI floor (a 0.84 base, nudged by weather), so it expects too few total runs to bet YRFI confidently. Tested in backtest: floor adds ~+1.36u/season.`
     : row.pickStrength === "NO DATA"
       ? noDataReason(detail)
       : undefined;
@@ -602,18 +612,22 @@ function passReasonText(
 
   // LOW LAMBDA: pill text already says "PASS · LOW λ" but doesn't show
   // the actual value.  Surface it: operator can see "λ 0.72" and judge
-  // how close to the 0.78 floor we are (a 0.77 demotion feels different
-  // than a 0.55 demotion, even though both demote).
+  // how close to this game's floor we are (a 0.83 demotion feels different
+  // than a 0.55 demotion, even though both demote). The floor is weather-
+  // adjusted per game, so show the actual value the predictor used.
   if (row.pickStrength === "LOW LAMBDA") {
-    const lr = (row.lambdaLrTotal ?? row.lambda).toFixed(2);
-    const floor = DEFAULT_THRESHOLDS.lambdaYrfiFloor.toFixed(2);
+    const floorN = row.yrfiFloorUsed;
+    const f = fmtFloorPair(row.lambdaLrTotal ?? row.lambda, floorN);
+    const wx = floorN > 0.839 ? " (raised because it's a hot/windy park today)"
+             : floorN < 0.837 ? " (lowered for cold weather)"
+             : "";
     return {
       text: `λ ${row.lambda.toFixed(2)}`,
       tooltip:
         `Would-be STRONG YRFI demoted to PASS.  The model's own first-inning ` +
-        `run projection (${lr}) is below the ${floor} floor needed to bet YRFI, ` +
+        `run projection (${f.proj}) is below this game's ${f.floor} YRFI floor${wx}, ` +
         `so it expects too few runs to hold an edge.  (The λ ${row.lambda.toFixed(2)} on the ` +
-        `row is a separate rough estimate -- the floor checks the model's ${lr}.)`,
+        `row is a separate rough estimate -- the floor checks the model's ${f.proj}.)`,
     };
   }
 

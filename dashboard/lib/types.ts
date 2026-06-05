@@ -17,6 +17,7 @@ export interface BoardRow {
   home: string;
   lambda: number;          // combined_lambda -- legacy display/sort value
   lambdaLrTotal: number | null;  // the model's own run projection; what the YRFI floor actually checks
+  yrfiFloorUsed: number;         // weather-adjusted YRFI lambda floor the predictor used for THIS game (base 0.838 +/- weather)
   pickSide: PickSide;
   pickStrength: PickStrength;
   pickLabel: string;
