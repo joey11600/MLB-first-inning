@@ -1,7 +1,7 @@
 {
   "date": "2026-06-05",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-05T23:38:06Z",
+  "fitted_at": "2026-06-06T00:10:01Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -810,7 +810,7 @@
       "game_pk": "824914",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2632,
       "raw_p_run_b1": 0.3016,
       "raw_p_nrfi": 0.5146,
@@ -1151,15 +1151,15 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2284,
-      "raw_p_run_b1": 0.2481,
-      "raw_p_nrfi": 0.5802,
-      "calibrated_p_nrfi": 0.5685,
+      "raw_p_run_t1": 0.229,
+      "raw_p_run_b1": 0.2494,
+      "raw_p_nrfi": 0.5787,
+      "calibrated_p_nrfi": 0.5681,
       "calibrator_band": {
-        "band": "bin_17-18",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_16-17",
+        "is_flat": true,
+        "flat_size": 4,
+        "flat_rate": 0.5513698630136986
       },
       "top_drivers_t1": [
         {
@@ -1256,7 +1256,8 @@
         "away_pitcher_q": "ltd"
       },
       "warnings": [
-        "raw cache away_xera=8.04 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 8.04 (drift +0.00)"
+        "raw cache away_xera=8.04 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 8.04 (drift +0.00)",
+        "calibrator flat zone: 4 bins all map to rate 0.5514 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -1603,9 +1604,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3992,
-      "raw_p_run_b1": 0.3176,
-      "raw_p_nrfi": 0.41,
+      "raw_p_run_t1": 0.3982,
+      "raw_p_run_b1": 0.3156,
+      "raw_p_nrfi": 0.4119,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_1-2",
