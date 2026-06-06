@@ -1,7 +1,7 @@
 {
   "date": "2026-06-06",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-06T13:05:56Z",
+  "fitted_at": "2026-06-06T13:46:47Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -809,15 +809,15 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2891,
-      "raw_p_run_b1": 0.319,
-      "raw_p_nrfi": 0.4842,
-      "calibrated_p_nrfi": 0.4772,
+      "raw_p_run_t1": 0.3093,
+      "raw_p_run_b1": 0.3546,
+      "raw_p_nrfi": 0.4457,
+      "calibrated_p_nrfi": 0.4384,
       "calibrator_band": {
-        "band": "bin_7-8",
-        "is_flat": true,
-        "flat_size": 3,
-        "flat_rate": 0.4771689497716895
+        "band": "bin_4-5",
+        "is_flat": false,
+        "flat_size": 2,
+        "flat_rate": null
       },
       "top_drivers_t1": [
         {
@@ -879,6 +879,14 @@
           "outlier": false
         },
         {
+          "name": "wx_temp_c",
+          "value": 32.1,
+          "z": 1.874,
+          "weight": 0.0483,
+          "contribution": 0.0906,
+          "outlier": false
+        },
+        {
           "name": "away_fip",
           "value": 4.765,
           "z": 1.509,
@@ -893,14 +901,6 @@
           "weight": 0.1015,
           "contribution": -0.074,
           "outlier": false
-        },
-        {
-          "name": "home_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.513,
-          "weight": 0.1016,
-          "contribution": -0.0521,
-          "outlier": false
         }
       ],
       "priors_vs_raw": {
@@ -913,9 +913,7 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": [
-        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
-      ]
+      "warnings": []
     },
     {
       "matchup": "KC@MIN",
