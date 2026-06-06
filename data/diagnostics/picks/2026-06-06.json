@@ -1,7 +1,7 @@
 {
   "date": "2026-06-06",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-06T21:58:36Z",
+  "fitted_at": "2026-06-06T22:06:07Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1381,13 +1381,15 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.5652,
+      "raw_p_run_t1": 0.4799,
       "raw_p_run_b1": 0.2833,
-      "raw_p_nrfi": 0.3116,
-      "calibrated_p_nrfi": 0.3219,
+      "raw_p_nrfi": 0.3727,
+      "calibrated_p_nrfi": 0.3753,
       "calibrator_band": {
-        "band": "below_min",
-        "is_flat": false
+        "band": "bin_0-1",
+        "is_flat": true,
+        "flat_size": 4,
+        "flat_rate": 0.3219178082191781
       },
       "top_drivers_t1": [
         {
@@ -1397,14 +1399,6 @@
           "weight": 0.0923,
           "contribution": 0.3944,
           "outlier": true
-        },
-        {
-          "name": "away_top3c_slg",
-          "value": 0.3757,
-          "z": -1.001,
-          "weight": -0.3266,
-          "contribution": 0.3271,
-          "outlier": false
         },
         {
           "name": "fi_park_nrfi_rate",
@@ -1420,6 +1414,14 @@
           "z": 1.673,
           "weight": 0.0661,
           "contribution": 0.1107,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_slg",
+          "value": 0.461,
+          "z": 0.321,
+          "weight": -0.3266,
+          "contribution": -0.105,
           "outlier": false
         },
         {
@@ -1485,7 +1487,8 @@
       },
       "warnings": [
         "T1: feature era_gap_t1=3.637 is z=+4.27 sigma from training mean -- contribution +0.394 to logit",
-        "B1: feature era_gap_b1=-3.637 is z=-4.27 sigma from training mean -- contribution -0.248 to logit"
+        "B1: feature era_gap_b1=-3.637 is z=-4.27 sigma from training mean -- contribution -0.248 to logit",
+        "calibrator flat zone: 4 bins all map to rate 0.3219 (multiple distinct raw probs collapse here)"
       ]
     },
     {
