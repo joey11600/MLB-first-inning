@@ -1,7 +1,7 @@
 {
   "date": "2026-06-06",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-06T15:05:29Z",
+  "fitted_at": "2026-06-06T15:11:48Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -699,15 +699,15 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.1893,
+      "raw_p_run_t1": 0.1655,
       "raw_p_run_b1": 0.3095,
-      "raw_p_nrfi": 0.5598,
-      "calibrated_p_nrfi": 0.5514,
+      "raw_p_nrfi": 0.5762,
+      "calibrated_p_nrfi": 0.5652,
       "calibrator_band": {
-        "band": "bin_15-16",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_16-17",
+        "is_flat": true,
+        "flat_size": 4,
+        "flat_rate": 0.5513698630136986
       },
       "top_drivers_t1": [
         {
@@ -719,19 +719,19 @@
           "outlier": false
         },
         {
+          "name": "away_top3c_slg",
+          "value": 0.4677,
+          "z": 0.425,
+          "weight": -0.3266,
+          "contribution": -0.1389,
+          "outlier": false
+        },
+        {
           "name": "home_xera",
           "value": 2.77,
           "z": -1.245,
           "weight": 0.1107,
           "contribution": -0.1379,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_slg",
-          "value": 0.4167,
-          "z": -0.366,
-          "weight": -0.3266,
-          "contribution": 0.1194,
           "outlier": false
         },
         {
@@ -743,11 +743,11 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
+          "name": "era_gap_t1",
+          "value": -0.49,
+          "z": -0.568,
+          "weight": 0.0923,
+          "contribution": -0.0524,
           "outlier": false
         }
       ],
@@ -803,7 +803,9 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": []
+      "warnings": [
+        "calibrator flat zone: 4 bins all map to rate 0.5514 (multiple distinct raw probs collapse here)"
+      ]
     },
     {
       "matchup": "CIN@STL",
@@ -1380,15 +1382,15 @@
       "pick_side": "PASS",
       "pick_strength": "STARTER PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.4235,
-      "raw_p_run_b1": 0.3391,
-      "raw_p_nrfi": 0.381,
-      "calibrated_p_nrfi": 0.39,
+      "raw_p_run_t1": 0.4032,
+      "raw_p_run_b1": 0.3133,
+      "raw_p_nrfi": 0.4098,
+      "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
-        "band": "bin_0-1",
+        "band": "bin_1-2",
         "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.3219178082191781
+        "flat_size": 3,
+        "flat_rate": 0.4063926940639269
       },
       "top_drivers_t1": [
         {
@@ -1424,11 +1426,11 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 34.6,
-          "z": 2.306,
-          "weight": 0.0347,
-          "contribution": 0.0799,
+          "name": "away_top3c_iso",
+          "value": 0.169,
+          "z": -0.194,
+          "weight": 0.3454,
+          "contribution": -0.0668,
           "outlier": false
         }
       ],
@@ -1466,11 +1468,11 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 34.6,
-          "z": 2.306,
-          "weight": 0.0483,
-          "contribution": 0.1115,
+          "name": "era_gap_b1",
+          "value": -1.574,
+          "z": -1.853,
+          "weight": 0.058,
+          "contribution": -0.1075,
           "outlier": false
         }
       ],
@@ -1485,7 +1487,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "calibrator flat zone: 4 bins all map to rate 0.3219 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
       ]
     },
     {
