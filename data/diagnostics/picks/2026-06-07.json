@@ -1,7 +1,7 @@
 {
   "date": "2026-06-07",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-07T14:59:20Z",
+  "fitted_at": "2026-06-07T15:03:37Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -694,14 +694,14 @@
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
       "raw_p_run_t1": 0.3463,
-      "raw_p_run_b1": 0.3055,
-      "raw_p_nrfi": 0.4541,
-      "calibrated_p_nrfi": 0.4384,
+      "raw_p_run_b1": 0.2598,
+      "raw_p_nrfi": 0.4839,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_4-5",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_7-8",
+        "is_flat": true,
+        "flat_size": 3,
+        "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
         {
@@ -748,10 +748,26 @@
       "top_drivers_b1": [
         {
           "name": "home_top3c_slg",
-          "value": 0.4151,
-          "z": -0.395,
+          "value": 0.5537,
+          "z": 1.768,
           "weight": -0.398,
-          "contribution": 0.1571,
+          "contribution": -0.7038,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_iso",
+          "value": 0.2658,
+          "z": 1.79,
+          "weight": 0.2289,
+          "contribution": 0.4097,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_obp",
+          "value": 0.3757,
+          "z": 1.223,
+          "weight": 0.1015,
+          "contribution": 0.1242,
           "outlier": false
         },
         {
@@ -769,22 +785,6 @@
           "weight": -0.0447,
           "contribution": -0.0758,
           "outlier": false
-        },
-        {
-          "name": "away_p_last10_pitcher_nrfi",
-          "value": 0.5,
-          "z": -1.251,
-          "weight": -0.057,
-          "contribution": 0.0713,
-          "outlier": false
-        },
-        {
-          "name": "home_top3c_obp",
-          "value": 0.3209,
-          "z": -0.67,
-          "weight": 0.1015,
-          "contribution": -0.068,
-          "outlier": false
         }
       ],
       "priors_vs_raw": {
@@ -797,7 +797,9 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "sm"
       },
-      "warnings": []
+      "warnings": [
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
+      ]
     },
     {
       "matchup": "KC@MIN",
