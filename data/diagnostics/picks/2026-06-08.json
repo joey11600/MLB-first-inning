@@ -1,7 +1,7 @@
 {
   "date": "2026-06-08",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-08T06:39:53Z",
+  "fitted_at": "2026-06-08T09:24:42Z",
   "n_picks": 8,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,10 +11,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.4473,
-      "raw_p_run_b1": 0.3285,
-      "raw_p_nrfi": 0.3711,
-      "calibrated_p_nrfi": 0.3725,
+      "raw_p_run_t1": 0.4481,
+      "raw_p_run_b1": 0.3296,
+      "raw_p_nrfi": 0.37,
+      "calibrated_p_nrfi": 0.3704,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -241,9 +241,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3864,
-      "raw_p_run_b1": 0.3632,
-      "raw_p_nrfi": 0.3907,
+      "raw_p_run_t1": 0.3858,
+      "raw_p_run_b1": 0.3618,
+      "raw_p_nrfi": 0.392,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_1-2",
@@ -312,10 +312,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 24.7,
-          "z": 2.798,
+          "value": 23.8,
+          "z": 2.608,
           "weight": 0.0497,
-          "contribution": 0.139,
+          "contribution": 0.1295,
           "outlier": false
         },
         {
@@ -355,10 +355,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.229,
-      "raw_p_run_b1": 0.4328,
-      "raw_p_nrfi": 0.4373,
-      "calibrated_p_nrfi": 0.4238,
+      "raw_p_run_t1": 0.2313,
+      "raw_p_run_b1": 0.4408,
+      "raw_p_nrfi": 0.4299,
+      "calibrated_p_nrfi": 0.4065,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": true,
@@ -384,10 +384,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 35.4,
-          "z": 5.066,
+          "value": 38.6,
+          "z": 5.744,
           "weight": 0.021,
-          "contribution": 0.1065,
+          "contribution": 0.1207,
           "outlier": true
         },
         {
@@ -410,10 +410,10 @@
       "top_drivers_b1": [
         {
           "name": "wx_wind_kmh",
-          "value": 35.4,
-          "z": 5.066,
+          "value": 38.6,
+          "z": 5.744,
           "weight": 0.0497,
-          "contribution": 0.2516,
+          "contribution": 0.2853,
           "outlier": true
         },
         {
@@ -460,8 +460,8 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "T1: feature wx_wind_kmh=35.400 is z=+5.07 sigma from training mean -- contribution +0.106 to logit",
-        "B1: feature wx_wind_kmh=35.400 is z=+5.07 sigma from training mean -- contribution +0.252 to logit",
+        "T1: feature wx_wind_kmh=38.600 is z=+5.74 sigma from training mean -- contribution +0.121 to logit",
+        "B1: feature wx_wind_kmh=38.600 is z=+5.74 sigma from training mean -- contribution +0.285 to logit",
         "B1: feature away_fip=5.642 is z=+3.21 sigma from training mean -- contribution +0.177 to logit",
         "calibrator flat zone: 5 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
       ]
@@ -472,9 +472,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.3309,
-      "raw_p_run_b1": 0.3003,
-      "raw_p_nrfi": 0.4682,
+      "raw_p_run_t1": 0.3322,
+      "raw_p_run_b1": 0.3019,
+      "raw_p_nrfi": 0.4662,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
         "band": "bin_6-7",
@@ -701,9 +701,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2354,
-      "raw_p_run_b1": 0.3454,
-      "raw_p_nrfi": 0.5005,
+      "raw_p_run_t1": 0.2349,
+      "raw_p_run_b1": 0.3441,
+      "raw_p_nrfi": 0.5019,
       "calibrated_p_nrfi": 0.4795,
       "calibrator_band": {
         "band": "bin_9-10",
@@ -746,10 +746,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 29.6,
-          "z": 1.442,
+          "value": 29.5,
+          "z": 1.424,
           "weight": 0.0347,
-          "contribution": 0.05,
+          "contribution": 0.0494,
           "outlier": false
         }
       ],
@@ -780,10 +780,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 29.6,
-          "z": 1.442,
+          "value": 29.5,
+          "z": 1.424,
           "weight": 0.0483,
-          "contribution": 0.0697,
+          "contribution": 0.0689,
           "outlier": false
         },
         {
@@ -813,15 +813,15 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2902,
-      "raw_p_run_b1": 0.3407,
-      "raw_p_nrfi": 0.468,
-      "calibrated_p_nrfi": 0.4772,
+      "raw_p_run_t1": 0.2929,
+      "raw_p_run_b1": 0.3461,
+      "raw_p_nrfi": 0.4624,
+      "calibrated_p_nrfi": 0.4652,
       "calibrator_band": {
-        "band": "bin_6-7",
+        "band": "bin_5-6",
         "is_flat": true,
-        "flat_size": 3,
-        "flat_rate": 0.4771689497716895
+        "flat_size": 5,
+        "flat_rate": 0.4383561643835616
       },
       "top_drivers_t1": [
         {
@@ -892,10 +892,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 18.5,
-          "z": 1.484,
+          "value": 19.5,
+          "z": 1.696,
           "weight": 0.0497,
-          "contribution": 0.0737,
+          "contribution": 0.0843,
           "outlier": false
         },
         {
@@ -918,7 +918,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
       ]
     }
   ]
