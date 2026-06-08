@@ -11,6 +11,36 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-06-07] — Quiet the noisy calibration-drift Telegram (was crying wolf daily)
+
+### Fixed
+
+- Operator: "I keep getting calibration drift messages." Diagnosed
+  `tools/calibration_drift_monitor.py` as the source and found three
+  reasons it over-fired:
+  1. **Tiny-sample triggers.** Per-bucket alerts fired at a minimum of 8
+     bets in each window. A 0.04 Brier swing on ~15 bets is noise — and
+     the flagged buckets were exactly that size (n=14–18). Raised the
+     minimum to **30** (matches the aggregate gate and the sister tool
+     `calibration_monitor.py`). With the real data, nothing spurious fires.
+  2. **Daily re-fire.** The Telegram dedup key included the date, so a
+     slow-moving 30-day condition pinged a *fresh* alert every single day.
+     Re-keyed to **ISO-week + which buckets drifted** → at most ~one ping
+     per week per distinct pattern; a genuinely new drift still pings.
+  3. **Stale buckets.** Boundaries were still 0.56/0.60; STRONG NRFI moved
+     to 0.62 on 6/04. Updated to 0.62/0.66 so the discontinued 0.56–0.62
+     dead-band bets sort into `pass_zone` instead of inflating the
+     marg/deep-NRFI Brier. (The report now shows that dead-band clearly:
+     pass_zone 37% hit / −7.1u over 30d — bets we *already stopped making*.)
+- Also made local runs unicode-safe (the alert emoji crashed cp1252
+  consoles; the Telegram body was always UTF-8 and unaffected).
+- Observability-only: no model, calibrator, pick, bet, or odds change.
+  The rigorous sister monitor (T2.59, hit-rate vs stated, 7pp + n≥30 +
+  persistence) is untouched and still reports "no persistent drift," so
+  real drift is still covered. File: `tools/calibration_drift_monitor.py`.
+
+---
+
 ## [2026-06-05] — Show the *weather-adjusted* YRFI floor in the demotion tooltip
 
 ### Fixed

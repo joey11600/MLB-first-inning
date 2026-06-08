@@ -22,9 +22,13 @@ ALERT THRESHOLDS
 - Per-bucket Brier delta >= +0.01 vs prior window  → Telegram alert
   (a 0.01 Brier degradation on a 100-row bucket is roughly equivalent
   to 1.5pp worse expected hit rate -- material if persistent)
-- Cluster size < 8 in either window → skip (sample too small)
+- Cluster size < 30 in either window → skip (raised from 8 on 2026-06-07:
+  a 0.04 Brier swing on ~15 bets is noise, and the old gate fired daily
+  on exactly that)
 - 30-day total Brier delta >= +0.005 → Telegram alert (smaller threshold
   because the aggregate has higher N and lower noise)
+- Dedup is by ISO-week + drifting-bucket signature (not by date), so a
+  slow-moving 30d condition pings at most ~once/week, not every day.
 
 WHAT IT DOES NOT DO
 -------------------
@@ -63,11 +67,16 @@ ET = ZoneInfo("America/New_York")
 
 # Bucket definitions mirror the 2026-05-11 audit's nrfi_p partitioning.
 def _bucket(p: float) -> str:
+    # Boundaries track the LIVE STRONG thresholds (NRFI raised to 0.62 on
+    # 2026-06-04; STRONG YRFI is p_nrfi < 0.44).  The 0.44-0.62 zone is
+    # LEAN/PASS only -- no STRONG bet lands there post-fix, so the old
+    # 0.56-0.62 dead-band bets now sort into pass_zone instead of
+    # contaminating the marg/deep NRFI Brier.
     if p < 0.40: return "deep_yrfi"
     if p < 0.44: return "marg_yrfi"
-    if p < 0.56: return "pass_zone"     # shouldn't see STRONG picks here, but guard
-    if p < 0.60: return "marg_nrfi"
-    return "deep_nrfi"
+    if p < 0.62: return "pass_zone"     # LEAN/PASS only (+ discontinued dead-band); guard
+    if p < 0.66: return "marg_nrfi"     # 0.62-0.66 STRONG NRFI, just over the line
+    return "deep_nrfi"                  # >=0.66 high-confidence STRONG NRFI
 
 
 def _safe_float(s) -> float | None:
@@ -158,27 +167,39 @@ def _format_summary(label: str, sm: dict[str, dict]) -> str:
     return "\n".join(lines)
 
 
+# Minimum bets in BOTH windows before a per-bucket Brier delta is
+# trustworthy.  Was 8 -- far too small: a 0.04 Brier swing on ~15 bets is
+# noise, and the monitor was firing daily on exactly that.  30 matches the
+# aggregate gate and tools/calibration_monitor.py's standard.
+_MIN_CLUSTER = 30
+
+
 def _build_alerts(curr: dict[str, dict], prev: dict[str, dict],
-                  *, bucket_threshold: float, overall_threshold: float) -> list[str]:
+                  *, bucket_threshold: float, overall_threshold: float
+                  ) -> tuple[list[str], list[str]]:
     """Compare per-bucket Brier between curr (recent 30d) and prev
-    (prior 30d).  Returns a list of human-readable alert lines for any
-    bucket that degraded by >= threshold."""
+    (prior 30d).  Returns (alert_lines, drifting_bucket_names) for any
+    bucket that degraded by >= threshold with enough sample in BOTH
+    windows.  The bucket-name list is used to dedup repeat alerts."""
     lines: list[str] = []
+    drifting: list[str] = []
     for bucket, c in curr.items():
-        if c["n"] < 8:
+        if c["n"] < _MIN_CLUSTER:
             continue
         p = prev.get(bucket)
-        if not p or p["n"] < 8:
+        if not p or p["n"] < _MIN_CLUSTER:
             continue
         delta = c["brier"] - p["brier"]
         if delta >= bucket_threshold:
+            drifting.append(bucket)
             lines.append(
                 f"⚠️ <b>{bucket}</b>: Brier {p['brier']:.4f} → {c['brier']:.4f} "
                 f"(<b>+{delta:.4f}</b> over prior 30d).  "
                 f"n_curr={c['n']}, n_prev={p['n']}."
             )
 
-    # Aggregate check
+    # Aggregate check (high N, lower threshold -- catches model-wide drift
+    # even when no single bucket clears the per-bucket sample gate).
     curr_total_n = sum(b["n"] for b in curr.values())
     curr_total_brier = (sum(b["brier"] * b["n"] for b in curr.values()) / curr_total_n) if curr_total_n else 0.0
     prev_total_n = sum(b["n"] for b in prev.values())
@@ -186,11 +207,12 @@ def _build_alerts(curr: dict[str, dict], prev: dict[str, dict],
     if curr_total_n >= 30 and prev_total_n >= 30:
         delta = curr_total_brier - prev_total_brier
         if delta >= overall_threshold:
+            drifting.append("OVERALL")
             lines.append(
                 f"⚠️ <b>OVERALL</b>: Brier {prev_total_brier:.4f} → {curr_total_brier:.4f} "
                 f"(<b>+{delta:.4f}</b> over prior 30d)."
             )
-    return lines
+    return lines, drifting
 
 
 def main() -> int:
@@ -207,6 +229,14 @@ def main() -> int:
     p.add_argument("--dry-run", action="store_true",
                    help="Print summary; do not fire Telegram.")
     args = p.parse_args()
+
+    # Console may be cp1252 (Windows); the alert body has emoji.  The body
+    # SENT to Telegram is UTF-8 regardless -- this only keeps local prints
+    # from crashing.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
     end_iso = args.date or datetime.now(ET).strftime("%Y-%m-%d")
     season  = args.season or int(end_iso[:4])
@@ -231,7 +261,7 @@ def main() -> int:
     if prev_rows:
         print(_format_summary(f"Prior ({prev_end} - {args.days}d, for comparison)", prev_sm))
 
-    alerts = _build_alerts(curr_sm, prev_sm,
+    alerts, drifting = _build_alerts(curr_sm, prev_sm,
                             bucket_threshold=args.bucket_threshold,
                             overall_threshold=args.overall_threshold)
     if not alerts:
@@ -264,7 +294,14 @@ def main() -> int:
         print(body)
         return 0
 
-    event_key = f"calibration_drift:{end_iso}"
+    # Dedup by ISO week + which buckets drifted, NOT by date.  A 30-day
+    # window moves slowly, so a date-keyed alert re-fired EVERY day a
+    # persistent condition held -- that was the "I keep getting these"
+    # spam.  Week+signature => at most one ping per week per distinct
+    # drift pattern; a NEW bucket joining changes the signature and pings.
+    iso_week = datetime.fromisoformat(end_iso).strftime("%G-W%V")
+    sig = ",".join(sorted(set(drifting))) or "none"
+    event_key = f"calibration_drift:{iso_week}:{sig}"
     sent = tracker._notify_event_telegram("calibration_drift", event_key, body)
     print(f"\n  Alert {'sent' if sent else 'NOT sent (dedup or no creds)'}.")
     return 0
