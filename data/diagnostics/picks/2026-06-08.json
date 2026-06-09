@@ -1,7 +1,7 @@
 {
   "date": "2026-06-08",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-09T00:33:53Z",
+  "fitted_at": "2026-06-09T01:03:19Z",
   "n_picks": 8,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -236,18 +236,18 @@
     {
       "matchup": "MIL@OAK",
       "game_pk": "824998",
-      "pick_side": "PASS",
-      "pick_strength": "LOW LAMBDA",
+      "pick_side": "YRFI",
+      "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.315,
-      "raw_p_run_b1": 0.3148,
-      "raw_p_nrfi": 0.4694,
-      "calibrated_p_nrfi": 0.4772,
+      "raw_p_run_t1": 0.3192,
+      "raw_p_run_b1": 0.3244,
+      "raw_p_nrfi": 0.46,
+      "calibrated_p_nrfi": 0.4563,
       "calibrator_band": {
-        "band": "bin_6-7",
+        "band": "bin_5-6",
         "is_flat": true,
-        "flat_size": 3,
-        "flat_rate": 0.4771689497716895
+        "flat_size": 5,
+        "flat_rate": 0.4383561643835616
       },
       "top_drivers_t1": [
         {
@@ -325,11 +325,11 @@
           "outlier": false
         },
         {
-          "name": "era_gap_b1",
-          "value": -1.651,
-          "z": -1.943,
-          "weight": 0.058,
-          "contribution": -0.1127,
+          "name": "wx_wind_kmh",
+          "value": 23.0,
+          "z": 2.438,
+          "weight": 0.0497,
+          "contribution": 0.1211,
           "outlier": false
         }
       ],
@@ -344,7 +344,7 @@
         "away_pitcher_q": "ltd"
       },
       "warnings": [
-        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -353,12 +353,12 @@
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.2836,
-      "raw_p_run_b1": 0.3312,
-      "raw_p_nrfi": 0.4791,
+      "raw_p_run_t1": 0.2854,
+      "raw_p_run_b1": 0.3356,
+      "raw_p_nrfi": 0.4747,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_7-8",
+        "band": "bin_6-7",
         "is_flat": true,
         "flat_size": 3,
         "flat_rate": 0.4771689497716895
@@ -390,10 +390,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 31.3,
-          "z": 4.197,
+          "value": 33.4,
+          "z": 4.642,
           "weight": 0.021,
-          "contribution": 0.0882,
+          "contribution": 0.0976,
           "outlier": true
         },
         {
@@ -408,10 +408,10 @@
       "top_drivers_b1": [
         {
           "name": "wx_wind_kmh",
-          "value": 31.3,
-          "z": 4.197,
+          "value": 33.4,
+          "z": 4.642,
           "weight": 0.0497,
-          "contribution": 0.2085,
+          "contribution": 0.2306,
           "outlier": true
         },
         {
@@ -458,8 +458,8 @@
         "away_pitcher_q": "sm"
       },
       "warnings": [
-        "T1: feature wx_wind_kmh=31.300 is z=+4.20 sigma from training mean -- contribution +0.088 to logit",
-        "B1: feature wx_wind_kmh=31.300 is z=+4.20 sigma from training mean -- contribution +0.208 to logit",
+        "T1: feature wx_wind_kmh=33.400 is z=+4.64 sigma from training mean -- contribution +0.098 to logit",
+        "B1: feature wx_wind_kmh=33.400 is z=+4.64 sigma from training mean -- contribution +0.231 to logit",
         "B1: feature home_plate_ump_nrfi_rate=0.625 is z=+7.38 sigma from training mean -- contribution +0.127 to logit",
         "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
@@ -470,9 +470,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3131,
-      "raw_p_run_b1": 0.2658,
-      "raw_p_nrfi": 0.5044,
+      "raw_p_run_t1": 0.3133,
+      "raw_p_run_b1": 0.2665,
+      "raw_p_nrfi": 0.5037,
       "calibrated_p_nrfi": 0.4795,
       "calibrator_band": {
         "band": "bin_9-10",
