@@ -1,7 +1,7 @@
 {
   "date": "2026-06-09",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-10T00:05:50Z",
+  "fitted_at": "2026-06-10T00:23:22Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -121,9 +121,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.283,
-      "raw_p_run_b1": 0.4077,
-      "raw_p_nrfi": 0.4247,
+      "raw_p_run_t1": 0.2839,
+      "raw_p_run_b1": 0.4102,
+      "raw_p_nrfi": 0.4223,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -690,9 +690,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.2911,
-      "raw_p_run_b1": 0.4269,
-      "raw_p_nrfi": 0.4063,
+      "raw_p_run_t1": 0.2914,
+      "raw_p_run_b1": 0.4279,
+      "raw_p_nrfi": 0.4054,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_1-2",
@@ -1032,15 +1032,15 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.3043,
-      "raw_p_run_b1": 0.1915,
-      "raw_p_nrfi": 0.5625,
-      "calibrated_p_nrfi": 0.5514,
+      "raw_p_run_t1": 0.303,
+      "raw_p_run_b1": 0.1892,
+      "raw_p_nrfi": 0.5651,
+      "calibrated_p_nrfi": 0.5526,
       "calibrator_band": {
-        "band": "bin_15-16",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_16-17",
+        "is_flat": true,
+        "flat_size": 4,
+        "flat_rate": 0.5513698630136986
       },
       "top_drivers_t1": [
         {
@@ -1136,7 +1136,9 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": []
+      "warnings": [
+        "calibrator flat zone: 4 bins all map to rate 0.5514 (multiple distinct raw probs collapse here)"
+      ]
     },
     {
       "matchup": "SEA@BAL",
@@ -1485,9 +1487,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2981,
-      "raw_p_run_b1": 0.2497,
-      "raw_p_nrfi": 0.5266,
+      "raw_p_run_t1": 0.298,
+      "raw_p_run_b1": 0.2495,
+      "raw_p_nrfi": 0.5268,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_12-13",
@@ -1540,10 +1542,10 @@
       "top_drivers_b1": [
         {
           "name": "wx_wind_kmh",
-          "value": 24.5,
-          "z": 2.756,
+          "value": 24.4,
+          "z": 2.735,
           "weight": 0.0497,
-          "contribution": 0.1369,
+          "contribution": 0.1358,
           "outlier": false
         },
         {
