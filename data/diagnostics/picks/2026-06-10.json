@@ -1,7 +1,7 @@
 {
   "date": "2026-06-10",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-10T22:51:18Z",
+  "fitted_at": "2026-06-10T23:06:51Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.4693,
-      "raw_p_run_b1": 0.4701,
-      "raw_p_nrfi": 0.2812,
+      "raw_p_run_t1": 0.4674,
+      "raw_p_run_b1": 0.4656,
+      "raw_p_nrfi": 0.2846,
       "calibrated_p_nrfi": 0.3219,
       "calibrator_band": {
         "band": "below_min",
@@ -234,7 +234,7 @@
       "game_pk": "823856",
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.347,
       "raw_p_run_b1": 0.3025,
       "raw_p_nrfi": 0.4554,
@@ -463,15 +463,15 @@
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.3019,
-      "raw_p_run_b1": 0.3394,
-      "raw_p_nrfi": 0.4612,
-      "calibrated_p_nrfi": 0.4608,
+      "raw_p_run_t1": 0.2982,
+      "raw_p_run_b1": 0.3302,
+      "raw_p_nrfi": 0.47,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_6-7",
         "is_flat": true,
-        "flat_size": 5,
-        "flat_rate": 0.4383561643835616
+        "flat_size": 3,
+        "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
         {
@@ -569,7 +569,7 @@
       },
       "warnings": [
         "T1: feature home_avg_ip_per_start=1.000 is z=-5.03 sigma from training mean -- contribution +0.134 to logit",
-        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -1032,9 +1032,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2514,
-      "raw_p_run_b1": 0.2922,
-      "raw_p_nrfi": 0.5299,
+      "raw_p_run_t1": 0.2531,
+      "raw_p_run_b1": 0.2966,
+      "raw_p_nrfi": 0.5254,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_12-13",
@@ -1061,10 +1061,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 33.3,
-          "z": 4.621,
+          "value": 35.3,
+          "z": 5.045,
           "weight": 0.021,
-          "contribution": 0.0971,
+          "contribution": 0.106,
           "outlier": true
         },
         {
@@ -1103,10 +1103,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 33.3,
-          "z": 4.621,
+          "value": 35.3,
+          "z": 5.045,
           "weight": 0.0497,
-          "contribution": 0.2295,
+          "contribution": 0.2506,
           "outlier": true
         },
         {
@@ -1137,8 +1137,8 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "T1: feature wx_wind_kmh=33.300 is z=+4.62 sigma from training mean -- contribution +0.097 to logit",
-        "B1: feature wx_wind_kmh=33.300 is z=+4.62 sigma from training mean -- contribution +0.230 to logit",
+        "T1: feature wx_wind_kmh=35.300 is z=+5.04 sigma from training mean -- contribution +0.106 to logit",
+        "B1: feature wx_wind_kmh=35.300 is z=+5.04 sigma from training mean -- contribution +0.251 to logit",
         "calibrator flat zone: 3 bins all map to rate 0.5479 (multiple distinct raw probs collapse here)"
       ]
     },
@@ -1263,7 +1263,7 @@
       "game_pk": "824831",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.2494,
       "raw_p_run_b1": 0.2893,
       "raw_p_nrfi": 0.5334,
@@ -1377,7 +1377,7 @@
       "game_pk": "823372",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2934,
       "raw_p_run_b1": 0.2078,
       "raw_p_nrfi": 0.5597,
