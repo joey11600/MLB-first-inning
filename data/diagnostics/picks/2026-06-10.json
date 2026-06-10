@@ -1,7 +1,7 @@
 {
   "date": "2026-06-10",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-10T21:05:15Z",
+  "fitted_at": "2026-06-10T21:28:00Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -457,16 +457,16 @@
       "matchup": "STL@NYM",
       "game_pk": "823618",
       "pick_side": "PASS",
-      "pick_strength": "LOW LAMBDA",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2981,
-      "raw_p_run_b1": 0.3308,
-      "raw_p_nrfi": 0.4697,
-      "calibrated_p_nrfi": 0.4772,
+      "raw_p_run_t1": 0.2859,
+      "raw_p_run_b1": 0.3092,
+      "raw_p_nrfi": 0.4933,
+      "calibrated_p_nrfi": 0.4787,
       "calibrator_band": {
-        "band": "bin_6-7",
+        "band": "bin_8-9",
         "is_flat": true,
-        "flat_size": 3,
+        "flat_size": 5,
         "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
@@ -565,7 +565,7 @@
       },
       "warnings": [
         "T1: feature home_avg_ip_per_start=1.000 is z=-5.03 sigma from training mean -- contribution +0.134 to logit",
-        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -575,11 +575,11 @@
       "pick_strength": "STRONG",
       "graded_result": "",
       "raw_p_run_t1": 0.293,
-      "raw_p_run_b1": 0.4094,
-      "raw_p_nrfi": 0.4175,
+      "raw_p_run_b1": 0.4177,
+      "raw_p_nrfi": 0.4117,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
-        "band": "bin_2-3",
+        "band": "bin_1-2",
         "is_flat": true,
         "flat_size": 3,
         "flat_rate": 0.4063926940639269
@@ -628,14 +628,6 @@
       ],
       "top_drivers_b1": [
         {
-          "name": "home_top3c_slg",
-          "value": 0.3898,
-          "z": -0.79,
-          "weight": -0.398,
-          "contribution": 0.3143,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4526,
           "z": -1.108,
@@ -644,11 +636,27 @@
           "outlier": false
         },
         {
+          "name": "home_top3c_iso",
+          "value": 0.2165,
+          "z": 0.773,
+          "weight": 0.2289,
+          "contribution": 0.177,
+          "outlier": false
+        },
+        {
           "name": "home_top3c_obp",
-          "value": 0.316,
-          "z": -0.839,
+          "value": 0.3707,
+          "z": 1.05,
           "weight": 0.1015,
-          "contribution": -0.0852,
+          "contribution": 0.1066,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_slg",
+          "value": 0.455,
+          "z": 0.228,
+          "weight": -0.398,
+          "contribution": -0.0907,
           "outlier": false
         },
         {
@@ -657,14 +665,6 @@
           "z": 1.165,
           "weight": 0.0483,
           "contribution": 0.0563,
-          "outlier": false
-        },
-        {
-          "name": "home_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.513,
-          "weight": 0.1016,
-          "contribution": -0.0521,
           "outlier": false
         }
       ],
