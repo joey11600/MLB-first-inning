@@ -1,7 +1,7 @@
 {
   "date": "2026-06-11",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-11T21:17:11Z",
+  "fitted_at": "2026-06-11T21:35:07Z",
   "n_picks": 8,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -583,10 +583,10 @@
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.2966,
-      "raw_p_run_b1": 0.3435,
-      "raw_p_nrfi": 0.4618,
-      "calibrated_p_nrfi": 0.4629,
+      "raw_p_run_t1": 0.2962,
+      "raw_p_run_b1": 0.3429,
+      "raw_p_nrfi": 0.4624,
+      "calibrated_p_nrfi": 0.4652,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": true,
@@ -698,9 +698,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2722,
-      "raw_p_run_b1": 0.3137,
-      "raw_p_nrfi": 0.4995,
+      "raw_p_run_t1": 0.2715,
+      "raw_p_run_b1": 0.3125,
+      "raw_p_nrfi": 0.5009,
       "calibrated_p_nrfi": 0.4795,
       "calibrator_band": {
         "band": "bin_9-10",
@@ -727,10 +727,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 35.0,
-          "z": 2.375,
+          "value": 34.5,
+          "z": 2.288,
           "weight": 0.0347,
-          "contribution": 0.0823,
+          "contribution": 0.0793,
           "outlier": false
         },
         {
@@ -760,19 +760,19 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 35.0,
-          "z": 2.375,
-          "weight": 0.0483,
-          "contribution": 0.1148,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.519,
           "z": 0.52,
           "weight": -0.2168,
           "contribution": -0.1127,
+          "outlier": false
+        },
+        {
+          "name": "wx_temp_c",
+          "value": 34.5,
+          "z": 2.288,
+          "weight": 0.0483,
+          "contribution": 0.1106,
           "outlier": false
         },
         {
@@ -810,9 +810,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.4071,
-      "raw_p_run_b1": 0.4288,
-      "raw_p_nrfi": 0.3386,
+      "raw_p_run_t1": 0.407,
+      "raw_p_run_b1": 0.4286,
+      "raw_p_nrfi": 0.3388,
       "calibrated_p_nrfi": 0.3219,
       "calibrator_band": {
         "band": "below_min",
