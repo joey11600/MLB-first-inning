@@ -1,7 +1,7 @@
 {
   "date": "2026-06-11",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-11T22:49:10Z",
+  "fitted_at": "2026-06-11T23:03:58Z",
   "n_picks": 8,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -582,7 +582,7 @@
       "game_pk": "823371",
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2955,
       "raw_p_run_b1": 0.3416,
       "raw_p_nrfi": 0.4638,
@@ -698,15 +698,15 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2729,
-      "raw_p_run_b1": 0.3164,
-      "raw_p_nrfi": 0.4971,
-      "calibrated_p_nrfi": 0.4795,
+      "raw_p_run_t1": 0.2692,
+      "raw_p_run_b1": 0.3075,
+      "raw_p_nrfi": 0.5061,
+      "calibrated_p_nrfi": 0.4857,
       "calibrator_band": {
-        "band": "bin_9-10",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_10-11",
+        "is_flat": true,
+        "flat_size": 3,
+        "flat_rate": 0.4794520547945205
       },
       "top_drivers_t1": [
         {
@@ -727,10 +727,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 34.2,
-          "z": 2.236,
+          "value": 33.7,
+          "z": 2.15,
           "weight": 0.0347,
-          "contribution": 0.0775,
+          "contribution": 0.0745,
           "outlier": false
         },
         {
@@ -769,10 +769,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 34.2,
-          "z": 2.236,
+          "value": 33.7,
+          "z": 2.15,
           "weight": 0.0483,
-          "contribution": 0.1081,
+          "contribution": 0.1039,
           "outlier": false
         },
         {
@@ -802,7 +802,9 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": []
+      "warnings": [
+        "calibrator flat zone: 3 bins all map to rate 0.4795 (multiple distinct raw probs collapse here)"
+      ]
     },
     {
       "matchup": "ATL@CWS",
