@@ -1,7 +1,7 @@
 {
   "date": "2026-06-12",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-12T21:06:16Z",
+  "fitted_at": "2026-06-12T21:38:11Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -356,9 +356,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3063,
-      "raw_p_run_b1": 0.39,
-      "raw_p_nrfi": 0.4232,
+      "raw_p_run_t1": 0.3062,
+      "raw_p_run_b1": 0.3896,
+      "raw_p_nrfi": 0.4235,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -410,14 +410,6 @@
       ],
       "top_drivers_b1": [
         {
-          "name": "home_top3c_slg",
-          "value": 0.3897,
-          "z": -0.791,
-          "weight": -0.398,
-          "contribution": 0.3149,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4526,
           "z": -1.108,
@@ -426,11 +418,19 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_obp",
-          "value": 0.3152,
-          "z": -0.867,
-          "weight": 0.1015,
-          "contribution": -0.088,
+          "name": "home_top3c_slg",
+          "value": 0.4256,
+          "z": -0.231,
+          "weight": -0.398,
+          "contribution": 0.0919,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_iso",
+          "value": 0.1945,
+          "z": 0.319,
+          "weight": 0.2289,
+          "contribution": 0.0731,
           "outlier": false
         },
         {
@@ -469,11 +469,11 @@
       "matchup": "PHI@MIL",
       "game_pk": "823778",
       "pick_side": "NRFI",
-      "pick_strength": "LEAN",
+      "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.1511,
-      "raw_p_run_b1": 0.2462,
-      "raw_p_nrfi": 0.6399,
+      "raw_p_run_t1": 0.164,
+      "raw_p_run_b1": 0.2306,
+      "raw_p_nrfi": 0.6433,
       "calibrated_p_nrfi": 0.6918,
       "calibrator_band": {
         "band": "above_max",
@@ -498,11 +498,11 @@
         },
         {
           "name": "era_gap_t1",
-          "value": -2.936,
-          "z": -3.437,
+          "value": -2.041,
+          "z": -2.388,
           "weight": 0.0923,
-          "contribution": -0.3173,
-          "outlier": true
+          "contribution": -0.2204,
+          "outlier": false
         },
         {
           "name": "home_fip",
@@ -531,14 +531,6 @@
           "outlier": false
         },
         {
-          "name": "era_gap_b1",
-          "value": 2.936,
-          "z": 3.437,
-          "weight": 0.058,
-          "contribution": 0.1994,
-          "outlier": true
-        },
-        {
           "name": "home_top3c_slg",
           "value": 0.4702,
           "z": 0.465,
@@ -555,28 +547,33 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_obp",
-          "value": 0.3707,
-          "z": 1.05,
-          "weight": 0.1015,
-          "contribution": 0.1066,
+          "name": "era_gap_b1",
+          "value": 2.041,
+          "z": 2.388,
+          "weight": 0.058,
+          "contribution": 0.1385,
+          "outlier": false
+        },
+        {
+          "name": "away_whiff_pct_rank",
+          "value": 23.0,
+          "z": -1.148,
+          "weight": -0.1011,
+          "contribution": 0.116,
           "outlier": false
         }
       ],
       "priors_vs_raw": {
         "home_xera_raw": 3.153,
         "home_xera_pooled": 3.1529,
-        "away_xera_raw": 5.526,
-        "away_xera_pooled": 5.5256
+        "away_xera_raw": 5.1,
+        "away_xera_pooled": 5.1
       },
       "pitcher_q": {
         "home_pitcher_q": "live",
         "away_pitcher_q": "ltd"
       },
-      "warnings": [
-        "T1: feature era_gap_t1=-2.936 is z=-3.44 sigma from training mean -- contribution -0.317 to logit",
-        "B1: feature era_gap_b1=2.936 is z=+3.44 sigma from training mean -- contribution +0.199 to logit"
-      ]
+      "warnings": []
     },
     {
       "matchup": "CHC@SF",
@@ -925,19 +922,35 @@
       "matchup": "HOU@KC",
       "game_pk": "824102",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2889,
+      "raw_p_run_t1": 0.2832,
       "raw_p_run_b1": 0.2648,
-      "raw_p_nrfi": 0.5228,
-      "calibrated_p_nrfi": 0.5472,
+      "raw_p_nrfi": 0.527,
+      "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
-        "band": "bin_11-12",
+        "band": "bin_12-13",
         "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.5342465753424658
+        "flat_size": 3,
+        "flat_rate": 0.547945205479452
       },
       "top_drivers_t1": [
+        {
+          "name": "away_top3c_iso",
+          "value": 0.2528,
+          "z": 1.515,
+          "weight": 0.3454,
+          "contribution": 0.5234,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_slg",
+          "value": 0.5344,
+          "z": 1.46,
+          "weight": -0.3266,
+          "contribution": -0.4768,
+          "outlier": false
+        },
         {
           "name": "home_xera",
           "value": 7.9214,
@@ -955,27 +968,11 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_slg",
-          "value": 0.407,
-          "z": -0.516,
-          "weight": -0.3266,
-          "contribution": 0.1685,
-          "outlier": false
-        },
-        {
           "name": "home_p_last10_pitcher_nrfi",
           "value": 0.3333,
           "z": -2.263,
           "weight": 0.0661,
           "contribution": -0.1497,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
           "outlier": false
         }
       ],
@@ -1035,7 +1032,7 @@
         "T1: feature home_xera=7.921 is z=+3.52 sigma from training mean -- contribution +0.390 to logit",
         "raw cache home_xera=7.92 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 7.92 (drift +0.00)",
         "raw cache away_xera=0.93 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 0.93 (drift +0.00)",
-        "calibrator flat zone: 4 bins all map to rate 0.5342 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.5479 (multiple distinct raw probs collapse here)"
       ]
     },
     {
