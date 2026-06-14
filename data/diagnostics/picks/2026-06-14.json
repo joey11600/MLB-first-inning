@@ -1,7 +1,7 @@
 {
   "date": "2026-06-14",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-14T21:35:53Z",
+  "fitted_at": "2026-06-14T22:06:48Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -807,10 +807,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2342,
-      "raw_p_run_b1": 0.2864,
-      "raw_p_nrfi": 0.5465,
-      "calibrated_p_nrfi": 0.5499,
+      "raw_p_run_t1": 0.234,
+      "raw_p_run_b1": 0.2862,
+      "raw_p_nrfi": 0.5468,
+      "calibrated_p_nrfi": 0.55,
       "calibrator_band": {
         "band": "bin_14-15",
         "is_flat": true,
@@ -886,10 +886,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 20.5,
-          "z": 1.908,
+          "value": 20.9,
+          "z": 1.993,
           "weight": 0.0497,
-          "contribution": 0.0948,
+          "contribution": 0.099,
           "outlier": false
         },
         {
