@@ -1,7 +1,7 @@
 {
   "date": "2026-06-15",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-15T06:20:28Z",
+  "fitted_at": "2026-06-15T07:16:02Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -125,10 +125,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3212,
-      "raw_p_run_b1": 0.4356,
-      "raw_p_nrfi": 0.3831,
-      "calibrated_p_nrfi": 0.3937,
+      "raw_p_run_t1": 0.3233,
+      "raw_p_run_b1": 0.4404,
+      "raw_p_nrfi": 0.3787,
+      "calibrated_p_nrfi": 0.3859,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -211,11 +211,11 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_iso",
-          "value": 0.169,
-          "z": -0.206,
-          "weight": 0.2289,
-          "contribution": -0.0473,
+          "name": "wx_wind_kmh",
+          "value": 16.2,
+          "z": 0.997,
+          "weight": 0.0497,
+          "contribution": 0.0495,
           "outlier": false
         }
       ],
@@ -239,10 +239,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3849,
-      "raw_p_run_b1": 0.3679,
+      "raw_p_run_t1": 0.3851,
+      "raw_p_run_b1": 0.3678,
       "raw_p_nrfi": 0.3888,
-      "calibrated_p_nrfi": 0.404,
+      "calibrated_p_nrfi": 0.4039,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -353,15 +353,15 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3101,
-      "raw_p_run_b1": 0.433,
-      "raw_p_nrfi": 0.3912,
-      "calibrated_p_nrfi": 0.4064,
+      "raw_p_run_t1": 0.3117,
+      "raw_p_run_b1": 0.4364,
+      "raw_p_nrfi": 0.3879,
+      "calibrated_p_nrfi": 0.4023,
       "calibrator_band": {
-        "band": "bin_1-2",
+        "band": "bin_0-1",
         "is_flat": true,
-        "flat_size": 3,
-        "flat_rate": 0.4063926940639269
+        "flat_size": 4,
+        "flat_rate": 0.3219178082191781
       },
       "top_drivers_t1": [
         {
@@ -458,7 +458,7 @@
         "away_pitcher_q": "ltd"
       },
       "warnings": [
-        "calibrator flat zone: 3 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 4 bins all map to rate 0.3219 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -467,9 +467,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.2751,
-      "raw_p_run_b1": 0.4205,
-      "raw_p_nrfi": 0.4201,
+      "raw_p_run_t1": 0.2737,
+      "raw_p_run_b1": 0.4165,
+      "raw_p_nrfi": 0.4238,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -581,15 +581,15 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.207,
-      "raw_p_run_b1": 0.4244,
-      "raw_p_nrfi": 0.4565,
-      "calibrated_p_nrfi": 0.4436,
+      "raw_p_run_t1": 0.1993,
+      "raw_p_run_b1": 0.3997,
+      "raw_p_nrfi": 0.4806,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_7-8",
         "is_flat": true,
-        "flat_size": 5,
-        "flat_rate": 0.4383561643835616
+        "flat_size": 3,
+        "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
         {
@@ -689,7 +689,7 @@
         "T1: feature era_gap_t1=-3.100 is z=-3.63 sigma from training mean -- contribution -0.335 to logit",
         "B1: feature era_gap_b1=3.100 is z=+3.63 sigma from training mean -- contribution +0.210 to logit",
         "raw cache home_xera=1.95 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 1.95 (drift +0.00)",
-        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -812,14 +812,14 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2265,
-      "raw_p_run_b1": 0.3656,
-      "raw_p_nrfi": 0.4907,
-      "calibrated_p_nrfi": 0.4781,
+      "raw_p_run_t1": 0.2291,
+      "raw_p_run_b1": 0.3746,
+      "raw_p_nrfi": 0.4821,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_8-9",
+        "band": "bin_7-8",
         "is_flat": true,
-        "flat_size": 5,
+        "flat_size": 3,
         "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
@@ -917,7 +917,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "calibrator flat zone: 5 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -926,15 +926,15 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.3129,
-      "raw_p_run_b1": 0.3414,
-      "raw_p_nrfi": 0.4526,
-      "calibrated_p_nrfi": 0.4384,
+      "raw_p_run_t1": 0.3097,
+      "raw_p_run_b1": 0.3336,
+      "raw_p_nrfi": 0.46,
+      "calibrated_p_nrfi": 0.4564,
       "calibrator_band": {
-        "band": "bin_4-5",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_5-6",
+        "is_flat": true,
+        "flat_size": 5,
+        "flat_rate": 0.4383561643835616
       },
       "top_drivers_t1": [
         {
@@ -1030,7 +1030,9 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "avg"
       },
-      "warnings": []
+      "warnings": [
+        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
+      ]
     },
     {
       "matchup": "MIN@TEX",
