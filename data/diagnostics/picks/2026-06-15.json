@@ -1,7 +1,7 @@
 {
   "date": "2026-06-15",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-15T10:57:33Z",
+  "fitted_at": "2026-06-15T13:04:10Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -125,10 +125,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3227,
-      "raw_p_run_b1": 0.4396,
-      "raw_p_nrfi": 0.3796,
-      "calibrated_p_nrfi": 0.3875,
+      "raw_p_run_t1": 0.3231,
+      "raw_p_run_b1": 0.4399,
+      "raw_p_nrfi": 0.3791,
+      "calibrated_p_nrfi": 0.3866,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -212,10 +212,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 16.4,
-          "z": 1.039,
+          "value": 16.1,
+          "z": 0.976,
           "weight": 0.0497,
-          "contribution": 0.0516,
+          "contribution": 0.0485,
           "outlier": false
         }
       ],
@@ -239,15 +239,15 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3851,
-      "raw_p_run_b1": 0.3679,
-      "raw_p_nrfi": 0.3887,
-      "calibrated_p_nrfi": 0.4037,
+      "raw_p_run_t1": 0.3836,
+      "raw_p_run_b1": 0.3646,
+      "raw_p_nrfi": 0.3916,
+      "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
-        "band": "bin_0-1",
+        "band": "bin_1-2",
         "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.3219178082191781
+        "flat_size": 3,
+        "flat_rate": 0.4063926940639269
       },
       "top_drivers_t1": [
         {
@@ -344,7 +344,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "calibrator flat zone: 4 bins all map to rate 0.3219 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -353,10 +353,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3125,
-      "raw_p_run_b1": 0.4385,
-      "raw_p_nrfi": 0.386,
-      "calibrated_p_nrfi": 0.399,
+      "raw_p_run_t1": 0.3117,
+      "raw_p_run_b1": 0.4374,
+      "raw_p_nrfi": 0.3872,
+      "calibrated_p_nrfi": 0.4011,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -468,8 +468,8 @@
       "pick_strength": "STRONG",
       "graded_result": "",
       "raw_p_run_t1": 0.2733,
-      "raw_p_run_b1": 0.4149,
-      "raw_p_nrfi": 0.4252,
+      "raw_p_run_b1": 0.4148,
+      "raw_p_nrfi": 0.4253,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -581,9 +581,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.1979,
-      "raw_p_run_b1": 0.3946,
-      "raw_p_nrfi": 0.4855,
+      "raw_p_run_t1": 0.1987,
+      "raw_p_run_b1": 0.3979,
+      "raw_p_nrfi": 0.4825,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
         "band": "bin_7-8",
@@ -812,9 +812,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2295,
-      "raw_p_run_b1": 0.3755,
-      "raw_p_nrfi": 0.4812,
+      "raw_p_run_t1": 0.2301,
+      "raw_p_run_b1": 0.3775,
+      "raw_p_nrfi": 0.4792,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
         "band": "bin_7-8",
@@ -926,10 +926,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.3116,
-      "raw_p_run_b1": 0.3382,
-      "raw_p_nrfi": 0.4555,
-      "calibrated_p_nrfi": 0.4402,
+      "raw_p_run_t1": 0.3103,
+      "raw_p_run_b1": 0.3356,
+      "raw_p_nrfi": 0.4582,
+      "calibrated_p_nrfi": 0.4501,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": true,
