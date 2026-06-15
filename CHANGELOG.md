@@ -11,6 +11,56 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-06-07] — Curtail STRONG NRFI (YRFI-only) after a full prediction rework
+
+Operator pushed for a complete NRFI rework ("something is wrong with how
+we predict that"). I ran one, end to end, and the honest result is:
+**the NRFI prediction is sound — the side is unprofitable for structural
+reasons, not a math bug.** So we stop betting it.
+
+### Changed
+
+- **`_LR_STRONG_NRFI_P` 0.62 → 1.01** (mlb_first_inning_predictor.py).
+  1.01 = "off": no `nrfi_prob` ever clears it, so every NRFI-leaning game
+  now routes to **LEAN NRFI (tracked, `bet_placed=N`)** instead of a real
+  bet. We bet **YRFI only**. Reversible: set back to 0.62.
+- **YRFI invariance proven empirically**: re-classified all 917 graded
+  games under 0.62 vs 1.01 — 59 picks changed, **all 59 STRONG NRFI →
+  LEAN NRFI, 0 YRFI picks touched**. YRFI is the `nrfi_prob<0.44` side; the
+  changed gate only ever fires for high `nrfi_prob`.
+
+### Why (the rework, in evidence)
+
+- **Decomposition**: season NRFI **−10.5u** vs YRFI **+8.0u** (real odds).
+  NRFI is the entire reason the book is red; YRFI-only would be +8u.
+- **The prediction is NOT broken** (`tools/nrfi_prediction_diagnostic.py`):
+  per-half run model near-perfect (pred 28.4% vs actual 28.3%), the two
+  halves are independent (corr −0.08, so the product formula is valid),
+  aggregate NRFI calibrated (47.5% vs 47.9%) and it even **beats the
+  market** (book prices NRFI ~52%, truth 48%).
+- **No prediction lever found**: situational miscalibration all died on
+  the 4,802-game backtest (`tools/nrfi_situational_scan.py`); `whip_gap`
+  null in 3-split (`tools/whip_gap_retrain_test.py`, redundant w/ FIP);
+  the 1st-inning batting-order idea is dead — a hitter's 1st-inning OBP is
+  pure sampling noise (year-to-year gap corr **+0.06**;
+  `tools/batter_fi_obp_premise_check.py`).
+- **No profitability lever**: the "only bet NRFI when we disagree with the
+  book" filter tested **negative on 505 graded games**
+  (`tools/nrfi_market_disagreement.py`) — even in the biggest-disagreement
+  bucket we hit 53% needing 57%. On NRFI, our disagreements with the book
+  are *us* being wrong. The market is efficient on NRFI; we can't out-
+  predict an efficient price on a near-coin-flip inning.
+- Full do-not-retread record: user memory `2026-06-07_nrfi_rework`.
+
+### Added (read-only analysis tools, the investigation record)
+
+- `tools/nrfi_prediction_diagnostic.py`, `tools/nrfi_situational_scan.py`,
+  `tools/whip_gap_retrain_test.py`, `tools/batter_fi_obp_premise_check.py`,
+  `tools/nrfi_market_disagreement.py`; extended
+  `tools/nrfi_threshold_study.py` grid to include an "NRFI off" sentinel.
+
+---
+
 ## [2026-06-07] — Quiet the noisy calibration-drift Telegram (was crying wolf daily)
 
 ### Fixed

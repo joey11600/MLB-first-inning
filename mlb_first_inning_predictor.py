@@ -959,7 +959,23 @@ _FI_PARK_NRFI_DEFAULT = 0.50
 # The 0.56-0.62 picks now fall into LEAN NRFI (track-only, not bet).
 # YRFI INVARIANCE: this only moves the nrfi_prob>=0.56 boundary; YRFI
 # is the nrfi_prob<0.44 side -> mathematically cannot change a YRFI pick.
-_LR_STRONG_NRFI_P = 0.62
+#
+# 2026-06-07 NRFI CURTAILMENT -- set to 1.01 ("off").  After a full rework
+# investigation (see user memory 2026-06-07_nrfi_rework + CHANGELOG),
+# STRONG NRFI betting is DISABLED: every NRFI-leaning game now routes to
+# LEAN NRFI (tracked, bet_placed=N) instead of a real bet.  Evidence:
+#   - NRFI lost -10.5u on the season vs YRFI +8u (NRFI = the whole drag).
+#   - The model's NRFI prediction is SOUND (per-half calibrated, halves
+#     independent, beats the market on aggregate) -- not a math bug.
+#   - But the market is EFFICIENT on NRFI: when our model out-bulls the
+#     book on NRFI we hit only 53% needing 57% (disagreement filter tested
+#     NEGATIVE on 505 graded games).  No prediction lever (whip_gap null,
+#     batter 1st-inning OBP is pure sampling noise) and no profitability
+#     lever exists.  We can't out-predict an efficient price on a coin flip.
+# YRFI (nrfi_prob<0.44) is mathematically untouched -- the STRONG-NRFI
+# branch below only ever fires for nrfi_prob>=this value.
+# REVERSAL: set back to 0.62 to re-enable STRONG NRFI betting.
+_LR_STRONG_NRFI_P = 1.01   # was 0.62; 1.01 = NRFI betting OFF (LEAN/track-only)
 _LR_LEAN_NRFI_P   = 0.50
 _LR_PASS_LO_P     = 0.44
 _LR_LEAN_YRFI_P   = 0.50

@@ -29,7 +29,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PICKS = ROOT / "data" / "picks_2026.csv"
 CUR = 0.56
-GRID = [0.56, 0.58, 0.60, 0.62, 0.64]
+# 1.01 = "NRFI off" (no nrfi_prob ever clears it -> bet zero STRONG NRFI).
+GRID = [0.56, 0.58, 0.60, 0.62, 0.64, 0.66, 0.68, 1.01]
 
 
 def payout(a):
