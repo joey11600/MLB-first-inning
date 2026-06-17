@@ -1,7 +1,7 @@
 {
   "date": "2026-06-16",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-17T00:26:31Z",
+  "fitted_at": "2026-06-17T00:36:09Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -923,7 +923,7 @@
       "game_pk": "824182",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.1967,
       "raw_p_run_b1": 0.2861,
       "raw_p_nrfi": 0.5735,
@@ -1265,7 +1265,7 @@
       "game_pk": "822888",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.2323,
       "raw_p_run_b1": 0.2894,
       "raw_p_nrfi": 0.5456,
