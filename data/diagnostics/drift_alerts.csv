@@ -150,3 +150,12 @@ date,severity,metric,note
 2026-06-15,MEDIUM,away_pitcher_q=ltd,away_pitcher_q=ltd: today=40.0% baseline=19.8% shift=+20.2%
 2026-06-16,MEDIUM,away_pitcher_q=live,away_pitcher_q=live: today=93.3% baseline=72.0% shift=+21.3%
 2026-06-16,MEDIUM,away_pitcher_q=live,away_pitcher_q=live: today=93.3% baseline=72.0% shift=+21.3%
+2026-06-17,MEDIUM,away_pitcher_q=live,away_pitcher_q=live: today=53.3% baseline=76.3% shift=-23.0%
+2026-06-17,MEDIUM,home_top3c_source=lineup,home_top3c_source=lineup: today=46.7% baseline=98.9% shift=-52.3%
+2026-06-17,MEDIUM,home_top3c_source=team_fallback,home_top3c_source=team_fallback: today=53.3% baseline=1.1% shift=+52.3%
+2026-06-17,MEDIUM,away_top3c_source=lineup,away_top3c_source=lineup: today=40.0% baseline=100.0% shift=-60.0%
+2026-06-17,MEDIUM,away_top3c_source=team_fallback,away_top3c_source=team_fallback: today=60.0% baseline=0.0% shift=+60.0%
+2026-06-17,MEDIUM,away_xera_extreme,"away_xera has 3/15 extreme values (outside [2.0, 7.0]); max=7.92"
+2026-06-17,HIGH,away_top3_ops_vs_oppHand_default_rate,away_top3_ops_vs_oppHand defaulted to 0.72 in 9/15 rows (60%); heavy defaulting = predict pipeline failed
+2026-06-17,HIGH,home_top3_ops_vs_oppHand_default_rate,home_top3_ops_vs_oppHand defaulted to 0.72 in 8/15 rows (53%); heavy defaulting = predict pipeline failed
+2026-06-17,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 5 (>=4 = MEDIUM; informational -- not predictive of pick quality)
