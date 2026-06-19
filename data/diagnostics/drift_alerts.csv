@@ -168,3 +168,4 @@ date,severity,metric,note
 2026-06-17,HIGH,away_top3_ops_vs_oppHand_default_rate,away_top3_ops_vs_oppHand defaulted to 0.72 in 9/15 rows (60%); heavy defaulting = predict pipeline failed
 2026-06-17,HIGH,home_top3_ops_vs_oppHand_default_rate,home_top3_ops_vs_oppHand defaulted to 0.72 in 8/15 rows (53%); heavy defaulting = predict pipeline failed
 2026-06-17,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 5 (>=4 = MEDIUM; informational -- not predictive of pick quality)
+2026-06-18,MEDIUM,away_top3_ops_vs_oppHand_default_rate,away_top3_ops_vs_oppHand defaulted to 0.72 in 3/9 rows (33%); heavy defaulting = predict pipeline failed
