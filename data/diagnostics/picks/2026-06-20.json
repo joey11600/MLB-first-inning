@@ -1,7 +1,7 @@
 {
   "date": "2026-06-20",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-20T05:09:43Z",
+  "fitted_at": "2026-06-20T06:20:37Z",
   "n_picks": 14,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1371,13 +1371,13 @@
     {
       "matchup": "LAA@OAK",
       "game_pk": "824988",
-      "pick_side": "PASS",
-      "pick_strength": "STARTER PENDING",
+      "pick_side": "YRFI",
+      "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3355,
-      "raw_p_run_b1": 0.4506,
-      "raw_p_nrfi": 0.3651,
-      "calibrated_p_nrfi": 0.3617,
+      "raw_p_run_t1": 0.3589,
+      "raw_p_run_b1": 0.412,
+      "raw_p_nrfi": 0.377,
+      "calibrated_p_nrfi": 0.3828,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": true,
@@ -1418,11 +1418,11 @@
           "outlier": false
         },
         {
-          "name": "era_gap_t1",
-          "value": -0.596,
-          "z": -0.692,
-          "weight": 0.0923,
-          "contribution": -0.0639,
+          "name": "away_top3_ops_vs_oppHand",
+          "value": 0.72,
+          "z": -0.562,
+          "weight": 0.0856,
+          "contribution": -0.0481,
           "outlier": false
         }
       ],
@@ -1460,23 +1460,23 @@
           "outlier": false
         },
         {
-          "name": "away_p_last10_pitcher_nrfi",
-          "value": 0.5,
-          "z": -1.251,
-          "weight": -0.057,
-          "contribution": 0.0713,
+          "name": "home_top3_ops_vs_oppHand",
+          "value": 0.72,
+          "z": -0.513,
+          "weight": 0.1016,
+          "contribution": -0.0521,
           "outlier": false
         }
       ],
       "priors_vs_raw": {
         "home_xera_raw": 3.667,
         "home_xera_pooled": 3.6671,
-        "away_xera_raw": 4.2,
-        "away_xera_pooled": null
+        "away_xera_raw": 2.497,
+        "away_xera_pooled": 2.4971
       },
       "pitcher_q": {
         "home_pitcher_q": "live",
-        "away_pitcher_q": "avg"
+        "away_pitcher_q": "ltd"
       },
       "warnings": [
         "calibrator flat zone: 4 bins all map to rate 0.3219 (multiple distinct raw probs collapse here)"
