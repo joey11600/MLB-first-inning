@@ -1,7 +1,7 @@
 {
   "date": "2026-06-23",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-23T23:04:23Z",
+  "fitted_at": "2026-06-23T23:38:33Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -240,7 +240,7 @@
       "game_pk": "823849",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.2863,
       "raw_p_run_b1": 0.4068,
       "raw_p_nrfi": 0.4234,
@@ -354,7 +354,7 @@
       "game_pk": "824501",
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2702,
       "raw_p_run_b1": 0.3617,
       "raw_p_nrfi": 0.4658,
@@ -469,9 +469,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3484,
+      "raw_p_run_t1": 0.3458,
       "raw_p_run_b1": 0.3846,
-      "raw_p_nrfi": 0.401,
+      "raw_p_nrfi": 0.4026,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_1-2",
@@ -497,14 +497,6 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_slg",
-          "value": 0.4053,
-          "z": -0.542,
-          "weight": -0.3266,
-          "contribution": 0.1771,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4526,
           "z": -1.108,
@@ -518,6 +510,14 @@
           "z": 2.625,
           "weight": 0.0587,
           "contribution": 0.1541,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_slg",
+          "value": 0.4236,
+          "z": -0.259,
+          "weight": -0.3266,
+          "contribution": 0.0844,
           "outlier": false
         }
       ],
@@ -1266,7 +1266,7 @@
       "game_pk": "823365",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.3235,
       "raw_p_run_b1": 0.2682,
       "raw_p_nrfi": 0.4951,
