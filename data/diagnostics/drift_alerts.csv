@@ -191,3 +191,4 @@ date,severity,metric,note
 2026-06-22,MEDIUM,away_xera_extreme,"away_xera has 2/13 extreme values (outside [2.0, 7.0]); max=4.79"
 2026-06-22,MEDIUM,away_xera_extreme,"away_xera has 2/13 extreme values (outside [2.0, 7.0]); max=4.79"
 2026-06-23,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
+2026-06-23,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
