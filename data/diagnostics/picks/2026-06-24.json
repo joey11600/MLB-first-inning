@@ -1,7 +1,7 @@
 {
   "date": "2026-06-24",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-24T22:36:20Z",
+  "fitted_at": "2026-06-24T23:03:21Z",
   "n_picks": 16,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -240,7 +240,7 @@
       "game_pk": "824259",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.171,
       "raw_p_run_b1": 0.2721,
       "raw_p_nrfi": 0.6035,
@@ -468,7 +468,7 @@
       "game_pk": "822965",
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.3105,
       "raw_p_run_b1": 0.3214,
       "raw_p_nrfi": 0.4679,
@@ -927,15 +927,15 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3008,
-      "raw_p_run_b1": 0.2813,
-      "raw_p_nrfi": 0.5025,
-      "calibrated_p_nrfi": 0.4795,
+      "raw_p_run_t1": 0.2991,
+      "raw_p_run_b1": 0.2775,
+      "raw_p_nrfi": 0.5064,
+      "calibrated_p_nrfi": 0.4875,
       "calibrator_band": {
-        "band": "bin_9-10",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_10-11",
+        "is_flat": true,
+        "flat_size": 3,
+        "flat_rate": 0.4794520547945205
       },
       "top_drivers_t1": [
         {
@@ -1006,10 +1006,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 26.7,
-          "z": 0.94,
+          "value": 26.6,
+          "z": 0.923,
           "weight": 0.0483,
-          "contribution": 0.0455,
+          "contribution": 0.0446,
           "outlier": false
         },
         {
@@ -1031,7 +1031,9 @@
         "home_pitcher_q": "ltd",
         "away_pitcher_q": "ltd"
       },
-      "warnings": []
+      "warnings": [
+        "calibrator flat zone: 3 bins all map to rate 0.4795 (multiple distinct raw probs collapse here)"
+      ]
     },
     {
       "matchup": "HOU@TOR",
@@ -1267,10 +1269,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2679,
-      "raw_p_run_b1": 0.2544,
-      "raw_p_nrfi": 0.5458,
-      "calibrated_p_nrfi": 0.5497,
+      "raw_p_run_t1": 0.2668,
+      "raw_p_run_b1": 0.2531,
+      "raw_p_nrfi": 0.5476,
+      "calibrated_p_nrfi": 0.5503,
       "calibrator_band": {
         "band": "bin_14-15",
         "is_flat": true,
@@ -1381,9 +1383,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3034,
-      "raw_p_run_b1": 0.2342,
-      "raw_p_nrfi": 0.5335,
+      "raw_p_run_t1": 0.3028,
+      "raw_p_run_b1": 0.2329,
+      "raw_p_nrfi": 0.5348,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_13-14",
@@ -1444,10 +1446,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 20.6,
-          "z": 1.929,
+          "value": 19.9,
+          "z": 1.781,
           "weight": 0.0497,
-          "contribution": 0.0958,
+          "contribution": 0.0885,
           "outlier": false
         },
         {
@@ -1495,9 +1497,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2988,
-      "raw_p_run_b1": 0.2944,
-      "raw_p_nrfi": 0.4948,
+      "raw_p_run_t1": 0.2987,
+      "raw_p_run_b1": 0.2942,
+      "raw_p_nrfi": 0.495,
       "calibrated_p_nrfi": 0.4791,
       "calibrator_band": {
         "band": "bin_8-9",
@@ -1609,8 +1611,8 @@
       "pick_side": "PASS",
       "pick_strength": "NO DATA",
       "graded_result": "",
-      "raw_p_run_t1": 0.3177,
-      "raw_p_run_b1": 0.3075,
+      "raw_p_run_t1": 0.3175,
+      "raw_p_run_b1": 0.3076,
       "raw_p_nrfi": 0.4725,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
