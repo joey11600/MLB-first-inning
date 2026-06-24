@@ -1,7 +1,7 @@
 {
   "date": "2026-06-23",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-24T00:38:44Z",
+  "fitted_at": "2026-06-24T01:08:16Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -10,7 +10,7 @@
       "game_pk": "824340",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.3969,
       "raw_p_run_b1": 0.3357,
       "raw_p_nrfi": 0.4006,
@@ -813,10 +813,10 @@
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.2739,
-      "raw_p_run_b1": 0.3247,
-      "raw_p_nrfi": 0.4903,
-      "calibrated_p_nrfi": 0.478,
+      "raw_p_run_t1": 0.2747,
+      "raw_p_run_b1": 0.3264,
+      "raw_p_nrfi": 0.4885,
+      "calibrated_p_nrfi": 0.4775,
       "calibrator_band": {
         "band": "bin_8-9",
         "is_flat": true,
@@ -892,10 +892,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 19.1,
-          "z": 1.612,
+          "value": 19.4,
+          "z": 1.675,
           "weight": 0.0497,
-          "contribution": 0.0801,
+          "contribution": 0.0832,
           "outlier": false
         },
         {
@@ -1610,15 +1610,15 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2585,
-      "raw_p_run_b1": 0.3058,
-      "raw_p_nrfi": 0.5147,
-      "calibrated_p_nrfi": 0.5352,
+      "raw_p_run_t1": 0.2594,
+      "raw_p_run_b1": 0.3065,
+      "raw_p_nrfi": 0.5136,
+      "calibrated_p_nrfi": 0.5313,
       "calibrator_band": {
-        "band": "bin_11-12",
+        "band": "bin_10-11",
         "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.5342465753424658
+        "flat_size": 3,
+        "flat_rate": 0.4794520547945205
       },
       "top_drivers_t1": [
         {
@@ -1716,7 +1716,7 @@
       },
       "warnings": [
         "T1: feature home_avg_ip_per_start=1.110 is z=-4.90 sigma from training mean -- contribution +0.131 to logit",
-        "calibrator flat zone: 4 bins all map to rate 0.5342 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4795 (multiple distinct raw probs collapse here)"
       ]
     }
   ]
