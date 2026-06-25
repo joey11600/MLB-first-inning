@@ -1,7 +1,7 @@
 {
   "date": "2026-06-24",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-25T00:37:40Z",
+  "fitted_at": "2026-06-25T01:09:34Z",
   "n_picks": 16,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1268,7 +1268,7 @@
       "game_pk": "823284",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.2668,
       "raw_p_run_b1": 0.2531,
       "raw_p_nrfi": 0.5476,
@@ -1383,12 +1383,12 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3014,
-      "raw_p_run_b1": 0.2303,
-      "raw_p_nrfi": 0.5377,
+      "raw_p_run_t1": 0.3047,
+      "raw_p_run_b1": 0.2365,
+      "raw_p_nrfi": 0.5308,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
-        "band": "bin_13-14",
+        "band": "bin_12-13",
         "is_flat": true,
         "flat_size": 3,
         "flat_rate": 0.547945205479452
@@ -1445,19 +1445,19 @@
           "outlier": false
         },
         {
+          "name": "wx_wind_kmh",
+          "value": 21.6,
+          "z": 2.141,
+          "weight": 0.0497,
+          "contribution": 0.1064,
+          "outlier": false
+        },
+        {
           "name": "era_gap_b1",
           "value": -1.271,
           "z": -1.498,
           "weight": 0.058,
           "contribution": -0.0869,
-          "outlier": false
-        },
-        {
-          "name": "wx_wind_kmh",
-          "value": 18.8,
-          "z": 1.548,
-          "weight": 0.0497,
-          "contribution": 0.0769,
           "outlier": false
         },
         {
