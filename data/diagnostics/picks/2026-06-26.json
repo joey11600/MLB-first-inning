@@ -1,7 +1,7 @@
 {
   "date": "2026-06-26",
   "model_version": "V2.2",
-  "fitted_at": "2026-06-27T00:38:33Z",
+  "fitted_at": "2026-06-27T01:07:37Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -125,12 +125,12 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2668,
-      "raw_p_run_b1": 0.3526,
-      "raw_p_nrfi": 0.4747,
+      "raw_p_run_t1": 0.2661,
+      "raw_p_run_b1": 0.3497,
+      "raw_p_nrfi": 0.4773,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_6-7",
+        "band": "bin_7-8",
         "is_flat": true,
         "flat_size": 3,
         "flat_rate": 0.4771689497716895
@@ -468,9 +468,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.28,
-      "raw_p_run_b1": 0.2523,
-      "raw_p_nrfi": 0.5383,
+      "raw_p_run_t1": 0.2802,
+      "raw_p_run_b1": 0.2526,
+      "raw_p_nrfi": 0.538,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_13-14",
@@ -581,7 +581,7 @@
       "game_pk": "823039",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.3079,
       "raw_p_run_b1": 0.264,
       "raw_p_nrfi": 0.5093,
@@ -1378,9 +1378,9 @@
       "pick_side": "PASS",
       "pick_strength": "STARTER PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2547,
-      "raw_p_run_b1": 0.2927,
-      "raw_p_nrfi": 0.5272,
+      "raw_p_run_t1": 0.2557,
+      "raw_p_run_b1": 0.2945,
+      "raw_p_nrfi": 0.525,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_12-13",
@@ -1415,10 +1415,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 22.3,
-          "z": 2.29,
+          "value": 22.5,
+          "z": 2.332,
           "weight": 0.021,
-          "contribution": 0.0481,
+          "contribution": 0.049,
           "outlier": false
         },
         {
@@ -1449,10 +1449,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 22.3,
-          "z": 2.29,
+          "value": 22.5,
+          "z": 2.332,
           "weight": 0.0497,
-          "contribution": 0.1137,
+          "contribution": 0.1158,
           "outlier": false
         },
         {
