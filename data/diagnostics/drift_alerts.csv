@@ -198,3 +198,5 @@ date,severity,metric,note
 2026-06-25,MEDIUM,away_pitcher_q=live,away_pitcher_q=live: today=88.9% baseline=67.7% shift=+21.2%
 2026-06-27,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 6 (>=4 = MEDIUM; informational -- not predictive of pick quality)
 2026-06-27,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 6 (>=4 = MEDIUM; informational -- not predictive of pick quality)
+2026-06-28,MEDIUM,home_xera_extreme,"home_xera has 4/15 extreme values (outside [2.0, 7.0]); max=9.77"
+2026-06-28,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
