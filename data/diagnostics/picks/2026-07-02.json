@@ -1,7 +1,7 @@
 {
   "date": "2026-07-02",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-02T08:14:26Z",
+  "fitted_at": "2026-07-02T13:04:44Z",
   "n_picks": 9,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -123,9 +123,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.4183,
-      "raw_p_run_b1": 0.4553,
-      "raw_p_nrfi": 0.3169,
+      "raw_p_run_t1": 0.4282,
+      "raw_p_run_b1": 0.4818,
+      "raw_p_nrfi": 0.2963,
       "calibrated_p_nrfi": 0.3219,
       "calibrator_band": {
         "band": "below_min",
@@ -157,19 +157,19 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 34.6,
-          "z": 2.306,
-          "weight": 0.0347,
-          "contribution": 0.0799,
-          "outlier": false
-        },
-        {
           "name": "home_fip",
           "value": 4.618,
           "z": 1.223,
           "weight": 0.0587,
           "contribution": 0.0718,
+          "outlier": false
+        },
+        {
+          "name": "wx_temp_c",
+          "value": 32.8,
+          "z": 1.995,
+          "weight": 0.0347,
+          "contribution": 0.0691,
           "outlier": false
         }
       ],
@@ -191,11 +191,19 @@
           "outlier": false
         },
         {
+          "name": "wx_wind_kmh",
+          "value": 22.4,
+          "z": 2.311,
+          "weight": 0.0497,
+          "contribution": 0.1148,
+          "outlier": false
+        },
+        {
           "name": "wx_temp_c",
-          "value": 34.6,
-          "z": 2.306,
+          "value": 32.8,
+          "z": 1.995,
           "weight": 0.0483,
-          "contribution": 0.1115,
+          "contribution": 0.0964,
           "outlier": false
         },
         {
@@ -204,14 +212,6 @@
           "z": 0.796,
           "weight": 0.081,
           "contribution": 0.0644,
-          "outlier": false
-        },
-        {
-          "name": "home_top3c_obp",
-          "value": 0.3228,
-          "z": -0.605,
-          "weight": 0.1015,
-          "contribution": -0.0614,
           "outlier": false
         }
       ],
@@ -233,9 +233,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.4181,
-      "raw_p_run_b1": 0.4647,
-      "raw_p_nrfi": 0.3115,
+      "raw_p_run_t1": 0.4186,
+      "raw_p_run_b1": 0.4648,
+      "raw_p_nrfi": 0.3112,
       "calibrated_p_nrfi": 0.3219,
       "calibrator_band": {
         "band": "below_min",
@@ -340,12 +340,12 @@
     {
       "matchup": "PIT@PHI",
       "game_pk": "823442",
-      "pick_side": "YRFI",
-      "pick_strength": "STRONG",
+      "pick_side": "PASS",
+      "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2919,
-      "raw_p_run_b1": 0.4052,
-      "raw_p_nrfi": 0.4211,
+      "raw_p_run_t1": 0.2887,
+      "raw_p_run_b1": 0.3966,
+      "raw_p_nrfi": 0.4292,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -364,10 +364,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 39.5,
-          "z": 3.152,
+          "value": 39.1,
+          "z": 3.083,
           "weight": 0.0347,
-          "contribution": 0.1093,
+          "contribution": 0.1069,
           "outlier": true
         },
         {
@@ -406,10 +406,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 39.5,
-          "z": 3.152,
+          "value": 39.1,
+          "z": 3.083,
           "weight": 0.0483,
-          "contribution": 0.1524,
+          "contribution": 0.1491,
           "outlier": true
         },
         {
@@ -448,8 +448,8 @@
         "away_pitcher_q": "sm"
       },
       "warnings": [
-        "T1: feature wx_temp_c=39.500 is z=+3.15 sigma from training mean -- contribution +0.109 to logit",
-        "B1: feature wx_temp_c=39.500 is z=+3.15 sigma from training mean -- contribution +0.152 to logit",
+        "T1: feature wx_temp_c=39.100 is z=+3.08 sigma from training mean -- contribution +0.107 to logit",
+        "B1: feature wx_temp_c=39.100 is z=+3.08 sigma from training mean -- contribution +0.149 to logit",
         "calibrator flat zone: 3 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
       ]
     },
@@ -459,15 +459,15 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.3371,
-      "raw_p_run_b1": 0.3435,
-      "raw_p_nrfi": 0.4352,
-      "calibrated_p_nrfi": 0.4188,
+      "raw_p_run_t1": 0.3319,
+      "raw_p_run_b1": 0.3305,
+      "raw_p_nrfi": 0.4473,
+      "calibrated_p_nrfi": 0.4384,
       "calibrator_band": {
-        "band": "bin_3-4",
-        "is_flat": true,
-        "flat_size": 5,
-        "flat_rate": 0.4063926940639269
+        "band": "bin_4-5",
+        "is_flat": false,
+        "flat_size": 2,
+        "flat_rate": null
       },
       "top_drivers_t1": [
         {
@@ -504,10 +504,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 34.2,
-          "z": 2.236,
+          "value": 34.7,
+          "z": 2.323,
           "weight": 0.0347,
-          "contribution": 0.0775,
+          "contribution": 0.0805,
           "outlier": false
         }
       ],
@@ -530,10 +530,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 34.2,
-          "z": 2.236,
+          "value": 34.7,
+          "z": 2.323,
           "weight": 0.0483,
-          "contribution": 0.1081,
+          "contribution": 0.1123,
           "outlier": false
         },
         {
@@ -563,9 +563,7 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": [
-        "calibrator flat zone: 5 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
-      ]
+      "warnings": []
     },
     {
       "matchup": "STL@ATL",
@@ -573,10 +571,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2913,
-      "raw_p_run_b1": 0.379,
-      "raw_p_nrfi": 0.4401,
-      "calibrated_p_nrfi": 0.4303,
+      "raw_p_run_t1": 0.2908,
+      "raw_p_run_b1": 0.3773,
+      "raw_p_nrfi": 0.4417,
+      "calibrated_p_nrfi": 0.4339,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": true,
@@ -602,10 +600,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 36.7,
-          "z": 2.668,
+          "value": 37.1,
+          "z": 2.738,
           "weight": 0.0347,
-          "contribution": 0.0925,
+          "contribution": 0.0949,
           "outlier": false
         },
         {
@@ -644,10 +642,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 36.7,
-          "z": 2.668,
+          "value": 37.1,
+          "z": 2.738,
           "weight": 0.0483,
-          "contribution": 0.129,
+          "contribution": 0.1323,
           "outlier": false
         },
         {
@@ -913,10 +911,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2881,
-      "raw_p_run_b1": 0.2843,
-      "raw_p_nrfi": 0.5095,
-      "calibrated_p_nrfi": 0.5065,
+      "raw_p_run_t1": 0.288,
+      "raw_p_run_b1": 0.2842,
+      "raw_p_nrfi": 0.5096,
+      "calibrated_p_nrfi": 0.5072,
       "calibrator_band": {
         "band": "bin_10-11",
         "is_flat": true,
@@ -942,10 +940,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 35.1,
-          "z": 2.392,
+          "value": 34.8,
+          "z": 2.34,
           "weight": 0.0347,
-          "contribution": 0.0829,
+          "contribution": 0.0811,
           "outlier": false
         },
         {
@@ -958,10 +956,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 22.6,
-          "z": 2.353,
+          "value": 22.9,
+          "z": 2.417,
           "weight": 0.021,
-          "contribution": 0.0495,
+          "contribution": 0.0508,
           "outlier": false
         }
       ],
@@ -992,18 +990,18 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 22.6,
-          "z": 2.353,
+          "value": 22.9,
+          "z": 2.417,
           "weight": 0.0497,
-          "contribution": 0.1169,
+          "contribution": 0.1201,
           "outlier": false
         },
         {
           "name": "wx_temp_c",
-          "value": 35.1,
-          "z": 2.392,
+          "value": 34.8,
+          "z": 2.34,
           "weight": 0.0483,
-          "contribution": 0.1156,
+          "contribution": 0.1131,
           "outlier": false
         }
       ],
