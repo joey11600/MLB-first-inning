@@ -1,7 +1,7 @@
 {
   "date": "2026-07-03",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-03T23:06:08Z",
+  "fitted_at": "2026-07-03T23:40:53Z",
   "n_picks": 13,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -10,7 +10,7 @@
       "game_pk": "823527",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.3482,
       "raw_p_run_b1": 0.4449,
       "raw_p_nrfi": 0.3618,
@@ -348,18 +348,18 @@
     {
       "matchup": "MIA@OAK",
       "game_pk": "824982",
-      "pick_side": "YRFI",
-      "pick_strength": "STRONG",
+      "pick_side": "PASS",
+      "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.3033,
-      "raw_p_run_b1": 0.3423,
-      "raw_p_nrfi": 0.4582,
-      "calibrated_p_nrfi": 0.4498,
+      "raw_p_run_t1": 0.2931,
+      "raw_p_run_b1": 0.3207,
+      "raw_p_nrfi": 0.4802,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_7-8",
         "is_flat": true,
-        "flat_size": 5,
-        "flat_rate": 0.4383561643835616
+        "flat_size": 3,
+        "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
         {
@@ -456,7 +456,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -918,17 +918,17 @@
       "matchup": "BOS@LAA",
       "game_pk": "824013",
       "pick_side": "PASS",
-      "pick_strength": "LOW LAMBDA",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2476,
-      "raw_p_run_b1": 0.3834,
-      "raw_p_nrfi": 0.4639,
-      "calibrated_p_nrfi": 0.4705,
+      "raw_p_run_t1": 0.2361,
+      "raw_p_run_b1": 0.3591,
+      "raw_p_nrfi": 0.4896,
+      "calibrated_p_nrfi": 0.4778,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_8-9",
         "is_flat": true,
         "flat_size": 5,
-        "flat_rate": 0.4383561643835616
+        "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
         {
@@ -1006,11 +1006,11 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 27.9,
-          "z": 1.148,
-          "weight": 0.0483,
-          "contribution": 0.0555,
+          "name": "home_top3_ops_vs_oppHand",
+          "value": 0.72,
+          "z": -0.513,
+          "weight": 0.1016,
+          "contribution": -0.0521,
           "outlier": false
         }
       ],
@@ -1026,7 +1026,7 @@
       },
       "warnings": [
         "B1: feature home_plate_ump_nrfi_rate=0.625 is z=+7.38 sigma from training mean -- contribution +0.127 to logit",
-        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -1151,15 +1151,15 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2165,
-      "raw_p_run_b1": 0.3651,
-      "raw_p_nrfi": 0.4974,
-      "calibrated_p_nrfi": 0.4795,
+      "raw_p_run_t1": 0.2064,
+      "raw_p_run_b1": 0.3418,
+      "raw_p_nrfi": 0.5224,
+      "calibrated_p_nrfi": 0.5465,
       "calibrator_band": {
-        "band": "bin_9-10",
-        "is_flat": false,
-        "flat_size": 2,
-        "flat_rate": null
+        "band": "bin_11-12",
+        "is_flat": true,
+        "flat_size": 4,
+        "flat_rate": 0.5342465753424658
       },
       "top_drivers_t1": [
         {
@@ -1256,7 +1256,8 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "raw cache home_xera=1.71 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 1.71 (drift +0.00)"
+        "raw cache home_xera=1.71 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 1.71 (drift +0.00)",
+        "calibrator flat zone: 4 bins all map to rate 0.5342 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -1264,7 +1265,7 @@
       "game_pk": "824417",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.2422,
       "raw_p_run_b1": 0.3162,
       "raw_p_nrfi": 0.5182,
