@@ -1,7 +1,7 @@
 {
   "date": "2026-07-04",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-04T13:07:31Z",
+  "fitted_at": "2026-07-04T13:29:43Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -350,55 +350,55 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.4149,
-      "raw_p_run_b1": 0.2827,
-      "raw_p_nrfi": 0.4196,
-      "calibrated_p_nrfi": 0.4064,
+      "raw_p_run_t1": 0.3638,
+      "raw_p_run_b1": 0.2773,
+      "raw_p_nrfi": 0.4598,
+      "calibrated_p_nrfi": 0.4557,
       "calibrator_band": {
-        "band": "bin_2-3",
+        "band": "bin_5-6",
         "is_flat": true,
-        "flat_size": 3,
-        "flat_rate": 0.4063926940639269
+        "flat_size": 5,
+        "flat_rate": 0.4383561643835616
       },
       "top_drivers_t1": [
         {
-          "name": "home_fip",
-          "value": 5.966,
-          "z": 3.801,
-          "weight": 0.0587,
-          "contribution": 0.2231,
-          "outlier": true
+          "name": "era_gap_t1",
+          "value": 1.868,
+          "z": 2.198,
+          "weight": 0.0923,
+          "contribution": 0.2029,
+          "outlier": false
         },
         {
-          "name": "era_gap_t1",
-          "value": 1.468,
-          "z": 1.729,
-          "weight": 0.0923,
-          "contribution": 0.1596,
+          "name": "away_top3c_iso",
+          "value": 0.2,
+          "z": 0.439,
+          "weight": 0.3454,
+          "contribution": 0.1515,
           "outlier": false
         },
         {
           "name": "away_top3c_slg",
-          "value": 0.4198,
-          "z": -0.317,
+          "value": 0.4651,
+          "z": 0.385,
           "weight": -0.3266,
-          "contribution": 0.1037,
+          "contribution": -0.1258,
           "outlier": false
         },
         {
-          "name": "home_xera",
-          "value": 4.871,
-          "z": 0.7,
-          "weight": 0.1107,
-          "contribution": 0.0774,
+          "name": "home_fip",
+          "value": 4.868,
+          "z": 1.701,
+          "weight": 0.0587,
+          "contribution": 0.0998,
           "outlier": false
         },
         {
-          "name": "fi_park_nrfi_rate",
-          "value": 0.4761,
-          "z": -0.532,
-          "weight": -0.141,
-          "contribution": 0.0751,
+          "name": "home_p_last10_pitcher_nrfi",
+          "value": 0.5,
+          "z": -1.279,
+          "weight": 0.0661,
+          "contribution": -0.0846,
           "outlier": false
         }
       ],
@@ -420,6 +420,14 @@
           "outlier": false
         },
         {
+          "name": "era_gap_b1",
+          "value": -1.868,
+          "z": -2.198,
+          "weight": 0.058,
+          "contribution": -0.1275,
+          "outlier": false
+        },
+        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4761,
           "z": -0.532,
@@ -434,29 +442,20 @@
           "weight": -0.1011,
           "contribution": -0.1127,
           "outlier": false
-        },
-        {
-          "name": "wx_wind_kmh",
-          "value": 21.4,
-          "z": 2.099,
-          "weight": 0.0497,
-          "contribution": 0.1043,
-          "outlier": false
         }
       ],
       "priors_vs_raw": {
-        "home_xera_raw": 4.871,
-        "home_xera_pooled": 4.871,
+        "home_xera_raw": 4.2,
+        "home_xera_pooled": 4.2,
         "away_xera_raw": 2.96,
         "away_xera_pooled": 2.9598
       },
       "pitcher_q": {
-        "home_pitcher_q": "live",
+        "home_pitcher_q": "ltd",
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "T1: feature home_fip=5.966 is z=+3.80 sigma from training mean -- contribution +0.223 to logit",
-        "calibrator flat zone: 3 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
       ]
     },
     {
