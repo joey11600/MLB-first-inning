@@ -1,7 +1,7 @@
 {
   "date": "2026-07-05",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-05T14:53:48Z",
+  "fitted_at": "2026-07-05T15:05:45Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1143,13 +1143,13 @@
     {
       "matchup": "CWS@CLE",
       "game_pk": "824413",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2413,
+      "raw_p_run_t1": 0.2377,
       "raw_p_run_b1": 0.2514,
-      "raw_p_nrfi": 0.568,
-      "calibrated_p_nrfi": 0.5559,
+      "raw_p_nrfi": 0.5707,
+      "calibrated_p_nrfi": 0.559,
       "calibrator_band": {
         "band": "bin_16-17",
         "is_flat": true,
@@ -1157,14 +1157,6 @@
         "flat_rate": 0.5513698630136986
       },
       "top_drivers_t1": [
-        {
-          "name": "away_top3c_slg",
-          "value": 0.4138,
-          "z": -0.411,
-          "weight": -0.3266,
-          "contribution": 0.1341,
-          "outlier": false
-        },
         {
           "name": "fi_park_nrfi_rate",
           "value": 0.528,
@@ -1175,10 +1167,18 @@
         },
         {
           "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
+          "value": 0.1909,
+          "z": 0.253,
           "weight": 0.3454,
-          "contribution": -0.0668,
+          "contribution": 0.0874,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_slg",
+          "value": 0.4527,
+          "z": 0.193,
+          "weight": -0.3266,
+          "contribution": -0.063,
           "outlier": false
         },
         {
