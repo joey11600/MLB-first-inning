@@ -1,7 +1,7 @@
 {
   "date": "2026-07-05",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-05T13:05:04Z",
+  "fitted_at": "2026-07-05T13:42:18Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -806,9 +806,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2636,
-      "raw_p_run_b1": 0.3559,
-      "raw_p_nrfi": 0.4743,
+      "raw_p_run_t1": 0.2647,
+      "raw_p_run_b1": 0.3591,
+      "raw_p_nrfi": 0.4713,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
         "band": "bin_6-7",
@@ -1261,10 +1261,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.3734,
-      "raw_p_run_b1": 0.2605,
-      "raw_p_nrfi": 0.4634,
-      "calibrated_p_nrfi": 0.4688,
+      "raw_p_run_t1": 0.3759,
+      "raw_p_run_b1": 0.2654,
+      "raw_p_nrfi": 0.4585,
+      "calibrated_p_nrfi": 0.451,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": true,
@@ -1348,10 +1348,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 2.9,
-          "z": -1.821,
+          "value": 5.3,
+          "z": -1.313,
           "weight": 0.0497,
-          "contribution": -0.0905,
+          "contribution": -0.0652,
           "outlier": false
         }
       ],
