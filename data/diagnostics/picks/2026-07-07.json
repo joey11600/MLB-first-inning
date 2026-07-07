@@ -1,7 +1,7 @@
 {
   "date": "2026-07-07",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-07T23:06:06Z",
+  "fitted_at": "2026-07-07T23:37:37Z",
   "n_picks": 16,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -125,9 +125,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.2195,
-      "raw_p_run_b1": 0.4941,
-      "raw_p_nrfi": 0.3948,
+      "raw_p_run_t1": 0.1929,
+      "raw_p_run_b1": 0.4911,
+      "raw_p_nrfi": 0.4107,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_1-2",
@@ -146,18 +146,10 @@
         },
         {
           "name": "away_top3c_iso",
-          "value": 0.1976,
-          "z": 0.39,
+          "value": 0.1576,
+          "z": -0.426,
           "weight": 0.3454,
-          "contribution": 0.1346,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_slg",
-          "value": 0.4576,
-          "z": 0.269,
-          "weight": -0.3266,
-          "contribution": -0.0878,
+          "contribution": -0.1471,
           "outlier": false
         },
         {
@@ -174,6 +166,14 @@
           "z": -0.382,
           "weight": -0.141,
           "contribution": 0.0538,
+          "outlier": false
+        },
+        {
+          "name": "home_fip",
+          "value": 3.524,
+          "z": -0.87,
+          "weight": 0.0587,
+          "contribution": -0.0511,
           "outlier": false
         }
       ],
@@ -469,7 +469,7 @@
       "game_pk": "822713",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.266,
       "raw_p_run_b1": 0.3676,
       "raw_p_nrfi": 0.4642,
@@ -584,7 +584,7 @@
       "game_pk": "823361",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.1818,
       "raw_p_run_b1": 0.3128,
       "raw_p_nrfi": 0.5623,
@@ -809,10 +809,10 @@
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.2849,
-      "raw_p_run_b1": 0.2722,
-      "raw_p_nrfi": 0.5205,
-      "calibrated_p_nrfi": 0.5437,
+      "raw_p_run_t1": 0.2846,
+      "raw_p_run_b1": 0.2715,
+      "raw_p_nrfi": 0.5211,
+      "calibrated_p_nrfi": 0.5446,
       "calibrator_band": {
         "band": "bin_11-12",
         "is_flat": true,
@@ -1150,7 +1150,7 @@
       "game_pk": "823607",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.5055,
       "raw_p_run_b1": 0.3441,
       "raw_p_nrfi": 0.3243,
@@ -1264,7 +1264,7 @@
       "game_pk": "824495",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.3234,
       "raw_p_run_b1": 0.2238,
       "raw_p_nrfi": 0.5252,
@@ -1382,8 +1382,8 @@
       "pick_strength": "LEAN",
       "graded_result": "",
       "raw_p_run_t1": 0.2357,
-      "raw_p_run_b1": 0.2332,
-      "raw_p_nrfi": 0.5861,
+      "raw_p_run_b1": 0.2333,
+      "raw_p_nrfi": 0.5859,
       "calibrated_p_nrfi": 0.5685,
       "calibrator_band": {
         "band": "bin_17-18",
@@ -1612,9 +1612,9 @@
       "pick_side": "PASS",
       "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.3267,
-      "raw_p_run_b1": 0.3351,
-      "raw_p_nrfi": 0.4477,
+      "raw_p_run_t1": 0.3268,
+      "raw_p_run_b1": 0.3354,
+      "raw_p_nrfi": 0.4474,
       "calibrated_p_nrfi": 0.4384,
       "calibrator_band": {
         "band": "bin_4-5",
