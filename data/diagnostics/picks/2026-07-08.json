@@ -1,7 +1,7 @@
 {
   "date": "2026-07-08",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-08T19:04:58Z",
+  "fitted_at": "2026-07-08T19:26:30Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -812,14 +812,14 @@
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
       "raw_p_run_t1": 0.2269,
-      "raw_p_run_b1": 0.4006,
-      "raw_p_nrfi": 0.4634,
-      "calibrated_p_nrfi": 0.4686,
+      "raw_p_run_b1": 0.3775,
+      "raw_p_nrfi": 0.4812,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_7-8",
         "is_flat": true,
-        "flat_size": 5,
-        "flat_rate": 0.4383561643835616
+        "flat_size": 3,
+        "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
         {
@@ -865,14 +865,6 @@
       ],
       "top_drivers_b1": [
         {
-          "name": "home_top3c_slg",
-          "value": 0.3993,
-          "z": -0.641,
-          "weight": -0.398,
-          "contribution": 0.2553,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.5322,
           "z": 0.842,
@@ -903,6 +895,14 @@
           "weight": -0.057,
           "contribution": 0.1041,
           "outlier": false
+        },
+        {
+          "name": "away_whiff_pct_rank",
+          "value": 71.0,
+          "z": 0.901,
+          "weight": -0.1011,
+          "contribution": -0.0911,
+          "outlier": false
         }
       ],
       "priors_vs_raw": {
@@ -917,7 +917,7 @@
       },
       "warnings": [
         "B1: feature away_fip=5.555 is z=+3.04 sigma from training mean -- contribution +0.168 to logit",
-        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
@@ -1498,14 +1498,14 @@
       "pick_strength": "STRONG",
       "graded_result": "",
       "raw_p_run_t1": 0.3871,
-      "raw_p_run_b1": 0.3688,
-      "raw_p_nrfi": 0.3869,
-      "calibrated_p_nrfi": 0.4005,
+      "raw_p_run_b1": 0.3194,
+      "raw_p_nrfi": 0.4171,
+      "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
-        "band": "bin_0-1",
+        "band": "bin_2-3",
         "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.3219178082191781
+        "flat_size": 3,
+        "flat_rate": 0.4063926940639269
       },
       "top_drivers_t1": [
         {
@@ -1551,22 +1551,6 @@
       ],
       "top_drivers_b1": [
         {
-          "name": "home_top3c_slg",
-          "value": 0.3846,
-          "z": -0.871,
-          "weight": -0.398,
-          "contribution": 0.3466,
-          "outlier": false
-        },
-        {
-          "name": "home_top3c_obp",
-          "value": 0.304,
-          "z": -1.254,
-          "weight": 0.1015,
-          "contribution": -0.1273,
-          "outlier": false
-        },
-        {
           "name": "away_fip",
           "value": 4.93,
           "z": 1.83,
@@ -1583,12 +1567,28 @@
           "outlier": false
         },
         {
+          "name": "home_top3c_slg",
+          "value": 0.4553,
+          "z": 0.233,
+          "weight": -0.398,
+          "contribution": -0.0926,
+          "outlier": false
+        },
+        {
           "name": "home_obp",
           "value": 0.304,
           "z": -0.847,
           "weight": 0.081,
           "contribution": -0.0686,
           "outlier": false
+        },
+        {
+          "name": "away_avg_ip_per_start",
+          "value": 1.33,
+          "z": -4.733,
+          "weight": -0.0126,
+          "contribution": 0.0594,
+          "outlier": true
         }
       ],
       "priors_vs_raw": {
@@ -1603,8 +1603,9 @@
       },
       "warnings": [
         "T1: feature home_xera=8.043 is z=+3.64 sigma from training mean -- contribution +0.403 to logit",
+        "B1: feature away_avg_ip_per_start=1.330 is z=-4.73 sigma from training mean -- contribution +0.059 to logit",
         "raw cache home_xera=8.04 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 8.04 (drift +0.00)",
-        "calibrator flat zone: 4 bins all map to rate 0.3219 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
       ]
     },
     {
