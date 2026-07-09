@@ -1,7 +1,7 @@
 {
   "date": "2026-07-09",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-09T19:05:03Z",
+  "fitted_at": "2026-07-09T19:46:53Z",
   "n_picks": 13,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -468,8 +468,8 @@
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
       "raw_p_run_t1": 0.2385,
-      "raw_p_run_b1": 0.2984,
-      "raw_p_nrfi": 0.5343,
+      "raw_p_run_b1": 0.3001,
+      "raw_p_nrfi": 0.533,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_13-14",
@@ -522,10 +522,10 @@
       "top_drivers_b1": [
         {
           "name": "home_top3c_slg",
-          "value": 0.3993,
-          "z": -0.641,
+          "value": 0.3986,
+          "z": -0.652,
           "weight": -0.398,
-          "contribution": 0.2553,
+          "contribution": 0.2596,
           "outlier": false
         },
         {
@@ -553,11 +553,11 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_obp",
-          "value": 0.3151,
-          "z": -0.871,
-          "weight": 0.1015,
-          "contribution": -0.0884,
+          "name": "home_top3c_iso",
+          "value": 0.1601,
+          "z": -0.39,
+          "weight": 0.2289,
+          "contribution": -0.0893,
           "outlier": false
         }
       ],
