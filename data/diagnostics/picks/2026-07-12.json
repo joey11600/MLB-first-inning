@@ -1,7 +1,7 @@
 {
   "date": "2026-07-12",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-12T19:07:27Z",
+  "fitted_at": "2026-07-12T20:08:06Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -469,14 +469,14 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2845,
-      "raw_p_run_b1": 0.3125,
-      "raw_p_nrfi": 0.4919,
-      "calibrated_p_nrfi": 0.4784,
+      "raw_p_run_t1": 0.2881,
+      "raw_p_run_b1": 0.3199,
+      "raw_p_nrfi": 0.4842,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_8-9",
+        "band": "bin_7-8",
         "is_flat": true,
-        "flat_size": 5,
+        "flat_size": 3,
         "flat_rate": 0.4771689497716895
       },
       "top_drivers_t1": [
@@ -574,7 +574,7 @@
         "away_pitcher_q": "sm"
       },
       "warnings": [
-        "calibrator flat zone: 5 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
       ]
     },
     {
