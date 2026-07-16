@@ -1,7 +1,7 @@
 {
   "date": "2026-07-16",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-16T19:57:44Z",
+  "fitted_at": "2026-07-16T21:02:25Z",
   "n_picks": 1,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,15 +11,15 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3606,
-      "raw_p_run_b1": 0.3228,
-      "raw_p_nrfi": 0.433,
-      "calibrated_p_nrfi": 0.4137,
+      "raw_p_run_t1": 0.3456,
+      "raw_p_run_b1": 0.294,
+      "raw_p_nrfi": 0.462,
+      "calibrated_p_nrfi": 0.4637,
       "calibrator_band": {
-        "band": "bin_3-4",
+        "band": "bin_5-6",
         "is_flat": true,
         "flat_size": 5,
-        "flat_rate": 0.4063926940639269
+        "flat_rate": 0.4383561643835616
       },
       "top_drivers_t1": [
         {
@@ -39,19 +39,19 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 35.1,
-          "z": 2.392,
-          "weight": 0.0347,
-          "contribution": 0.0829,
-          "outlier": false
-        },
-        {
           "name": "home_fip",
           "value": 4.679,
           "z": 1.339,
           "weight": 0.0587,
           "contribution": 0.0786,
+          "outlier": false
+        },
+        {
+          "name": "wx_temp_c",
+          "value": 31.3,
+          "z": 1.735,
+          "weight": 0.0347,
+          "contribution": 0.0601,
           "outlier": false
         },
         {
@@ -98,10 +98,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 35.1,
-          "z": 2.392,
+          "value": 31.3,
+          "z": 1.735,
           "weight": 0.0483,
-          "contribution": 0.1156,
+          "contribution": 0.0839,
           "outlier": false
         }
       ],
@@ -117,7 +117,7 @@
       },
       "warnings": [
         "raw cache away_xera=8.04 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 8.04 (drift +0.00)",
-        "calibrator flat zone: 5 bins all map to rate 0.4064 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 5 bins all map to rate 0.4384 (multiple distinct raw probs collapse here)"
       ]
     }
   ]
