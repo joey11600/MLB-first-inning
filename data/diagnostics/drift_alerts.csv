@@ -228,3 +228,7 @@ date,severity,metric,note
 2026-07-11,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
 2026-07-12,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 5 (>=4 = MEDIUM; informational -- not predictive of pick quality)
 2026-07-12,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 5 (>=4 = MEDIUM; informational -- not predictive of pick quality)
+2026-07-16,HIGH,away_pitcher_q=live,away_pitcher_q=live: today=0.0% baseline=61.0% shift=-61.0%
+2026-07-16,HIGH,away_pitcher_q=ltd,away_pitcher_q=ltd: today=100.0% baseline=28.8% shift=+71.2%
+2026-07-16,HIGH,away_xera_mean,away_xera mean 8.043 vs baseline 4.023 (z=+4.37)
+2026-07-16,HIGH,away_xera_extreme,"away_xera has 1/1 extreme values (outside [2.0, 7.0]); max=8.04"
