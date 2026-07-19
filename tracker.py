@@ -1168,6 +1168,13 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     "strong_scratch":       6 * 60,   # one scratch alert per game per side
     "bankroll_milestone":   90 * 24 * 60,  # near-permanent (3 months) per milestone
     "daily_digest":         18 * 60,  # one digest per day
+    # 2026-07-19: morning "system alive + today's plan" heartbeat.  Fires
+    # once every morning REGARDLESS of slate size, so a quiet day (0
+    # games / All-Star break / off-season) is confirmed-healthy rather
+    # than ambiguous-silence.  Motivated by the 2026-07-13 report where
+    # an All-Star-break no-games day was indistinguishable from a broken
+    # system.  18h window => exactly one per day even across re-runs.
+    "daily_heartbeat":      18 * 60,
     # T4.14: bumped from 60 -> 120 min.  During a sustained predictor
     # outage (e.g. GH Actions queue starvation, Railway redeploy) the
     # 30-min staleness threshold + 60-min dedup combined to fire a stall

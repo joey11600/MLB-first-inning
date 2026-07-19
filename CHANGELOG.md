@@ -11,6 +11,39 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-19] — Units fill hourly (not nightly) + daily system heartbeat
+
+Operator reported "won units aren't tracking" and "telegrams come in
+late." Investigation traced both to a single scheduling gap, and added a
+heartbeat so a quiet day is never mistaken for a broken one.
+
+### Fixed
+
+- **Orphaned-STRONG healer now runs on `predict` ticks too, not only the
+  nightly `grade`** (`.github/workflows/daily.yml`). `bet_placed=Y`,
+  `units_risked`, `profit_loss_units`, and the `strong_graded` WIN/LOSS
+  Telegram were all applied exclusively by `end_of_day_check.py`, which
+  the workflow gated to the single `30 3 * * *` (11:30pm ET) grade run.
+  So afternoon wins sat at `+0.000u` with no result ping until ~midnight
+  (and that grade cron itself often fires 1-3h late). The predict step
+  already live-grades finished 1st innings, so running the safety net
+  right after it heals each game within ~1 cron tick. Idempotent, soft-
+  fail, and the `strong_graded` ping has a 24h dedup window, so the extra
+  hourly invocations are silent no-ops when the slate is already clean.
+
+### Added
+
+- **`tools/daily_heartbeat.py` + workflow wiring** — one Telegram per day
+  ("☀️ N games today · picks: X STRONG, Y LEAN" or "No MLB regular-season
+  games today"). Motivated by 2026-07-13, when an All-Star-break no-games
+  day (correctly 0 picks / 0 alerts) was indistinguishable from an outage.
+  New `daily_heartbeat` event type in `tracker._DEDUP_WINDOW_M` (18h ->
+  one/day); not in `_SUPERGROUP_ALLOWED_EVENTS`, so it lands only in the
+  operator DM. Fires on any predict tick from 11am ET on (dedup keeps it
+  to one send), robust to a single scheduled cron being skipped.
+
+---
+
 ## [2026-07-19] — Fix P&L calculator reading only the first 1000 rows
 
 Operator reported "won units aren't tracking properly." Root cause found

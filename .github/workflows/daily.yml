@@ -541,7 +541,17 @@ jobs:
           fi
 
       - name: End-of-day safety net (orphaned STRONG bets)
-        if: steps.action.outputs.what == 'grade'
+        # 2026-07-19: also run on 'predict' ticks, not just the nightly
+        # 'grade'.  Previously bet_placed=Y + units + the WIN/LOSS ping
+        # only landed at the single 11:30pm ET grade run, so afternoon
+        # wins showed 0 units and their pings lagged by hours (operator
+        # report: "won units aren't tracking" + "telegrams come in
+        # late").  The predict step already live-grades finished 1st
+        # innings, so running the safety net right after heals each
+        # game within ~1 cron tick of it finishing.  Idempotent + soft-
+        # fail + Telegram-deduped (strong_graded has a 24h window), so
+        # the extra hourly invocations are silent no-ops when clean.
+        if: steps.action.outputs.what == 'grade' || steps.action.outputs.what == 'predict'
         # Catches any STRONG NRFI/YRFI pick that's terminal (WIN/LOSS)
         # but never had bet_placed=Y set during the day -- typically
         # because DK closed the market early so the auto-bet flow
@@ -570,6 +580,33 @@ jobs:
           YDAY_ISO=$(TZ='America/New_York' date -d 'yesterday' +%Y-%m-%d)
           python tools/end_of_day_check.py --date "$YDAY_ISO" 2>&1 \
             || echo "::warning::end_of_day_check yesterday failed (non-blocking)"
+
+      - name: Daily heartbeat (system-alive summary)
+        # 2026-07-19: once-a-day Telegram confirming the system ran and
+        # what today holds ("16 games, 6 STRONG, 4 LEAN" or "no games --
+        # All-Star break").  Removes the ambiguity where a legit 0-games
+        # day looked identical to a broken pipeline (2026-07-13 report).
+        # Runs on predict ticks but only from late morning ET on, so pick
+        # counts are meaningful; the tool's 18h dedup guarantees exactly
+        # one send per day even though many ticks qualify.  Firing on any
+        # qualifying tick (not one fixed cron) keeps it robust to GitHub
+        # skipping/delaying a single scheduled run.  Soft-fail.
+        if: steps.action.outputs.what == 'predict'
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set +e
+          ET_HOUR=$(TZ='America/New_York' date +%H)
+          ET_HOUR=$((10#$ET_HOUR))   # force decimal (strip leading zero)
+          if [ "$ET_HOUR" -ge 11 ]; then
+            python tools/daily_heartbeat.py 2>&1 \
+              || echo "::warning::daily_heartbeat failed (non-blocking)"
+          else
+            echo "heartbeat: ET hour $ET_HOUR < 11 -- skipping, will fire on a later tick"
+          fi
 
       - name: Auto-classify new losses (T2.48)
         if: steps.action.outputs.what == 'grade'
