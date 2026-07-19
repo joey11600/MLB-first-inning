@@ -83,8 +83,31 @@ def _load_rows(season: int) -> tuple[list[dict], str]:
         from db.supabase_writer import _get_client
         client = _get_client()
         if client is not None:
-            res = client.table(f"picks_{season}").select("*").execute()
-            sb_rows = res.data or []
+            # PostgREST caps every response at ~1000 rows.  A bare
+            # .select("*").execute() therefore silently returns only the
+            # OLDEST 1000 picks -- so mid-season it drops every recent bet
+            # and the P&L looks frozen weeks in the past.  This was the
+            # root cause of the 2026-07 "won units not tracking" report:
+            # the tool could not see anything after 2026-06-14.  Page
+            # through the table (ordered by a stable key) so we read the
+            # entire season, not just the first page.
+            PAGE = 1000
+            offset = 0
+            sb_rows: list[dict] = []
+            while True:
+                res = (
+                    client.table(f"picks_{season}")
+                    .select("*")
+                    .order("date")
+                    .order("game_pk")
+                    .range(offset, offset + PAGE - 1)
+                    .execute()
+                )
+                batch = res.data or []
+                sb_rows.extend(batch)
+                if len(batch) < PAGE:
+                    break
+                offset += PAGE
             if sb_rows:
                 return _supabase_rows_to_csv_shape(sb_rows), (
                     f"Supabase picks_{season} ({len(sb_rows)} rows)"

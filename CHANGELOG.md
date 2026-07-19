@@ -11,6 +11,34 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-19] — Fix P&L calculator reading only the first 1000 rows
+
+Operator reported "won units aren't tracking properly." Root cause found
+in `tools/pl_calc.py`: the Supabase read used a bare
+`.select("*").execute()`, which PostgREST caps at ~1000 rows. Mid-season
+the ledger had grown to 1438 rows, so the calculator silently saw only
+the **oldest** 1000 picks and could not see anything after **2026-06-14** —
+35 days of bets, including every recent win, were invisible to it.
+
+### Fixed
+
+- **`tools/pl_calc.py` now pages through the whole `picks_<season>` table**
+  (`.order("date").order("game_pk").range(offset, offset+PAGE-1)` in a loop
+  until a short page) instead of one capped fetch. Post-fix the tool reads
+  all 1438 rows and reports the full season (295W/205L, +39.60u; stored ==
+  recomputed, no drift). The CSV fallback path was never reached before
+  because a non-empty capped Supabase result short-circuited it.
+
+### Notes
+
+- Same unpaginated-read pattern still exists in `tools/analyze_losses.py`
+  and `tools/backfill_variants.py` (different tables); flagged for a
+  follow-up, not fixed here.
+- The **dashboard** is unaffected: `dashboard/lib/roi.ts` and `board.ts`
+  read the full `picks_<year>.csv` from disk, not the capped query.
+
+---
+
 ## [2026-06-07] — Curtail STRONG NRFI (YRFI-only) after a full prediction rework
 
 Operator pushed for a complete NRFI rework ("something is wrong with how
