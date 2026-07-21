@@ -1,7 +1,7 @@
 {
   "date": "2026-07-20",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-21T00:36:12Z",
+  "fitted_at": "2026-07-21T01:05:01Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -234,9 +234,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3029,
-      "raw_p_run_b1": 0.3948,
-      "raw_p_nrfi": 0.4219,
+      "raw_p_run_t1": 0.3034,
+      "raw_p_run_b1": 0.3969,
+      "raw_p_nrfi": 0.4201,
       "calibrated_p_nrfi": 0.4064,
       "calibrator_band": {
         "band": "bin_2-3",
@@ -271,10 +271,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 30.8,
-          "z": 1.649,
+          "value": 30.4,
+          "z": 1.58,
           "weight": 0.0347,
-          "contribution": 0.0571,
+          "contribution": 0.0548,
           "outlier": false
         },
         {
@@ -296,14 +296,6 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 30.8,
-          "z": 1.649,
-          "weight": 0.0483,
-          "contribution": 0.0797,
-          "outlier": false
-        },
-        {
           "name": "away_whiff_pct_rank",
           "value": 32.0,
           "z": -0.764,
@@ -312,11 +304,11 @@
           "outlier": false
         },
         {
-          "name": "wx_wind_kmh",
-          "value": 5.9,
-          "z": -1.186,
-          "weight": 0.0497,
-          "contribution": -0.0589,
+          "name": "wx_temp_c",
+          "value": 30.4,
+          "z": 1.58,
+          "weight": 0.0483,
+          "contribution": 0.0764,
           "outlier": false
         },
         {
@@ -325,6 +317,14 @@
           "z": -0.513,
           "weight": 0.1016,
           "contribution": -0.0521,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_iso",
+          "value": 0.1889,
+          "z": 0.204,
+          "weight": 0.2289,
+          "contribution": 0.0467,
           "outlier": false
         }
       ],
@@ -690,7 +690,7 @@
       "game_pk": "824654",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2678,
       "raw_p_run_b1": 0.2948,
       "raw_p_nrfi": 0.5163,
