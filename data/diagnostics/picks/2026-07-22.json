@@ -1,7 +1,7 @@
 {
   "date": "2026-07-22",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-22T15:05:56Z",
+  "fitted_at": "2026-07-22T15:12:33Z",
   "n_picks": 17,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1261,18 +1261,18 @@
     {
       "matchup": "SF@KC",
       "game_pk": "824083",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2556,
+      "raw_p_run_t1": 0.2133,
       "raw_p_run_b1": 0.2618,
-      "raw_p_nrfi": 0.5496,
-      "calibrated_p_nrfi": 0.5509,
+      "raw_p_nrfi": 0.5807,
+      "calibrated_p_nrfi": 0.5685,
       "calibrator_band": {
-        "band": "bin_14-15",
-        "is_flat": true,
-        "flat_size": 5,
-        "flat_rate": 0.547945205479452
+        "band": "bin_17-18",
+        "is_flat": false,
+        "flat_size": 2,
+        "flat_rate": null
       },
       "top_drivers_t1": [
         {
@@ -1293,10 +1293,18 @@
         },
         {
           "name": "away_top3c_slg",
-          "value": 0.4148,
-          "z": -0.395,
+          "value": 0.4607,
+          "z": 0.317,
           "weight": -0.3266,
-          "contribution": 0.129,
+          "contribution": -0.1035,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_iso",
+          "value": 0.1657,
+          "z": -0.261,
+          "weight": 0.3454,
+          "contribution": -0.0901,
           "outlier": false
         },
         {
@@ -1305,14 +1313,6 @@
           "z": 0.627,
           "weight": 0.1107,
           "contribution": 0.0694,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
           "outlier": false
         }
       ],
@@ -1369,8 +1369,7 @@
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "B1: feature home_plate_ump_nrfi_rate=0.427 is z=-4.48 sigma from training mean -- contribution -0.077 to logit",
-        "calibrator flat zone: 5 bins all map to rate 0.5479 (multiple distinct raw probs collapse here)"
+        "B1: feature home_plate_ump_nrfi_rate=0.427 is z=-4.48 sigma from training mean -- contribution -0.077 to logit"
       ]
     },
     {
