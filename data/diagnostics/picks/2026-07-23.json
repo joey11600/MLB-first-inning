@@ -1,7 +1,7 @@
 {
   "date": "2026-07-23",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-23T20:09:36Z",
+  "fitted_at": "2026-07-23T21:02:52Z",
   "n_picks": 5,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.234,
-      "raw_p_run_b1": 0.3028,
-      "raw_p_nrfi": 0.534,
+      "raw_p_run_t1": 0.2331,
+      "raw_p_run_b1": 0.3006,
+      "raw_p_nrfi": 0.5364,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_13-14",
@@ -125,15 +125,15 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2728,
-      "raw_p_run_b1": 0.2851,
-      "raw_p_nrfi": 0.5199,
-      "calibrated_p_nrfi": 0.5428,
+      "raw_p_run_t1": 0.2579,
+      "raw_p_run_b1": 0.2867,
+      "raw_p_nrfi": 0.5294,
+      "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
-        "band": "bin_11-12",
+        "band": "bin_12-13",
         "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.5342465753424658
+        "flat_size": 3,
+        "flat_rate": 0.547945205479452
       },
       "top_drivers_t1": [
         {
@@ -170,10 +170,10 @@
         },
         {
           "name": "away_top3c_iso",
-          "value": 0.1881,
-          "z": 0.196,
+          "value": 0.1692,
+          "z": -0.189,
           "weight": 0.3454,
-          "contribution": 0.0677,
+          "contribution": -0.0654,
           "outlier": false
         }
       ],
@@ -231,7 +231,7 @@
       },
       "warnings": [
         "B1: feature home_plate_ump_nrfi_rate=0.556 is z=+3.25 sigma from training mean -- contribution +0.056 to logit",
-        "calibrator flat zone: 4 bins all map to rate 0.5342 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.5479 (multiple distinct raw probs collapse here)"
       ]
     },
     {
