@@ -1,7 +1,7 @@
 {
   "date": "2026-07-23",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-23T18:10:15Z",
+  "fitted_at": "2026-07-23T19:03:13Z",
   "n_picks": 5,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2431,
-      "raw_p_run_b1": 0.3049,
-      "raw_p_nrfi": 0.5261,
+      "raw_p_run_t1": 0.2416,
+      "raw_p_run_b1": 0.3011,
+      "raw_p_nrfi": 0.53,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_12-13",
@@ -125,15 +125,15 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2724,
-      "raw_p_run_b1": 0.2838,
-      "raw_p_nrfi": 0.5211,
-      "calibrated_p_nrfi": 0.5446,
+      "raw_p_run_t1": 0.2704,
+      "raw_p_run_b1": 0.2791,
+      "raw_p_nrfi": 0.526,
+      "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
-        "band": "bin_11-12",
+        "band": "bin_12-13",
         "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.5342465753424658
+        "flat_size": 3,
+        "flat_rate": 0.547945205479452
       },
       "top_drivers_t1": [
         {
@@ -203,20 +203,20 @@
           "outlier": false
         },
         {
+          "name": "wx_wind_kmh",
+          "value": 4.4,
+          "z": -1.504,
+          "weight": 0.0497,
+          "contribution": -0.0747,
+          "outlier": false
+        },
+        {
           "name": "home_plate_ump_nrfi_rate",
           "value": 0.5564,
           "z": 3.255,
           "weight": 0.0172,
           "contribution": 0.0561,
           "outlier": true
-        },
-        {
-          "name": "wx_wind_kmh",
-          "value": 6.5,
-          "z": -1.059,
-          "weight": 0.0497,
-          "contribution": -0.0526,
-          "outlier": false
         }
       ],
       "priors_vs_raw": {
@@ -231,7 +231,7 @@
       },
       "warnings": [
         "B1: feature home_plate_ump_nrfi_rate=0.556 is z=+3.25 sigma from training mean -- contribution +0.056 to logit",
-        "calibrator flat zone: 4 bins all map to rate 0.5342 (multiple distinct raw probs collapse here)"
+        "calibrator flat zone: 3 bins all map to rate 0.5479 (multiple distinct raw probs collapse here)"
       ]
     },
     {
