@@ -1,7 +1,7 @@
 {
   "date": "2026-07-23",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-23T13:02:30Z",
+  "fitted_at": "2026-07-23T13:58:52Z",
   "n_picks": 5,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,10 +11,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2452,
-      "raw_p_run_b1": 0.3102,
-      "raw_p_nrfi": 0.5207,
-      "calibrated_p_nrfi": 0.544,
+      "raw_p_run_t1": 0.245,
+      "raw_p_run_b1": 0.3096,
+      "raw_p_nrfi": 0.5213,
+      "calibrated_p_nrfi": 0.5448,
       "calibrator_band": {
         "band": "bin_11-12",
         "is_flat": true,
@@ -125,9 +125,9 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2864,
-      "raw_p_run_b1": 0.3289,
-      "raw_p_nrfi": 0.4789,
+      "raw_p_run_t1": 0.2859,
+      "raw_p_run_b1": 0.3282,
+      "raw_p_nrfi": 0.4798,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
         "band": "bin_7-8",
@@ -353,23 +353,23 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.1949,
-      "raw_p_run_b1": 0.3902,
-      "raw_p_nrfi": 0.491,
-      "calibrated_p_nrfi": 0.4781,
+      "raw_p_run_t1": 0.2013,
+      "raw_p_run_b1": 0.4401,
+      "raw_p_nrfi": 0.4472,
+      "calibrated_p_nrfi": 0.4384,
       "calibrator_band": {
-        "band": "bin_8-9",
-        "is_flat": true,
-        "flat_size": 5,
-        "flat_rate": 0.4771689497716895
+        "band": "bin_4-5",
+        "is_flat": false,
+        "flat_size": 2,
+        "flat_rate": null
       },
       "top_drivers_t1": [
         {
           "name": "era_gap_t1",
-          "value": -3.356,
-          "z": -3.93,
+          "value": -2.985,
+          "z": -3.495,
           "weight": 0.0923,
-          "contribution": -0.3628,
+          "contribution": -0.3226,
           "outlier": true
         },
         {
@@ -408,11 +408,19 @@
       "top_drivers_b1": [
         {
           "name": "era_gap_b1",
-          "value": 3.356,
-          "z": 3.93,
+          "value": 2.985,
+          "z": 3.495,
           "weight": 0.058,
-          "contribution": 0.2279,
+          "contribution": 0.2027,
           "outlier": true
+        },
+        {
+          "name": "away_whiff_pct_rank",
+          "value": 6.0,
+          "z": -1.874,
+          "weight": -0.1011,
+          "contribution": 0.1894,
+          "outlier": false
         },
         {
           "name": "home_top3c_slg",
@@ -431,14 +439,6 @@
           "outlier": false
         },
         {
-          "name": "away_whiff_pct_rank",
-          "value": 69.0,
-          "z": 0.816,
-          "weight": -0.1011,
-          "contribution": -0.0825,
-          "outlier": false
-        },
-        {
           "name": "home_top3c_obp",
           "value": 0.3169,
           "z": -0.808,
@@ -450,17 +450,16 @@
       "priors_vs_raw": {
         "home_xera_raw": 2.52,
         "home_xera_pooled": 2.5201,
-        "away_xera_raw": 4.668,
-        "away_xera_pooled": 4.6675
+        "away_xera_raw": 4.06,
+        "away_xera_pooled": 4.06
       },
       "pitcher_q": {
         "home_pitcher_q": "live",
-        "away_pitcher_q": "live"
+        "away_pitcher_q": "ltd"
       },
       "warnings": [
-        "T1: feature era_gap_t1=-3.356 is z=-3.93 sigma from training mean -- contribution -0.363 to logit",
-        "B1: feature era_gap_b1=3.356 is z=+3.93 sigma from training mean -- contribution +0.228 to logit",
-        "calibrator flat zone: 5 bins all map to rate 0.4772 (multiple distinct raw probs collapse here)"
+        "T1: feature era_gap_t1=-2.985 is z=-3.50 sigma from training mean -- contribution -0.323 to logit",
+        "B1: feature era_gap_b1=2.985 is z=+3.50 sigma from training mean -- contribution +0.203 to logit"
       ]
     },
     {
