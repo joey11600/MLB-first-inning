@@ -1,7 +1,7 @@
 {
   "date": "2026-07-24",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-24T17:05:02Z",
+  "fitted_at": "2026-07-24T17:26:03Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1491,18 +1491,16 @@
     {
       "matchup": "SD@MIA",
       "game_pk": "823843",
-      "pick_side": "PASS",
-      "pick_strength": "STARTER PENDING",
+      "pick_side": "YRFI",
+      "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.2803,
-      "raw_p_run_b1": 0.5139,
-      "raw_p_nrfi": 0.3499,
-      "calibrated_p_nrfi": 0.3346,
+      "raw_p_run_t1": 0.3222,
+      "raw_p_run_b1": 0.498,
+      "raw_p_nrfi": 0.3403,
+      "calibrated_p_nrfi": 0.3219,
       "calibrator_band": {
-        "band": "bin_0-1",
-        "is_flat": true,
-        "flat_size": 4,
-        "flat_rate": 0.3219178082191781
+        "band": "below_min",
+        "is_flat": false
       },
       "top_drivers_t1": [
         {
@@ -1514,14 +1512,6 @@
           "outlier": false
         },
         {
-          "name": "era_gap_t1",
-          "value": -1.764,
-          "z": -2.063,
-          "weight": 0.0923,
-          "contribution": -0.1904,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.455,
           "z": -1.049,
@@ -1530,11 +1520,11 @@
           "outlier": false
         },
         {
-          "name": "home_p_last10_pitcher_nrfi",
-          "value": 0.5,
-          "z": -1.279,
-          "weight": 0.0661,
-          "contribution": -0.0846,
+          "name": "era_gap_t1",
+          "value": -0.826,
+          "z": -0.962,
+          "weight": 0.0923,
+          "contribution": -0.0888,
           "outlier": false
         },
         {
@@ -1543,6 +1533,14 @@
           "z": -0.194,
           "weight": 0.3454,
           "contribution": -0.0668,
+          "outlier": false
+        },
+        {
+          "name": "away_top3_ops_vs_oppHand",
+          "value": 0.72,
+          "z": -0.562,
+          "weight": 0.0856,
+          "contribution": -0.0481,
           "outlier": false
         }
       ],
@@ -1580,27 +1578,26 @@
           "outlier": false
         },
         {
-          "name": "era_gap_b1",
-          "value": 1.764,
-          "z": 2.063,
-          "weight": 0.058,
-          "contribution": 0.1196,
+          "name": "away_p_last10_pitcher_nrfi",
+          "value": 0.4,
+          "z": -1.827,
+          "weight": -0.057,
+          "contribution": 0.1041,
           "outlier": false
         }
       ],
       "priors_vs_raw": {
         "home_xera_raw": 4.2,
-        "home_xera_pooled": null,
+        "home_xera_pooled": 4.2,
         "away_xera_raw": 5.612,
         "away_xera_pooled": 5.6119
       },
       "pitcher_q": {
-        "home_pitcher_q": "avg",
+        "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
       "warnings": [
-        "B1: feature away_fip=6.043 is z=+3.99 sigma from training mean -- contribution +0.220 to logit",
-        "calibrator flat zone: 4 bins all map to rate 0.3219 (multiple distinct raw probs collapse here)"
+        "B1: feature away_fip=6.043 is z=+3.99 sigma from training mean -- contribution +0.220 to logit"
       ]
     },
     {
