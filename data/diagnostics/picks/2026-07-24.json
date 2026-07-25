@@ -1,7 +1,7 @@
 {
   "date": "2026-07-24",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-25T00:36:20Z",
+  "fitted_at": "2026-07-25T01:05:54Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1264,9 +1264,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2161,
-      "raw_p_run_b1": 0.3258,
-      "raw_p_nrfi": 0.5285,
+      "raw_p_run_t1": 0.216,
+      "raw_p_run_b1": 0.3244,
+      "raw_p_nrfi": 0.5297,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_12-13",
@@ -1284,20 +1284,20 @@
           "outlier": false
         },
         {
-          "name": "wx_wind_kmh",
-          "value": 29.9,
-          "z": 3.9,
-          "weight": 0.021,
-          "contribution": 0.082,
-          "outlier": true
-        },
-        {
           "name": "home_fip",
           "value": 3.252,
           "z": -1.39,
           "weight": 0.0587,
           "contribution": -0.0816,
           "outlier": false
+        },
+        {
+          "name": "wx_wind_kmh",
+          "value": 28.4,
+          "z": 3.582,
+          "weight": 0.021,
+          "contribution": 0.0753,
+          "outlier": true
         },
         {
           "name": "home_xera",
@@ -1319,10 +1319,10 @@
       "top_drivers_b1": [
         {
           "name": "wx_wind_kmh",
-          "value": 29.9,
-          "z": 3.9,
+          "value": 28.4,
+          "z": 3.582,
           "weight": 0.0497,
-          "contribution": 0.1937,
+          "contribution": 0.1779,
           "outlier": true
         },
         {
@@ -1369,8 +1369,8 @@
         "away_pitcher_q": "ltd"
       },
       "warnings": [
-        "T1: feature wx_wind_kmh=29.900 is z=+3.90 sigma from training mean -- contribution +0.082 to logit",
-        "B1: feature wx_wind_kmh=29.900 is z=+3.90 sigma from training mean -- contribution +0.194 to logit",
+        "T1: feature wx_wind_kmh=28.400 is z=+3.58 sigma from training mean -- contribution +0.075 to logit",
+        "B1: feature wx_wind_kmh=28.400 is z=+3.58 sigma from training mean -- contribution +0.178 to logit",
         "B1: feature home_plate_ump_nrfi_rate=0.442 is z=-3.62 sigma from training mean -- contribution -0.062 to logit",
         "calibrator flat zone: 3 bins all map to rate 0.5479 (multiple distinct raw probs collapse here)"
       ]
