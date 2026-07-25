@@ -1,7 +1,7 @@
 {
   "date": "2026-07-25",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-25T22:36:21Z",
+  "fitted_at": "2026-07-25T22:45:10Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1035,11 +1035,11 @@
       "matchup": "ATL@BAL",
       "game_pk": "824811",
       "pick_side": "PASS",
-      "pick_strength": "LOW LAMBDA",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2559,
-      "raw_p_run_b1": 0.3546,
-      "raw_p_nrfi": 0.4802,
+      "raw_p_run_t1": 0.2554,
+      "raw_p_run_b1": 0.3533,
+      "raw_p_nrfi": 0.4816,
       "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
         "band": "bin_7-8",
@@ -1151,9 +1151,9 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.308,
-      "raw_p_run_b1": 0.2408,
-      "raw_p_nrfi": 0.5254,
+      "raw_p_run_t1": 0.3066,
+      "raw_p_run_b1": 0.2383,
+      "raw_p_nrfi": 0.5281,
       "calibrated_p_nrfi": 0.5479,
       "calibrator_band": {
         "band": "bin_12-13",
@@ -1188,10 +1188,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 32.2,
-          "z": 1.891,
+          "value": 32.1,
+          "z": 1.874,
           "weight": 0.0347,
-          "contribution": 0.0655,
+          "contribution": 0.0649,
           "outlier": false
         },
         {
@@ -1221,19 +1221,19 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 32.2,
-          "z": 1.891,
-          "weight": 0.0483,
-          "contribution": 0.0914,
+          "name": "wx_wind_kmh",
+          "value": 1.9,
+          "z": -2.033,
+          "weight": 0.0497,
+          "contribution": -0.101,
           "outlier": false
         },
         {
-          "name": "wx_wind_kmh",
-          "value": 3.2,
-          "z": -1.758,
-          "weight": 0.0497,
-          "contribution": -0.0873,
+          "name": "wx_temp_c",
+          "value": 32.1,
+          "z": 1.874,
+          "weight": 0.0483,
+          "contribution": 0.0906,
           "outlier": false
         },
         {
