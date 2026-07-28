@@ -461,3 +461,27 @@
   opacity: 0.45;
   pointer-events: none;
 }
+
+/* Provenance qualifier (2026-07-28).
+   Appears only when a figure is partly built from bets that never had a
+   captured DraftKings price. Deliberately plain text rather than a badge
+   or tooltip: the operator is not a developer and should not have to
+   hover or decode an icon to learn that a number is not real money. */
+.provNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  max-width: 46ch;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+.provDot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: 0.42rem;
+  border-radius: 50%;
+  background: var(--secondary);
+}

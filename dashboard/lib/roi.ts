@@ -66,6 +66,31 @@ export interface ZoneRoi {
   unitsPL: number;
   /** hitRate - DEFAULT_BREAK_EVEN_RATE; positive = profitable */
   edgeVsBreakEven: number;
+  /** PROVENANCE (2026-07-28).  Four different kinds of number were being
+   *  rendered with identical weight, which is why the operator stopped
+   *  trusting the panel.  These counters let the UI say which kind a
+   *  figure is instead of leaving it to be inferred. */
+  provenance: ZoneProvenance;
+}
+
+/** How much of a zone's P&L is real money at an observed price.
+ *
+ *  `placeholderBets` is the important one: those rows had NO captured DK
+ *  price and settled against a fabricated -110, which is what inflates
+ *  the season total by roughly 15 units and makes STRONG NRFI read 59.4%
+ *  when its priced subset went 44.9%.  A number built mostly from these
+ *  is not a result and must not be displayed as one. */
+export interface ZoneProvenance {
+  /** graded bets settled at a REAL captured DraftKings price */
+  realPricedBets: number;
+  /** graded bets settled at the fabricated -110 fallback */
+  placeholderBets: number;
+  /** P&L attributable to real-priced bets only */
+  realPricedPL: number;
+  /** true when this zone is track-only (LEAN): nothing was ever wagered */
+  paperOnly: boolean;
+  /** share of graded bets that carry a real price, 0..1 (NaN when none) */
+  realShare: number;
 }
 
 /** Aggregate paper-trade performance for the LEAN tier (Phase 1.3,
@@ -185,12 +210,22 @@ function emptyZone(label: string, side: PickSide, strength: PickStrength): ZoneR
     hitRate: NaN,
     unitsPL: 0,
     edgeVsBreakEven: NaN,
+    provenance: {
+      realPricedBets: 0,
+      placeholderBets: 0,
+      realPricedPL: 0,
+      paperOnly: strength === "LEAN",
+      realShare: NaN,
+    },
   };
 }
 
 function finalize(z: ZoneRoi, plOverride?: number): ZoneRoi {
   const bets = z.wins + z.losses;
   const hitRate = bets > 0 ? z.wins / bets : NaN;
+  const prov = z.provenance;
+  const provTotal = prov.realPricedBets + prov.placeholderBets;
+  prov.realShare = provTotal > 0 ? prov.realPricedBets / provTotal : NaN;
   // Prefer the explicit P&L sum (which tracks actual realized prices via
   // profit_loss_units).  Fall back to flat-odds estimate when not provided.
   const unitsPL =
@@ -348,6 +383,22 @@ export async function loadRoi(
           : (graded === "WIN" ? DEFAULT_WIN_PROFIT_UNITS : DEFAULT_LOSS_UNITS);
       }
 
+      // PROVENANCE (2026-07-28).  A graded bet counts as real-priced only
+      // when the picked side actually has a captured DraftKings number.
+      // Without one, _calc_pnl settled it against a fabricated -110 --
+      // that is 170 of April's 176 bets, and it is why the season total
+      // reads ~15u higher than anything that really happened.
+      if (strength !== "LEAN") {
+        const priceCol = side === "NRFI" ? r.market_nrfi_odds : r.market_yrfi_odds;
+        const hasRealPrice = Boolean((priceCol ?? "").trim());
+        if (hasRealPrice) {
+          z.provenance.realPricedBets += 1;
+          z.provenance.realPricedPL += pl;
+        } else {
+          z.provenance.placeholderBets += 1;
+        }
+      }
+
       // Track realized P&L at both zone (for breakdown) and day (for chart) level.
       const zKey = `${side}|${strength}`;
       zonePL.set(zKey, (zonePL.get(zKey) ?? 0) + pl);
@@ -415,7 +466,11 @@ export async function loadRoi(
     total.postponed += z.postponed;
     total.ungraded  += z.ungraded;
     totalPL         += z.unitsPL;
+    total.provenance.realPricedBets  += z.provenance.realPricedBets;
+    total.provenance.placeholderBets += z.provenance.placeholderBets;
+    total.provenance.realPricedPL    += z.provenance.realPricedPL;
   }
+  total.provenance.paperOnly = false;
   const totalFinal = finalize(total, totalPL);
 
   // Phase 1.3: LEAN paper-trade aggregate.  Sums hypothetical-at-flat-110

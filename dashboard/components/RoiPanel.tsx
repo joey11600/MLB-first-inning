@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BoardRow, GameDetail } from "@/lib/types";
-import type { LeanPaperTrade, RoiResponse, RoiWindow, ZoneRoi } from "@/lib/roi";
+import type { LeanPaperTrade, RoiResponse, RoiWindow, ZoneRoi, ZoneProvenance } from "@/lib/roi";
 import type { KellySim } from "@/lib/kelly-sim";
 import { aggregateTodayRoi, aggregateTodayClv } from "@/lib/roi-today";
 import styles from "./RoiPanel.module.css";
@@ -252,10 +252,20 @@ function TotalCard({
     <div className={`${styles.totalCard} ${styles[`totalCard_${tone}`]}`}>
       <div className={styles.totalLeft}>
         <span className={styles.totalEyebrow}>
-          Net P&amp;L · bet zones only
+          Net P&amp;L · real prices only
         </span>
-        <span className={styles.totalUnits}>{formatUnits(total.unitsPL)}</span>
+        {/* 2026-07-28: the headline is now the REAL-PRICED number.
+            Previously it showed the raw column sum, which folds in 177
+            graded bets that never had a captured DraftKings price and
+            settled against a fabricated -110. That inflated the season
+            from -1.83u to +33.07u. Showing the inflated figure as the
+            headline is the single biggest reason the operator stopped
+            trusting this panel. */}
+        <span className={styles.totalUnits}>
+          {formatUnits(realPL(total))}
+        </span>
         <span className={styles.totalSub}>{subText}</span>
+        <ProvenanceNote prov={total.provenance} rawPL={total.unitsPL} />
       </div>
       <div className={styles.totalRight}>
         <Stat
@@ -277,6 +287,34 @@ function TotalCard({
         />
       </div>
     </div>
+  );
+}
+
+/** The P&L a zone earned at prices we actually observed.
+ *
+ *  Falls back to the raw column when provenance is unknown (the TODAY
+ *  aggregator works from board rows that carry no price columns, so it
+ *  reports zero counts rather than guessing). */
+function realPL(z: ZoneRoi): number {
+  const p = z.provenance;
+  const known = p.realPricedBets + p.placeholderBets;
+  return known > 0 ? p.realPricedPL : z.unitsPL;
+}
+
+/** Says out loud how much of a figure is real money.
+ *
+ *  Renders nothing when every graded bet carried a real price, so the
+ *  common case stays quiet and the qualifier only appears when it is
+ *  actually load-bearing. */
+function ProvenanceNote({ prov, rawPL }: { prov: ZoneProvenance; rawPL: number }) {
+  const known = prov.realPricedBets + prov.placeholderBets;
+  if (known === 0 || prov.placeholderBets === 0) return null;
+  return (
+    <span className={styles.provNote}>
+      <span className={styles.provDot} aria-hidden />
+      {`${prov.placeholderBets} of ${known} bets had no captured price and settled at a placeholder −110. `}
+      {`Counting those reads ${formatUnits(rawPL)}.`}
+    </span>
   );
 }
 
@@ -410,7 +448,7 @@ function ZoneCard({ zone }: { zone: ZoneRoi }) {
         </span>
       </header>
       <div className={styles.zoneUnits}>
-        {zone.bets > 0 ? formatUnits(zone.unitsPL) : "—"}
+        {zone.bets > 0 ? formatUnits(realPL(zone)) : "—"}
         <span className={styles.zoneUnitsLabel}>units</span>
       </div>
       <div className={styles.zoneSub}>

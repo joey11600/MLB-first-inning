@@ -47,6 +47,18 @@ function emptyZone(label: string, side: PickSide, strength: PickStrength): ZoneR
     hitRate: NaN,
     unitsPL: 0,
     edgeVsBreakEven: NaN,
+    // The today-view aggregator works from in-memory board rows, which do
+    // not carry the market_* price columns, so it cannot tell a real
+    // price from the -110 fallback. Report zero counts rather than
+    // guessing; the UI treats an all-zero provenance as "unknown" and
+    // omits the qualifier instead of asserting something false.
+    provenance: {
+      realPricedBets: 0,
+      placeholderBets: 0,
+      realPricedPL: 0,
+      paperOnly: strength === "LEAN",
+      realShare: NaN,
+    },
   };
 }
 
