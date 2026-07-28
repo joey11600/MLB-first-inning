@@ -131,3 +131,53 @@ export interface RecFile {
 export function isNum(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
+
+
+/** What the CURRENT model would stake on one game, at quarter-Kelly. */
+export interface ReplayStake {
+  action: "BET" | "SKIP";
+  /** Compounded quarter-Kelly stake in units. Present only on BET. */
+  stake?: number;
+  /** Plain reason, present only on SKIP. */
+  reason?: string;
+  /** Price was the -125 stand-in rather than a captured DK number. */
+  assumed?: boolean;
+}
+
+/** Key a board row the same way the exporter labels a game. */
+export function replayKey(away: string, home: string, gameNumber: number | undefined,
+                          side: string): string {
+  const gn = gameNumber && gameNumber > 1 ? ` G${gameNumber}` : "";
+  return `${away}@${home}${gn}|${side}`;
+}
+
+/**
+ * Per-game quarter-Kelly stakes for one date.
+ *
+ * WHY (2026-07-28): the board's stake chip read `units_risked` off the
+ * ledger, which is a flat 1.00 for every bet placed before Kelly went
+ * live -- so browsing to April showed "staked 1.00u" on every row even
+ * though the operator now sizes by Kelly. These are the SAME numbers the
+ * day-reconcile table shows, so the two surfaces cannot disagree.
+ *
+ * Resolves against the REAL record first, then PROJECTED, because REAL
+ * only starts 2026-05-07 and April exists only in the projected replay.
+ */
+export function replayStakesFor(
+  rec: RecFile | null | undefined,
+  date: string,
+): Map<string, ReplayStake> {
+  const out = new Map<string, ReplayStake>();
+  if (!rec || !date) return out;
+  const day =
+    rec.real?.days.find((d) => d.date === date) ??
+    rec.projected?.days.find((d) => d.date === date);
+  if (!day) return out;
+  for (const g of day.games) {
+    const key = `${g.game}|${g.side}`;
+    out.set(key, g.record.action === "BET"
+      ? { action: "BET", stake: g.record.stake, assumed: g.record.assumed }
+      : { action: "SKIP", reason: g.record.reason });
+  }
+  return out;
+}

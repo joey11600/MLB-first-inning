@@ -13,6 +13,8 @@ import { RoiPanel } from "./RoiPanel";
 import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
 import { Ticker } from "./Ticker";
+import type { RecFile } from "@/lib/season-record";
+import { replayStakesFor } from "@/lib/season-record";
 import { StatusLine } from "./StatusLine";
 import { TonightsActionCard } from "./TonightsActionCard";
 import { SettingsDropdown } from "./SettingsDropdown";
@@ -317,6 +319,25 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     };
   }, []);
 
+  // THE season record, fetched ONCE here and shared. It drives both the
+  // board's quarter-Kelly stake chips and the performance panel; fetching
+  // it in each would pull ~375 KB twice and let the two surfaces drift.
+  const [seasonRecord, setSeasonRecord] = useState<RecFile | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/season-record", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: RecFile | null) => { if (!cancelled && j) setSeasonRecord(j); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  // What the CURRENT model would stake on the slate being viewed.
+  const replayStakes = useMemo(
+    () => replayStakesFor(seasonRecord, data?.date ?? ""),
+    [seasonRecord, data?.date],
+  );
+
   return (
     <>
       {/* Full-bleed sticky ticker, outside the max-width shell */}
@@ -388,11 +409,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           permanent.  Renders nothing if no demotions are active. */}
       <DemotionsBanner />
 
-      <RoiPanel
-        initialDate={data.date}
-        rows={data.rows}
-        details={data.details}
-      />
+      <RoiPanel initialDate={data.date} rows={data.rows} details={data.details} seasonRecord={seasonRecord} />
 
       <ControlPanel
         dates={data.availableDates}
@@ -413,6 +430,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           loading={loading}
           thresholds={data.thresholds}
           date={data.date}
+          replayStakes={replayStakes}
         />
       </section>
 

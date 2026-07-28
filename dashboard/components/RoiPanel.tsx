@@ -53,9 +53,12 @@ interface RoiPanelProps {
   initialDate: string;
   rows:        BoardRow[];
   details:     Record<string, GameDetail>;
+  /** Fetched once by DashboardShell and shared with the board's stake
+   *  chips, so the two surfaces can never quote different stakes. */
+  seasonRecord: RecFile | null;
 }
 
-export function RoiPanel({ initialDate, rows, details }: RoiPanelProps) {
+export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelProps) {
   const [window, setWindow]   = useState<RoiWindow>("today");
   const [data, setData]       = useState<RoiResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,24 +93,9 @@ export function RoiPanel({ initialDate, rows, details }: RoiPanelProps) {
     return () => { cancelled = true; };
   }, [window, initialDate]);
 
-  // THE system record. Season-to-date by definition, so it does not
-  // depend on the window OR the selected date -- the empty dependency
-  // array is deliberate: this file changes once a night, and refetching
-  // 375 KB on every date-picker click was pure waste.
-  const [seasonRecord, setSeasonRecord] = useState<RecFile | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/season-record", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      // Guard is `if (j)`, NOT `if (j.projected && j.real)`. The exporter
-      // emits null for a side that stakes nothing, and the old guard hid
-      // the ENTIRE card when either side was null -- silently, with no
-      // error and no placeholder. Render the per-side notice instead.
-      .then((j: RecFile | null) => { if (!cancelled && j) setSeasonRecord(j); })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
-  }, []);
-
+  // THE system record arrives as a prop -- DashboardShell fetches it once
+  // and shares it with the board's stake chips. A null side is rendered
+  // as a per-side notice, never by hiding the whole card.
   const view = window === "today" ? todayData : data;
 
   // The reconciliation source for the selected date. Prefer the REAL

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { BatterLine, BoardRow, GameDetail, PickSide, PickStrength, PickThresholds } from "@/lib/types";
 import type { LiveGameState } from "@/lib/useLiveGameState";
 import { GameDetails } from "./GameDetails";
+import type { ReplayStake } from "@/lib/season-record";
+import { replayKey } from "@/lib/season-record";
 import styles from "./BoardRow.module.css";
 
 /** Returns true for `durationMs` after `value` changes.  Used by Tier 1.3
@@ -335,6 +337,7 @@ export function BoardRowItem({
   onToggle,
   thresholds,
   slateDate,
+  replayStakes,
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
@@ -343,6 +346,10 @@ export function BoardRowItem({
   onToggle: () => void;
   thresholds?: PickThresholds;
   slateDate?: string;
+  /** Quarter-Kelly stakes the current model would place on this slate,
+   *  keyed by replayKey(). Absent for a slate the replay has not
+   *  covered yet (tonight). */
+  replayStakes?: Map<string, ReplayStake>;
 }) {
 
   // T3.22: compute tentative lean once at the row level.  Only meaningful
@@ -440,7 +447,7 @@ export function BoardRowItem({
           <PassReasonChip row={row} />
           <EliteHitterChip detail={detail} />
           <OddsChip row={row} detail={detail} />
-          <StakeChip row={row} detail={detail} thresholds={thresholds} />
+          <StakeChip row={row} detail={detail} thresholds={thresholds} replay={replayStakes} />
         </span>
 
         <DistBar row={row} />
@@ -807,21 +814,58 @@ function DataQualityBadge({ detail }: { detail: GameDetail | undefined }) {
  *  means no Kelly stake is computable, and inventing one is the same
  *  mistake as the -110 fallback that inflated April. */
 function StakeChip({
-  row, detail, thresholds,
+  row, detail, thresholds, replay,
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
   thresholds: PickThresholds | undefined;
+  replay: Map<string, ReplayStake> | undefined;
 }) {
+  // The replay lookup runs BEFORE the STRONG guard on purpose. The old
+  // gate and the current model disagree about which games qualify, so
+  // the model will sometimes stake a game this row labels PASS or LEAN
+  // (2026-04-15 COL@HOU: 8.94u). Suppressing the chip there would hide a
+  // real bet the current system would place. Try the row's own side
+  // first, then either side, since the labels can differ too.
+  const rp = replay && (
+    replay.get(replayKey(row.away, row.home, row.gameNumber, row.pickSide)) ??
+    replay.get(replayKey(row.away, row.home, row.gameNumber, "YRFI")) ??
+    replay.get(replayKey(row.away, row.home, row.gameNumber, "NRFI"))
+  );
+  if (rp?.action === "BET" && typeof rp.stake === "number") {
+    return (
+      <span className={styles.stakeChip}>
+        <span className={styles.stakeLabel}>staked</span>
+        <span className={styles.stakeValue}>
+          {rp.stake.toFixed(2)}u{rp.assumed ? "*" : ""}
+        </span>
+      </span>
+    );
+  }
+
   if (row.pickStrength !== "STRONG") return null;
   if (row.pickSide !== "NRFI" && row.pickSide !== "YRFI") return null;
   const t = thresholds;
   if (!t || t.kellyEnabled !== true || typeof t.kellyFraction !== "number") return null;
   if (!detail) return null;
 
-  // Once the bet is LOCKED the ledger's stake is the truth -- display it
-  // verbatim instead of recomputing (audit 2026-07-28: recomputation
-  // diverges from the frozen stake as the bankroll moves).
+  // 2026-07-28: the whole dashboard reads in quarter-Kelly now. For any
+  // date the replay has covered, show what the CURRENT model would stake
+  // -- NOT detail.unitsRisked, which is a flat 1.00 on every row placed
+  // before Kelly went live and made April read "staked 1.00u" throughout.
+  // These are the same figures the day-reconcile table prints.
+  // Replayed, and the current model declined it.
+  if (rp?.action === "SKIP") {
+    return (
+      <span className={`${styles.stakeChip} ${styles.stakeChipZero}`}>
+        <span className={styles.stakeLabel}>model</span>
+        <span className={styles.stakeValue}>passes</span>
+      </span>
+    );
+  }
+
+  // Not replayed yet (tonight). A locked row's recorded stake IS the live
+  // Kelly figure, so it is authoritative here.
   if (detail.betPlaced === "Y" && detail.unitsRisked != null) {
     return (
       <span className={styles.stakeChip}>

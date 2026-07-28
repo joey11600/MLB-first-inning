@@ -179,6 +179,39 @@ Also: `DayReconcile` resolves a date against the REAL record first and
 falls back to PROJECTED, so the 36 April dates that exist only in the
 projected record are reachable instead of rendering empty.
 
+### Fixed — the board's stake chips still read flat 1.00u
+
+Operator: *"it literally doesnt render with kelly stakes... it still says
+staked 1.00u."* The record card was converted to Kelly but the per-game
+chips on the board were not.
+
+The chip displayed `detail.unitsRisked`, which is the LEDGER's stake —
+flat `1.00` on every row placed before Kelly went live. Browsing to April
+therefore showed "staked 1.00u" on every game.
+
+The chip now reads the quarter-Kelly stake the CURRENT model would place,
+taken from the same `season_record.json` the day-reconcile table uses, so
+the two surfaces cannot disagree. 2026-04-15 now renders
+`STAKED 17.13u*` / `2.97u*` / `8.94u*` against the day table's identical
+17.13 / 2.97 / 8.94.
+
+Three details that matter:
+
+- **The replay lookup runs BEFORE the STRONG guard.** The old gate and the
+  current model disagree about which games qualify, so the model sometimes
+  stakes a game the row labels PASS or LEAN — 2026-04-15 COL@HOU at 8.94u
+  would have been hidden entirely.
+- **Games the current model declines read `MODEL PASSES`**, not a stake and
+  not a blank.
+- **Tonight is unaffected**: an un-replayed slate falls through to the live
+  figure, and a locked row's recorded stake IS the Kelly number.
+
+`*` marks a price the replay assumed at −125 rather than captured.
+
+`DashboardShell` now fetches `season_record.json` **once** and shares it
+with both the board and the performance panel; each was about to fetch
+~376 KB independently, which also let them drift.
+
 ### Deferred
 
 - Doubleheader `game_pk` is not unique in `picks_2026.csv` (1563 rows,

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { BoardRow, GameDetail, PickThresholds } from "@/lib/types";
+import type { ReplayStake } from "@/lib/season-record";
 import { BoardRowItem } from "./BoardRow";
 import { useLiveGameState } from "@/lib/useLiveGameState";
 import styles from "./BoardTable.module.css";
@@ -14,6 +15,7 @@ export function BoardTable({
   totalCount,
   loading,
   thresholds,
+  replayStakes,
   date,
 }: {
   rows: BoardRow[];
@@ -21,6 +23,7 @@ export function BoardTable({
   totalCount: number;
   loading: boolean;
   thresholds?: PickThresholds;
+  replayStakes?: Map<string, ReplayStake>;
   date?: string;
 }) {
   // Tier-1 live MLB state: poll /api/live-state every 30s for in-progress
@@ -172,6 +175,7 @@ export function BoardTable({
                 return next;
               })}
               thresholds={thresholds}
+              replayStakes={replayStakes}
               slateDate={date ?? ""}
             />
           );
