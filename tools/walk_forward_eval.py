@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from lr_baseline import LogReg
-from calibration import ProbCalibrator
+from calibration import ProbCalibrator, CIRCalibrator
 
 PARKS_JSON = ROOT / "data" / "fi_park_factors.json"
 TRAIN_2024 = ROOT / "data" / "backtests" / "backtest_2024-04-01_to_2024-09-30_truepit.csv"
@@ -185,7 +185,13 @@ def fit_calibrator(rows, m_t1, m_b1):
     pb = m_b1.predict_proba(Xb)
     raw = (1 - pt) * (1 - pb)
     actuals = np.asarray([r["y_nrfi"] for r in rows])
-    return ProbCalibrator.fit(raw.tolist(), actuals.tolist(), n_bins=20, train_seasons=["pf"])
+    # 2026-07-28: CIR, not plain PAV.  This function feeds
+    # tools/weekly_refit.py, which OVERWRITES data/calibration_v2.json on
+    # a successful refit -- leaving it on ProbCalibrator.fit would have
+    # silently reverted the production curve to a plateaued one and
+    # undone the CIR ship, reintroducing the flat step that Kelly sizes
+    # stakes off.  See calibration.CIRCalibrator.
+    return CIRCalibrator.fit(raw.tolist(), actuals.tolist(), n_bins=20, train_seasons=["pf"])
 
 
 def evaluate(m_t1, m_b1, cal, test_rows):

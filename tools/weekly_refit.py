@@ -62,6 +62,10 @@ CAND_DIR = ROOT / "data" / "candidates" / "sliding_window"
 # clearly worse.
 PL_TOLERANCE_U   = 1.0      # candidate P&L must be >= prod_pl - 1.0
 BRIER_TOLERANCE  = 0.005    # candidate Brier must be <= prod_brier + 0.005
+# Minimum holdout size before a refit decision is even attempted.  A
+# 7-day window is ~90 games, where Brier moves ~0.005 on noise alone.
+MIN_HOLDOUT_GAMES = 90
+
 
 
 def main():
@@ -121,15 +125,68 @@ def main():
     print()
 
     # --- Decision gate ---
-    pl_ok    = cand_res["pl"]    >= prod_res["pl"]    - PL_TOLERANCE_U
-    brier_ok = cand_res["brier"] <= prod_res["brier"] + BRIER_TOLERANCE
-    if not (pl_ok and brier_ok):
-        reasons = []
-        if not pl_ok:    reasons.append(f"candidate P&L {cand_res['pl']:+.2f}u worse than prod {prod_res['pl']:+.2f}u by more than {PL_TOLERANCE_U}u tolerance")
-        if not brier_ok: reasons.append(f"candidate Brier {cand_res['brier']:.4f} worse than prod {prod_res['brier']:.4f} by more than {BRIER_TOLERANCE} tolerance")
+    #
+    # TIGHTENED 2026-07-28.  The previous gate was "P&L >= prod - 1.0u AND
+    # Brier <= prod + 0.005" -- both ASYMMETRIC and generous, so a
+    # candidate that was measurably WORSE on both still shipped.  The
+    # 2026-07-28 run did exactly that: delta P&L +0.00u, delta Brier
+    # +0.0037 (worse), and it shipped.  Independent review
+    # (tools/verify_refit.py) then found the new model churned 51 of ~100
+    # STRONG picks and, even IN-SAMPLE where it should be flattered, gave
+    # back most of the Kelly bankroll (+78u vs +300u) at nearly triple the
+    # drawdown.  It was rolled back.
+    #
+    # The incumbent is now the DEFAULT.  A refit perturbs every live
+    # prediction -- and, since 2026-07-27, every Kelly stake -- so it has
+    # to earn its place, not merely fail to embarrass itself:
+    #
+    #   * Brier must IMPROVE (no "within tolerance" pass), and
+    #   * that improvement must survive a block bootstrap on the holdout,
+    #     because a 90-odd-game window moves ~0.005 on noise alone, and
+    #   * P&L must not regress at all.
+    #
+    # If the holdout is too small to distinguish the two, that is a
+    # verdict: keep production and wait for more data.
+    holdout_n = len(holdout)
+    if holdout_n < MIN_HOLDOUT_GAMES:
+        print(f"VALIDATION SKIPPED -- holdout is {holdout_n} games, "
+              f"need >= {MIN_HOLDOUT_GAMES} to distinguish signal from noise.")
+        print("  Production unchanged.")
+        return 1
+
+    d_pl    = cand_res["pl"] - prod_res["pl"]
+    d_brier = cand_res["brier"] - prod_res["brier"]
+
+    # Block bootstrap over holdout games on the Brier delta.
+    rng = np.random.default_rng(20260728)
+    idx = np.arange(holdout_n)
+    deltas = []
+    for _ in range(4000):
+        s_ = rng.choice(idx, holdout_n, replace=True)
+        sub = [holdout[i] for i in s_]
+        c_ = evaluate(cand_t1, cand_b1, cand_cal, sub)
+        p_ = evaluate(prod_t1, prod_b1, prod_cal, sub)
+        if c_ and p_:
+            deltas.append(c_["brier"] - p_["brier"])
+    deltas.sort()
+    lo = deltas[int(0.05 * len(deltas))] if deltas else 0.0
+    hi = deltas[int(0.95 * len(deltas))] if deltas else 0.0
+    print(f"  Bootstrap 90% CI on the Brier delta: [{lo:+.5f}, {hi:+.5f}]")
+
+    pl_ok         = d_pl >= 0.0
+    brier_ok      = d_brier < 0.0
+    significant   = hi < 0.0          # entire CI favours the candidate
+
+    if not (pl_ok and brier_ok and significant):
         print("VALIDATION FAILED -- candidate NOT shipped:")
-        for r in reasons:
-            print(f"  - {r}")
+        if not pl_ok:
+            print(f"  - P&L regressed: {d_pl:+.2f}u")
+        if not brier_ok:
+            print(f"  - Brier did not improve: {d_brier:+.5f}")
+        if brier_ok and not significant:
+            print(f"  - Brier improvement is inside the noise band "
+                  f"(CI upper bound {hi:+.5f} >= 0) on {holdout_n} games")
+        print("  Production unchanged -- the incumbent is the default.")
         return 1
 
     # --- Ship ---

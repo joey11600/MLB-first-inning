@@ -400,6 +400,113 @@ class ProbCalibrator:
 
 
 # ---------------------------------------------------------------------------
+# Centered Isotonic Regression (2026-07-28) -- promoted here from
+# tools/calibrator_bakeoff.py so EVERY fit path uses it.
+#
+# Plain PAV pools adjacent bins that violate monotonicity and gives the
+# whole pool one rate; interpolating between two centres that share a
+# rate is FLAT.  Those plateaus are harmless under flat staking (a
+# monotone relabelling cannot change bet ordering) but not under Kelly,
+# where the calibrated value IS the stake multiplier -- the production
+# curve was handing 204 distinct games the single value 0.5936 and
+# Kelly was sizing all of them off it.
+#
+# CIR collapses each PAV pool to ONE knot at its weighted-mean x and
+# interpolates between knots, so a pooled region becomes a ramp rather
+# than a step.  Monotonicity is preserved and the output is still a
+# {centers, rates} pair list, so ProbCalibrator.load() reads it
+# unchanged.
+# ---------------------------------------------------------------------------
+
+class CIRCalibrator:
+    """Centered Isotonic Regression.
+
+    Same PAV backbone as ProbCalibrator, but after pooling we collapse each
+    PAV pool to a single (weighted-mean-x, pooled-y) knot and interpolate
+    between KNOTS rather than between original bin centers.  Two adjacent
+    bins that PAV merged no longer produce a flat segment -- they produce
+    one knot, and the curve ramps smoothly to the next knot.
+
+    This is the minimal change that removes plateaus while preserving the
+    non-parametric shape and the monotonicity guarantee.
+    """
+
+    def __init__(self, centers, rates, train_n=0, train_seasons=None):
+        order = sorted(range(len(centers)), key=lambda i: centers[i])
+        self.centers = [centers[i] for i in order]
+        self.rates = [rates[i] for i in order]
+        self.train_n = train_n
+        self.train_seasons = train_seasons or []
+
+    @classmethod
+    def fit(cls, predictions, actuals, n_bins=20, train_seasons=None):
+        n = len(predictions)
+        pairs = sorted(zip(predictions, actuals), key=lambda p: p[0])
+        per_bin = max(n // n_bins, 1)
+        centers, rates, weights = [], [], []
+        for i in range(n_bins):
+            lo = i * per_bin
+            hi = (i + 1) * per_bin if i < n_bins - 1 else n
+            chunk = pairs[lo:hi]
+            if not chunk:
+                continue
+            centers.append(sum(p[0] for p in chunk) / len(chunk))
+            rates.append(sum(p[1] for p in chunk) / len(chunk))
+            weights.append(len(chunk))
+
+        smoothed = _pav(rates, weights, increasing=True)
+
+        # Collapse consecutive bins that PAV gave the same rate into one
+        # knot at their weight-weighted mean x.  This is what kills the
+        # plateau: 3 pooled bins -> 1 knot, not 3 knots sharing a y.
+        knot_x, knot_y = [], []
+        i = 0
+        while i < len(smoothed):
+            j = i
+            while j + 1 < len(smoothed) and abs(smoothed[j + 1] - smoothed[i]) < 1e-12:
+                j += 1
+            wsum = sum(weights[i:j + 1])
+            xbar = sum(centers[k] * weights[k] for k in range(i, j + 1)) / wsum
+            knot_x.append(xbar)
+            knot_y.append(smoothed[i])
+            i = j + 1
+
+        return cls(knot_x, knot_y, train_n=n, train_seasons=train_seasons)
+
+    def predict(self, p: float) -> float:
+        c, r = self.centers, self.rates
+        if not c:
+            return p
+        if len(c) == 1:
+            return r[0]
+        if p <= c[0]:
+            return r[0]
+        if p >= c[-1]:
+            return r[-1]
+        lo, hi = 0, len(c) - 1
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if c[mid] <= p:
+                lo = mid
+            else:
+                hi = mid
+        c0, c1, r0, r1 = c[lo], c[hi], r[lo], r[hi]
+        if c1 == c0:
+            return (r0 + r1) / 2
+        return r0 + (p - c0) / (c1 - c0) * (r1 - r0)
+
+    def save(self, path):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({
+                "centers": self.centers,
+                "rates": self.rates,
+                "train_n": self.train_n,
+                "train_seasons": self.train_seasons,
+                "kind": "cir",
+            }, f, indent=2)
+
+# ---------------------------------------------------------------------------
 # Fit CLI
 # ---------------------------------------------------------------------------
 

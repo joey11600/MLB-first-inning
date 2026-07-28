@@ -556,6 +556,64 @@ pre-existing divergence this change did not cause. Not fixed here —
 reconciling them changes what every historical total reports, which needs
 its own decision. `tools/diff_csv_vs_supabase.py` exists for this.
 
+### Investigated — the "62-day-stale model" is not costing anything; refit REJECTED
+
+Ran `tools/weekly_refit.py` to retrain the two-stage LR on
+2024 + 2025 + 2026-thru-07-20, holding out 2026-07-21..27 (93 games).
+
+**It shipped, and it should not have.** Its gate was "P&L >= prod - 1.0u
+AND Brier <= prod + 0.005" — both asymmetric and generous, so a candidate
+that is measurably WORSE on both still passes. This run was exactly that:
+delta P&L **+0.00u**, delta Brier **+0.0037 (worse)** — and it shipped.
+That is the weakness which got the weekly cron disabled on 2026-05-11.
+
+**Independent review (`tools/verify_refit.py`, new) said no:**
+- Clean holdout Brier: previous 0.26070, new 0.26438 — new is worse, but
+  the bootstrap 90% CI on the delta is **[-0.00104, +0.00851]**, i.e.
+  indistinguishable from noise on 93 games.
+- It churns the book: STRONG YRFI picks 92 → 103, with **31 added and 20
+  dropped** — ~51 of ~100 picks change. Mean probability move 0.0199
+  (max 0.1099), which under Kelly changes stake sizes everywhere.
+- Kelly money, **in-sample for the new model** so it should be flattered:
+  previous +300.00u / 11.7% maxDD vs new **+78.25u / 30.2% maxDD**. It
+  gives back most of the bankroll and nearly triples the drawdown on data
+  it was trained on.
+
+**Rolled back.** Production is the 5/26 LR weights + this morning's CIR
+calibrator. Conclusion: the model's age is not currently costing measurable
+accuracy, and a refit today would trade a known-good model for a
+different one with no evidence behind it.
+
+### Fixed — refit gate now defaults to the incumbent
+
+`tools/weekly_refit.py` decision gate rewritten. A refit perturbs every
+live prediction and (since 2026-07-27) every Kelly stake, so it must earn
+its place rather than merely fail to embarrass itself:
+
+- Brier must **improve** — no "within tolerance" pass.
+- The improvement must survive a **block bootstrap** on the holdout
+  (entire 90% CI below zero). A ~90-game window moves ~0.005 on noise.
+- P&L must not regress **at all**.
+- New `MIN_HOLDOUT_GAMES = 90` — below that the run declines to decide
+  rather than deciding on noise.
+
+Re-ran against the tightened gate: **VALIDATION FAILED, production
+unchanged** — the correct outcome.
+
+### Fixed — the refit path would have silently reverted the CIR calibrator
+
+`tools/walk_forward_eval.fit_calibrator` called
+`ProbCalibrator.fit(..., n_bins=20)` (plain PAV). Since `weekly_refit.py`
+overwrites `data/calibration_v2.json` on a successful refit, the first
+successful refit would have **silently restored a plateaued curve** and
+undone the CIR ship — reintroducing the flat step that Kelly now sizes
+stakes off. Now uses `CIRCalibrator`.
+
+- **`CIRCalibrator` promoted from `tools/calibrator_bakeoff.py` into
+  `calibration.py`**, its canonical home, so every fit path shares one
+  definition instead of the bake-off owning a copy the refit path didn't
+  know about.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
