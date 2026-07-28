@@ -73,6 +73,13 @@ if (fs.existsSync(thresholds)) {
   copied += 1;
 }
 
+// season_record.json -- the walk-forward record shown as real profit.
+const seasonRecord = path.join(src, "season_record.json");
+if (fs.existsSync(seasonRecord)) {
+  fs.copyFileSync(seasonRecord, path.join(dest, "season_record.json"));
+  copied += 1;
+}
+
 // 5. system_errors.csv -- recent cron failure log surfaced as a
 //    "system status" indicator on the dashboard.  Defensive: always
 //    populated by the workflow even on success days (just empty).
