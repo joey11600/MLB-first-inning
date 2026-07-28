@@ -6,7 +6,7 @@ import type { LeanPaperTrade, RoiResponse, RoiWindow, ZoneRoi, ZoneProvenance } 
 import { aggregateTodayRoi, aggregateTodayClvMeasured } from "@/lib/roi-today";
 import type { TodayClvMeasured } from "@/lib/roi-today";
 import type { RecFile, RecSide } from "@/lib/season-record";
-import { isNum } from "@/lib/season-record";
+import { isNum, replayWindow } from "@/lib/season-record";
 import { nightFromRecord, nightFromBoard, fmtU } from "@/lib/reconcile";
 import { DayReconcile } from "./DayReconcile";
 import styles from "./RoiPanel.module.css";
@@ -175,6 +175,16 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelP
       <div className={`${styles.body} ${loading ? styles.loading : ""}`}>
         {/* Real money leads. */}
         <TotalCard total={view?.total} window={window} clv={clv} />
+        {/* ...immediately followed by what the CURRENT model would have
+            done over the SAME window. Without this, selecting "Last 7d"
+            showed the old system's real result with nothing anywhere
+            saying what the new one would have returned. */}
+        <WindowReplayCard
+          side={seasonRecord?.real ?? seasonRecord?.projected ?? null}
+          startDate={view?.startDate}
+          endDate={view?.endDate}
+          window={window}
+        />
         <MigrationNote />
 
         <div className={styles.zoneGrid}>
@@ -224,6 +234,50 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelP
 }
 
 /* ---------------------------------------------------------------- */
+
+/** The replay, restricted to the window the toggle is showing.
+ *
+ *  Deliberately sits directly under the ledger so the comparison is
+ *  unavoidable: same days, same slate, two different systems and two
+ *  different stake sizes. It is simulated money, so it wears the
+ *  recessed treatment and never a tone colour. */
+function WindowReplayCard({
+  side, startDate, endDate, window: win,
+}: {
+  side: RecSide | null;
+  startDate: string | undefined;
+  endDate: string | undefined;
+  window: RoiWindow;
+}) {
+  const w = replayWindow(side, startDate, endDate);
+  if (!w) return null;
+  return (
+    <div className={styles.simCard}>
+      <div className={styles.recHead}>
+        <span className={styles.eyebrow}>
+          {win === "today" ? "Model replay · tonight" : "Model replay · same window"}
+        </span>
+        <span className={styles.tag}>Simulated</span>
+      </div>
+      <div className={styles.windowRow}>
+        <span className={styles.figLead}>{fmtU(w.pnl)}</span>
+        <span className={styles.meta}>
+          {`${w.bets} ${w.bets === 1 ? "bet" : "bets"} · ${w.wins}-${w.losses} · ¼-Kelly`}
+          {isNum(w.bankStart) && isNum(w.bankEnd)
+            ? ` · bank ${w.bankStart.toFixed(2)}u → ${w.bankEnd.toFixed(2)}u`
+            : ""}
+          {` · ${w.from} → ${w.to}`}
+        </span>
+      </div>
+      <span className={styles.meta}>
+        Kelly scales the stake to the bankroll, so a losing stretch costs
+        far more in units than flat betting would — and a winning one
+        returns far more. This is the same slate as the ledger above,
+        sized differently.
+      </span>
+    </div>
+  );
+}
 
 /** One-week note explaining where the giant bankroll number went.
  *

@@ -496,3 +496,8 @@
 @media (max-width: 900px) {
   .recGrid { grid-template-columns: 1fr; }
 }
+
+.windowRow {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px;
+  margin: 2px 0 8px;
+}

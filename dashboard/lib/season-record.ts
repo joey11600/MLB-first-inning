@@ -181,3 +181,53 @@ export function replayStakesFor(
   }
   return out;
 }
+
+
+/** The replay's result over an arbitrary date window. */
+export interface ReplayWindow {
+  from: string; to: string;
+  bets: number; wins: number; losses: number;
+  /** Quarter-Kelly P&L over the window, in units. */
+  pnl: number;
+  bankStart: number | null;
+  bankEnd: number | null;
+}
+
+/**
+ * What the CURRENT model would have done between two dates.
+ *
+ * WHY (2026-07-28): the window toggle drove only the ledger card, and
+ * the replay card is season-to-date by construction. So selecting
+ * "Last 7d" showed the OLD system's real -8.63u with nothing anywhere
+ * on the page answering "and what would the new model have done over
+ * those same seven days?". The operator asked exactly that question.
+ */
+export function replayWindow(
+  side: RecSide | null | undefined,
+  startIso: string | undefined,
+  endIso: string | undefined,
+): ReplayWindow | null {
+  if (!side || !startIso || !endIso) return null;
+  const days = side.days.filter((d) => d.date >= startIso && d.date <= endIso);
+  if (days.length === 0) return null;
+  let bets = 0, wins = 0, pnl = 0;
+  for (const d of days) {
+    for (const g of d.games) {
+      if (g.record.action !== "BET") continue;
+      bets += 1;
+      if (g.record.win) wins += 1;
+      pnl += g.record.pnl ?? 0;
+    }
+  }
+  if (bets === 0) return null;
+  const first = days[0], last = days[days.length - 1];
+  const bankStart = isNum(first.simBankAfter) && isNum(first.simPnl)
+    ? first.simBankAfter - first.simPnl : null;
+  return {
+    from: first.date, to: last.date,
+    bets, wins, losses: bets - wins,
+    pnl,
+    bankStart,
+    bankEnd: isNum(last.simBankAfter) ? last.simBankAfter : null,
+  };
+}
