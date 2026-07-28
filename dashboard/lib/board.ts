@@ -2,6 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCsv, toNumber } from "./csv";
 import { loadBoardFromSupabase } from "./board-supabase";
+// 2026-07-28: loadThresholds lives in ONE place now. Two copies of it
+// (here and in board-supabase.ts) each dropped strongYrfiP and the
+// Kelly block, and fixing only this one changed nothing because
+// Supabase is configured so loadBoard delegates below.
+import { loadThresholds } from "./thresholds";
 import { isSupabaseConfigured } from "./supabase";
 import type {
   BoardResponse,
@@ -394,62 +399,6 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
 }
 
 
-/** Read data/thresholds.json so the dashboard's TS tentative-classifier
- *  reads from the Python source of truth rather than duplicating
- *  hardcoded constants.  Returns undefined if the file is missing or
- *  malformed -- TentativeChip falls back to its own defaults. */
-async function loadThresholds(): Promise<import("./types").PickThresholds | undefined> {
-  const p = path.join(dataDir(), "thresholds.json");
-  const raw = await safeRead(p);
-  if (!raw) return undefined;
-  try {
-    const obj = JSON.parse(raw) as Record<string, unknown>;
-    const num = (v: unknown): number | null =>
-      typeof v === "number" && Number.isFinite(v) ? v : null;
-    const t = {
-      strongNrfiP:     num(obj.strongNrfiP),
-      leanNrfiP:       num(obj.leanNrfiP),
-      passLoP:         num(obj.passLoP),
-      leanYrfiP:       num(obj.leanYrfiP),
-      lambdaYrfiFloor: num(obj.lambdaYrfiFloor),
-    };
-    // The five core fields must be present and numeric or we treat as
-    // missing.  lambdaNrfiCeiling is OPTIONAL (older deploys omit it) --
-    // add it separately so its absence never invalidates the core five.
-    if (Object.values(t).some((v) => v == null)) return undefined;
-    // 2026-07-28: this used to forward ONLY the five core fields plus
-    // lambdaNrfiCeiling, silently dropping everything else in the file.
-    // Two live consequences:
-    //   * strongYrfiP (the tightened STRONG gate shipped 2026-07-27)
-    //     never reached the board, so BoardRow.classifyTentative kept
-    //     using the OLD passLoP = 0.44 gate and disagreed with the
-    //     predictor about which games are STRONG;
-    //   * the Kelly block could not reach the stake chip at all.
-    // Forward every optional field explicitly.  A whitelist is still the
-    // right shape (it keeps the five core fields load-bearing), but it
-    // has to be maintained when the predictor starts writing new keys.
-    const ceiling    = num(obj.lambdaNrfiCeiling);
-    const strongYrfi = num(obj.strongYrfiP);
-    const kFraction  = num(obj.kellyFraction);
-    const kBankroll  = num(obj.kellyBankrollUnits);
-    const kMaxStake  = num(obj.kellyMaxStakeFrac);
-    const kMaxDaily  = num(obj.kellyMaxDailyFrac);
-    const kMinStake  = num(obj.kellyMinStakeUnits);
-    return {
-      ...t,
-      ...(ceiling    != null ? { lambdaNrfiCeiling:  ceiling }    : {}),
-      ...(strongYrfi != null ? { strongYrfiP:        strongYrfi } : {}),
-      ...(obj.kellyEnabled === true ? { kellyEnabled: true } : {}),
-      ...(kFraction  != null ? { kellyFraction:      kFraction }  : {}),
-      ...(kBankroll  != null ? { kellyBankrollUnits: kBankroll }  : {}),
-      ...(kMaxStake  != null ? { kellyMaxStakeFrac:  kMaxStake }  : {}),
-      ...(kMaxDaily  != null ? { kellyMaxDailyFrac:  kMaxDaily }  : {}),
-      ...(kMinStake  != null ? { kellyMinStakeUnits: kMinStake }  : {}),
-    } as import("./types").PickThresholds;
-  } catch {
-    return undefined;
-  }
-}
 
 
 /* -------------------------------------------------------------------------

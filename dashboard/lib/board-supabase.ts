@@ -26,6 +26,11 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { getServerSupabase } from "./supabase";
+// 2026-07-28: shared loader. This module used to carry its OWN copy of
+// loadThresholds with the same whitelist bug, and since board.ts
+// delegates here whenever Supabase is configured, THIS was the copy
+// actually running -- fixing board.ts alone had no effect.
+import { loadThresholds } from "./thresholds";
 import type {
   BoardResponse,
   BoardRow,
@@ -353,38 +358,6 @@ async function loadPickChanges(iso: string): Promise<PickChange[]> {
 // Thresholds (still file-based; tiny static JSON)
 // ---------------------------------------------------------------------------
 
-async function loadThresholds(): Promise<PickThresholds | undefined> {
-  // Same fallback path as the CSV reader — the file lives in /data
-  // (or ../data) depending on whether copy-data.mjs has run.
-  const candidates = [
-    path.resolve(process.cwd(), "data", "thresholds.json"),
-    path.resolve(process.cwd(), "..", "data", "thresholds.json"),
-  ];
-  for (const p of candidates) {
-    try {
-      const raw = await fs.readFile(p, "utf8");
-      const obj = JSON.parse(raw) as Record<string, unknown>;
-      const n = (v: unknown): number | null =>
-        typeof v === "number" && Number.isFinite(v) ? v : null;
-      const t = {
-        strongNrfiP:     n(obj.strongNrfiP),
-        leanNrfiP:       n(obj.leanNrfiP),
-        passLoP:         n(obj.passLoP),
-        leanYrfiP:       n(obj.leanYrfiP),
-        lambdaYrfiFloor: n(obj.lambdaYrfiFloor),
-      };
-      if (Object.values(t).some((v) => v == null)) continue;
-      // lambdaNrfiCeiling is optional (older deploys omit it); attach
-      // only when present so its absence never rejects the core five.
-      const ceiling = n(obj.lambdaNrfiCeiling);
-      return {
-        ...t,
-        ...(ceiling != null ? { lambdaNrfiCeiling: ceiling } : {}),
-      } as PickThresholds;
-    } catch { /* try next */ }
-  }
-  return undefined;
-}
 
 
 // ---------------------------------------------------------------------------
