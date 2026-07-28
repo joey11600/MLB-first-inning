@@ -417,10 +417,34 @@ async function loadThresholds(): Promise<import("./types").PickThresholds | unde
     // missing.  lambdaNrfiCeiling is OPTIONAL (older deploys omit it) --
     // add it separately so its absence never invalidates the core five.
     if (Object.values(t).some((v) => v == null)) return undefined;
-    const ceiling = num(obj.lambdaNrfiCeiling);
+    // 2026-07-28: this used to forward ONLY the five core fields plus
+    // lambdaNrfiCeiling, silently dropping everything else in the file.
+    // Two live consequences:
+    //   * strongYrfiP (the tightened STRONG gate shipped 2026-07-27)
+    //     never reached the board, so BoardRow.classifyTentative kept
+    //     using the OLD passLoP = 0.44 gate and disagreed with the
+    //     predictor about which games are STRONG;
+    //   * the Kelly block could not reach the stake chip at all.
+    // Forward every optional field explicitly.  A whitelist is still the
+    // right shape (it keeps the five core fields load-bearing), but it
+    // has to be maintained when the predictor starts writing new keys.
+    const ceiling    = num(obj.lambdaNrfiCeiling);
+    const strongYrfi = num(obj.strongYrfiP);
+    const kFraction  = num(obj.kellyFraction);
+    const kBankroll  = num(obj.kellyBankrollUnits);
+    const kMaxStake  = num(obj.kellyMaxStakeFrac);
+    const kMaxDaily  = num(obj.kellyMaxDailyFrac);
+    const kMinStake  = num(obj.kellyMinStakeUnits);
     return {
       ...t,
-      ...(ceiling != null ? { lambdaNrfiCeiling: ceiling } : {}),
+      ...(ceiling    != null ? { lambdaNrfiCeiling:  ceiling }    : {}),
+      ...(strongYrfi != null ? { strongYrfiP:        strongYrfi } : {}),
+      ...(obj.kellyEnabled === true ? { kellyEnabled: true } : {}),
+      ...(kFraction  != null ? { kellyFraction:      kFraction }  : {}),
+      ...(kBankroll  != null ? { kellyBankrollUnits: kBankroll }  : {}),
+      ...(kMaxStake  != null ? { kellyMaxStakeFrac:  kMaxStake }  : {}),
+      ...(kMaxDaily  != null ? { kellyMaxDailyFrac:  kMaxDaily }  : {}),
+      ...(kMinStake  != null ? { kellyMinStakeUnits: kMinStake }  : {}),
     } as import("./types").PickThresholds;
   } catch {
     return undefined;

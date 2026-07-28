@@ -167,6 +167,16 @@ export interface PickThresholds {
   lambdaYrfiFloor: number;  // would-be YRFI demoted to LOW LAMBDA when below
   lambdaNrfiCeiling?: number; // would-be STRONG NRFI demoted to HIGH LAMBDA when above (optional: older deploys omit)
   strongYrfiP?:    number;  // NRFI prob < this -> STRONG YRFI; between this and passLoP -> LEAN YRFI (optional: older deploys omit)
+  // Kelly staking block (2026-07-28).  The predictor writes these from
+  // tracker.py's own constants so the board can show the stake it will
+  // actually be placed at.  All optional: an older deploy omits them and
+  // the board falls back to not showing a stake rather than guessing one.
+  kellyEnabled?:       boolean;
+  kellyFraction?:      number;
+  kellyBankrollUnits?: number;
+  kellyMaxStakeFrac?:  number;
+  kellyMaxDailyFrac?:  number;
+  kellyMinStakeUnits?: number;
 }
 
 export interface BoardResponse {

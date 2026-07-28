@@ -440,6 +440,7 @@ export function BoardRowItem({
           <PassReasonChip row={row} />
           <EliteHitterChip detail={detail} />
           <OddsChip row={row} detail={detail} />
+          <StakeChip row={row} detail={detail} thresholds={thresholds} />
         </span>
 
         <DistBar row={row} />
@@ -785,6 +786,69 @@ function DataQualityBadge({ detail }: { detail: GameDetail | undefined }) {
   );
 }
 
+
+/** Kelly stake chip (2026-07-28).
+ *
+ *  WHY THIS EXISTS.  The board was built when every bet was flat 1u, so
+ *  stake was implicit and never shown.  Quarter Kelly went live
+ *  2026-07-27 and now produces stakes from roughly 3.9u to 10u on the
+ *  same slate -- so the one screen that tells the operator WHAT to bet
+ *  was not telling them HOW MUCH.  That is a functional gap, not a
+ *  cosmetic one.
+ *
+ *  Mirrors tracker.kelly_stake_units: quarter Kelly on the model's
+ *  probability at the real captured price, capped per bet.  It does NOT
+ *  apply the same-day exposure cap, because that depends on what the
+ *  rest of the slate commits and is allocated first-come-first-served at
+ *  bet time -- so this is the stake BEFORE any daily trim.  Labelled
+ *  "up to" for exactly that reason rather than implying a firm number.
+ *
+ *  Renders only for STRONG picks with a real captured price. No price
+ *  means no Kelly stake is computable, and inventing one is the same
+ *  mistake as the -110 fallback that inflated April. */
+function StakeChip({
+  row, detail, thresholds,
+}: {
+  row: BoardRow;
+  detail: GameDetail | undefined;
+  thresholds: PickThresholds | undefined;
+}) {
+  if (row.pickStrength !== "STRONG") return null;
+  if (row.pickSide !== "NRFI" && row.pickSide !== "YRFI") return null;
+  const t = thresholds;
+  if (!t || t.kellyEnabled !== true || typeof t.kellyFraction !== "number") return null;
+  if (!detail) return null;
+
+  const raw = row.pickSide === "NRFI" ? detail.marketNrfiOdds : detail.marketYrfiOdds;
+  const american = Number.parseFloat(normalizeAmericanOdds(raw));
+  if (!Number.isFinite(american) || american === 0) return null;
+
+  const p = (row.pickSide === "NRFI" ? row.nrfiPct : row.yrfiPct) / 100;
+  if (!(p > 0 && p < 1)) return null;
+
+  const b = american > 0 ? american / 100 : 100 / Math.abs(american);
+  const full = (p * b - (1 - p)) / b;
+  if (!(full > 0)) {
+    // Kelly says this bet has no positive expectation at this price.
+    return (
+      <span className={`${styles.stakeChip} ${styles.stakeChipZero}`}>
+        <span className={styles.stakeLabel}>stake</span>
+        <span className={styles.stakeValue}>no edge</span>
+      </span>
+    );
+  }
+  const bank = t.kellyBankrollUnits ?? 100;
+  const frac = Math.min(full * t.kellyFraction, t.kellyMaxStakeFrac ?? 0.1);
+  const units = bank * frac;
+  if (units < (t.kellyMinStakeUnits ?? 0.1)) return null;
+
+  return (
+    <span className={styles.stakeChip}>
+      <span className={styles.stakeLabel}>stake up to</span>
+      <span className={styles.stakeValue}>{units.toFixed(1)}u</span>
+    </span>
+  );
+}
 
 /** Live-odds chip: sportsbook + price.  Tone tinted by row.pickSide.
  *  PASS rows render BOTH sides ("DK  N -130 · Y +100"); active picks

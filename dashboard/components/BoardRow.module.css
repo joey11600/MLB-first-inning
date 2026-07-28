@@ -1058,3 +1058,37 @@
   .row { margin: 6px 0; }
   .at { font-size: 11px; }
 }
+
+/* Kelly stake chip (2026-07-28).
+   Sits beside the odds chip. Reads "stake up to N.Nu" because the
+   same-day exposure cap is allocated at bet time across the whole slate,
+   so this is the pre-trim figure -- stating a firm number would be a
+   promise the sizing logic does not make. */
+.stakeChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  white-space: nowrap;
+}
+.stakeLabel {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.stakeValue {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+.stakeChipZero .stakeValue {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
