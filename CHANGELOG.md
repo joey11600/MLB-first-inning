@@ -284,6 +284,52 @@ size. 4 of the bets in the simulated window were skipped this way.
   Both are hindsight over a partial season — a one-per-day strategy
   concentrates all variance into very few bets.
 
+### Fixed — Kelly same-day exposure was uncapped (found post-ship, same day)
+
+The 10% per-bet cap constrained each stake but nothing constrained the
+DAY. Kelly's formula sizes one bet against one outcome assuming the
+bankroll compounds before the next; same-slate bets are placed together
+and settle together, so each is really risked against the same bankroll
+at the same time. Sizing N same-day bets each at the full fraction
+over-commits.
+
+Measured at the shipped gate over 55 betting days (100u, quarter Kelly):
+worst day put **24.51u at risk across 4 bets**, three days exceeded 20u,
+seven exceeded 15u — while the per-bet cap never once bound.
+
+- Adds **`KELLY_MAX_DAILY_FRAC`** (`NRFI_KELLY_MAX_DAILY`, default 0.15)
+  and `_committed_on()`, seeded per date from the ledger so a fresh cron
+  process sees what earlier ticks already committed.
+- Result: worst-day exposure **24.5% → 13.0%**, and the backfilled final
+  bank *improved* 157.79u → 177.93u, because the trimming lands on heavy
+  slates that included losers.
+- **Known limitation, documented in-code:** the daily budget is allocated
+  first-come-first-served in row order, not best-bet-first. On a day that
+  exhausts the budget, later picks are trimmed or skipped even if
+  stronger. The cap binds on 7 of 55 days at a 1.2-bet average slate, so
+  impact is small; revisit if the slate widens.
+
+### Found, not yet fixed — three open items
+
+- **The model has not been refit in 62 days.** `lr_t1.json` /
+  `calibration_v2.json` last changed 2026-05-26. `daily.yml:64` records
+  that the weekly auto-recalibrate cron was **disabled on 2026-05-11**;
+  `recalibrate` survives only as a manual `workflow_dispatch` option. The
+  memory note describing a live "weekly_refit.py workflow" is stale. A
+  62-day-old calibrator is being served against a drifting run
+  environment — and it is the same calibrator whose flat step this
+  investigation identified.
+- **CLV is not measurable.** Of 531 placed bets, 307 have
+  `opened_*_odds` exactly equal to `market_*_odds` and only 20 show any
+  movement (204 missing one side). So the 1am opener-capture cron is not
+  producing usable open→bet line movement, and every CLV number the
+  system reports is meaningless rather than merely small.
+- **Single sportsbook.** Every row is DraftKings. No line shopping at
+  all. Sensitivity on the 105 bets at the new gate: a 10-cent better
+  average price is worth **+3.83u** (ROI 13.47% → 17.12%); 20 cents is
+  worth +8.24u. Unlike any model change this is a *certain* gain, and it
+  is plausibly the largest single improvement still available.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.

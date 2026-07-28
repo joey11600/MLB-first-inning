@@ -3119,7 +3119,29 @@ KELLY_MIN_STAKE_UNITS = 0.10
 # that were never real.  Default is the day Kelly went live.
 KELLY_BANKROLL_EPOCH = (os.getenv("NRFI_KELLY_EPOCH", "") or "2026-07-28").strip()
 
+# Ceiling on TOTAL exposure across all bets settling on the same day, as
+# a fraction of bankroll.
+#
+# WHY THIS IS NOT OPTIONAL.  The Kelly formula sizes ONE bet against ONE
+# outcome, assuming the bankroll compounds before the next bet.  Bets on
+# the same slate do not work that way -- they are placed together and
+# settle together, so the bankroll cannot grow between them and each
+# stake is really being risked against the same bankroll simultaneously.
+# Sizing N same-day bets each at the full Kelly fraction therefore
+# over-commits badly.
+#
+# Measured on the shipped gate over 55 betting days (100u bank, quarter
+# Kelly): worst day put 24.51u at risk across 4 bets, three days exceeded
+# 20u, seven exceeded 15u -- while the per-bet cap (10%) never once bound.
+# The per-bet cap does nothing about this; only a daily cap does.
+#
+# 0.15 leaves the median day (9.09u mean exposure) untouched and only
+# binds on the handful of heavy slates.
+KELLY_MAX_DAILY_FRAC = float(os.getenv("NRFI_KELLY_MAX_DAILY", "0.15") or 0.15)
+
 _bankroll_cache: float | None = None
+# date -> units already assigned to STRONG picks on that date this run.
+_daily_committed: dict[str, float] = {}
 
 
 def kelly_fraction_of_bankroll(p: float, odds_str: str) -> float | None:
@@ -3174,21 +3196,74 @@ def current_bankroll_units(season: int = 2026) -> float:
     return _bankroll_cache
 
 
-def kelly_stake_units(p: float, odds_str: str, season: int = 2026) -> float | None:
+def _committed_on(game_date: str, season: int = 2026) -> float:
+    """Units already earmarked for STRONG picks on `game_date`.
+
+    Seeded once per date from the ledger (so a fresh cron process sees
+    what earlier ticks already committed), then kept current in-process
+    as this run assigns further stakes.
+    """
+    if game_date in _daily_committed:
+        return _daily_committed[game_date]
+    total = 0.0
+    try:
+        for r in _read_rows(_csv_path(season)):
+            if (r.get("date") or "") != game_date:
+                continue
+            if (r.get("pick_strength") or "").strip().upper() != "STRONG":
+                continue
+            v = (r.get("units_risked") or "").strip()
+            if not v:
+                continue
+            try:
+                total += float(v)
+            except ValueError:
+                continue
+    except Exception:
+        total = 0.0     # soft-fail: no cap rather than a crash
+    _daily_committed[game_date] = total
+    return total
+
+
+def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
+                      game_date: str | None = None) -> float | None:
     """Stake in UNITS for one bet, or None to fall back to flat sizing.
 
     Returns None (not 0) when Kelly cannot be computed, so callers can
     distinguish "no opinion, use the flat default" from "Kelly says do
     not bet this".
+
+    When `game_date` is supplied, the stake is additionally trimmed so
+    that total same-day exposure stays under KELLY_MAX_DAILY_FRAC of
+    bankroll -- see that constant for why per-bet capping is not enough.
+
+    KNOWN LIMITATION: the daily budget is allocated FIRST COME, FIRST
+    SERVED in whatever order rows are processed, not best-bet-first.  On
+    a day that exhausts the budget, later picks are trimmed or get 0
+    (i.e. no bet) even if they were the stronger plays.  Measured impact
+    is small -- at the shipped gate the cap binds on 7 of 55 days and the
+    slate averages 1.2 qualifying bets -- and capping still beat not
+    capping in backfill (worst-day exposure 24.5% -> 13.0%, final bank
+    157.79u -> 177.93u).  If the slate ever widens, rank the day's picks
+    by edge before allocating instead of taking them in row order.
     """
     f = kelly_fraction_of_bankroll(p, odds_str)
     if f is None:
         return None
     f = min(f * KELLY_FRACTION, KELLY_MAX_STAKE_FRAC)
-    stake = current_bankroll_units(season) * f
+    bank = current_bankroll_units(season)
+    stake = bank * f
+
+    if game_date:
+        room = bank * KELLY_MAX_DAILY_FRAC - _committed_on(game_date, season)
+        stake = min(stake, max(room, 0.0))
+
     if stake < KELLY_MIN_STAKE_UNITS:
         return 0.0
-    return round(stake, 2)
+    stake = round(stake, 2)
+    if game_date:
+        _daily_committed[game_date] = _committed_on(game_date, season) + stake
+    return stake
 
 
 def _pick_dh_candidate(
@@ -3467,7 +3542,8 @@ def _apply_odds_to_row(
                 p_model = float((row.get(prob_col) or "").strip())
             except (TypeError, ValueError):
                 p_model = None
-            k = kelly_stake_units(p_model, row.get(odds_col, ""))
+            k = kelly_stake_units(p_model, row.get(odds_col, ""),
+                                  game_date=(row.get("date") or "").strip() or None)
             if k is not None:
                 # NOTE -- POLICY CONSEQUENCE.  Kelly returns 0 whenever the
                 # model's probability does not beat the market's implied
