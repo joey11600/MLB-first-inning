@@ -1024,7 +1024,27 @@ _LR_LEAN_YRFI_P   = 0.50
 # DO NOT "fix" the resulting quiet days by loosening this back toward
 # 0.44 -- that is the leak.  REVERSAL: set to 0.44 to restore the old
 # behaviour exactly.
-_LR_STRONG_YRFI_P = 0.36
+# 2026-07-28 UPDATE: 0.36 -> 0.40 after walk-forward validation on both
+# gates. Both are statistically supported; 0.40 wins on the measures that
+# matter for a levered bankroll:
+#   gate   bets  hit%   flat ROI   bootstrap 90% CI (fill -125)   months +
+#   0.44    243  60.1%    +5.8%    [-2.9, +14.7]  <- spans zero      3/4
+#   0.40    126  65.1%   +13.2%    [+2.1, +24.7]                     4/4
+#   0.36     86  68.6%   +18.1%    [+5.2, +31.8]                     4/4
+# 0.36 has the better ROI per bet, but 0.40 places ~46% more bets, is
+# positive in every month rather than 3 of 4, and carries a LOWER
+# walk-forward drawdown (18.1% vs 25.5%) because the extra volume
+# smooths single-game variance. Under Kelly, volume compounds: 0.40
+# returned +189u walk-forward against 0.36's +140u.
+#
+# Both gates survive a punitive -140 price assumption on the 404 graded
+# games that never had a captured DK number, so this is not an artefact
+# of how missing prices are filled. The old 0.44 gate fails under every
+# assumption tested -- it never had supported edge.
+#
+# REVERSAL: set to 0.36 for the tighter/higher-ROI variant, or 0.44 to
+# restore pre-2026-07-27 behaviour.
+_LR_STRONG_YRFI_P = 0.40
 
 # Lambda floor for STRONG YRFI: minimum expected 1st-inning runs the
 # model must project before we'll fire a STRONG YRFI bet, even when

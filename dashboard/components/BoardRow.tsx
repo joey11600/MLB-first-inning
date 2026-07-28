@@ -148,9 +148,9 @@ export const DEFAULT_THRESHOLDS: PickThresholds = {
   leanYrfiP:       0.50,
   lambdaYrfiFloor: 0.838,
   lambdaNrfiCeiling: 0.52,
-  // 2026-07-27 (T-SELECTIVITY): STRONG YRFI now needs pNrfi < 0.36.
-  // The old gate (passLoP = 0.44) called 42.6% of the slate STRONG.
-  strongYrfiP:     0.36,
+  // STRONG YRFI needs pNrfi < 0.40 (0.44 -> 0.36 on 2026-07-27,
+  // 0.36 -> 0.40 on 2026-07-28 after walk-forward validation).
+  strongYrfiP:     0.40,
 };
 
 /** Mirror of mlb_first_inning_predictor.classify_pick_lr -- given an
