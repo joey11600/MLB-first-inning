@@ -25,7 +25,7 @@ export const metadata: Metadata = {
       // Fallback inline data-URI for ancient browsers / iOS bookmarks
       // that can't fetch SVG icons -- renders an OK-ish version of
       // the diamond mark.
-      { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%235dff9a' d='M12 2 22 12 12 22 2 12Z'/%3E%3C/svg%3E", type: "image/svg+xml" },
+      { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23f5a465' d='M12 2 22 12 12 22 2 12Z'/%3E%3C/svg%3E", type: "image/svg+xml" },
     ],
     apple: [
       { url: "/apple-touch-icon.svg", sizes: "180x180" },
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
   // Help WebShare, link previews, etc. render with the right brand.
   other: {
-    "msapplication-TileColor": "#07090b",
+    "msapplication-TileColor": "#171009",
   },
 };
 
@@ -44,8 +44,8 @@ export const metadata: Metadata = {
 // once installed.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f6f7" },
-    { media: "(prefers-color-scheme: dark)",  color: "#07090b" },
+    { media: "(prefers-color-scheme: light)", color: "#f7efe4" },
+    { media: "(prefers-color-scheme: dark)",  color: "#171009" },
   ],
   width:        "device-width",
   initialScale: 1,

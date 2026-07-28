@@ -1,5 +1,8 @@
 /* ============================================================
-   Diamond Terminal -- Bloomberg-style dark theme
+   Diamond Terminal -- warm espresso/peach theme (2026-07-28 redesign:
+   operator preference per CLAUDE.md is warm-brown/peach, NOT terminal
+   green. NRFI = peach, YRFI = rust, PASS = amber; ledger vs record
+   distinction is carried by structure, not hue.)
    Geist Sans (UI) + Geist Mono (figures), no serif
    Light theme is a soft inverse for daylight reading.
    ============================================================ */
@@ -9,28 +12,28 @@
 /* --------- Default theme = Bloomberg dark --------- */
 :root {
   /* Surfaces */
-  --background:        #07090b;
-  --card:              #0f1317;
-  --popover:           #0f1317;
-  --muted:             #1b222b;
-  --accent:            #1b222b;
-  --input:             #242c36;
-  --border:            #1a2028;
-  --ring:              #5dff9a;
+  --background:        #171009;
+  --card:              #20160e;
+  --popover:           #20160e;
+  --muted:             #2c2015;
+  --accent:            #2c2015;
+  --input:             #3a2c1d;
+  --border:            #302317;
+  --ring:              #f5a465;
   --radius:            0.375rem;
 
   /* Ink */
-  --foreground:           #e8ecf0;
-  --card-foreground:      #e8ecf0;
-  --popover-foreground:   #e8ecf0;
-  --accent-foreground:    #e8ecf0;
-  --muted-foreground:     #8b95a1;
+  --foreground:           #f0e4d3;
+  --card-foreground:      #f0e4d3;
+  --popover-foreground:   #f0e4d3;
+  --accent-foreground:    #f0e4d3;
+  --muted-foreground:     #a58f79;
 
-  /* Phosphor accents */
-  --primary:               #5dff9a;     /* phosphor green = NRFI */
-  --primary-foreground:    #07090b;
-  --secondary:             #ffb547;     /* amber = PASS */
-  --secondary-foreground:  #07090b;
+  /* Warm accents */
+  --primary:               #f5a465;     /* peach = NRFI / positive */
+  --primary-foreground:    #171009;
+  --secondary:             #e9b45b;     /* amber = PASS */
+  --secondary-foreground:  #171009;
   /* T3.21: warmed YRFI red.  The previous #ff4a5c read as alarm/error
      in a context where YRFI is just a normal pick state -- the
      dashboard ended up shouting at the operator on every YRFI row.
@@ -38,25 +41,25 @@
      stays clearly red and distinct from --secondary amber, but no
      longer pretends to be a critical signal.  Reserve true high-
      saturation red (#ff4a5c-class) for actual loss/error states.
-     Contrast on --background (#07090b) is ~5.1:1 -- still passes
-     WCAG AA for normal text; foreground pair (#07090b on this red)
+     Contrast on --background (#171009) is ~5.1:1 -- still passes
+     WCAG AA for normal text; foreground pair (#171009 on this red)
      is ~4.7:1, also AA. */
-  --destructive:           #e8624a;     /* warm tomato = YRFI */
-  --destructive-foreground:#07090b;
+  --destructive:           #e06a48;     /* rust = YRFI */
+  --destructive-foreground:#171009;
 
   /* Bloomberg meta accent */
-  --accent-cyan:           #6ad1ff;
+  --accent-cyan:           #9fb8c4;
 
   /* Semantic mappings */
   --nrfi:               var(--primary);
   --nrfi-foreground:    var(--primary-foreground);
-  --nrfi-soft:          rgba(93, 255, 154, 0.10);
-  --nrfi-soft-2:        rgba(93, 255, 154, 0.22);
+  --nrfi-soft:          rgba(245, 164, 101, 0.10);
+  --nrfi-soft-2:        rgba(245, 164, 101, 0.22);
 
   --yrfi:               var(--destructive);
   --yrfi-foreground:    var(--destructive-foreground);
-  --yrfi-soft:          rgba(232, 98, 74, 0.10);
-  --yrfi-soft-2:        rgba(232, 98, 74, 0.22);
+  --yrfi-soft:          rgba(224, 106, 72, 0.10);
+  --yrfi-soft-2:        rgba(224, 106, 72, 0.22);
 
   --pass-bg:            var(--secondary);
   --pass-fg:            var(--secondary-foreground);
@@ -84,44 +87,44 @@
 /* --------- Light mode -- soft inverse for daylight terminals --------- */
 .light {
   /* Surfaces */
-  --background:        #f5f6f7;
-  --card:              #ffffff;
-  --popover:           #ffffff;
-  --muted:             #ebedef;
-  --accent:            #ebedef;
-  --input:             #d8dce0;
-  --border:            #d8dce0;
-  --ring:              #2b8f56;
+  --background:        #f7efe4;
+  --card:              #fffbf4;
+  --popover:           #fffbf4;
+  --muted:             #efe4d3;
+  --accent:            #efe4d3;
+  --input:             #e1d3bf;
+  --border:            #e1d3bf;
+  --ring:              #b05f28;
   --radius:            0.375rem;
 
   /* Ink */
-  --foreground:           #14181c;
-  --card-foreground:      #14181c;
-  --popover-foreground:   #14181c;
-  --accent-foreground:    #14181c;
-  --muted-foreground:     #5a636e;
+  --foreground:           #2b2015;
+  --card-foreground:      #2b2015;
+  --popover-foreground:   #2b2015;
+  --accent-foreground:    #2b2015;
+  --muted-foreground:     #7c6b59;
 
   /* Same accents but darker for contrast on white */
-  --primary:               #1f8e4f;     /* dark phosphor */
-  --primary-foreground:    #ffffff;
-  --secondary:             #b87a1a;     /* dark amber */
-  --secondary-foreground:  #ffffff;
+  --primary:               #b05f28;     /* burnt sienna */
+  --primary-foreground:    #fffbf4;
+  --secondary:             #a4690f;     /* dark amber */
+  --secondary-foreground:  #fffbf4;
   /* T3.21: warmed YRFI red for light theme too -- same calmer hue
      as the dark theme, but darker for white-background contrast. */
-  --destructive:           #b04638;     /* dark warm tomato */
-  --destructive-foreground:#ffffff;
+  --destructive:           #a84a30;     /* dark warm tomato */
+  --destructive-foreground:#fffbf4;
 
-  --accent-cyan:           #2a6a8a;
+  --accent-cyan:           #5c7b8a;
 
   --nrfi:               var(--primary);
   --nrfi-foreground:    var(--primary-foreground);
-  --nrfi-soft:          rgba(31, 142, 79, 0.10);
-  --nrfi-soft-2:        rgba(31, 142, 79, 0.22);
+  --nrfi-soft:          rgba(176, 95, 40, 0.10);
+  --nrfi-soft-2:        rgba(176, 95, 40, 0.22);
 
   --yrfi:               var(--destructive);
   --yrfi-foreground:    var(--destructive-foreground);
-  --yrfi-soft:          rgba(176, 70, 56, 0.10);
-  --yrfi-soft-2:        rgba(176, 70, 56, 0.22);
+  --yrfi-soft:          rgba(168, 74, 48, 0.10);
+  --yrfi-soft-2:        rgba(168, 74, 48, 0.22);
 
   --pass-bg:            var(--secondary);
   --pass-fg:            var(--secondary-foreground);
@@ -129,45 +132,45 @@
   --ds-gray-1000: var(--foreground);
   --ds-blue-900:  var(--accent-cyan);
 
-  --shadow-1: 0 1px 2px rgba(20, 24, 28, 0.06), 0 1px 1px rgba(20, 24, 28, 0.04);
-  --shadow-2: 0 4px 14px rgba(20, 24, 28, 0.08), 0 1px 3px rgba(20, 24, 28, 0.05);
-  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(20, 24, 28, 0.04);
+  --shadow-1: 0 1px 2px rgba(43, 32, 21, 0.06), 0 1px 1px rgba(43, 32, 21, 0.04);
+  --shadow-2: 0 4px 14px rgba(43, 32, 21, 0.08), 0 1px 3px rgba(43, 32, 21, 0.05);
+  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(43, 32, 21, 0.04);
 }
 
 /* prefers-color-scheme: light overrides ONLY when no explicit class */
 @media (prefers-color-scheme: light) {
   :root:not(.dark) {
-    --background:        #f5f6f7;
-    --card:              #ffffff;
-    --popover:           #ffffff;
-    --muted:             #ebedef;
-    --accent:            #ebedef;
-    --input:             #d8dce0;
-    --border:            #d8dce0;
-    --ring:              #2b8f56;
+    --background:        #f7efe4;
+    --card:              #fffbf4;
+    --popover:           #fffbf4;
+    --muted:             #efe4d3;
+    --accent:            #efe4d3;
+    --input:             #e1d3bf;
+    --border:            #e1d3bf;
+    --ring:              #b05f28;
 
-    --foreground:           #14181c;
-    --card-foreground:      #14181c;
-    --popover-foreground:   #14181c;
-    --accent-foreground:    #14181c;
-    --muted-foreground:     #5a636e;
+    --foreground:           #2b2015;
+    --card-foreground:      #2b2015;
+    --popover-foreground:   #2b2015;
+    --accent-foreground:    #2b2015;
+    --muted-foreground:     #7c6b59;
 
-    --primary:               #1f8e4f;
-    --primary-foreground:    #ffffff;
-    --secondary:             #b87a1a;
-    --secondary-foreground:  #ffffff;
-    --destructive:           #b04638;
-    --destructive-foreground:#ffffff;
-    --accent-cyan:           #2a6a8a;
+    --primary:               #b05f28;
+    --primary-foreground:    #fffbf4;
+    --secondary:             #a4690f;
+    --secondary-foreground:  #fffbf4;
+    --destructive:           #a84a30;
+    --destructive-foreground:#fffbf4;
+    --accent-cyan:           #5c7b8a;
 
-    --nrfi-soft:   rgba(31, 142, 79, 0.10);
-    --nrfi-soft-2: rgba(31, 142, 79, 0.22);
-    --yrfi-soft:   rgba(176, 70, 56, 0.10);
-    --yrfi-soft-2: rgba(176, 70, 56, 0.22);
+    --nrfi-soft:   rgba(176, 95, 40, 0.10);
+    --nrfi-soft-2: rgba(176, 95, 40, 0.22);
+    --yrfi-soft:   rgba(168, 74, 48, 0.10);
+    --yrfi-soft-2: rgba(168, 74, 48, 0.22);
 
-    --shadow-1: 0 1px 2px rgba(20, 24, 28, 0.06), 0 1px 1px rgba(20, 24, 28, 0.04);
-    --shadow-2: 0 4px 14px rgba(20, 24, 28, 0.08), 0 1px 3px rgba(20, 24, 28, 0.05);
-    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(20, 24, 28, 0.04);
+    --shadow-1: 0 1px 2px rgba(43, 32, 21, 0.06), 0 1px 1px rgba(43, 32, 21, 0.04);
+    --shadow-2: 0 4px 14px rgba(43, 32, 21, 0.08), 0 1px 3px rgba(43, 32, 21, 0.05);
+    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(43, 32, 21, 0.04);
   }
 }
 
@@ -202,8 +205,8 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(93, 255, 154, 0.04), transparent 60%),
-    radial-gradient(900px 500px at 95% 0%, rgba(232, 98, 74, 0.030), transparent 65%);
+    radial-gradient(1200px 600px at 12% -10%, rgba(245, 164, 101, 0.04), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(224, 106, 72, 0.030), transparent 65%);
   z-index: 0;
 }
 
@@ -227,8 +230,8 @@ body::after {
 
 .light body::before {
   background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(31, 142, 79, 0.05), transparent 60%),
-    radial-gradient(900px 500px at 95% 0%, rgba(176, 70, 56, 0.030), transparent 65%);
+    radial-gradient(1200px 600px at 12% -10%, rgba(176, 95, 40, 0.05), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(168, 74, 48, 0.030), transparent 65%);
 }
 .light body::after {
   background-image:
@@ -301,11 +304,11 @@ button:focus-visible {
 
 /* --------- Selection / scrollbar ---------- */
 ::selection {
-  background: rgba(93, 255, 154, 0.28);
+  background: rgba(245, 164, 101, 0.28);
   color: var(--foreground);
 }
 .light ::selection {
-  background: rgba(31, 142, 79, 0.22);
+  background: rgba(176, 95, 40, 0.22);
   color: var(--foreground);
 }
 

@@ -801,6 +801,35 @@ Operator feedback on first contact with the card:
   +11.23u**. The ~220 missing bets are the 0.40-0.44 band (117 games),
   LEAN NRFI, and low-lambda games — the volume that was losing.
 
+### Changed — the redesign, actually shipped
+
+Operator: "I don't even think we redesigned the dashboard like we
+planned." Correct. Now done, per the approved shape brief + CLAUDE.md:
+
+- **Warm brown/peach palette, terminal green killed.** Token-level
+  re-tint of globals.css (both themes), DashboardShell glow, favicon:
+  espresso surfaces (#171009/#20160e), cream ink (#f0e4d3), **peach
+  primary #f5a465** (was phosphor #5dff9a), rust YRFI #e06a48, amber
+  PASS #e9b45b. Every component inherits via the existing variables.
+- **Section order now answers "what do I bet tonight" first**: hero →
+  health banners (render only when wrong) → RoiPanel (System Record
+  first) → date picker + board → slate distribution → experiment
+  plumbing → footer. SummaryStrip no longer sits between the hero and
+  the money numbers.
+- **The ledger can no longer impersonate the record.** The old
+  "Net P&L · real prices only" card is relabelled **"Ledger · bets
+  actually placed · flat 1u before 7/28"** — it aggregates what was
+  historically wagered, which legitimately disagrees with the System
+  Record on past days (7/25: ledger went 0-4; the system record sat the
+  day out). The disagreement was the "units per day are wrong" report.
+- **Stake-scaling footnote** on the record card: the same bet sizes
+  differently in the two columns because stakes are a % of each
+  record's own compounding bankroll (7/27 TOR@WSH: 11.15u projected vs
+  5.52u real). Without the note that reads as a math error.
+
+Verified against a production build: --primary computes to #f5a465,
+record card above the relabelled ledger, footnote rendered.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.

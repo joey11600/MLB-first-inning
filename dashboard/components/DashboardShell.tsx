@@ -360,13 +360,18 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         </div>
       </header>
 
-      {/* Top-of-fold ordering:
-          1. TonightsActionCard -- "what should I bet tonight" (hero)
-          2. OpsHealthCard      -- system health surfaced if anything's wrong
-          3. SummaryStrip       -- retrospective today-stats tiles
-          4. RoiPanel           -- bankroll across 7d/30d/season
-          5. ControlPanel       -- date + filters
-          6. (changes / board / status)
+      {/* 2026-07-28 redesign order (approved shape brief, PRODUCT.md):
+          the page answers "what do I bet tonight, and how much" first,
+          then the money record, then the full board; slate distribution
+          and system plumbing drop below the fold.
+          1. TonightsActionCard -- plays + stakes (hero)
+          2. OpsHealth/Demotions -- render ONLY when something is wrong,
+             so keeping them high costs nothing on a healthy day
+          3. RoiPanel           -- System Record first inside, then ledger
+          4. ControlPanel + ChangeBanner + Board -- the full slate
+          5. SummaryStrip       -- slate distribution (retrospective)
+          6. ShadowPnlCard      -- experiment plumbing
+          7. StatusLine         -- footer
        */}
       <TonightsActionCard
         rows={data.rows}
@@ -380,22 +385,11 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           permanent.  Renders nothing if no demotions are active. */}
       <DemotionsBanner />
 
-      {/* T3.21: SummaryStrip slimmed -- no longer needs details since
-          P&L/CLV moved into RoiPanel.  RoiPanel now receives rows +
-          details so its TODAY window can aggregate locally without
-          a server round-trip. */}
-      <SummaryStrip rows={data.rows} />
-
       <RoiPanel
         initialDate={data.date}
         rows={data.rows}
         details={data.details}
       />
-
-      {/* 2026-05-11: side-by-side comparison of placed (REAL) vs
-          skipped (SHADOW) bets for each active cluster demotion.
-          Renders nothing if no demotions are active. */}
-      <ShadowPnlCard />
 
       <ControlPanel
         dates={data.availableDates}
@@ -418,6 +412,16 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           date={data.date}
         />
       </section>
+
+      {/* T3.21: SummaryStrip slimmed -- retrospective slate-distribution
+          tiles. 2026-07-28: moved below the board; it was sitting
+          between the hero and the money numbers. */}
+      <SummaryStrip rows={data.rows} />
+
+      {/* 2026-05-11: side-by-side comparison of placed (REAL) vs
+          skipped (SHADOW) bets for each active cluster demotion.
+          Renders nothing if no demotions are active. */}
+      <ShadowPnlCard />
 
       <StatusLine
         count={displayed.length}

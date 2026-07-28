@@ -604,3 +604,10 @@
   color: var(--foreground);
   margin-top: 0.15rem;
 }
+
+.recFootnote {
+  display: block;
+  margin-top: 0.55rem;
+  font-size: 0.64rem;
+  color: var(--muted-foreground);
+}

@@ -48,8 +48,8 @@
     linear-gradient(135deg, var(--primary) 0%, var(--accent-cyan) 55%, var(--destructive) 100%);
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
   box-shadow:
-    0 0 0 1px rgba(93, 255, 154, 0.25),
-    0 0 24px rgba(93, 255, 154, 0.20);
+    0 0 0 1px rgba(245, 164, 101, 0.25),
+    0 0 24px rgba(245, 164, 101, 0.20);
 }
 .mark::after {
   content: "";
@@ -60,8 +60,8 @@
 }
 .light .mark {
   box-shadow:
-    0 0 0 1px rgba(31, 142, 79, 0.30),
-    0 0 18px rgba(31, 142, 79, 0.18);
+    0 0 0 1px rgba(176, 95, 40, 0.30),
+    0 0 18px rgba(176, 95, 40, 0.18);
 }
 
 .brandText {

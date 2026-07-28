@@ -408,6 +408,14 @@ function SeasonRecordCard({ rec, selectedDate }: { rec: SeasonRecordFile; select
         <RecordColumn side={rec.projected} selectedDate={selectedDate} />
         <RecordColumn side={rec.real} selectedDate={selectedDate} />
       </div>
+      {/* The same bet carries a different stake in each column (e.g.
+          TOR@WSH 7/27: 11.15u projected vs 5.52u real) because Kelly
+          stakes are a percentage of each record's own compounding
+          bankroll. Without this line that reads as a math error. */}
+      <span className={styles.recFootnote}>
+        Stakes are a % of each record&apos;s own bankroll, so the same bet
+        sizes differently in the two columns.
+      </span>
     </div>
   );
 }
@@ -449,8 +457,15 @@ function TotalCard({
   return (
     <div className={`${styles.totalCard} ${styles[`totalCard_${tone}`]}`}>
       <div className={styles.totalLeft}>
+        {/* 2026-07-28: relabelled. This card aggregates picks_2026.csv --
+            the bets that were ACTUALLY PLACED historically, flat 1u
+            before 2026-07-28. On screen it sits below the System Record
+            (the current model replayed with Kelly stakes) and the two
+            legitimately disagree about past days; the old label made
+            that disagreement read as a bug ("units per day are wrong").
+            Name what it is so the two cards can't be confused. */}
         <span className={styles.totalEyebrow}>
-          Net P&amp;L · real prices only
+          Ledger · bets actually placed · flat 1u before 7/28
         </span>
         {/* 2026-07-28: the headline is now the REAL-PRICED number.
             Previously it showed the raw column sum, which folds in 177
