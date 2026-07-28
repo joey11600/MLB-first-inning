@@ -148,6 +148,9 @@ export const DEFAULT_THRESHOLDS: PickThresholds = {
   leanYrfiP:       0.50,
   lambdaYrfiFloor: 0.838,
   lambdaNrfiCeiling: 0.52,
+  // 2026-07-27 (T-SELECTIVITY): STRONG YRFI now needs pNrfi < 0.36.
+  // The old gate (passLoP = 0.44) called 42.6% of the slate STRONG.
+  strongYrfiP:     0.36,
 };
 
 /** Mirror of mlb_first_inning_predictor.classify_pick_lr -- given an
@@ -190,9 +193,16 @@ export function classifyTentative(
   // STRONG-YRFI boundary (strict <).
   if (pNrfi >= t.passLoP)     return { side: "PASS", strength: "NO EDGE" };
 
-  // p_nrfi < passLoP -- STRONG YRFI candidate, gated by the lambda floor.
+  // p_nrfi < passLoP -- YRFI side, gated first by the lambda floor.
   if (lambdaTotal != null && lambdaTotal < t.lambdaYrfiFloor) {
     return { side: "PASS", strength: "LOW LAMBDA" };
+  }
+  // 2026-07-27 (T-SELECTIVITY): only pNrfi < strongYrfiP fires STRONG.
+  // The band between strongYrfiP and passLoP is a real YRFI lean but
+  // does not beat the market, so it tracks as LEAN. Older deploys omit
+  // the field -- fall through to the previous behaviour when undefined.
+  if (t.strongYrfiP != null && pNrfi >= t.strongYrfiP) {
+    return { side: "YRFI", strength: "LEAN" };
   }
   return { side: "YRFI", strength: "STRONG" };
 }

@@ -166,6 +166,7 @@ export interface PickThresholds {
   leanYrfiP:      number;   // NRFI prob >= this (and below passLoP) -> LEAN YRFI
   lambdaYrfiFloor: number;  // would-be YRFI demoted to LOW LAMBDA when below
   lambdaNrfiCeiling?: number; // would-be STRONG NRFI demoted to HIGH LAMBDA when above (optional: older deploys omit)
+  strongYrfiP?:    number;  // NRFI prob < this -> STRONG YRFI; between this and passLoP -> LEAN YRFI (optional: older deploys omit)
 }
 
 export interface BoardResponse {

@@ -980,6 +980,52 @@ _LR_LEAN_NRFI_P   = 0.50
 _LR_PASS_LO_P     = 0.44
 _LR_LEAN_YRFI_P   = 0.50
 
+# 2026-07-27 (T-SELECTIVITY): dedicated STRONG YRFI gate, split out from
+# _LR_PASS_LO_P.  STRONG YRFI now requires p_nrfi < 0.36 (YRFI >= 0.64);
+# the 0.36-0.44 band that used to fire STRONG is demoted to LEAN YRFI
+# (tracked, never bet).
+#
+# WHY.  _LR_PASS_LO_P = 0.44 was classifying 648 of 1520 graded 2026
+# games -- 42.6% of the slate -- as STRONG YRFI.  There is no such thing
+# as a strong edge on 43% of a schedule.  Measured on the 349 graded
+# placed bets that have a real captured DK price:
+#
+#     model p 0.55-0.60 : 157 bets, 50.3% hit vs 54.7% market, -12.78u
+#     model p 0.60-0.65 : 107 bets, 55.1% hit vs 56.0% market,  -1.16u
+#     model p 0.65-0.70 :  85 bets, 67.1% hit vs 58.9% market, +11.74u
+#
+# The model is only better than the market in its top band.  Two
+# calibrator flat steps (YRFI 0.5936, 204 games across 98 distinct
+# lambdas; and YRFI 0.5616, 85 games) sat just inside the old gate and
+# supplied 45% of all STRONG bets -- games the calibrator explicitly
+# could not tell apart, auto-fired as confident bets.  Those plateau
+# bets went 51.4% vs 54.9% market-implied for -7.18u, while non-plateau
+# bets at the SAME average price went 57.0% for +8.40u.
+#
+# VALIDATION (tools/, 2026-07-27).  At p_nrfi < 0.36:
+#   - 105 bets, 67.6% hit vs 58.5% break-even, +16.05u, +15.3% ROI
+#     (baseline over the same 349 bets: 55.9% hit, -2.20u, -0.6% ROI)
+#   - positive in every month independently: May +11.9%, Jun +13.3%,
+#     Jul +20.4%
+#   - leave-one-month-out ROI stays +13.6%..+16.9% -- a plateau in the
+#     threshold sweep, not a lucky spike (0.66 is also strong)
+#   - true walk-forward (re-pick the gate daily from prior settled bets
+#     only): +6.05% ROI vs -0.63% baseline; it independently converged
+#     on 0.64/0.66 on 70 of 77 decision days
+#   - bootstrap 90% CI on ROI [+1.8%, +28.4%] -- excludes zero, the
+#     first time this system has cleared that bar (cf. the 2026-06-04
+#     edge-reality investigation, where every CI spanned zero)
+#
+# HONEST CAVEATS.  Splitting the sample in half, the clean monotone
+# bucket ordering only holds in the 2nd half (Jun 11 onward); in the 1st
+# half the 0.55-0.60 bucket outperformed.  Volume cost is real: 4.1 ->
+# 1.2 bets/day, with 30 of 86 days going to zero bets.
+#
+# DO NOT "fix" the resulting quiet days by loosening this back toward
+# 0.44 -- that is the leak.  REVERSAL: set to 0.44 to restore the old
+# behaviour exactly.
+_LR_STRONG_YRFI_P = 0.36
+
 # Lambda floor for STRONG YRFI: minimum expected 1st-inning runs the
 # model must project before we'll fire a STRONG YRFI bet, even when
 # the calibrated NRFI prob clears the 0.44 threshold.
@@ -1049,6 +1095,7 @@ def _write_thresholds_json() -> None:
         "leanNrfiP":       _LR_LEAN_NRFI_P,
         "passLoP":         _LR_PASS_LO_P,
         "leanYrfiP":       _LR_LEAN_YRFI_P,
+        "strongYrfiP":     _LR_STRONG_YRFI_P,
         "lambdaYrfiFloor": _LR_LAMBDA_YRFI_FLOOR,
         "lambdaNrfiCeiling": _LR_LAMBDA_NRFI_CEILING,
         # 2026-06-01: must be a VALID ISO-8601 string.  The old form
@@ -1896,9 +1943,15 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     if p_nrfi >= _LR_PASS_LO_P:               # exactly == 0.44
         return "PASS", "NO EDGE"
 
-    # p_nrfi < 0.44 -- STRONG YRFI candidate, gated by the lambda floor.
+    # p_nrfi < 0.44 -- YRFI side, gated first by the lambda floor.
     if lambda_total is not None and lambda_total < floor:
         return "PASS", "LOW LAMBDA"
+    # 2026-07-27 (T-SELECTIVITY): only the top band actually beats the
+    # market.  0.36 <= p_nrfi < 0.44 is a genuine YRFI lean but not
+    # enough separation to bet, so it tracks as LEAN instead of firing
+    # STRONG.  See _LR_STRONG_YRFI_P for the evidence.
+    if p_nrfi >= _LR_STRONG_YRFI_P:
+        return "YRFI", "LEAN"
     return "YRFI", "STRONG"
 
 

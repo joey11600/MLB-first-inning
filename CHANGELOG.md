@@ -90,16 +90,43 @@ past the growth-optimal point on overstated probabilities. The p≥0.64 row
 is in-sample (threshold chosen on the same data) and is an upper bound,
 not a forecast; the walk-forward row is the honest number.
 
-### Deferred (awaiting operator decision — all are money-policy changes)
+### Changed — SHIPPED (operator approved 2026-07-27)
 
-- Raising the STRONG gate. Walk-forward validated: +6.60u / +6.05% ROI vs
-  the -0.63% baseline, positive in all three full months, leave-one-month-
-  out stable at +13.6%..+16.9%, bootstrap 90% CI [+1.8%, +28.4%] excludes
-  zero. Costs volume: 4.1 → 1.2 bets/day, 30 of 86 days going to zero.
+- **`_LR_STRONG_YRFI_P = 0.36` — dedicated STRONG YRFI gate** (
+  `mlb_first_inning_predictor.py`). STRONG YRFI now requires calibrated
+  `p_nrfi < 0.36` (YRFI ≥ 0.64); the 0.36–0.44 band that previously fired
+  STRONG is demoted to **LEAN YRFI (tracked, never bet)**. Deliberately a
+  NEW constant rather than moving `_LR_PASS_LO_P`, so the PASS boundary
+  and LEAN/PASS semantics are untouched and demoted games stay visible on
+  the board instead of vanishing. Reversal: set to 0.44.
+  - Mirrored in `dashboard/components/BoardRow.tsx` (`classifyTentative`
+    + `DEFAULT_THRESHOLDS`) and `dashboard/lib/types.ts`; exported through
+    `data/thresholds.json` as `strongYrfiP`. Field is optional in TS so
+    older deploys fall back to the previous behaviour.
+  - Verified by **`tools/verify_selectivity_gate.py`**, which replays every
+    graded 2026 row through the real imported `classify_pick_lr` (not a
+    reimplementation) and settles at real captured DK prices. Holding all
+    other rules at current values and changing only the gate:
+
+    | gate | bets | hit | need | P&L | ROI |
+    |---|---|---|---|---|---|
+    | old `< 0.44` | 285 | 57.2% | 56.0% | +4.82u | +1.7% |
+    | new `< 0.36` | 86 | 69.8% | 58.6% | **+16.25u** | **+18.9%** |
+
+    +11.43u on 199 fewer bets. Note this replay differs from the raw
+    ledger figure quoted to the operator (349 bets / -2.20u) because the
+    ledger spans several rulesets — `_LR_LAMBDA_YRFI_FLOOR` moved
+    0.78 → 0.838 mid-season — whereas the replay applies today's rules
+    throughout. Replay-vs-replay is the honest comparison.
+
+### Deferred (still awaiting operator decision)
+
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
-  Only worth shipping as a prerequisite for Kelly.
-- Kelly sizing itself. Unsafe until selection is fixed; half Kelly or
-  less if adopted.
+  Only worth shipping as a prerequisite for Kelly, since on its own it
+  does not change which games get bet (see negative result above).
+- Kelly sizing itself. Now safer than it was — the selection fix above is
+  the precondition — but still unshipped. If adopted: half Kelly or less,
+  and only after the calibrator plateau is gone.
 
 ---
 
