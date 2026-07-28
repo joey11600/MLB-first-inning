@@ -330,6 +330,68 @@ seven exceeded 15u — while the per-bet cap never once bound.
   worth +8.24u. Unlike any model change this is a *certain* gain, and it
   is plausibly the largest single improvement still available.
 
+### Investigated — re-derived every gate and limit under Kelly staking
+
+Operator hypothesis (2026-07-28): every threshold this system ever chose
+was evaluated under FLAT 1u, where a marginal bet costs a whole unit when
+it loses. Kelly changes that — a bet whose model probability doesn't beat
+the market gets staked ZERO, so a band that bleeds at flat 1u might be
+neutral-or-better under Kelly, implying the correct gate is now *lower*.
+
+New `tools/kelly_gate_sweep.py` sweeps gate x Kelly fraction x daily cap
+x per-bet cap x min-edge, with per-month consistency, block-bootstrap CIs
+and a true walk-forward.
+
+**The hypothesis is right for exactly one band, and instructively wrong
+elsewhere:**
+
+| band | flat 1u | Kelly funded | Kelly P&L | verdict |
+|---|---|---|---|---|
+| 0.56-0.60 | -14.27u | 137/155 | **-36.91u** | Kelly makes it WORSE |
+| 0.60-0.64 | -3.95u | 76/82 | **+5.23u** | **rescued by Kelly** |
+| 0.64-0.68 | +14.59u | 87/91 | +81.30u | improved |
+| 0.68+ | -1.21u | 13/13 | -8.64u | worse (n=13) |
+
+**Why 0.56-0.60 gets worse is the important part.** Kelly can only filter
+on *claimed* edge. That band is exactly where the calibrator's 0.5936 flat
+step lives, so the model claims an edge it does not have — and Kelly
+responds by funding 88% of those bets and sizing them UP. Kelly's
+self-filtering is only as honest as the probability feeding it.
+
+**Nothing should change.** Gate 0.64 remains best on every criterion:
+
+| gate | flat | 1/8 K | 1/4 K | maxDD | months + | bootstrap 90% CI |
+|---|---|---|---|---|---|---|
+| 0.56 | -4.84u | +0.86u | +48.63u | 35.9% | 2/3 | [-41.08, +317.16] zero |
+| 0.60 | +9.42u | +25.67u | +84.92u | 28.6% | 3/3 | [-13.28, +306.26] zero |
+| **0.64 (live)** | +13.38u | +28.28u | **+90.18u** | **15.2%** | **3/3** | **[+5.76, +247.33]** |
+| 0.66 | +11.78u | +26.15u | +69.88u | 23.7% | 3/3 | — |
+
+0.64 is the **only** configuration whose bootstrap CI excludes zero, and
+it has both the lowest drawdown and the least month-concentration (best
+month 53% of profit, vs 118% at gate 0.56 where June was negative).
+
+- **Daily cap 15% is near-optimal**, confirming the value shipped hours
+  earlier: at gate 0.64, 10% → +85.99u, **15% → +90.18u**, 25% → +57.79u,
+  uncapped → +57.79u. At the loose 0.56 gate the cap does even more work
+  (10% → +126.95u vs uncapped -10.89u).
+- **The per-bet cap is redundant** — 10% and 25% give identical results
+  because the daily cap binds first. Left as-is; no reason to touch it.
+- **A min-edge filter adds nothing** (+90.18u → +90.49u at edge>=2%).
+  Kelly already zeroes non-positive-EV bets, so an explicit floor is
+  duplicated work.
+- **Walk-forward, the honest number** (gate re-chosen daily from prior
+  settled bets only): flat 1u **+6.15u**, 1/8 Kelly **+14.13u**,
+  1/4 Kelly **+44.60u**. Quarter Kelly is ~7x flat even with no hindsight.
+
+**Consequence — the calibrator rebuild is now worth doing.** Under flat
+staking it was proven worthless (all monotone calibrators select the same
+bets at equal volume, 2026-07-27). Under Kelly the calibrator's OUTPUT
+VALUE is the `p` in the Kelly formula and therefore sets stake size
+directly, so the 0.5936 plateau now makes Kelly stake 204 different games
+off one wrong number. CIR cuts plateau mass 68% → 12% at zero Brier cost.
+This reverses the earlier "not worth shipping" verdict.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
