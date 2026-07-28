@@ -113,8 +113,15 @@ export function RoiPanel({ initialDate, rows, details }: RoiPanelProps) {
   // The reconciliation source for the selected date. Prefer the REAL
   // record (real captured prices); fall back to PROJECTED for dates
   // before real pricing began.
-  const recSide  = seasonRecord?.real ?? seasonRecord?.projected ?? null;
-  const recDay   = recSide?.days.find((d) => d.date === initialDate) ?? null;
+  // Operator wants every date back to opening day. REAL only covers
+  // 2026-05-07 onward (36 April dates are projected-only), so fall
+  // through rather than showing an empty day for the first month.
+  const realSide = seasonRecord?.real ?? null;
+  const projSide = seasonRecord?.projected ?? null;
+  const realDay  = realSide?.days.find((d) => d.date === initialDate) ?? null;
+  const projDay  = projSide?.days.find((d) => d.date === initialDate) ?? null;
+  const recDay   = realDay ?? projDay;
+  const recSide  = realDay ? realSide : projDay ? projSide : (realSide ?? projSide);
   const fromRec  = nightFromRecord(recDay);
   const tonight  = useMemo(
     () => nightFromBoard(rows, details, initialDate),
@@ -370,12 +377,13 @@ function SeasonRecordCard({ rec }: { rec: RecFile }) {
 }
 
 function RecordColumn({ side, which }: { side: RecSide | null; which: "real" | "projected" }) {
+  const eyebrow = which === "real"
+    ? "Real prices · ¼-Kelly compounded"
+    : "Whole season · ¼-Kelly compounded";
   if (!side) {
     return (
       <div className={styles.recCol}>
-        <span className={styles.eyebrow}>
-          {which === "real" ? "Real prices · flat 1u stake" : "Projected · flat 1u stake"}
-        </span>
+        <span className={styles.eyebrow}>{eyebrow}</span>
         <span className={styles.meta}>
           Model replay unavailable — the export ran but produced no staked
           bets for this side.
@@ -384,19 +392,34 @@ function RecordColumn({ side, which }: { side: RecSide | null; which: "real" | "
     );
   }
   const k = side.sim;
+  // 2026-07-28 (operator): the system stakes by quarter-Kelly now, so the
+  // record is read in Kelly units. Flat 1u stays on screen as the
+  // un-leveraged reference -- it is what the edge is worth before any
+  // sizing decision -- but it is no longer the headline.
+  const tone: "win" | "loss" | "neutral" =
+    !isNum(k?.profit) ? "neutral" : k.profit > 0.05 ? "win" : k.profit < -0.05 ? "loss" : "neutral";
   return (
-    <div className={styles.recCol}>
-      <span className={styles.eyebrow}>
-        {which === "real" ? "Real prices · flat 1u stake" : "Projected · flat 1u stake"}
-      </span>
-      {/* HEADLINE IS FLAT PROFIT -- the edge with no leverage. */}
-      <span className={styles.figLead}>
-        {isNum(side.flatProfit) ? fmtU(side.flatProfit) : "—"}
+    <div className={styles.recCol} data-tone={tone}>
+      <span className={styles.eyebrow}>{eyebrow}</span>
+      <span className={`${styles.figLead} ${styles.simFig}`}>
+        {isNum(k?.profit) ? fmtU(k.profit) : "—"}
       </span>
       <span className={styles.meta}>
-        {`${side.bets} replayed bets · ${side.wins}-${side.losses} · `}
+        {isNum(k?.finalBank)
+          ? `bank ${k.startBank.toFixed(0)}u → ${k.finalBank.toFixed(2)}u · `
+          : ""}
+        {`${side.bets} bets · ${side.wins}-${side.losses} · `}
         {isNum(side.hitRate) ? `${(100 * side.hitRate).toFixed(1)}% hit` : ""}
       </span>
+      {/* What compounding actually asks of you. An average hides it: on
+          the projected path the bank grows ~10x, so the 10%-per-bet cap
+          puts late stakes near 80u. */}
+      {isNum(k?.medianStake) && (
+        <span className={styles.meta}>
+          {`typical bet ${k.medianStake.toFixed(2)}u · biggest ${(k.largestStake ?? 0).toFixed(2)}u · `}
+          {`deepest drawdown ${k.maxDrawdownPct.toFixed(1)}%`}
+        </span>
+      )}
       <span className={styles.meta}>
         {side.from} → {side.to}
         {side.priceFill != null
@@ -406,22 +429,16 @@ function RecordColumn({ side, which }: { side: RecSide | null; which: "real" | "
           <> · staked {side.bets} of {side.selectedBets} qualifying ({side.droppedZeroStake} sized to zero)</>
         )}
       </span>
-      {/* The compounded bankroll, demoted to one sentence. It is still
-          on screen -- nothing was hidden -- but it is prose, at meta
-          size, and .simCard forbids it a tone colour. */}
-      {isNum(k?.finalBank) && (
-        <span className={styles.meta}>
-          <span className={styles.tagInline}>Simulated</span>
-          {` Compounding ¼-Kelly on an imaginary ${k.startBank.toFixed(0)}u bank would have grown to `}
-          {`${k.finalBank.toFixed(2)}u (${fmtU(k.profit)}), deepest drawdown ${k.maxDrawdownPct.toFixed(1)}%.`}
-        </span>
-      )}
+      <span className={styles.meta}>
+        {`Same bets at flat 1u: ${fmtU(side.flatProfit)}. `}
+        The gap is leverage, not edge.
+      </span>
       {side.floor && (
         <div className={styles.floorBlock}>
           <span className={styles.eyebrow}>No-hindsight check</span>
           <span className={styles.meta}>
-            {`${side.floor.bets} bets · ${fmtU(side.floor.flatProfit)} flat · `}
-            {`¼-Kelly bank ${side.floor.sim.finalBank.toFixed(2)}u.`}
+            {`${fmtU(side.floor.sim.profit)} at ¼-Kelly over ${side.floor.bets} bets `}
+            {`(${side.floor.wins}-${side.floor.losses}) · ${fmtU(side.floor.flatProfit)} at flat 1u.`}
           </span>
         </div>
       )}

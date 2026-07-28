@@ -311,23 +311,39 @@ function rowToGameDetail(r: PickRow): GameDetail {
 async function listAvailableDates(season: number): Promise<string[]> {
   const sb = getServerSupabase();
   if (!sb) return [];
-  // Distinct dates in the season, newest first.  500-row safety cap is
-  // well above a full MLB season's slate count.
-  const { data, error } = await sb
-    .from(`picks_${season}`)
-    .select("date")
-    .order("date", { ascending: false })
-    .limit(500);
-  if (error || !data) return [];
-  // Postgres returns a row per CSV row so we have to dedupe + sort.
+  // 2026-07-28 BUG FIX. This capped at 500 with the comment "well above a
+  // full MLB season's slate count" -- but the cap counts ROWS, not dates,
+  // and there is one row per GAME. At ~13 games a night, 500 rows reached
+  // back only ~38 days. Every older date then failed the
+  // `available.includes(requestedIso)` test below and SILENTLY fell back
+  // to available[0] (today), so picking 2026-04-15 in the date picker
+  // just snapped back to tonight's slate with no error.
+  //
+  // Paginate instead of raising the limit: PostgREST enforces its own
+  // server-side max-rows (1000 here), so a bigger .limit() would still
+  // be truncated -- the same cap that silently truncated pl_calc.
+  const PAGE = 1000;
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const row of data as { date: string }[]) {
-    const d = (row.date || "").slice(0, 10);
-    if (d && !seen.has(d)) {
-      seen.add(d);
-      out.push(d);
+  for (let from = 0; from < 20_000; from += PAGE) {
+    const { data, error } = await sb
+      .from(`picks_${season}`)
+      .select("date")
+      .order("date", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.warn("[supabase] listAvailableDates page failed", from, error);
+      break;
     }
+    if (!data || data.length === 0) break;
+    for (const row of data as { date: string }[]) {
+      const d = (row.date || "").slice(0, 10);
+      if (d && !seen.has(d)) {
+        seen.add(d);
+        out.push(d);
+      }
+    }
+    if (data.length < PAGE) break;      // last page
   }
   return out;
 }
@@ -394,6 +410,15 @@ export async function loadBoardFromSupabase(
   }
   if (available.length === 0) return null;
 
+  if (requestedIso && !available.includes(requestedIso)) {
+    // Never substitute a different slate without saying so. Serving
+    // tonight's board under a requested April date is exactly the
+    // "wrong number, no explanation" failure this dashboard keeps hitting.
+    console.warn(
+      `[supabase] requested slate ${requestedIso} is not in the ${available.length} ` +
+      `available dates (${available[available.length - 1]} .. ${available[0]}); ` +
+      `serving ${available[0]} instead`);
+  }
   iso = requestedIso && available.includes(requestedIso)
     ? requestedIso
     : available[0];

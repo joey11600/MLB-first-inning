@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-07-28T20:29:48Z",
+ "generatedUtc": "2026-07-28T20:55:01Z",
  "headlineMethod": "the model that is live right now -- the shipped calibrator and the current gate -- replayed over every game of the season",
  "floorMethod": "no-hindsight check: at each date the calibrator is refit using only games played before that date",
  "caveat": "the shipped calibrator was fit on 2025+2026 data, so it has already seen these outcomes; the model weights are the fixed 2026-05-26 refit (trained through 2026-05-11), which makes bets on or before 2026-05-11 partially in-sample",
@@ -31,7 +31,9 @@
    "finalBank": 979.64,
    "profit": 879.64,
    "maxDrawdownPct": 18.59,
-   "kellyFraction": 0.25
+   "kellyFraction": 0.25,
+   "largestStake": 79.14,
+   "medianStake": 22.17
   },
   "floor": {
    "bets": 139,
@@ -45,7 +47,8 @@
    "sim": {
     "finalBank": 465.1,
     "profit": 365.1,
-    "maxDrawdownPct": 18.06
+    "maxDrawdownPct": 18.06,
+    "largestStake": 46.35
    }
   },
   "monthly": [
@@ -11132,7 +11135,9 @@
    "finalBank": 257.69,
    "profit": 157.69,
    "maxDrawdownPct": 18.59,
-   "kellyFraction": 0.25
+   "kellyFraction": 0.25,
+   "largestStake": 20.82,
+   "medianStake": 7.99
   },
   "floor": {
    "bets": 94,
@@ -11146,7 +11151,8 @@
    "sim": {
     "finalBank": 230.18,
     "profit": 130.18,
-    "maxDrawdownPct": 18.04
+    "maxDrawdownPct": 18.04,
+    "largestStake": 22.94
    }
   },
   "monthly": [

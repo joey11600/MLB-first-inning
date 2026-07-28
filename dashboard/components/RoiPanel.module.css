@@ -442,9 +442,17 @@
     transparent 3px 6px));
   border-radius: var(--radius) 0 0 var(--radius);
 }
+/* Simulated figures stay neutral by default. The ONE exception is the
+   replay headline (.simFig): the operator now stakes by Kelly, so this
+   is the number they read performance in, and win/loss has to be legible
+   at a glance. The other three honesty signals -- recessed surface,
+   hatched rail, SIMULATED tag -- still ship, so the card can never be
+   mistaken for the real-money ledger. */
 .simCard .figHero,
-.simCard .figLead,
 .simCard .figStat { color: var(--foreground) !important; }
+.simCard .figLead:not(.simFig) { color: var(--foreground) !important; }
+.recCol[data-tone="win"]  .simFig { color: var(--primary); }
+.recCol[data-tone="loss"] .simFig { color: var(--destructive); }
 
 .recCol { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .floorBlock {

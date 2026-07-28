@@ -47,6 +47,9 @@ Severity legend:
 - [x] **T7.10 — watermarks overlapped live figures; sub-AA contrast** ✅ 2026-07-28
   The 56px rotated "PAPER" sat on the −52.4pp value. Both watermarks removed together with the `z-index` rule holding them behind text. Light mode: four tokens below AA, fixed in BOTH light blocks (they had diverged). Dark mode: card border was 1.17:1 (invisible) → 2.27:1, `--muted-foreground` 5.75 → 7.25, `--destructive` lifted to clear AA on the lightened muted surface.
 
+- [x] **T7.12 — date picker could not reach most of the season** ✅ 2026-07-28
+  `listAvailableDates` capped at 500 ROWS (one row per game, ~13/night) while its comment described it as a slate count, so only ~38 days were listable. Older dates failed the `available.includes()` test and silently served tonight's board under the requested date. Paginated with `.range()`; a bigger `.limit()` would not have worked because PostgREST enforces a 1000-row server-side max. Unavailable dates now log instead of substituting silently.
+
 - [ ] **T7.11 — `game_pk` is not unique in picks_2026.csv** 🟡
   1563 rows, 1543 distinct; doubleheader legs share one pk and 2026-06-17 SF@ATL has both legs labelled game 1. No P&L impact today. Worked around by `rid`; the writer should still be fixed.
 

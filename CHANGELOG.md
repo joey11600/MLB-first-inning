@@ -133,6 +133,52 @@ Two independent causes stacked:
 - `season_record.json` is now written atomically — a cron tick could read
   it mid-write.
 
+### Changed — the record is now read in Kelly units, not flat
+
+Operator: *"i thought we are completely done with the flat units. all of
+our dashboard must reflect the new kelley sizing. even going back to the
+start of the season."* The system stakes by quarter-Kelly as of 2026-07-28,
+so the record leads with it.
+
+| | Kelly (headline) | flat 1u (reference) |
+|---|---|---|
+| REAL, 5/07 → 7/28, 125 bets | **+157.69u** (bank 100 → 257.69) | +11.33u |
+| WHOLE SEASON, 4/01 → 7/28, 190 bets | **+879.64u** (bank 100 → 979.64) | +34.66u |
+| no-hindsight floor (real) | +130.18u | +11.23u |
+| no-hindsight floor (season) | +365.10u | +25.45u |
+
+Flat stays on every column as one line — *"Same bets at flat 1u: +11.33u.
+The gap is leverage, not edge."* — because the two answer different
+questions and the difference is 14x.
+
+New on each column, because an average hides what compounding asks for:
+**typical bet 7.99u · biggest 20.82u** (real), **22.17u · 79.14u**
+(whole season). Deepest drawdown 18.6% on both.
+
+`replayText()` now quotes the Kelly figure too; it was still quoting flat
+while the day footer led with Kelly, which put two different replay
+numbers on one screen.
+
+### Fixed — the date picker could not reach most of the season
+
+`listAvailableDates` in `dashboard/lib/board-supabase.ts` capped its query
+at 500 rows with the comment *"well above a full MLB season's slate
+count"*. The cap counts **rows, not dates**, and there is one row per
+game: at ~13 games a night, 500 rows reached back roughly 38 days. Every
+older date then failed `available.includes(requestedIso)` and fell through
+to `available[0]` — **serving tonight's board under the requested date,
+silently**. Selecting 2026-04-15 just snapped back to tonight.
+
+Now paginated with `.range()` rather than a bigger `.limit()`, because
+PostgREST enforces its own 1000-row server-side max — the same cap that
+silently truncated `pl_calc`. A requested-but-unavailable date now logs a
+warning instead of substituting in silence. Verified 2026-04-01, 04-15,
+05-20, 06-10 and 07-27 all serve their own slate.
+
+Also: `DayReconcile` resolves a date against the REAL record first and
+falls back to PROJECTED, so the 36 April dates that exist only in the
+projected record are reachable instead of rendering empty.
+
 ### Deferred
 
 - Doubleheader `game_pk` is not unique in `picks_2026.csv` (1563 rows,

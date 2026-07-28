@@ -44,8 +44,12 @@ export interface NightCounts {
    *  replayed yet (tonight). NEVER 0 -- a fabricated zero here recreates
    *  the exact "my bets disappeared" problem this file exists to fix. */
   replay: number | null;
-  /** Flat-stake P&L of those replay bets. null when not replayed. */
+  /** Flat-stake P&L of those replay bets. null when not replayed. The
+   *  un-leveraged reference, no longer the figure surfaces lead with. */
   replayPL: number | null;
+  /** Quarter-Kelly P&L of those replay bets -- the sizing the system
+   *  actually stakes by, so this is what replayText() shows. */
+  replaySimPL: number | null;
   /** Simulated compounded bank after this date. null when not replayed. */
   replayBank: number | null;
 }
@@ -89,6 +93,7 @@ export function nightFromRecord(day: RecDay | null | undefined): NightCounts | n
     ledgerPL,
     replay: day.bet,
     replayPL: day.flatPnl,
+    replaySimPL: day.simPnl,
     replayBank: day.simBankAfter,
   };
 }
@@ -125,7 +130,7 @@ export function nightFromBoard(
     }
   }
   return { date, flagged, placed, settled, ledgerPL,
-           replay: null, replayPL: null, replayBank: null };
+           replay: null, replayPL: null, replaySimPL: null, replayBank: null };
 }
 
 /** The ONE string. Rendered verbatim in the ticker, the hero card and
@@ -139,5 +144,9 @@ export function chainText(n: NightCounts | null): string {
 export function replayText(n: NightCounts | null): string {
   if (!n) return "";
   if (n.replay == null) return "MODEL REPLAY  not replayed yet";
-  return `MODEL REPLAY ${n.replay} ${fmtU(n.replayPL)}`;
+  // Quarter-Kelly, matching the footer and the record card. Quoting the
+  // flat figure here while the footer led with Kelly put two different
+  // replay numbers on one screen -- the exact defect this file exists
+  // to prevent.
+  return `MODEL REPLAY ${n.replay} ${fmtU(n.replaySimPL ?? n.replayPL)}`;
 }

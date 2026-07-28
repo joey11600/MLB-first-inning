@@ -335,11 +335,21 @@ def make_record(rows, probs_dep, probs_wf, ledger, *, label, price_fill,
             "profit": round(bank - START, 2),
             "maxDrawdownPct": round(mdd, 2),
             "kellyFraction": tracker.KELLY_FRACTION,
+            # When the bank compounds ~10x, the 10%-per-bet cap means late
+            # stakes are enormous in absolute units. Reporting the largest
+            # single stake is the honest way to show what compounding
+            # actually asks of the operator.
+            "largestStake": round(max((b.get("stake", 0.0) for b in staked),
+                                      default=0.0), 2),
+            "medianStake": round(st.median([b.get("stake", 0.0) for b in staked]), 2),
         },
         # The no-hindsight lower bound, always shown beside the headline.
         "floor": (dict(floor, sim={"finalBank": round(wf_bank, 2),
                                    "profit": round(wf_bank - START, 2),
-                                   "maxDrawdownPct": round(wf_mdd, 2)})
+                                   "maxDrawdownPct": round(wf_mdd, 2),
+                                   "largestStake": round(max(
+                                       (b.get("stake", 0.0) for b in wf_staked),
+                                       default=0.0), 2)})
                   if floor else None),
         "monthly": monthly,
         "days": days,

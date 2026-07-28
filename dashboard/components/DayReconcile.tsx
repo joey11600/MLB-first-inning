@@ -334,9 +334,12 @@ export function DayReconcile({
   if (counts.replay == null) {
     replayFoot = "not replayed yet";
   } else {
+    // Quarter-Kelly leads: that is the sizing the operator actually
+    // stakes by now, so it is the figure the day should be read in.
+    // Flat stays as the un-leveraged reference, labelled.
     const parts = [`staked ${counts.replay} of ${counts.flagged}`];
-    if (isNum(counts.replayPL)) parts.push(`flat ${fmtU(counts.replayPL)}`);
-    if (simPnl != null) parts.push(`compounding ${fmtU(simPnl)} sim`);
+    if (simPnl != null) parts.push(`${fmtU(simPnl)} at ¼-Kelly`);
+    if (isNum(counts.replayPL)) parts.push(`${fmtU(counts.replayPL)} at flat 1u`);
     if (simPnl != null && simBankAfter != null) {
       const before = simBankAfter - simPnl;
       parts.push(`bank ${before.toFixed(2)}u → ${simBankAfter.toFixed(2)}u sim`);

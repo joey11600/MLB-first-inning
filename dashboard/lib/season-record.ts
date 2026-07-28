@@ -72,7 +72,8 @@ export interface RecFloor {
   bets: number; wins: number; losses: number;
   hitRate: number; breakEvenNeeded: number; edgePts: number;
   flatProfit: number; assumedBets: number;
-  sim: { finalBank: number; profit: number; maxDrawdownPct: number };
+  sim: { finalBank: number; profit: number; maxDrawdownPct: number;
+         largestStake?: number };
 }
 
 export interface RecSide {
@@ -86,7 +87,9 @@ export interface RecSide {
   hitRate:    number;
   breakEvenNeeded: number;
   edgePts:    number;
-  /** THE HEADLINE. Flat 1u per bet -- the edge, with no leverage. */
+  /** Flat 1u per bet: the raw edge with no leverage. Kept as the
+   *  reference line under the Kelly headline -- the operator stakes by
+   *  Kelly now, so Kelly is what the card leads with. */
   flatProfit: number;
   assumedBets: number;
   selectedBets?:    number;
@@ -97,6 +100,11 @@ export interface RecSide {
   sim: {
     startBank: number; finalBank: number; profit: number;
     maxDrawdownPct: number; kellyFraction: number;
+    /** What compounding actually asks of the operator. With the bank up
+     *  ~10x the 10%-per-bet cap makes late stakes large in absolute
+     *  units, and an average hides that. */
+    largestStake?: number;
+    medianStake?: number;
   };
   /** The no-hindsight lower bound. null when it stakes nothing. */
   floor:   RecFloor | null;
