@@ -260,3 +260,11 @@ date,severity,metric,note
 2026-07-23,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 1/5 extreme values (outside [5.0, 95.0]); max=88.00"
 2026-07-24,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 5 (>=4 = MEDIUM; informational -- not predictive of pick quality)
 2026-07-24,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 5 (>=4 = MEDIUM; informational -- not predictive of pick quality)
+2026-07-27,MEDIUM,home_top3c_source=lineup,home_top3c_source=lineup: today=8.3% baseline=99.0% shift=-90.6%
+2026-07-27,MEDIUM,home_top3c_source=team_fallback,home_top3c_source=team_fallback: today=91.7% baseline=1.0% shift=+90.6%
+2026-07-27,MEDIUM,away_top3c_source=lineup,away_top3c_source=lineup: today=8.3% baseline=99.0% shift=-90.6%
+2026-07-27,MEDIUM,away_top3c_source=team_fallback,away_top3c_source=team_fallback: today=91.7% baseline=1.0% shift=+90.6%
+2026-07-27,MEDIUM,away_xera_extreme,"away_xera has 2/12 extreme values (outside [2.0, 7.0]); max=5.50"
+2026-07-27,HIGH,away_top3_ops_vs_oppHand_default_rate,away_top3_ops_vs_oppHand defaulted to 0.72 in 11/12 rows (92%); heavy defaulting = predict pipeline failed
+2026-07-27,HIGH,home_top3_ops_vs_oppHand_default_rate,home_top3_ops_vs_oppHand defaulted to 0.72 in 11/12 rows (92%); heavy defaulting = predict pipeline failed
+2026-07-27,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
