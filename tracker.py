@@ -3183,6 +3183,17 @@ def current_bankroll_units(season: int = 2026) -> float:
                 continue
             if (r.get("date") or "") < KELLY_BANKROLL_EPOCH:
                 continue          # pre-Kelly history does not compound
+            # 2026-07-28 P0 FIX (code audit): only REAL-PRICED settlements
+            # move the sizing bankroll.  A WIN with no captured picked-side
+            # price gets its P&L filled by _calc_pnl's flat -110 fallback --
+            # invented profit that would then scale every subsequent Kelly
+            # stake.  (Losses are -units regardless of price, but skip them
+            # symmetrically: a bankroll must not be built from prices that
+            # were never observed.  This is the April +15u artefact, again.)
+            side = (r.get("pick_side") or "").strip().upper()
+            price_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+            if not (r.get(price_col) or "").strip():
+                continue          # no real price -> settlement is fabricated
             v = (r.get("profit_loss_units") or "").strip()
             if not v:
                 continue
@@ -3197,11 +3208,28 @@ def current_bankroll_units(season: int = 2026) -> float:
 
 
 def _committed_on(game_date: str, season: int = 2026) -> float:
-    """Units already earmarked for STRONG picks on `game_date`.
+    """Units already LOCKED into STRONG bets on `game_date`.
 
-    Seeded once per date from the ledger (so a fresh cron process sees
-    what earlier ticks already committed), then kept current in-process
-    as this run assigns further stakes.
+    2026-07-28 P0 FIX (found by the code audit): this used to seed from
+    every STRONG row's units_risked, including pre-lock (bet_placed=N)
+    rows -- the very rows the current import batch is about to re-size.
+    kelly_stake_units then ADDED each fresh stake on top without ever
+    releasing the row's prior one, so committed exposure double-counted
+    (~2x truth) on every odds re-import.  With Railway re-importing
+    every 5 minutes, stakes on any day whose true exposure exceeded
+    half the daily budget oscillated full -> trimmed -> zero across
+    ticks, and whatever happened to be on the row when the T2.58 lock
+    window flipped it to bet_placed=Y froze forever under the T2.23
+    lock.  Every offline replay tool already worked around this by
+    resetting _daily_committed manually; production had no reset.
+
+    Fix, two halves (see also kelly_reset_daily_committed below):
+      * seed ONLY from bet_placed=Y rows -- those stakes are frozen by
+        the T2.23 lock and will never be re-sized, so they are the only
+        exposure that is genuinely spoken for;
+      * each import batch resets the in-process tally first, so
+        re-sizing the same pre-lock row on the next tick REPLACES its
+        stake instead of stacking it.
     """
     if game_date in _daily_committed:
         return _daily_committed[game_date]
@@ -3212,6 +3240,8 @@ def _committed_on(game_date: str, season: int = 2026) -> float:
                 continue
             if (r.get("pick_strength") or "").strip().upper() != "STRONG":
                 continue
+            if (r.get("bet_placed") or "").strip().upper() != "Y":
+                continue          # pre-lock rows get re-sized; don't count them
             v = (r.get("units_risked") or "").strip()
             if not v:
                 continue
@@ -3223,6 +3253,25 @@ def _committed_on(game_date: str, season: int = 2026) -> float:
         total = 0.0     # soft-fail: no cap rather than a crash
     _daily_committed[game_date] = total
     return total
+
+
+def kelly_reset_daily_committed() -> None:
+    """Reset the in-process daily-exposure tally AND the bankroll cache.
+
+    Call at the START of every odds-import batch.  Rationale:
+      * _daily_committed accumulates the stakes assigned during a batch.
+        In a long-lived process (Railway's predictor_loop re-imports
+        every 5 minutes) the tally would otherwise grow without bound --
+        each tick re-adding stakes for the same pre-lock rows until the
+        daily cap chokes every bet to zero by the afternoon.
+      * _bankroll_cache is read once per process by design; in that same
+        long-lived process it would serve a stale bankroll for days.
+        One ledger read per 5-minute batch is cheap and keeps Kelly
+        sizing off the current bank.
+    """
+    global _bankroll_cache
+    _daily_committed.clear()
+    _bankroll_cache = None
 
 
 def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
@@ -3664,6 +3713,13 @@ def import_odds(
     if not rows:
         print(f"No picks logged for season {season}. Run the predictor first.")
         return
+
+    # 2026-07-28 P0 FIX: start every import batch from a clean exposure
+    # tally + fresh bankroll.  Without this, a long-lived process (the
+    # Railway 5-minute loop) stacks each tick's stakes on top of the
+    # last tick's and re-sizes pre-lock rows against a phantom 2x
+    # committed figure -- see _committed_on's docstring.
+    kelly_reset_daily_committed()
 
     # Build lookup indexes.  T2.21: by_team is now a LIST of indices per
     # team key (not a single int) so DH games don't clobber each other.

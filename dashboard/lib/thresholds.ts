@@ -84,6 +84,7 @@ export async function loadThresholds(): Promise<PickThresholds | undefined> {
     const kMaxStake  = n(obj.kellyMaxStakeFrac);
     const kMaxDaily  = n(obj.kellyMaxDailyFrac);
     const kMinStake  = n(obj.kellyMinStakeUnits);
+    const kCurBank   = n(obj.kellyCurrentBankrollUnits);
 
     return {
       ...core,
@@ -95,6 +96,7 @@ export async function loadThresholds(): Promise<PickThresholds | undefined> {
       ...(kMaxStake  != null ? { kellyMaxStakeFrac:  kMaxStake }  : {}),
       ...(kMaxDaily  != null ? { kellyMaxDailyFrac:  kMaxDaily }  : {}),
       ...(kMinStake  != null ? { kellyMinStakeUnits: kMinStake }  : {}),
+      ...(kCurBank   != null ? { kellyCurrentBankrollUnits: kCurBank } : {}),
     } as PickThresholds;
   }
   return undefined;

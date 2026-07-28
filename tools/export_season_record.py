@@ -56,9 +56,15 @@ REAL_START = "2026-05-07"  # first day DK capture is >=80% and sustained
 
 def make_record(bets, label, price_fill, date_from, date_to):
     """Simulate one record and return the JSON-ready dict."""
-    bank, mdd, curve, staked = simulate(sorted(bets, key=lambda b: b["date"]))
+    bets = sorted(bets, key=lambda b: b["date"])
+    bank, mdd, curve, staked = simulate(bets)
     if not staked:
         return None
+    # Audit 2026-07-28 (P1): Kelly zeroes some SELECTED bets (no edge at
+    # the price, or the daily cap is exhausted), and the headline W-L was
+    # silently computed over the staked subset only.  Disclose the gap.
+    dropped = [b for b in bets if b.get("stake", 0.0) <= 0]
+    dropped_flat = sum(payout(b["odds"]) if b["win"] else -1.0 for b in dropped)
     n = len(staked)
     w = sum(1 for b in staked if b["win"])
     flat = sum(payout(b["odds"]) if b["win"] else -1.0 for b in staked)
@@ -102,6 +108,9 @@ def make_record(bets, label, price_fill, date_from, date_to):
         "label": label,
         "priceFill": price_fill,
         "from": date_from, "to": date_to,
+        "selectedBets": len(bets),
+        "droppedZeroStake": len(dropped),
+        "droppedFlatPnl": round(dropped_flat, 2),
         "bets": n, "wins": w, "losses": n - w,
         "hitRate": round(w / n, 4),
         "breakEvenNeeded": round(need, 4),
@@ -138,9 +147,15 @@ def main() -> int:
 
     out = {
         "generatedUtc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "method": ("walk-forward replay of the current model and staking -- "
-                   "the calibrator at each date is refit from strictly earlier "
-                   "games, so no game is scored by a curve that saw its outcome"),
+        # Audit 2026-07-28 (P1): the old string claimed full walk-forward.
+        # Only the CALIBRATOR is walk-forward; the LR weights are the fixed
+        # 2026-05-26 refit, trained on 2024+2025+2026-through-05-11.  Bets
+        # dated on or before 2026-05-11 are therefore partially in-sample
+        # at the weight layer.  Say exactly that.
+        "method": ("calibrator walk-forward (refit at each date from strictly "
+                   "earlier games); LR weights fixed from the 2026-05-26 refit "
+                   "(trained through 2026-05-11), so bets on or before "
+                   "2026-05-11 are partially in-sample at the weight layer"),
         "gates": {"yrfi": yrfi_gate, "nrfi": NRFI_GATE},
         "kellyFraction": tracker.KELLY_FRACTION,
         "startBank": START,

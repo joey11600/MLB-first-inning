@@ -177,6 +177,10 @@ export interface PickThresholds {
   kellyMaxStakeFrac?:  number;
   kellyMaxDailyFrac?:  number;
   kellyMinStakeUnits?: number;
+  // Compounded bank (100 + realized post-epoch P&L), refreshed by the
+  // predictor each tick. StakeChip must size from THIS, not the static
+  // nominal bank -- audit finding 2026-07-28.
+  kellyCurrentBankrollUnits?: number;
 }
 
 export interface BoardResponse {

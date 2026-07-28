@@ -78,7 +78,13 @@ function summarize(
 
     const d      = lookupDetail(r, details);
     const placed = d?.betPlaced;
-    const stakeU = placed === "Y" ? 1 : 0;
+    // 2026-07-28 P0 FIX (code audit): this was hard-coded to 1u per
+    // placed bet while quarter-Kelly is live and staking ~4-10u -- the
+    // hero card was understating tonight's real exposure severalfold.
+    // Use the ledger's recorded stake; a placed row with no recorded
+    // stake yet contributes 0 rather than an invented figure (same
+    // no-guess rule as the StakeChip).
+    const stakeU = placed === "Y" && d?.unitsRisked != null ? d.unitsRisked : 0;
 
     if (r.pickSide === "NRFI") {
       nrfiCount += 1;

@@ -830,6 +830,74 @@ planned." Correct. Now done, per the approved shape brief + CLAUDE.md:
 Verified against a production build: --primary computes to #f5a465,
 record card above the relabelled ledger, footnote rendered.
 
+### Fixed — full-code audit: 4 money bugs + 4 wrong-number bugs (16-agent review)
+
+An ultracode audit workflow (6 lens-specific reviewers, every P0/P1
+finding adversarially verified against the code) confirmed 8 of 35 raw
+findings. All 8 fixed:
+
+**P0 · Kelly daily cap double-counted on every odds re-import**
+(`tracker.py`). `_committed_on` seeded from ALL STRONG rows' stakes —
+including the pre-lock rows the batch was about to re-size — and each
+re-size ADDED the fresh stake without releasing the old one, so
+committed exposure ran ~2x truth. With Railway re-importing every 5
+minutes, stakes on any normal day oscillated full → trimmed → zero
+across ticks, and whatever value existed when the lock window flipped
+the row froze forever. Every offline replay tool already worked around
+this with a manual reset; production had none. Fix: seed only from
+locked (`bet_placed=Y`) rows + new `kelly_reset_daily_committed()`
+called at the top of every import batch (also refreshes the bankroll
+cache, which never expired in a long-lived process). **Regression: 3
+consecutive simulated import batches now produce identical stakes;
+verify_kelly_wiring all-pass.**
+
+**P0 · end_of_day heal fabricated bets** (`tools/end_of_day_check.py`).
+The orphan-heal predicate skipped only `bet_placed=Y`, so deliberate
+`N` rows — Kelly's zero-stake edge gate, daily-cap-zeroed picks,
+pre-lock pendings — got retroactively stamped `Y` at flat 1.00u,
+booking P&L for bets never made and (via the compounding bankroll)
+mis-sizing every later stake. Now heals only truly-blank rows and
+preserves any recorded Kelly stake instead of flattening it to 1.00.
+
+**P0 · StakeChip sized from a static bankroll** (`BoardRow.tsx`). The
+chip used the nominal 100u while the tracker stakes from the compounded
+bank — in a drawdown the chip overstates the real stake. The predictor
+now exports `kellyCurrentBankrollUnits` each tick and the chip uses it;
+once a bet locks, the chip displays the ledger's frozen `unitsRisked`
+verbatim ("staked N.NNu") instead of recomputing.
+
+**P0 · hero card hard-coded 1u per bet** (`TonightsActionCard.tsx`).
+"X.Xu staked" summed a constant 1 while quarter-Kelly stakes 4-10u —
+understating tonight's real exposure severalfold. Now sums the ledger's
+`unitsRisked`; rows without a recorded stake contribute 0, never a guess.
+
+**P1 · TotalCard caption/tone described a different bet set than its
+number** — headline was real-priced P&L, caption counted all graded bets
+and the card colour keyed off the placeholder-inflated sum. All three
+now follow the priced subset, with the record labelled "counts all
+graded" when they differ.
+
+**P1 · record's method string overclaimed walk-forward.** Only the
+calibrator is walk-forward; the LR weights are the fixed 2026-05-26
+refit (trained through 5/11), so bets ≤5/11 are partially in-sample at
+the weight layer. The JSON now says exactly that.
+
+**P1 · record silently dropped Kelly-zeroed bets from its W-L.**
+Projected: 47 of 186 qualifying bets (+3.97u flat) got zero stake and
+vanished from the headline. Now disclosed in the JSON
+(`selectedBets/droppedZeroStake/droppedFlatPnl`) and on the card
+("staked 139 of 186 qualifying").
+
+**P1 · sizing bankroll compounded -110-fallback P&L** (`tracker.py`).
+A post-epoch WIN with no captured price books fallback profit that then
+scales every later Kelly stake — the April artefact, recreated inside
+the money path. The compounding loop now skips rows without a real
+picked-side price.
+
+Refuted by verification (not fixed, on purpose): the TODAY-eyebrow
+provenance claim and the record-vs-ledger day-strip mismatch claim.
+12 lower-priority P2 findings logged in the audit output for later.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.

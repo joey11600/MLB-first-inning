@@ -1,6 +1,6 @@
 {
- "generatedUtc": "2026-07-28T18:51:39Z",
- "method": "walk-forward replay of the current model and staking -- the calibrator at each date is refit from strictly earlier games, so no game is scored by a curve that saw its outcome",
+ "generatedUtc": "2026-07-28T19:36:56Z",
+ "method": "calibrator walk-forward (refit at each date from strictly earlier games); LR weights fixed from the 2026-05-26 refit (trained through 2026-05-11), so bets on or before 2026-05-11 are partially in-sample at the weight layer",
  "gates": {
   "yrfi": 0.4,
   "nrfi": 0.6
@@ -12,7 +12,10 @@
   "label": "Projected profit",
   "priceFill": -125.0,
   "from": "2026-04-01",
-  "to": "2026-07-27",
+  "to": "2026-07-28",
+  "selectedBets": 186,
+  "droppedZeroStake": 47,
+  "droppedFlatPnl": 3.97,
   "bets": 139,
   "wins": 94,
   "losses": 45,
@@ -1779,7 +1782,10 @@
   "label": "Real profit",
   "priceFill": null,
   "from": "2026-05-07",
-  "to": "2026-07-27",
+  "to": "2026-07-28",
+  "selectedBets": 100,
+  "droppedZeroStake": 6,
+  "droppedFlatPnl": 1.8,
   "bets": 94,
   "wins": 61,
   "losses": 33,

@@ -111,6 +111,19 @@ def find_orphaned_strong_bets(rows: list[dict], iso_date: str) -> list[int]:
         bet_placed = (r.get("bet_placed") or "").strip().upper()
         if bet_placed == "Y":
             continue   # already correctly placed
+        # 2026-07-28 P0 FIX (code audit): only heal rows whose bet_placed
+        # is genuinely EMPTY -- the "odds pipeline never saw this row"
+        # case this tool was written for (see module docstring).  The old
+        # predicate skipped only "Y", which swept up every DELIBERATE
+        # bet_placed="N": Kelly's zero-stake edge gate, the daily
+        # exposure cap zeroing a pick, and T2.58 pre-lock pendings that
+        # never committed.  Those rows then got retroactively stamped
+        # bet_placed=Y at a flat 1.00u -- fabricating bets that were
+        # never made, overwriting recorded Kelly stakes, and (because
+        # current_bankroll_units compounds realized P&L) mis-sizing
+        # every real stake placed later the same night.
+        if bet_placed == "N":
+            continue   # deliberate no-bet decision -- never fabricate it
         graded = (r.get("graded_result") or "").strip().upper()
         # Only retro-fix games whose result is in: WIN / LOSS.
         # PASS shouldn't happen for STRONG NRFI/YRFI rows (PASS is
@@ -246,8 +259,15 @@ def main() -> int:
     # Apply the fix in-memory
     fixed_rows: list[dict] = []
     for i in indices:
-        rows[i]["bet_placed"]        = "Y"
-        rows[i]["units_risked"]      = "1.00"
+        rows[i]["bet_placed"] = "Y"
+        # 2026-07-28: preserve an already-recorded stake instead of
+        # blanket-overwriting with flat 1.00.  A healed row can carry a
+        # real Kelly stake computed pre-lock; flattening it rewrites the
+        # position size after the fact.  Flat 1.00 remains the fallback
+        # for truly blank rows, matching what the live path does for a
+        # priceless bet (Kelly returns None -> flat stake).
+        if not (rows[i].get("units_risked") or "").strip():
+            rows[i]["units_risked"] = "1.00"
         rows[i]["profit_loss_units"] = _calc_pnl(rows[i])
         fixed_rows.append(rows[i])
 

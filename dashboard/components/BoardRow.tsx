@@ -142,7 +142,7 @@ function noDataReason(detail: GameDetail | undefined): string {
  *  the predictor writes to data/thresholds.json on every run -- they
  *  are a fallback for the first render before the file loads. */
 export const DEFAULT_THRESHOLDS: PickThresholds = {
-  strongNrfiP:     0.62,
+  strongNrfiP:     1.01,  // NRFI betting disabled 2026-06-07 (1.01 = unreachable); audit fix
   leanNrfiP:       0.50,
   passLoP:         0.44,
   leanYrfiP:       0.50,
@@ -819,6 +819,18 @@ function StakeChip({
   if (!t || t.kellyEnabled !== true || typeof t.kellyFraction !== "number") return null;
   if (!detail) return null;
 
+  // Once the bet is LOCKED the ledger's stake is the truth -- display it
+  // verbatim instead of recomputing (audit 2026-07-28: recomputation
+  // diverges from the frozen stake as the bankroll moves).
+  if (detail.betPlaced === "Y" && detail.unitsRisked != null) {
+    return (
+      <span className={styles.stakeChip}>
+        <span className={styles.stakeLabel}>staked</span>
+        <span className={styles.stakeValue}>{detail.unitsRisked.toFixed(2)}u</span>
+      </span>
+    );
+  }
+
   const raw = row.pickSide === "NRFI" ? detail.marketNrfiOdds : detail.marketYrfiOdds;
   const american = Number.parseFloat(normalizeAmericanOdds(raw));
   if (!Number.isFinite(american) || american === 0) return null;
@@ -837,7 +849,10 @@ function StakeChip({
       </span>
     );
   }
-  const bank = t.kellyBankrollUnits ?? 100;
+  // Audit 2026-07-28: size from the COMPOUNDED bank the tracker actually
+  // uses, not the static nominal 100u -- in a drawdown the static figure
+  // OVERSTATES the stake the operator is about to place.
+  const bank = t.kellyCurrentBankrollUnits ?? t.kellyBankrollUnits ?? 100;
   const frac = Math.min(full * t.kellyFraction, t.kellyMaxStakeFrac ?? 0.1);
   const units = bank * frac;
   if (units < (t.kellyMinStakeUnits ?? 0.1)) return null;

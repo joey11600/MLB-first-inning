@@ -1119,6 +1119,14 @@ def _kelly_thresholds() -> dict:
             "kellyMaxDailyFrac": float(tracker.KELLY_MAX_DAILY_FRAC),
             "kellyMinStakeUnits": float(tracker.KELLY_MIN_STAKE_UNITS),
             "kellyEpoch":        str(tracker.KELLY_BANKROLL_EPOCH),
+            # 2026-07-28 P0 FIX: the StakeChip was sizing its displayed
+            # stake off the STATIC nominal bank (100u) while tracker
+            # sizes real stakes off the COMPOUNDED bank -- the chip
+            # diverges the moment any Kelly-era bet grades, and in a
+            # drawdown it OVERSTATES what will be staked.  Export the
+            # live figure; the predictor runs every cron tick so this
+            # stays at most one tick stale.
+            "kellyCurrentBankrollUnits": float(tracker.current_bankroll_units()),
         }
     except Exception:
         return {"kellyEnabled": None}

@@ -269,6 +269,11 @@ interface SeasonRecordSide {
   breakEvenNeeded: number;
   edgePts: number;
   assumedBets: number;
+  // Audit 2026-07-28: Kelly zeroes some selected bets; disclose the gap
+  // instead of silently reporting W-L over the staked subset only.
+  selectedBets?: number;
+  droppedZeroStake?: number;
+  droppedFlatPnl?: number;
   flatProfit: number;
   startBank: number;
   finalBank: number;
@@ -325,6 +330,9 @@ function RecordColumn({ side, selectedDate }: { side: SeasonRecordSide; selected
         {side.priceFill != null
           ? ` · missing prices at ${fmtOdds(side.priceFill)} (${side.assumedBets} of ${side.bets} bets)`
           : " · real captured prices only"}
+        {side.selectedBets != null && (side.droppedZeroStake ?? 0) > 0 && (
+          <> · staked {side.bets} of {side.selectedBets} qualifying (Kelly sized {side.droppedZeroStake} to zero)</>
+        )}
       </span>
       {/* Selected-day strip (operator 2026-07-28): the ControlPanel date
           picker drives this, so filtering to a day shows THAT day's
@@ -432,9 +440,24 @@ function TotalCard({
   if (!total) {
     return <div className={`${styles.totalCard} ${styles.totalCardEmpty}`} />;
   }
-  const tone = totalTone(total);
+  // Audit 2026-07-28 (P1): the headline renders realPL (priced bets
+  // only) but the caption + card colour described ALL graded bets
+  // including placeholder-settled ones -- units, record and tone on one
+  // card were about different bet sets. Caption and tone now follow the
+  // same subset the number does; when provenance is unknown (the TODAY
+  // aggregator) both fall back to the raw set, matching the number.
+  const prov = total?.provenance;
+  const provKnown = !!prov && (prov.realPricedBets + prov.placeholderBets) > 0;
+  const shownPL = total ? realPL(total) : 0;
+  const tone: "win" | "loss" | "neutral" =
+    !total || total.bets === 0 ? "neutral"
+    : shownPL > 0.05 ? "win" : shownPL < -0.05 ? "loss" : "neutral";
   const subText = total.bets > 0
-    ? `units across ${total.bets} graded bets (${total.wins}W-${total.losses}L)`
+    ? provKnown && prov.placeholderBets > 0
+      ? `units across ${prov.realPricedBets} priced bets · ` +
+        `${prov.placeholderBets} placeholder-priced excluded ` +
+        `(record ${total.wins}W-${total.losses}L counts all graded)`
+      : `units across ${total.bets} graded bets (${total.wins}W-${total.losses}L)`
     : window === "today"
       ? "no bets graded yet today"
       : "no graded bets in this window";
