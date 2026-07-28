@@ -417,16 +417,12 @@ function RecordColumn({ side, which }: { side: RecSide | null; which: "real" | "
           <> · staked {side.bets} of {side.selectedBets} qualifying ({side.droppedZeroStake} sized to zero)</>
         )}
       </span>
-      <span className={styles.meta}>
-        {`Same bets at flat 1u: ${fmtU(side.flatProfit)}. `}
-        The gap is leverage, not edge.
-      </span>
       {side.floor && (
         <div className={styles.floorBlock}>
           <span className={styles.eyebrow}>No-hindsight check</span>
           <span className={styles.meta}>
-            {`${fmtU(side.floor.sim.profit)} at ¼-Kelly over ${side.floor.bets} bets `}
-            {`(${side.floor.wins}-${side.floor.losses}) · ${fmtU(side.floor.flatProfit)} at flat 1u.`}
+            {`${fmtU(side.floor.sim.profit)} over ${side.floor.bets} bets `}
+            {`(${side.floor.wins}-${side.floor.losses}), same ¼-Kelly staking.`}
           </span>
         </div>
       )}

@@ -34,12 +34,13 @@
   overflow: hidden;
 }
 
+/* 2026-07-28: the 220x140 radial glow ran at 22% alpha orange over the
+   card and was the most visible contributor to the "orange haze". A tile
+   does not need a light source to read as primary -- a 2px top rule does
+   it without tinting the surface underneath the numbers. */
 .tile.primary {
-  background:
-    radial-gradient(220px 140px at 0% 0%,
-      var(--nrfi-soft-2),
-      transparent 60%),
-    var(--card);
+  background: var(--card);
+  border-top: 2px solid color-mix(in oklab, var(--primary) 55%, var(--border));
 }
 
 /* T3.21: dropped .plTile, .plPositive, .plNegative, .plUnit,

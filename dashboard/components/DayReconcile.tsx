@@ -338,8 +338,9 @@ export function DayReconcile({
     // stakes by now, so it is the figure the day should be read in.
     // Flat stays as the un-leveraged reference, labelled.
     const parts = [`staked ${counts.replay} of ${counts.flagged}`];
-    if (simPnl != null) parts.push(`${fmtU(simPnl)} at ¼-Kelly`);
-    if (isNum(counts.replayPL)) parts.push(`${fmtU(counts.replayPL)} at flat 1u`);
+    // Quarter-Kelly only. The operator asked for flat to come off the
+    // dashboard entirely -- it is the sizing they no longer use.
+    if (simPnl != null) parts.push(fmtU(simPnl));
     if (simPnl != null && simBankAfter != null) {
       const before = simBankAfter - simPnl;
       parts.push(`bank ${before.toFixed(2)}u → ${simBankAfter.toFixed(2)}u sim`);

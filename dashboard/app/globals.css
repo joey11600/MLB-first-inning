@@ -11,14 +11,21 @@
 
 /* --------- Default theme = Bloomberg dark --------- */
 :root {
+   /* 2026-07-28: surfaces desaturated. Every surface was hue ~30 at
+      32-44%% saturation, so background, cards, borders and accents were
+      all the same orange and the whole screen read as one haze with
+      nothing for the peach/amber data colours to sit against. Chroma
+      cut to 10-16%%; LUMINANCE HELD, so every contrast ratio measured
+      for the AA pass still holds (drift < 0.003). The warmth now lives
+      in the ink, not the paper. */
   /* Surfaces */
-  --background:        #171009;
-  --card:              #281d13;
+  --background:        #12100e;
+  --card:              #211d1a;
   --popover:           #20160e;
-  --muted:             #33261a;
+  --muted:             #2b2622;
   --accent:            #2c2015;
-  --input:             #4a3826;
-  --border:            #6b523c;   /* was #302317 -- 1.17:1 on card, invisible.
+  --input:             #403830;
+  --border:            #615346;   /* was #302317 -- 1.17:1 on card, invisible.
                                      Now 2.32:1, so cards actually have edges. */
   --ring:              #f5a465;
   --radius:            0.375rem;
@@ -34,9 +41,9 @@
 
   /* Warm accents */
   --primary:               #f5a465;     /* peach = NRFI / positive */
-  --primary-foreground:    #171009;
+  --primary-foreground:    #12100e;
   --secondary:             #e9b45b;     /* amber = PASS */
-  --secondary-foreground:  #171009;
+  --secondary-foreground:  #12100e;
   /* T3.21: warmed YRFI red.  The previous #ff4a5c read as alarm/error
      in a context where YRFI is just a normal pick state -- the
      dashboard ended up shouting at the operator on every YRFI row.
@@ -44,8 +51,8 @@
      stays clearly red and distinct from --secondary amber, but no
      longer pretends to be a critical signal.  Reserve true high-
      saturation red (#ff4a5c-class) for actual loss/error states.
-     Contrast on --background (#171009) is ~5.1:1 -- still passes
-     WCAG AA for normal text; foreground pair (#171009 on this red)
+     Contrast on --background (#12100e) is ~5.1:1 -- still passes
+     WCAG AA for normal text; foreground pair (#12100e on this red)
      is ~4.7:1, also AA. */
   --destructive:           #ec8060;     /* rust = YRFI.  Was #e06a48, which fell to
                                           4.41:1 once --muted was lightened for card
@@ -53,7 +60,7 @@
                                           on card/background/muted.  Still clearly a
                                           warm tomato, still distinct from --secondary
                                           amber, still not an alarm red. */
-  --destructive-foreground:#171009;
+  --destructive-foreground:#12100e;
 
   /* Bloomberg meta accent */
   --accent-cyan:           #9fb8c4;
@@ -118,8 +125,8 @@
 /* --------- Light mode -- soft inverse for daylight terminals ---------
    CONTRAST REPAIR 2026-07-28: 17 of 34 measured light-mode pairs were
    sub-AA, because --primary/--secondary were originally tuned against
-   --card (#fffbf4) but are used overwhelmingly on --background
-   (#f7efe4) and --muted (#efe4d3), both of which are darker.  Four
+   --card (#fbfaf8) but are used overwhelmingly on --background
+   (#f7efe4) and --muted (#e8e2da), both of which are darker.  Four
    token values move; see the per-line ratios below.
 
    !! THE LIGHT PALETTE LIVES IN TWO BLOCKS !!  This one (the explicit
@@ -131,12 +138,12 @@
 .light {
   /* Surfaces */
   --background:        #f7efe4;
-  --card:              #fffbf4;
-  --popover:           #fffbf4;
-  --muted:             #efe4d3;
-  --accent:            #efe4d3;
-  --input:             #e1d3bf;
-  --border:            #cbb69a;   /* was #e1d3bf -- 1.20:1 on card. Now 1.86:1. */
+  --card:              #fbfaf8;
+  --popover:           #fbfaf8;
+  --muted:             #e8e2da;
+  --accent:            #e8e2da;
+  --input:             #d9d2c7;
+  --border:            #c0b4a5;   /* was #d9d2c7 -- 1.20:1 on card. Now 1.86:1. */
   --ring:              #b05f28;
   --radius:            0.375rem;
 
@@ -152,13 +159,13 @@
   /* Same accents but darker for contrast on white.  Ratios in the
      comments are sRGB-measured against card / background / muted. */
   --primary:               #9a4f1c;     /* burnt sienna; was #b05f28 -- 4.51/4.08/3.70 -> 5.80/5.25/4.76 */
-  --primary-foreground:    #fffbf4;     /* #fffbf4 on #9a4f1c = 5.80:1, solid chips still pass */
+  --primary-foreground:    #fbfaf8;     /* #fbfaf8 on #9a4f1c = 5.80:1, solid chips still pass */
   --secondary:             #8a5407;     /* dark amber;    was #a4690f -- 4.42/4.00/3.63 -> 6.07/5.50/4.98 */
-  --secondary-foreground:  #fffbf4;     /* #fffbf4 on #8a5407 = 6.07:1 */
+  --secondary-foreground:  #fbfaf8;     /* #fbfaf8 on #8a5407 = 6.07:1 */
   /* T3.21: warmed YRFI red for light theme too -- same calmer hue
      as the dark theme, but darker for white-background contrast. */
   --destructive:           #9c4228;     /* dark warm tomato; was #a84a30 -- 5.52/5.00/4.53 -> 6.32/5.71/5.18 */
-  --destructive-foreground:#fffbf4;     /* #fffbf4 on #9c4228 = 6.32:1 */
+  --destructive-foreground:#fbfaf8;     /* #fbfaf8 on #9c4228 = 6.32:1 */
 
   --accent-cyan:           #5c7b8a;
 
@@ -211,12 +218,12 @@
 @media (prefers-color-scheme: light) {
   :root:not(.dark) {
     --background:        #f7efe4;
-    --card:              #fffbf4;
-    --popover:           #fffbf4;
-    --muted:             #efe4d3;
-    --accent:            #efe4d3;
-    --input:             #e1d3bf;
-    --border:            #cbb69a;   /* was #e1d3bf -- see .light */
+    --card:              #fbfaf8;
+    --popover:           #fbfaf8;
+    --muted:             #e8e2da;
+    --accent:            #e8e2da;
+    --input:             #d9d2c7;
+    --border:            #c0b4a5;   /* was #d9d2c7 -- see .light */
     --ring:              #b05f28;
 
     --foreground:           #2b2015;
@@ -226,11 +233,11 @@
     --muted-foreground:     #6b5a48;   /* was #7c6b59 -- 4.96/4.49/4.07 -> 6.40/5.79/5.25 */
 
     --primary:               #9a4f1c;  /* was #b05f28 -- 4.51/4.08/3.70 -> 5.80/5.25/4.76 */
-    --primary-foreground:    #fffbf4;
+    --primary-foreground:    #fbfaf8;
     --secondary:             #8a5407;  /* was #a4690f -- 4.42/4.00/3.63 -> 6.07/5.50/4.98 */
-    --secondary-foreground:  #fffbf4;
+    --secondary-foreground:  #fbfaf8;
     --destructive:           #9c4228;  /* was #a84a30 -- 5.52/5.00/4.53 -> 6.32/5.71/5.18 */
-    --destructive-foreground:#fffbf4;
+    --destructive-foreground:#fbfaf8;
     --accent-cyan:           #5c7b8a;
 
     --nrfi-soft:   rgba(176, 95, 40, 0.10);

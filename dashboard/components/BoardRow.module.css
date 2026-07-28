@@ -105,10 +105,12 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 36%;
+  /* 2026-07-28: was 36% wide at 14% tone -- a third of every row washed
+     in orange. The 4px left stripe already carries the signal. */
+  width: 22%;
   background: linear-gradient(
     270deg,
-    color-mix(in oklab, var(--status-tone, transparent) 14%, transparent) 0%,
+    color-mix(in oklab, var(--status-tone, transparent) 7%, transparent) 0%,
     transparent 100%
   );
   pointer-events: none;
@@ -136,8 +138,8 @@
   border-color: color-mix(in oklab, var(--status-tone) 40%, var(--border));
   background:
     linear-gradient(90deg,
-      color-mix(in oklab, var(--status-tone) 4%, var(--card)) 0%,
-      var(--card) 30%);
+      color-mix(in oklab, var(--status-tone) 3%, var(--card)) 0%,
+      var(--card) 22%);
 }
 
 .actionable::before {
