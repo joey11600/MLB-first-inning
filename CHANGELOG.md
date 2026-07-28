@@ -119,6 +119,78 @@ not a forecast; the walk-forward row is the honest number.
     0.78 → 0.838 mid-season — whereas the replay applies today's rules
     throughout. Replay-vs-replay is the honest comparison.
 
+### Feature investigation — three candidates tested, two rejected, none shipped
+
+Deep-research sweep (109 agents, 26 sources, 25 claims adversarially
+verified 3 votes each; **16 refuted vs 9 surviving**) followed by
+3-split testing on this repo's own data. Net result: **no feature change
+is justified.** No production model files were touched.
+
+- **RETRACTED — the `top3c_iso` / `top3c_slg` collinearity is NOT a
+  defect.** An earlier note in this investigation called the pair
+  "fragile" because they carry near-equal opposite-signed weights at
+  r≈0.93. That inference is empirically false here. Coefficient trace
+  across the 3 training splits shows they are the **most stable
+  coefficients in the model** (ISO relative sd **0.06**, SLG **0.16**,
+  no sign flips). Dropping SLG makes it worse: ISO collapses toward
+  zero, OBP **flips sign** (rel sd 1.15), and sign consistency among
+  meaningful features falls **87% → 71%**. Accuracy flat either way
+  (Brier delta ≤0.0005; AUC 0.5279 → 0.5244; better in only 2 of 3
+  splits, failing the "must help in every direction" rule). The
+  research recommended this drop on general methodological grounds; the
+  3-split refuted it. **Left alone.**
+
+- **`home_plate_ump_nrfi_rate` is dead weight, confirmed three ways.**
+  New `tools/test_umpire_persistence.py` shows the feature's
+  precondition fails: the stored 2022-23 shrunk rate correlates
+  **r = -0.138** (Spearman -0.126, bootstrap 90% CI [-0.305, +0.042])
+  with the same umpire's actual 2026 first-inning results, and the 2026
+  umpire-to-umpire spread (sd 0.104) is **smaller than pure binomial
+  noise** at those sample sizes (0.122) — no umpire signal exists in
+  2026 at all. Both tails fully reverse (Will Little 0.421 → 0.579;
+  Adam Beck 0.625 → 0.421). Compounding: `data/umpire_rates.json`
+  `training_corpus` is the **2022 + 2023** backtests, the seasons
+  CLAUDE.md bans for pitch-clock distribution shift; and the feature is
+  mis-scaled live (train sd 0.0167 vs live sd 0.104, with B1 weight
+  +0.0172). Ablation is **perfectly flat** — Brier identical to five
+  decimals in all three splits.
+  **Not shipped:** worth zero measured accuracy, and removing it
+  requires regenerating `lr_t1.json`/`lr_b1.json` (`recalibrate_v2._load_one`
+  hard-exits on a `feature_names` mismatch). Should ride along with the
+  next scheduled `weekly_refit.py`, not an out-of-band retrain that
+  perturbs every live prediction for no gain.
+
+- **Rejected without testing, on research evidence:** re-encoding the
+  umpire as Strike Zone Runs Saved (effect is only ~0.02 runs per
+  half-inning, and SZRS splits credit four ways across catcher / umpire
+  / pitcher / batter so it is not cleanly reimplementable); swapping
+  xERA for Stuff+/Pitching+ (every head-to-head superiority claim was
+  refuted, and Stuff+'s next-season ERA correlation collapses 0.41 →
+  0.14 for pitchers who change teams, implying it partly encodes team
+  and park). F-Strike% remains **untested** — every candidate effect
+  size was refuted, so there is no citable number to justify the work.
+
+- **Caveat recorded by the research itself:** no first-inning-specific
+  evidence exists in any source found. Every effect size recovered is
+  season-long and full-game. Per-half-inning figures are pro-rated
+  arithmetic, not measurement.
+
+### Added
+
+- **`tools/test_umpire_persistence.py`** — tests whether a prior-season
+  umpire rate predicts the same umpire's later results, with bootstrap
+  CI and a binomial-noise floor comparison. Run before trusting any
+  umpire-derived feature.
+- **`tools/test_ablation_slg_ump.py`** — 3-split ablation harness.
+  Masks columns out of the exact production feature matrices (rather
+  than rebuilding them) so construction stays identical to production,
+  trains on **per-half** targets as `two_stage_model.py` does, and
+  reports coefficient sign stability as the primary endpoint.
+- **`.claude/workflows/deep-research.js`** — the deep-research workflow
+  harness, installed so it resolves by name in this repo. NOT committed:
+  `.claude/` is gitignored, so this is a local-machine artifact only and
+  will need reinstalling on another checkout.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
