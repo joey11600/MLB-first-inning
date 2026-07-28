@@ -256,6 +256,44 @@ Every window, for the record:
 
 `TotalCard`, `MigrationNote` and `WindowReplayCard` deleted — superseded.
 
+### Investigated — NRFI profitability: closed, negative
+
+Operator asked to enable NRFI ("it's supposed to work good now") and then,
+shown the 12-14 record, asked for a deep dive on what floors would make it
+profitable. 20-agent workflow: 4 investigations, ~300 selection rules,
+every candidate attacked by 3 independent skeptics. **Nothing survived —
+12 of 12 refutations succeeded.** `_LR_STRONG_NRFI_P` stays 1.01; no
+production behaviour changed.
+
+**The wall.** On 1,122 settled 2026 games with a real captured DK NRFI
+price: NRFI hit 48.0%, the price required 53.7%, blind flat betting
+returns −10.6% (95% CI [−15.5%, −5.5%]). Of that 5.65pp gap, only 3.31pp
+is vig. **Strip 100% of the vig and NRFI still returns −4.68%** — so
+line-shopping cannot fix it.
+
+**"What floors work best" — none.** Tightening lifts the hit rate 48%→58%,
+but the required rate rises faster, 53.7%→58.5%. Best of hundreds of
+cells: lambda ≤ 0.52 at 58.1% vs 58.5% needed (−0.2%, n=43).
+
+Two structural findings:
+- **The gate and the ceiling are the same knob.** `lambda_lr_total ==
+  −ln(raw p_nrfi)` exactly, verified to 0.002 on 783 rows. There is no
+  2-D grid to tune.
+- **`_LR_LAMBDA_NRFI_CEILING` was dead code.** At gate 0.62 every
+  qualifying game already sat inside the 0.52 ceiling, so the +5.44u the
+  comment credited to it cannot be its doing. Comment corrected.
+
+Most telling: under simulated pure noise, a grid search this size yields a
+best cell averaging +15–20% ROI by luck. The real best cells were +3.6%
+and +6.1% — **the search found less profit than chance manufactures.**
+
+Methodology trap recorded: the 2024 backtest is unusable as an NRFI
+validation split (a model fit on 2024 scores below chance on 2024, CV AUC
+0.4897), so the mandated 3-split cannot be run for this question.
+
+Full do-not-retread list in user memory `2026-07-28_nrfi_deep_dive`.
+Analysis scripts preserved read-only in `tools/nrfi_deep_dive/` (44 files).
+
 ### Deferred
 
 - Doubleheader `game_pk` is not unique in `picks_2026.csv` (1563 rows,

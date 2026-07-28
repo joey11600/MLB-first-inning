@@ -1084,6 +1084,23 @@ _LR_LAMBDA_YRFI_FLOOR = 0.838   # 0.78 mechanically scaled by 0.510/0.475 in Pha
 # insurance if the league reverts to a NRFI-friendly environment; 0.50
 # was the in-sample optimum.  One-constant change to retune.
 #
+# CORRECTION 2026-07-28 -- the +5.44u above is not attributable to this
+# ceiling, and the "basin" was an artefact.  Two facts found by the NRFI
+# deep dive:
+#   1. THIS CEILING WAS NON-BINDING AND COULD NOT DEMOTE ANYTHING.  With
+#      _LR_STRONG_NRFI_P at 0.62, clearing the probability gate required
+#      raw p_nrfi >= 0.6116, i.e. lambda <= 0.4917 -- already 0.03 inside
+#      the 0.52 ceiling.  Every game that reached this check had passed
+#      it by construction.  It was dead code.
+#   2. THE CEILING AND THE PROBABILITY GATE ARE THE SAME KNOB.
+#      lambda_lr_total == -ln(raw p_nrfi) exactly (verified to 0.002 on
+#      783 post-retrain rows), and the calibrator is monotone, so a
+#      lambda ceiling IS a raw-probability floor written differently.
+#      There is no two-dimensional gate/ceiling grid to tune.
+# Left in place because NRFI betting is off and the constant is inert.
+# If NRFI is ever re-enabled, re-derive this rather than trusting the
+# study above.  See memory 2026-07-28_nrfi_deep_dive.
+#
 # YRFI INVARIANCE: this ceiling is checked ONLY inside the STRONG-NRFI
 # branch of classify_pick_lr (p_nrfi >= 0.56).  A YRFI pick has
 # p_nrfi < 0.44 and never reaches that branch, so this constant cannot
