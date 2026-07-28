@@ -448,6 +448,58 @@ each pooled run to one knot, so larger inter-knot steps are intended
 rather than overfitting (the live curve's largest legitimate step is
 ~12.8pp). Verified: silent on the real curve, warns on a broken one.
 
+### Added — line-shopping infrastructure (highest-value remaining change)
+
+Every bet in the ledger has been DraftKings; there has never been any
+line shopping. On the 105 bets clearing the shipped gate (avg price
+-142): 5 cents better = +1.84u, **10 cents = +3.83u** (ROI 13.47% ->
+17.12%), 20 cents = +8.24u. Unlike every model change tested on
+2026-07-27/28 this is a *certain* gain, and it compounds with Kelly
+because a better price raises the Kelly fraction as well as the payout.
+
+- **`tools/merge_odds_books.py`** — takes N per-book odds CSVs and emits
+  one best-price CSV for `--import-odds`. Best price is chosen **per
+  side**, since we only ever bet one side, so NRFI and YRFI may come from
+  different books; the merged row records which book won each. Games
+  quoted by only one book still survive the merge.
+  - Comparison is done on **payout**, not on the American number. Naive
+    numeric comparison is wrong across the +/- boundary and silently
+    picks the worse price: it prefers -110 over -105, and would take
+    -150 over +100. `--self-test` covers exactly these cases.
+- **`tools/fetch_odds_api.py`** — multi-book source via The Odds API.
+  NRFI/YRFI is not a named market anywhere; it is the first-inning total
+  at a 0.5 line (`totals_1st_1_innings`, Under = NRFI, Over = YRFI). The
+  parser ignores any 1.5-line outcome, which would otherwise silently
+  price a different bet.
+
+**Why an aggregator instead of more scrapers.** `scrape_dk_odds.py` talks
+to DraftKings' undocumented internal API; its own docstring notes DK
+changes that URL about once a year, and 2026-05-03 showed their CDN
+fingerprinting our egress into read timeouts. One such scraper per book
+multiplies that fragility. (Confirmed while building this: DK's endpoint
+returns HTTP 403 from this environment entirely.)
+
+**CALL BUDGET — read before scheduling.** `totals_1st_1_innings` is an
+"additional market", served only from the per-event endpoint, so one
+fetch costs 1 call to list events + 1 per event ≈ **16 credits on a
+15-game slate**. The free tier is 500/month, i.e. roughly **one fetch per
+day**. Wiring this into the ~12x-daily predict cron would exhaust the
+quota in about two days. Run it once near lock time, or buy a tier.
+`--dry-run` reports the cost without spending credits, and the tool
+refuses to start if remaining credits are below the number needed.
+
+**Not yet wired into the cron, and deliberately so.** Two preconditions
+are outside this repo: (1) an `ODDS_API_KEY`, and (2) the operator
+actually holding accounts at the books that win the price — otherwise the
+output is a diagnostic ("DK was 12 cents off best"), not an instruction.
+
+**Testing status, stated plainly.** `merge_odds_books.py` is fully tested
+including the +/- boundary. `fetch_odds_api.py` is written against the
+documented schema and self-tested on a synthetic payload, but has **never
+been run against the live API** — there is no key in this environment.
+Treat the first live run as verification: check the row count against the
+slate before trusting any price.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
