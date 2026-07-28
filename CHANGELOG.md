@@ -614,6 +614,46 @@ stakes off. Now uses `CIRCalibrator`.
   definition instead of the bake-off owning a copy the refit path didn't
   know about.
 
+### Investigated — NRFI stays OFF, and CLV is unmeasurable for structural reasons
+
+**NRFI: do not re-enable.** The 2026-06-07 decision holds, now re-tested
+under Kelly + the tightened gate + the CIR calibrator (the three things
+that changed since). `tools/nrfi_reenable_check.py`, on all 49 graded
+STRONG NRFI picks with a real captured DK price:
+
+- **44.9% hit against a 57.9% break-even — a -13pp edge.** Flat 1u
+  **-11.29u**; under quarter Kelly **-30.57u** at 37.5% drawdown.
+- **Every probability band is negative**: 0.50-0.60 **-17.2pp**,
+  0.60-0.62 -13.6pp, 0.62-0.65 -3.7pp, 0.65+ **-17.2pp**. There is no
+  sub-range where the model beats the NRFI price.
+- **Every re-enable threshold loses**, flat and Kelly, from 0.55 through
+  0.66. The least-bad (0.64) is still -1.03u flat / -14.08u Kelly.
+- Kelly makes NRFI *worse* at every threshold — same mechanism as the
+  0.56-0.60 YRFI band: the model claims an edge it does not have, so
+  Kelly funds and enlarges it.
+
+**Resolves a dashboard discrepancy:** the ROI panel shows STRONG NRFI at
+59.4% / +8.53u, but only 49 of those 96 picks have a real captured price
+and those went **44.9%**. The other 47 settled at the -110 placeholder
+and are mostly April — the same artefact that inflated the season total.
+**The dashboard's STRONG NRFI line is not a real result.**
+
+**CLV: the instrument works; the market doesn't move.** Earlier this
+investigation flagged "307 of 531 rows have opened == market" as broken
+capture. Measuring properly: 83% of placed rows *do* carry two distinct
+observations, but the **median gap between them is 0.1 hours** (mean 0.2h,
+max 4.4h), and the first capture lands a median **~1.0h before first
+pitch**. DraftKings does not post this niche first-inning market until
+shortly before the game, and the T2.58 lock commits the bet minutes later.
+
+So there is no window between market-open and our entry in which a line
+could move — 93% show an identical price across the gap, and when it does
+move the median is 5 cents. **CLV is not mis-instrumented; it is
+structurally unavailable for this market at our bet timing.** No code fix
+would produce a number, because there is no second observation to make.
+Recorded rather than "fixed": the honest action is to stop treating CLV
+as a validation signal here, not to manufacture one.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
