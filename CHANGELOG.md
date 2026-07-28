@@ -392,6 +392,62 @@ directly, so the 0.5936 plateau now makes Kelly stake 204 different games
 off one wrong number. CIR cuts plateau mass 68% → 12% at zero Brier cost.
 This reverses the earlier "not worth shipping" verdict.
 
+### Changed — SHIPPED: calibrator replaced with Centered Isotonic Regression
+
+Reverses the 2026-07-27 "not worth shipping" verdict, for a reason that
+did not exist then. Under FLAT staking a calibrator is a monotone
+relabelling, so shape provably cannot change which bets fire at equal
+volume. Under Kelly the calibrated probability IS the `p` in the Kelly
+formula and therefore sets STAKE SIZE directly. The live curve's flat
+step gave 204 graded 2026 games (98 distinct lambdas) the single value
+NRFI 0.40639 / YRFI 0.5936, and Kelly staked all of them off that one
+number — in exactly the 0.56-0.60 band the gate sweep measured going
+from -14.27u flat to -36.91u under Kelly.
+
+**This is a DATA swap, not a code change.** CIR emits the same
+`{centers, rates}` pair list, so `ProbCalibrator.load()` reads it
+unchanged. Rollback is `git checkout <prev> -- data/calibration_v2.json`.
+
+- **`tools/fit_cir_calibrator.py`** — fits CIR, validates it, and refuses
+  `--write` unless all three criteria pass.
+
+**Validation (CLAUDE.md 3-split):**
+
+| split | iso20 Brier | CIR Brier | Δ | iso plateau | CIR plateau |
+|---|---|---|---|---|---|
+| 2024→2025 | 0.25029 | 0.25029 | −0.00000 | 87.2% | 24.4% |
+| 2025→2024 | 0.25816 | 0.25872 | +0.00057 | 57.7% | 4.7% |
+| 2024+2025→2026 | 0.24799 | 0.24786 | −0.00014 | 59.6% | 8.5% |
+
+Degraded Brier in 1 of 3 splits — within the rule's allowance of 1.
+
+**Live curve, before → after:**
+- knots 20 → **11**, longest flat run 3 → **1** (i.e. no flats at all),
+  knots inside flat runs 17 → **0**
+- on the 1520 graded 2026 games: distinct probabilities 689 → **1437**,
+  plateau mass 51.7% → **4.1%**, games on the 0.5936 step **204 → 0**
+- mean |probability change| 0.0231, max 0.0477; games clearing the STRONG
+  gate 162 → 137
+- the old dead zone now ramps: raw 0.38/0.40/0.42/0.44 → p_nrfi
+  0.4166/0.4292/0.4423/0.4664 (previously all 0.4064)
+
+**Kelly money test** (both arms trained on 2025+2026, so both are
+optimistic — the *delta* is the signal): live +209.49u / 13.1% maxDD vs
+CIR **+322.19u** / 11.7% maxDD, **+112.70u** better on 15 fewer bets at a
+higher hit rate (67.6% → 70.1%).
+
+### Fixed — T4.6 calibrator shape validator had never run
+
+`_validate_calibrator_shape` read `cal._xs` / `cal._ys`, but
+`ProbCalibrator` has only ever stored `centers` / `rates`. The getattr
+chain resolved to `None` and the function returned early on every call
+since T4.6 shipped — the safety check was dead code the whole time.
+Fixed to read the real attribute names (fallbacks retained), and the
+warning threshold raised 5pp → 15pp because CIR deliberately collapses
+each pooled run to one knot, so larger inter-knot steps are intended
+rather than overfitting (the live curve's largest legitimate step is
+~12.8pp). Verified: silent on the real curve, warns on a broken one.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
