@@ -212,6 +212,50 @@ Three details that matter:
 with both the board and the performance panel; each was about to fetch
 ~376 KB independently, which also let them drift.
 
+### Changed — the dashboard now leads with THE SYSTEM, not the old ledger
+
+Operator: *"you need to make it so that the 'placed' bets are actually the
+kelley sized bets with the new model."* The panel had been leading with
+the legacy flat-1u ledger and treating the current model as a footnote.
+Inverted.
+
+**`SystemCard` is now the headline** — current model, quarter-Kelly, for
+whichever window the toggle is on, back to opening day. The old ledger is
+one quiet line: *"Older ledger — what was actually bet under the previous
+gate at a flat 1u stake … Superseded on 2026-07-28."*
+
+Two corrections that came out of the operator catching a bad number:
+
+**1. The headline is a PERCENTAGE, and units are rebased to the real
+bankroll.** The replay compounds from 100u in April, so by late July its
+bank is ~1200u and an ordinary losing week printed as **−188.50u** — a
+figure that reads like a catastrophe against a real 100u bankroll where
+the same week is **−15.67u**. Units without the bank they were staked
+from are meaningless. Every unit figure on the card is now
+`pct × startBank`, so it answers "what would this have cost me".
+
+**2. NRFI is reported separately and never folded into the headline.**
+`_LR_STRONG_NRFI_P` is 1.01 — the live system does not place NRFI. Three
+of the seven "bets" in the last-7-days figure were NRFI, so the combined
+number reported losses on bets that would never have been made. The card
+now shows the YRFI record as the figure and NRFI as a tracked-not-bet
+note.
+
+Last 7 days went from a reported **−58.85u** to the correct
+**−15.7% (−15.67u), 4 bets, 0-4 YRFI** — independently confirmed by
+re-simulating those four bets from a 100u bank with `tracker.kelly_stake_units`
+(−15.79u).
+
+Every window, for the record:
+
+| window | result | bets | record | hit |
+|---|---|---|---|---|
+| Last 7 days | −15.7% | 4 | 0-4 | 0.0% |
+| Last 30 days | +17.5% | 34 | 21-13 | 61.8% |
+| Season to date | +915.9% | 158 | 109-49 | 69.0% |
+
+`TotalCard`, `MigrationNote` and `WindowReplayCard` deleted — superseded.
+
 ### Deferred
 
 - Doubleheader `game_pk` is not unique in `picks_2026.csv` (1563 rows,

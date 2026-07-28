@@ -183,24 +183,37 @@ export function replayStakesFor(
 }
 
 
-/** The replay's result over an arbitrary date window. */
+/** The system's result over an arbitrary date window. */
 export interface ReplayWindow {
   from: string; to: string;
   bets: number; wins: number; losses: number;
-  /** Quarter-Kelly P&L over the window, in units. */
+  /** Quarter-Kelly P&L in units, at the bank the run had reached. */
   pnl: number;
+  /** The scale-free figure. pnl as a fraction of the bank at window
+   *  start -- the ONLY number that is not distorted by where the
+   *  compounding run happened to be when the window opened. */
+  pct: number | null;
   bankStart: number | null;
   bankEnd: number | null;
+  /** Split by side, because only one of them is actually bet. */
+  yrfi: { bets: number; wins: number; pnl: number };
+  nrfi: { bets: number; wins: number; pnl: number };
 }
 
 /**
- * What the CURRENT model would have done between two dates.
+ * What the system did between two dates.
  *
- * WHY (2026-07-28): the window toggle drove only the ledger card, and
- * the replay card is season-to-date by construction. So selecting
- * "Last 7d" showed the OLD system's real -8.63u with nothing anywhere
- * on the page answering "and what would the new model have done over
- * those same seven days?". The operator asked exactly that question.
+ * TWO THINGS THIS MUST EXPOSE, both learned the hard way on 2026-07-28:
+ *
+ *  1. `pct`. The replay compounds from 100u in April, so by late July the
+ *     bank is ~316u and a normal week prints as "-58.85u" -- a number
+ *     that reads like a catastrophe against the operator's real 100u
+ *     bankroll, where the same week is about -16u. Units are meaningless
+ *     without the bank they were staked from; the percentage is not.
+ *  2. The YRFI/NRFI split. NRFI betting is disabled live
+ *     (_LR_STRONG_NRFI_P = 1.01), so NRFI rows in the record are TRACKED,
+ *     NOT BET. Folding them into one figure reports a loss on bets that
+ *     would never have been placed.
  */
 export function replayWindow(
   side: RecSide | null | undefined,
@@ -211,12 +224,16 @@ export function replayWindow(
   const days = side.days.filter((d) => d.date >= startIso && d.date <= endIso);
   if (days.length === 0) return null;
   let bets = 0, wins = 0, pnl = 0;
+  const y = { bets: 0, wins: 0, pnl: 0 };
+  const n = { bets: 0, wins: 0, pnl: 0 };
   for (const d of days) {
     for (const g of d.games) {
       if (g.record.action !== "BET") continue;
-      bets += 1;
-      if (g.record.win) wins += 1;
-      pnl += g.record.pnl ?? 0;
+      const p = g.record.pnl ?? 0;
+      const w = g.record.win === true;
+      bets += 1; if (w) wins += 1; pnl += p;
+      const bucket = g.side === "NRFI" ? n : y;
+      bucket.bets += 1; if (w) bucket.wins += 1; bucket.pnl += p;
     }
   }
   if (bets === 0) return null;
@@ -225,9 +242,10 @@ export function replayWindow(
     ? first.simBankAfter - first.simPnl : null;
   return {
     from: first.date, to: last.date,
-    bets, wins, losses: bets - wins,
-    pnl,
+    bets, wins, losses: bets - wins, pnl,
+    pct: isNum(bankStart) && bankStart > 0 ? pnl / bankStart : null,
     bankStart,
     bankEnd: isNum(last.simBankAfter) ? last.simBankAfter : null,
+    yrfi: y, nrfi: n,
   };
 }

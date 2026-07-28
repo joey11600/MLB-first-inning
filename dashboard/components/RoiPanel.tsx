@@ -173,19 +173,24 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelP
       </header>
 
       <div className={`${styles.body} ${loading ? styles.loading : ""}`}>
-        {/* Real money leads. */}
-        <TotalCard total={view?.total} window={window} clv={clv} />
-        {/* ...immediately followed by what the CURRENT model would have
-            done over the SAME window. Without this, selecting "Last 7d"
-            showed the old system's real result with nothing anywhere
-            saying what the new one would have returned. */}
-        <WindowReplayCard
-          side={seasonRecord?.real ?? seasonRecord?.projected ?? null}
+        {/* THE SYSTEM leads: the current model at quarter-Kelly. This is
+            what the operator runs, and the only record that answers "how
+            am I doing". Dates before 2026-07-28 are that model replayed;
+            from 7/28 it is live. */}
+        <SystemCard
+          side={seasonRecord?.projected ?? seasonRecord?.real ?? null}
+          bankUnits={seasonRecord?.startBank ?? 100}
           startDate={view?.startDate}
           endDate={view?.endDate}
           window={window}
+          clv={clv}
         />
-        <MigrationNote />
+        {/* The old flat-1u ledger, demoted to one line. Real money that
+            really moved, so not deleted -- but it is the PREVIOUS gate at
+            a stake the system no longer uses, and leading with it is what
+            made the dashboard feel like it reported someone else's
+            system. */}
+        <LegacyLedgerLine total={view?.total} window={window} />
 
         <div className={styles.zoneGrid}>
           {(view?.betZones ?? []).map((z) => (
@@ -233,47 +238,109 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelP
   );
 }
 
-/* ---------------------------------------------------------------- */
-
-/** The replay, restricted to the window the toggle is showing.
+/** THE SYSTEM -- current model, quarter-Kelly, for the selected window.
  *
- *  Deliberately sits directly under the ledger so the comparison is
- *  unavoidable: same days, same slate, two different systems and two
- *  different stake sizes. It is simulated money, so it wears the
- *  recessed treatment and never a tone colour. */
-function WindowReplayCard({
-  side, startDate, endDate, window: win,
+ *  HEADLINE IS A PERCENTAGE, deliberately. The run compounds from 100u in
+ *  April, so by late July the bank is ~316u and an ordinary losing week
+ *  prints as "-58.85u" -- which against a real 100u bankroll is about
+ *  -16u. A unit figure is meaningless without the bank it was staked
+ *  from; the percentage is the same number wherever the run has got to.
+ *  Units are still shown, next to the bank they belong to.
+ *
+ *  NRFI is reported SEPARATELY and never folded into the headline:
+ *  _LR_STRONG_NRFI_P is 1.01, so the live system does not place it, and
+ *  counting it would report losses on bets that were never made. */
+function SystemCard({
+  side, bankUnits, startDate, endDate, window: win, clv,
 }: {
   side: RecSide | null;
+  /** The operator's ACTUAL bankroll (100u). Every unit figure on this
+   *  card is rebased to it. The raw simulation compounds to ~1200u by
+   *  late July, so its own units describe a bankroll nobody has. */
+  bankUnits: number;
   startDate: string | undefined;
   endDate: string | undefined;
   window: RoiWindow;
+  clv: TodayClvMeasured | null;
 }) {
   const w = replayWindow(side, startDate, endDate);
-  if (!w) return null;
+  const label = win === "season" ? "Season to date"
+    : win === "today" ? "Tonight"
+    : win === "7d" ? "Last 7 days" : "Last 30 days";
+
+  if (!w) {
+    return (
+      <div className={styles.moneyCard} data-tone="neutral">
+        <div className={styles.totalLeft}>
+          <span className={styles.eyebrow}>The system · ¼-Kelly · {label}</span>
+          <span className={styles.figHero}>—</span>
+          <span className={styles.meta}>No bets settled in this window yet.</span>
+        </div>
+        <div className={styles.totalRight}>
+          <Stat label="Record" value="0-0" />
+          <Stat label="Hit rate" value="—" />
+          <ClvStat clv={clv} />
+        </div>
+      </div>
+    );
+  }
+
+  const y = w.yrfi;
+  const tone: "win" | "loss" | "neutral" =
+    y.pnl > 0.05 ? "win" : y.pnl < -0.05 ? "loss" : "neutral";
+  const pct = isNum(w.bankStart) && w.bankStart > 0 ? y.pnl / w.bankStart : null;
+
   return (
-    <div className={styles.simCard}>
-      <div className={styles.recHead}>
-        <span className={styles.eyebrow}>
-          {win === "today" ? "Model replay · tonight" : "Model replay · same window"}
+    <div className={styles.moneyCard} data-tone={tone}>
+      <div className={styles.totalLeft}>
+        <span className={styles.eyebrow}>The system · ¼-Kelly · {label}</span>
+        <span className={styles.figHero}>
+          {pct == null ? fmtU(y.pnl)
+            : `${pct >= 0 ? "+" : "−"}${Math.abs(100 * pct).toFixed(1)}%`}
         </span>
-        <span className={styles.tag}>Simulated</span>
-      </div>
-      <div className={styles.windowRow}>
-        <span className={styles.figLead}>{fmtU(w.pnl)}</span>
         <span className={styles.meta}>
-          {`${w.bets} ${w.bets === 1 ? "bet" : "bets"} · ${w.wins}-${w.losses} · ¼-Kelly`}
-          {isNum(w.bankStart) && isNum(w.bankEnd)
-            ? ` · bank ${w.bankStart.toFixed(2)}u → ${w.bankEnd.toFixed(2)}u`
-            : ""}
-          {` · ${w.from} → ${w.to}`}
+          {pct == null
+            ? `${y.bets} ${y.bets === 1 ? "bet" : "bets"}`
+            : `${fmtU(pct * bankUnits)} on your ${bankUnits.toFixed(0)}u bankroll`}
+          {` · ${y.bets} ${y.bets === 1 ? "bet" : "bets"} · ${y.wins}-${y.bets - y.wins} · YRFI · ${w.from} → ${w.to}`}
         </span>
+        {w.nrfi.bets > 0 && (
+          <span className={styles.provNote}>
+            <span className={styles.provDot} aria-hidden />
+            {`NRFI is tracked but NOT bet — the live gate is switched off. `}
+            {`${w.nrfi.bets} would-be ${w.nrfi.bets === 1 ? "bet" : "bets"}, `}
+            {`${w.nrfi.wins}-${w.nrfi.bets - w.nrfi.wins}`}
+            {isNum(w.bankStart) && w.bankStart > 0
+              ? `, ${fmtU((w.nrfi.pnl / w.bankStart) * bankUnits)}` : ""}
+            {`. Not counted above.`}
+          </span>
+        )}
       </div>
+      <div className={styles.totalRight}>
+        <Stat label="Record" value={`${y.wins}-${y.bets - y.wins}`} />
+        <Stat label="Hit rate"
+          value={y.bets > 0 ? `${(100 * y.wins / y.bets).toFixed(1)}%` : "—"} />
+        <ClvStat clv={clv} />
+      </div>
+    </div>
+  );
+}
+
+/** The pre-2026-07-28 ledger, as one quiet line. Real money, old gate,
+ *  flat 1u -- kept because it happened, demoted because it is not the
+ *  system any more. */
+function LegacyLedgerLine({ total, window: win }: {
+  total: ZoneRoi | undefined; window: RoiWindow;
+}) {
+  if (!total || total.bets === 0) return null;
+  return (
+    <div className={styles.legacyLine}>
       <span className={styles.meta}>
-        Kelly scales the stake to the bankroll, so a losing stretch costs
-        far more in units than flat betting would — and a winning one
-        returns far more. This is the same slate as the ledger above,
-        sized differently.
+        <b>Older ledger</b> — what was actually bet under the previous gate
+        at a flat 1u stake{win === "season" ? "" : " in this window"}:{" "}
+        {fmtU(realPL(total))} over {total.bets} settled{" "}
+        {total.bets === 1 ? "bet" : "bets"} ({total.wins}-{total.losses}).
+        Superseded on 2026-07-28.
       </span>
     </div>
   );
@@ -299,68 +366,6 @@ function MigrationNote() {
       <button type="button" className={styles.noteDismiss} onClick={() => setGone(true)}>
         Dismiss
       </button>
-    </div>
-  );
-}
-
-function TotalCard({
-  total, window, clv,
-}: {
-  total:  ZoneRoi | undefined;
-  window: RoiWindow;
-  clv:    TodayClvMeasured | null;
-}) {
-  const shownPL = total ? realPL(total) : 0;
-  const tone: "win" | "loss" | "neutral" =
-    !total || total.bets === 0 ? "neutral"
-    : shownPL > 0.05 ? "win" : shownPL < -0.05 ? "loss" : "neutral";
-
-  const prov = total?.provenance;
-  const known = prov ? prov.realPricedBets + prov.placeholderBets : 0;
-
-  const sub = !total || total.bets === 0
-    ? "No bets settled in this window yet."
-    : `${total.bets} settled bets${window === "today" ? " tonight" : ""} · ` +
-      `${total.wins}W-${total.losses}L · at the DraftKings prices you got`;
-
-  return (
-    <div className={styles.moneyCard} data-tone={tone}>
-      <div className={styles.totalLeft}>
-        <span className={styles.eyebrow}>
-          {window === "today"
-            ? "Ledger · real money · all graded bets tonight"
-            : "Ledger · real money · bets you actually placed"}
-        </span>
-        <span className={styles.figHero}>
-          {total && total.bets > 0 ? fmtU(shownPL) : "—"}
-        </span>
-        <span className={styles.meta}>{sub}</span>
-        {prov && known > 0 && prov.placeholderBets > 0 && (
-          <span className={styles.provNote}>
-            <span className={styles.provDot} aria-hidden />
-            {`${prov.placeholderBets} of ${known} bets had no captured DraftKings price and settled at a placeholder −110. `}
-            {`Counting those reads ${fmtU(total!.unitsPL)}.`}
-          </span>
-        )}
-      </div>
-      <div className={styles.totalRight}>
-        <Stat
-          label="Settled W-L"
-          value={total && total.bets > 0 ? `${total.wins}-${total.losses}` : "0-0"}
-        />
-        <Stat
-          label="Hit rate"
-          value={total && !Number.isNaN(total.hitRate) && total.bets > 0
-            ? pctText(total.hitRate) : "—"}
-        />
-        {window === "today"
-          ? <ClvStat clv={clv} />
-          : <Stat
-              label="vs break-even"
-              value={total && !Number.isNaN(total.edgeVsBreakEven)
-                ? signedPctText(total.edgeVsBreakEven) : "—"}
-            />}
-      </div>
     </div>
   );
 }
