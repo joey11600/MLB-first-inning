@@ -293,7 +293,13 @@ function rowToGameDetail(r: PickRow): GameDetail {
     openedNrfiOdds:   str(r.opened_nrfi_odds),
     openedYrfiOdds:   str(r.opened_yrfi_odds),
     openedCapturedAt: str(r.opened_captured_at),
-    clvPct:           num(r.clv_pct),
+    // 2026-07-28: was num(), which turns NULL / "" into 0.  GameDetail.clvPct
+    // is typed `number | null` precisely so the UI can tell "we never measured
+    // this" from "we measured zero movement" -- but Supabase is the PRODUCTION
+    // read path (board.ts tries it before the CSV), so every `clvPct != null`
+    // guard in the codebase was dead and every priced odds chip claimed a
+    // measured "+0.00pp".  nullableNum preserves the absence.
+    clvPct:           nullableNum(r.clv_pct),
   };
 }
 

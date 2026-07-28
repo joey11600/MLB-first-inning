@@ -94,7 +94,11 @@ def load_season():
 
     out = []
     skipped = 0
-    for r in raw_rows:
+    # 2026-07-28: carry the CSV row index. (date, away, home) is NOT a key --
+    # doubleheaders share it, and the season record's day view double-counted
+    # both legs of LAD@NYY 7/19 and PIT@NYY 7/22 as the same bet. Additive
+    # field; every existing consumer ignores it.
+    for _rid, r in enumerate(raw_rows):
         actual = (r.get("actual_result") or "").upper()
         if actual not in ("NRFI", "YRFI"):
             continue
@@ -105,6 +109,8 @@ def load_season():
             skipped += 1
             continue
         out.append({
+            "rid": _rid,
+            "gn": (r.get("game_number") or "1").strip() or "1",
             "date": r["date"],
             "away": r.get("away_team", ""),
             "home": r.get("home_team", ""),

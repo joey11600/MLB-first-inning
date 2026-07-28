@@ -41,7 +41,9 @@
 }
 
 .id {
-  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  /* var(--font-mono), not a raw stack -- the raw stack resolved to
+     Consolas on Windows next to Geist Mono everywhere else. */
+  font-family: var(--font-mono);
   font-size: 12px;
   color: color-mix(in oklab, var(--foreground) 85%, transparent);
 }

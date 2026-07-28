@@ -11,7 +11,9 @@
    than warning -- pick changes are normal, not alarming.
    ============================================================ */
 .banner {
-  margin: 14px 0 6px;
+  /* No vertical margin -- .shell { gap: 16px } owns inter-section
+     spacing.  The old `margin: 14px 0 6px` made this banner's gaps
+     asymmetric (30px above, 22px below) against a 16px rhythm. */
   border: 1px solid color-mix(in oklab, var(--secondary) 35%, var(--border));
   border-radius: var(--radius);
   background: color-mix(in oklab, var(--secondary) 6%, var(--card));
@@ -37,6 +39,11 @@
 .summary:hover {
   background: color-mix(in oklab, var(--secondary) 4%, transparent);
 }
+/* 2px --ring like everywhere else, but INSET.  This is the one
+   deliberate exception to the 2px outward offset: .summary fills the
+   full width of .banner, which is `overflow: hidden` to clip the
+   rounded corners, so an outward ring would be clipped away entirely
+   and the control would have no visible focus state at all. */
 .summary:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: -2px;

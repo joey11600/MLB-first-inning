@@ -1,48 +1,61 @@
 "use client";
 
 /**
- * TonightsActionCard -- the new top-of-fold "what do I do tonight" surface.
+ * TonightsActionCard -- the top-of-fold "what do I do tonight" surface.
  *
- * Sits above SummaryStrip in DashboardShell.  Tells the operator at a
- * glance: how many STRONG plays are on the slate, the side breakdown,
- * the unit stake committed, and how many picks are still pending lineups.
+ * Sits directly under the header in DashboardShell.  Tells the operator at
+ * a glance: how many games the model FLAGGED tonight, how many of those
+ * actually carry a real bet, how many have settled, and what that has cost
+ * or made so far.
  *
- * Reads from rows + details that DashboardShell already receives from
- * the BoardResponse -- no new data layer.
+ * 2026-07-28 redesign (invariants I1 ONE VOCABULARY / I2 ONE SOURCE).
+ * This card used to derive its own headline by counting STRONG rows with
+ * a NRFI/YRFI side, while the ticker counted a different way and the
+ * season record counted a third way.  Three defensible counts, three
+ * different numbers for one night, nothing on screen explaining why --
+ * which read to the operator as "my bets are missing".  The headline and
+ * the reconcile line below it now both come from ONE call to
+ * nightFromBoard(); this file no longer counts bets at all.
  *
- * Empty-slate behavior: when there are zero STRONG plays, the card
- * collapses into a calmer "slate locked, nothing to bet" treatment so
- * it doesn't shout at the user when there's nothing to do.
+ * A COUNT IS NOT MONEY.  The headline renders in --foreground and is never
+ * tone-coloured -- peach/rust are reserved for figures that are real money
+ * (invariant I4).  Only the stake and the settled P&L carry tone.
  *
- * Aesthetic direction: refined Diamond Terminal -- mono hero numerals,
- * muted eyebrows, tone-tinted accent bars, no chip soup.  Matches the
- * SummaryStrip tile family but lives one level above it in the
- * hierarchy (4-up summary tiles are retrospective; this card is
- * prospective).
+ * Reads from rows + details that DashboardShell already receives from the
+ * BoardResponse -- no new data layer.
+ *
+ * Empty-slate behavior: when nothing is flagged and nothing is pending,
+ * the card collapses into a calmer treatment so it doesn't shout when
+ * there is nothing to do.
  */
 
 import type { BoardRow, GameDetail } from "@/lib/types";
+import { fmtU, nightFromBoard } from "@/lib/reconcile";
 import styles from "./TonightsActionCard.module.css";
+// .reconLine / .reconSep are defined ONCE, in RoiPanel.module.css, and
+// deliberately shared: the reconcile sentence must look identical here and
+// inside the money panel or it stops reading as the same statement.
+import money from "./RoiPanel.module.css";
 
 interface TonightsActionCardProps {
   rows: BoardRow[];
   details: Record<string, GameDetail>;
+  /** Slate date, only used for the eyebrow.  Optional because
+   *  DashboardShell does not pass it yet; the counts do not depend on it. */
+  date?: string;
 }
 
 interface SideBreakdown {
   count:    number;
-  /** Total units committed (sum of bet_placed='Y' rows × 1u flat). */
+  /** Units actually committed on this side (sum of the ledger's stakes). */
   unitsAt:  number;
 }
 
-interface ActionSummary {
-  total:        number;          // total STRONG plays
-  nrfi:         SideBreakdown;
-  yrfi:         SideBreakdown;
-  pending:      number;          // count of LINEUP/STARTER PENDING rows
-  unitsTotal:   number;          // sum across both sides
-  /** True when there's zero meaningful action -- card flips to empty state. */
-  empty:        boolean;
+interface SlateSides {
+  nrfi:       SideBreakdown;
+  yrfi:       SideBreakdown;
+  pending:    number;          // count of LINEUP/STARTER PENDING rows
+  unitsTotal: number;          // sum across both sides
 }
 
 function lookupDetail(
@@ -56,10 +69,15 @@ function lookupDetail(
   );
 }
 
-function summarize(
+/**
+ * Side split + stake only.  The flagged / placed / settled counts are NOT
+ * computed here -- they come from lib/reconcile so that every surface on
+ * the page moves together.
+ */
+function summarizeSides(
   rows: BoardRow[],
   details: Record<string, GameDetail>,
-): ActionSummary {
+): SlateSides {
   let nrfiCount   = 0;
   let yrfiCount   = 0;
   let nrfiUnits   = 0;
@@ -95,35 +113,34 @@ function summarize(
     }
   }
 
-  const total      = nrfiCount + yrfiCount;
-  const unitsTotal = nrfiUnits + yrfiUnits;
-  const empty      = total === 0 && pending === 0;
-
   return {
-    total,
-    nrfi:    { count: nrfiCount, unitsAt: nrfiUnits },
-    yrfi:    { count: yrfiCount, unitsAt: yrfiUnits },
+    nrfi:       { count: nrfiCount, unitsAt: nrfiUnits },
+    yrfi:       { count: yrfiCount, unitsAt: yrfiUnits },
     pending,
-    unitsTotal,
-    empty,
+    unitsTotal: nrfiUnits + yrfiUnits,
   };
 }
 
 export function TonightsActionCard({
   rows,
   details = {},
+  date,
 }: TonightsActionCardProps) {
-  const s = summarize(rows, details);
+  const s = summarizeSides(rows, details);
+  // THE single source for flagged / placed / settled / ledger P&L.
+  const night = nightFromBoard(rows, details, date ?? "");
 
-  // Empty state: no STRONG plays AND nothing pending -- slate is
-  // either fully PASS or already-graded.  Calmer treatment, smaller
-  // card, no jump links, no urgent dot.
-  if (s.empty) {
+  // Empty state: nothing flagged AND nothing pending -- the slate is
+  // either fully PASS or already graded.  Calmer treatment, smaller card,
+  // no jump links, no urgent dot.
+  if (night.flagged === 0 && s.pending === 0) {
     return (
       <section className={`${styles.wrap} ${styles.empty}`} aria-label="Tonight's action">
         <div className={styles.emptyInner}>
-          <span className={styles.emptyEyebrow}>Tonight</span>
-          <span className={styles.emptyMain}>No plays on the slate</span>
+          <span className={styles.emptyEyebrow}>
+            {date ? `Tonight · ${date}` : "Tonight"}
+          </span>
+          <span className={styles.emptyMain}>No games flagged tonight.</span>
           <span className={styles.emptySub}>
             Model declined every game -- nothing to bet.
           </span>
@@ -132,16 +149,22 @@ export function TonightsActionCard({
     );
   }
 
-  // Active state: at least one STRONG or one pending row.  Hero number
-  // shows total STRONG count; pending count surfaces below as a
-  // secondary signal so the operator knows more bets may resolve once
-  // lineups post.
+  // Games the model flagged but that carry no real bet.  Stated plainly
+  // rather than left for the operator to subtract: an unexplained gap
+  // between two counts is what started this whole redesign.
+  const notPlaced = night.flagged - night.placed;
+
   return (
     <section className={styles.wrap} aria-label="Tonight's action">
       <div className={styles.head}>
-        <span className={styles.eyebrow}>Tonight</span>
+        {/* Global .eyebrow, not the local copy: TonightsActionCard.module.css
+            drops its own reimplementation in this pass so all eyebrows on
+            the page share one definition. */}
+        <span className="eyebrow">
+          {date ? `Tonight · ${date}` : "Tonight"}
+        </span>
         <span className={styles.subtitle}>
-          {s.total > 0
+          {night.flagged > 0
             ? "Strong plays on the slate"
             : "Lineups still pending — leans incoming"}
         </span>
@@ -149,13 +172,12 @@ export function TonightsActionCard({
 
       <div className={styles.body}>
         <div className={styles.heroBlock}>
-          <span className={styles.heroNum}>{s.total}</span>
-          <span className={styles.heroUnit}>
-            {s.total === 1 ? "PLAY" : "PLAYS"}
-          </span>
+          {/* A count, not money: --foreground, never tone-coloured. */}
+          <span className={styles.heroNum}>{night.flagged}</span>
+          <span className={styles.heroUnit}>flagged STRONG</span>
           {s.unitsTotal > 0 && (
             <span className={styles.heroStake}>
-              {s.unitsTotal.toFixed(1)}u staked
+              {s.unitsTotal.toFixed(2)}u at risk
             </span>
           )}
         </div>
@@ -185,6 +207,39 @@ export function TonightsActionCard({
           )}
         </div>
       </div>
+
+      {/* The reconcile line.  Same four numbers, same order, same source as
+          the ticker above and the day view below. */}
+      <p className={money.reconLine}>
+        <span>
+          <b>{night.flagged}</b> flagged
+        </span>
+        <span className={money.reconSep} aria-hidden>·</span>
+        <span>
+          <b>{night.placed}</b> placed
+        </span>
+        <span className={money.reconSep} aria-hidden>·</span>
+        <span>
+          <b>{night.settled}</b> settled <b>{fmtU(night.ledgerPL)}</b>
+        </span>
+      </p>
+
+      {notPlaced > 0 && (
+        <p className={money.reconLine}>
+          <span>
+            <b>{notPlaced}</b> flagged but not placed
+          </span>
+        </p>
+      )}
+
+      {/* Plain-English legend.  The three counts are ALLOWED to differ;
+          saying so out loud is cheaper than another "my bets vanished"
+          incident. */}
+      <p className="meta">
+        Flagged = the model called it STRONG. Placed = a real bet is in the
+        ledger. Settled = graded and paid. These three counts are allowed to
+        differ; the table below shows every game once.
+      </p>
     </section>
   );
 }
@@ -211,7 +266,9 @@ function SideRow({
     );
   }
 
-  const meta = units > 0 ? `${units.toFixed(1)}u` : "";
+  // Two decimals everywhere units appear, matching fmtU, so the same
+  // quantity never shows up as "4.0u" here and "4.00u" ten pixels away.
+  const meta = units > 0 ? `${units.toFixed(2)}u` : "";
 
   return (
     <div className={styles.sideRow}>

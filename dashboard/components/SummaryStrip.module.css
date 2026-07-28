@@ -48,15 +48,18 @@
    functional indicators that still need them (lineup-pending dots
    in BoardRow). */
 
+/* The .figStat role (20px).  Was 32px, which made a slate COUNT the
+   largest type on the page -- larger than the real-money P&L it sits
+   above.  Exactly one figure on the page is allowed past 26px and it is
+   the ledger.  line-height/letter-spacing moved off rem+px onto the
+   role's own unitless/em values. */
 .big {
-  /* Geist Mono heading-32 -- numeric, terminal feel.  Was 40px;
-     tightened with the rest of the dashboard density pass. */
   font-family: var(--font-mono);
-  font-size: 32px;
+  font-size: 20px;
   font-weight: 500;
   color: var(--foreground);
-  line-height: 2.25rem;
-  letter-spacing: -1.2px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .foot {
@@ -106,7 +109,9 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
-  background: var(--background);
+  /* --card, not --background: the bucket labels are --muted-foreground,
+     which was the 4.49:1 light-mode failure on --background. */
+  background: var(--card);
   position: relative;
   min-width: 0;
   transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
@@ -124,28 +129,25 @@
   gap: 4px;
 }
 
+/* Was a hand-written 12px/0.04em near-eyebrow.  Now the global .eyebrow
+   role (11px/600/0.14em); only the truncation behaviour stays local. */
 .bucketLabel {
-  font-family: var(--font-sans);
-  /* Geist label-12 */
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
+  composes: eyebrow from global;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
 }
 
+/* .figStat, same as .big above -- 24px was a third distinct figure size
+   inside one strip. */
 .bucketCount {
   font-family: var(--font-mono);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 500;
   color: var(--foreground);
-  line-height: 1.75rem;
-  letter-spacing: -0.6px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .bucketBar {
@@ -198,5 +200,6 @@
   .tiles { grid-template-columns: 1fr 1fr; }
   .distribution { grid-column: 1 / -1; }
   .buckets { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .big { font-size: 38px; }
+  /* The `.big { font-size: 38px }` bump is deleted -- it grew the count
+     on the narrowest screen, where the ledger figure is at its smallest. */
 }

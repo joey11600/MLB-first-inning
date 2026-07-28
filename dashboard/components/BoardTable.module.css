@@ -1,6 +1,9 @@
-.wrap {
-  margin-top: 12px;
-}
+/* Intentionally empty.  `margin-top: 12px` was deleted -- .shell
+   { gap: 16px } owns inter-section spacing, and this margin stacked on
+   top of it for a 28px gap above the board only.  The key is kept so
+   `styles.wrap` in BoardTable.tsx still resolves to a real class name
+   rather than the literal string "undefined". */
+.wrap { }
 
 /* ============================================================
    Header row -- mirrors .clickable in BoardRow.module.css.

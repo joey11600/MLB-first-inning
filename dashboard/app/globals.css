@@ -13,12 +13,13 @@
 :root {
   /* Surfaces */
   --background:        #171009;
-  --card:              #20160e;
+  --card:              #281d13;
   --popover:           #20160e;
-  --muted:             #2c2015;
+  --muted:             #33261a;
   --accent:            #2c2015;
-  --input:             #3a2c1d;
-  --border:            #302317;
+  --input:             #4a3826;
+  --border:            #6b523c;   /* was #302317 -- 1.17:1 on card, invisible.
+                                     Now 2.32:1, so cards actually have edges. */
   --ring:              #f5a465;
   --radius:            0.375rem;
 
@@ -27,7 +28,9 @@
   --card-foreground:      #f0e4d3;
   --popover-foreground:   #f0e4d3;
   --accent-foreground:    #f0e4d3;
-  --muted-foreground:     #a58f79;
+  --muted-foreground:     #c0a890;   /* was #a58f79 -- 5.75 -> 7.60 on card.
+                                        Captions run at 11-12px; AA-minimum ink
+                                        at that size still reads as dim. */
 
   /* Warm accents */
   --primary:               #f5a465;     /* peach = NRFI / positive */
@@ -44,7 +47,12 @@
      Contrast on --background (#171009) is ~5.1:1 -- still passes
      WCAG AA for normal text; foreground pair (#171009 on this red)
      is ~4.7:1, also AA. */
-  --destructive:           #e06a48;     /* rust = YRFI */
+  --destructive:           #ec8060;     /* rust = YRFI.  Was #e06a48, which fell to
+                                          4.41:1 once --muted was lightened for card
+                                          separation -- below AA.  Now 6.13/7.02/5.46
+                                          on card/background/muted.  Still clearly a
+                                          warm tomato, still distinct from --secondary
+                                          amber, still not an alarm red. */
   --destructive-foreground:#171009;
 
   /* Bloomberg meta accent */
@@ -63,6 +71,29 @@
 
   --pass-bg:            var(--secondary);
   --pass-fg:            var(--secondary-foreground);
+
+  /* Status tokens.  These were REFERENCED at
+     GameDetails.module.css:1223/1224/1257/1260 but never declared
+     anywhere, so the var() fallbacks always won and the dashboard
+     painted #2e8b57 (sea green -- the exact terminal green
+     CLAUDE.md says the operator rejected) and #c08a1d (2.95:1 in
+     light).  Aliasing them onto the warm palette keeps every
+     status surface on one hue family.  A var() inside a custom
+     property is substituted per element, so these follow
+     --primary/--secondary into light mode on their own -- the
+     .light copy below is defensive, not load-bearing. */
+  --success:            var(--primary);
+  --warning:            var(--secondary);
+
+  /* "Draft / reconstructed" as a TEXTURE, for the simulated
+     surfaces (the MODEL REPLAY left rail, replay-only rows).
+     Stays inside the warm palette -- no new hue -- and, unlike the
+     rotated PAPER / SIM watermarks it replaces, it never overlaps
+     text, so it costs nothing in contrast. */
+  --sim-hatch: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--muted-foreground) 55%, transparent) 0 2px,
+    transparent 2px 5px);
 
   /* Geist parity tokens */
   --ds-gray-1000: var(--foreground);
@@ -84,7 +115,19 @@
   /* Same as :root above */
 }
 
-/* --------- Light mode -- soft inverse for daylight terminals --------- */
+/* --------- Light mode -- soft inverse for daylight terminals ---------
+   CONTRAST REPAIR 2026-07-28: 17 of 34 measured light-mode pairs were
+   sub-AA, because --primary/--secondary were originally tuned against
+   --card (#fffbf4) but are used overwhelmingly on --background
+   (#f7efe4) and --muted (#efe4d3), both of which are darker.  Four
+   token values move; see the per-line ratios below.
+
+   !! THE LIGHT PALETTE LIVES IN TWO BLOCKS !!  This one (the explicit
+   .light toggle) and `@media (prefers-color-scheme: light)
+   :root:not(.dark)` further down, which is a separate, incomplete
+   hand-copy.  Change one without the other and a user who arrived via
+   their OS setting sees different contrast from a user who clicked the
+   theme toggle.  Keep the four accent values identical in both. */
 .light {
   /* Surfaces */
   --background:        #f7efe4;
@@ -93,7 +136,7 @@
   --muted:             #efe4d3;
   --accent:            #efe4d3;
   --input:             #e1d3bf;
-  --border:            #e1d3bf;
+  --border:            #cbb69a;   /* was #e1d3bf -- 1.20:1 on card. Now 1.86:1. */
   --ring:              #b05f28;
   --radius:            0.375rem;
 
@@ -102,19 +145,29 @@
   --card-foreground:      #2b2015;
   --popover-foreground:   #2b2015;
   --accent-foreground:    #2b2015;
-  --muted-foreground:     #7c6b59;
+  /* was #7c6b59 -- card/bg/muted 4.96/4.49/4.07, i.e. it failed AA on
+     the two surfaces it is used on most.  Now 6.40/5.79/5.25. */
+  --muted-foreground:     #6b5a48;
 
-  /* Same accents but darker for contrast on white */
-  --primary:               #b05f28;     /* burnt sienna */
-  --primary-foreground:    #fffbf4;
-  --secondary:             #a4690f;     /* dark amber */
-  --secondary-foreground:  #fffbf4;
+  /* Same accents but darker for contrast on white.  Ratios in the
+     comments are sRGB-measured against card / background / muted. */
+  --primary:               #9a4f1c;     /* burnt sienna; was #b05f28 -- 4.51/4.08/3.70 -> 5.80/5.25/4.76 */
+  --primary-foreground:    #fffbf4;     /* #fffbf4 on #9a4f1c = 5.80:1, solid chips still pass */
+  --secondary:             #8a5407;     /* dark amber;    was #a4690f -- 4.42/4.00/3.63 -> 6.07/5.50/4.98 */
+  --secondary-foreground:  #fffbf4;     /* #fffbf4 on #8a5407 = 6.07:1 */
   /* T3.21: warmed YRFI red for light theme too -- same calmer hue
      as the dark theme, but darker for white-background contrast. */
-  --destructive:           #a84a30;     /* dark warm tomato */
-  --destructive-foreground:#fffbf4;
+  --destructive:           #9c4228;     /* dark warm tomato; was #a84a30 -- 5.52/5.00/4.53 -> 6.32/5.71/5.18 */
+  --destructive-foreground:#fffbf4;     /* #fffbf4 on #9c4228 = 6.32:1 */
 
   --accent-cyan:           #5c7b8a;
+
+  /* Deliberately NOT re-derived from the darkened accents above: the
+     *-soft rgba() tints and --ring below are 10-22% alpha washes and a
+     focus outline, all of which already clear their thresholds at the
+     old hue (--ring #b05f28 on --background = 4.08:1, vs the 3:1 a
+     non-text UI component needs).  Left alone so this repair touches
+     exactly the four ink tokens it claims to. */
 
   --nrfi:               var(--primary);
   --nrfi-foreground:    var(--primary-foreground);
@@ -129,6 +182,16 @@
   --pass-bg:            var(--secondary);
   --pass-fg:            var(--secondary-foreground);
 
+  /* Re-declared for the same reason the accents are: so a reader of
+     this block can see the whole light palette without cross-checking
+     :root.  The values are identical aliases either way. */
+  --success:            var(--primary);
+  --warning:            var(--secondary);
+  --sim-hatch: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--muted-foreground) 55%, transparent) 0 2px,
+    transparent 2px 5px);
+
   --ds-gray-1000: var(--foreground);
   --ds-blue-900:  var(--accent-cyan);
 
@@ -137,7 +200,14 @@
   --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(43, 32, 21, 0.04);
 }
 
-/* prefers-color-scheme: light overrides ONLY when no explicit class */
+/* prefers-color-scheme: light overrides ONLY when no explicit class.
+   THIS IS THE SECOND HALF OF THE LIGHT PALETTE and it is an incomplete
+   hand-copy of `.light` above (it omits --radius, the semantic
+   --nrfi/--yrfi/--pass aliases, and now the --success/--warning/
+   --sim-hatch aliases, all of which it inherits from :root instead).
+   The four accent values below MUST stay byte-identical to `.light`,
+   or the OS-preference path silently keeps the old sub-AA colours
+   while the toggle path is fixed. */
 @media (prefers-color-scheme: light) {
   :root:not(.dark) {
     --background:        #f7efe4;
@@ -146,20 +216,20 @@
     --muted:             #efe4d3;
     --accent:            #efe4d3;
     --input:             #e1d3bf;
-    --border:            #e1d3bf;
+    --border:            #cbb69a;   /* was #e1d3bf -- see .light */
     --ring:              #b05f28;
 
     --foreground:           #2b2015;
     --card-foreground:      #2b2015;
     --popover-foreground:   #2b2015;
     --accent-foreground:    #2b2015;
-    --muted-foreground:     #7c6b59;
+    --muted-foreground:     #6b5a48;   /* was #7c6b59 -- 4.96/4.49/4.07 -> 6.40/5.79/5.25 */
 
-    --primary:               #b05f28;
+    --primary:               #9a4f1c;  /* was #b05f28 -- 4.51/4.08/3.70 -> 5.80/5.25/4.76 */
     --primary-foreground:    #fffbf4;
-    --secondary:             #a4690f;
+    --secondary:             #8a5407;  /* was #a4690f -- 4.42/4.00/3.63 -> 6.07/5.50/4.98 */
     --secondary-foreground:  #fffbf4;
-    --destructive:           #a84a30;
+    --destructive:           #9c4228;  /* was #a84a30 -- 5.52/5.00/4.53 -> 6.32/5.71/5.18 */
     --destructive-foreground:#fffbf4;
     --accent-cyan:           #5c7b8a;
 
@@ -251,41 +321,75 @@ body::after {
   letter-spacing: -0.005em;
 }
 
-/* --------- Geist typography scale (used selectively) ---------- */
-.t-heading-72 { font-size: 72px; font-weight: 600; line-height: 4.5rem;   letter-spacing: -4.32px; }
-.t-heading-64 { font-size: 64px; font-weight: 600; line-height: 4rem;     letter-spacing: -3.84px; }
-.t-heading-56 { font-size: 56px; font-weight: 600; line-height: 3.5rem;   letter-spacing: -3.36px; }
-.t-heading-48 { font-size: 48px; font-weight: 600; line-height: 3.5rem;   letter-spacing: -2.88px; }
-.t-heading-40 { font-size: 40px; font-weight: 600; line-height: 3rem;     letter-spacing: -2.4px; }
-.t-heading-32 { font-size: 32px; font-weight: 600; line-height: 2.5rem;   letter-spacing: -1.28px; }
-.t-heading-24 { font-size: 24px; font-weight: 600; line-height: 2rem;     letter-spacing: -0.96px; }
-.t-heading-20 { font-size: 20px; font-weight: 600; line-height: 1.625rem; letter-spacing: -0.4px; }
-.t-heading-16 { font-size: 16px; font-weight: 600; line-height: 1.5rem;   letter-spacing: -0.32px; }
-.t-button-16  { font-size: 16px; font-weight: 500; line-height: 1.25rem;  }
-.t-button-14  { font-size: 14px; font-weight: 500; line-height: 1.25rem;  }
-.t-button-12  { font-size: 12px; font-weight: 500; line-height: 1rem;     }
-.t-label-20   { font-size: 20px; line-height: 2rem;     }
-.t-label-18   { font-size: 18px; line-height: 1.25rem;  }
-.t-label-16   { font-size: 16px; line-height: 1.25rem;  }
-.t-label-14   { font-size: 14px; line-height: 1.25rem;  }
-.t-label-13   { font-size: 13px; line-height: 1rem;     }
-.t-label-12   { font-size: 12px; line-height: 1rem;     }
-.t-copy-24    { font-size: 24px; line-height: 2.25rem;   }
-.t-copy-20    { font-size: 20px; line-height: 2.25rem;   }
-.t-copy-18    { font-size: 18px; line-height: 1.75rem;   }
-.t-copy-16    { font-size: 16px; line-height: 1.5rem;    }
-.t-copy-14    { font-size: 14px; line-height: 1.25rem;   }
-.t-copy-13    { font-size: 13px; line-height: 1.125rem;  }
+/* ============================================================
+   THE SEVEN TYPE ROLES -- replacing 43 hand-written sizes.
 
-/* --------- Eyebrow / micro labels ---------- */
+   This block replaces the 24-class Geist scale that used to live
+   here (`.t-heading-NN`, `.t-label-NN`, `.t-copy-NN`, and their
+   `.t-button-NN` siblings).  That scale was referenced by exactly
+   zero components -- verified by grep: they quoted it in
+   comments and then hand-wrote the pixel values, which is how the
+   dashboard accumulated 43 distinct sizes.  Deleting it and
+   shipping roles that components actually apply is the whole
+   point -- leaving a second unused scale in place is how the
+   drift restarts.
+
+   ALL PX, NEVER REM.  html/body is font-size: 15px (below), so
+   every rem in this codebase lands on a fractional pixel
+   (0.62rem = 9.3px, 1.9rem = 28.5px).  Adding a rem here
+   re-introduces the drift that was just removed.
+
+   Six px values total: 44 / 26 / 20 / 13 / 12 / 11.
+   Four weights total: 400 prose, 500 figures, 600 eyebrows,
+   700 tag only.  No 300 / 800 / 900.
+   ============================================================ */
+
+/* FIGURES -- monospace.  Longhand on purpose: the `font:`
+   shorthand resets font-variant-numeric and would silently kill
+   tabular-nums, which is what keeps a column of units aligned. */
+.figHero, .figLead, .figStat, .figRow {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  color: var(--foreground);
+}
+.figHero { font-size: 44px; line-height: 1.05; font-weight: 500; letter-spacing: -0.02em;  }
+.figLead { font-size: 26px; line-height: 1.10; font-weight: 500; letter-spacing: -0.015em; }
+.figStat { font-size: 20px; line-height: 1.20; font-weight: 500; letter-spacing: -0.01em;  }
+.figRow  { font-size: 13px; line-height: 1.35; font-weight: 500; letter-spacing: 0;        }
+
+/* TEXT -- sans ONLY.  Monospace is forbidden in these four roles,
+   and that prohibition is what makes monospace *mean* "this is a
+   number".  Nine classes are monospace PROSE today (.range,
+   .totalSub, .recSub, .recStats, .recMeta, .recFootnote, .recBet,
+   .recSelDayLabel, .recSelDaySum) and all move to .copy/.meta. */
 .eyebrow {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-family: var(--font-sans); font-size: 11px; line-height: 1;
+  font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--muted-foreground);
+}
+.copy {
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.55;
+  font-weight: 400; color: var(--foreground); max-width: 68ch;
+}
+.meta {
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.5;
+  font-weight: 400; color: var(--muted-foreground); max-width: 68ch;
+}
+.tag {
+  display: inline-block; padding: 2px 6px; border-radius: 3px;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  background: color-mix(in oklab, var(--secondary) 18%, transparent);
+  color: var(--secondary);
+  border: 1px solid color-mix(in oklab, var(--secondary) 40%, transparent);
+}
+
+@media (max-width: 720px) {
+  .figHero { font-size: 32px; }
+  .figLead { font-size: 22px; }
+  .figStat { font-size: 18px; }
+  /* 11 / 12 / 13 never shrink -- they are already at the floor. */
 }
 
 /* --------- Buttons ---------- */
@@ -297,8 +401,18 @@ button {
   cursor: pointer;
   font-size: inherit;
 }
-button:focus-visible {
-  outline: 1px solid var(--accent-cyan);
+/* ONE focus treatment for the whole dashboard, replacing four
+   (this rule's old 1px --accent-cyan, a 2px --ring, a 3px --ring
+   with a 6px halo, and a 2px inset).  The cyan was also the only
+   place a cold hue leaked into a warm-brown palette, and 1px is
+   thin enough to lose on a textured background.
+
+   :where() keeps this at zero specificity so any component that
+   genuinely needs a different ring can still win without
+   !important -- it is a default, not an override.  Kept to the
+   five elements the dashboard actually focuses. */
+:where(button, a, input, select, summary):focus-visible {
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 

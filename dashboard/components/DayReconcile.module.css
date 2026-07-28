@@ -1,0 +1,379 @@
+/* DayReconcile -- "the night, game by game".
+ *
+ * ONE grid template, shared by the column heads and every row.
+ * (BoardTable.module.css:13 and BoardRow.module.css:171 each keep their
+ * own copy of the same six-track list, in two files, and they have
+ * drifted. Do not repeat that here: the template below is declared
+ * exactly once and rows opt in with `display: contents`.)
+ *
+ * This card sits on --card, NOT on the recessed simulated surface,
+ * because it is the reconciliation -- the one place real money and the
+ * simulated replay appear on the same line. Every cell is labelled, so
+ * the shared surface is safe; the provenance is carried by the row rail
+ * and by the "sim" suffix, never by dimming the text.
+ */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+  padding: 18px 20px;
+}
+
+/* ── header ────────────────────────────────────────────────────────── */
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* A graded night renders the header inside a <summary> so it can be
+   folded away. The default triangle is replaced with a caret that sits
+   at the end of the flex row instead of jumping the baseline. */
+summary.head {
+  cursor: pointer;
+  list-style: none;
+}
+summary.head::-webkit-details-marker { display: none; }
+summary.head::after {
+  content: "▾";
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+details[open] > summary.head::after { content: "▴"; }
+
+/* Absorbs the free space so the caret added by summary::after becomes a
+   third flex item at the RIGHT edge instead of space-between shoving
+   the night's P&L into the middle of the header. */
+.headLeft {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* chainText() -- flagged/placed/settled and the real P&L, verbatim. */
+.chain {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 500;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--foreground);
+}
+
+/* replayText() -- a SEPARATE population, on its own line and one step
+   quieter. It must never look like a fourth step on the chain above. */
+.replayChain {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--muted-foreground);
+}
+
+.headTotals {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+/* The night's real P&L. Tone here is legitimate -- this is money that
+   moved. Beats the global .figStat colour on specificity, deliberately. */
+.headFig[data-tone="win"]  { color: var(--primary); }
+.headFig[data-tone="loss"] { color: var(--destructive); }
+.headFig[data-tone="none"] { color: var(--foreground); }
+
+/* ── the table ─────────────────────────────────────────────────────── */
+
+/* The PAGE BODY must never scroll sideways at any viewport. The table
+   scrolls inside its own wrapper instead. */
+.scroll { overflow-x: auto; }
+
+.grid {
+  min-width: 780px;
+  display: grid;
+  grid-template-columns:
+    minmax(112px, 0.9fr)   /* GAME            */
+    56px                   /* SIDE            */
+    64px                   /* MODEL p         */
+    minmax(150px, 1fr)     /* YOU             */
+    minmax(150px, 1fr)     /* REPLAY (SIM)    */
+    minmax(230px, 1.6fr);  /* WHY THEY DIFFER */
+  column-gap: 14px;
+  align-items: baseline;
+}
+
+.colHead {
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+/* "MODEL p" -- p is the probability symbol and must stay lowercase. */
+.colHeadRaw { text-transform: none; letter-spacing: 0.08em; }
+
+.section {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 16px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.sectionCount {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--muted-foreground);
+}
+
+.row { display: contents; }
+.row > * {
+  padding: 10px 0;
+  min-height: 44px;
+  min-width: 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+}
+
+.num { text-align: right; }
+
+/* Row provenance is carried by a rail -- never by opacity. Dimming a
+   whole row is the contrast crime that started this complaint. The rail
+   is an inset shadow on the first cell, so it can never add a seventh
+   track and push the table into horizontal scroll on its own. */
+.row[data-state="agree"] > :first-child {
+  box-shadow: inset 3px 0 0 color-mix(in oklab, var(--primary) 55%, var(--border));
+  padding-left: 10px;
+}
+.row[data-state="you-only"] > :first-child {
+  box-shadow: inset 3px 0 0 var(--secondary);
+  padding-left: 10px;
+}
+.row[data-state="replay-only"] > :first-child {
+  background: var(--sim-hatch) left / 3px 100% no-repeat;
+  padding-left: 10px;
+}
+.row[data-state="idle"] > :first-child {
+  box-shadow: inset 3px 0 0 var(--border);
+  padding-left: 10px;
+}
+
+/* ── cells ─────────────────────────────────────────────────────────── */
+
+.cellGame {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.cellYou,
+.cellReplay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+.cellWhy {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
+/* The side pill. YRFI carries the same contrast lift as the board's
+   .yrfiStrong .pickLabel: plain --destructive on a 14%-destructive fill
+   measures 4.43:1 in dark, a fail, while its NRFI twin passes at 6.69.
+   Mixing 70% destructive with --foreground lands at 5.96:1. */
+.pill {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--muted-foreground) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--muted-foreground) 28%, transparent);
+}
+.pill[data-side="YRFI"] {
+  color: color-mix(in oklab, var(--destructive) 70%, var(--foreground));
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  border-color: color-mix(in oklab, var(--destructive) 30%, transparent);
+}
+.pill[data-side="NRFI"] {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 30%, transparent);
+}
+
+/* Every figure in the table routes through one class plus a data-tone. */
+.fig {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 500;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+.fig[data-tone="win"]  { color: var(--primary); }
+.fig[data-tone="loss"] { color: var(--destructive); }
+.fig[data-tone="none"] { color: var(--foreground); }
+/* Simulated money is NEVER tone-coloured, whatever its sign. */
+.fig[data-tone="sim"]  { color: var(--muted-foreground); }
+
+/* Words, not figures -- sans on purpose, so the ABSENCE of a monospace
+   numeral is itself the signal that there is no number here. */
+.words {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
+.outcome {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.outcome[data-tone="win"]  { color: var(--primary); }
+.outcome[data-tone="loss"] { color: var(--destructive); }
+/* Amber is reserved for PENDING / UNKNOWN and never tints a P&L. */
+.outcome[data-tone="pending"] { color: var(--secondary); }
+.outcome[data-tone="none"] { color: var(--muted-foreground); }
+
+.simSuffix {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Real money on a game the current model would have passed on. This is
+   the row the whole table exists to surface. */
+.disagree {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--secondary);
+  background: color-mix(in oklab, var(--secondary) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--secondary) 32%, transparent);
+}
+
+/* ── footer + notes ────────────────────────────────────────────────── */
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 24px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.footLine {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--muted-foreground);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.footLine b {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* All three use the global .copy / .meta roles for type; these only
+   own their spacing. */
+.reconcileNote { margin-top: 10px; }
+.empty         { padding: 18px 0 0; }
+.assumedNote   { margin-top: 8px; }
+
+/* ── narrow viewports ──────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .card { padding: 16px 14px; }
+  .colHead { display: none; }
+
+  /* Six tracks cannot survive a phone. Rows become their own wrapping
+     line instead of a second grid: named grid areas over a
+     `display: contents` row are brittle, and a wrapping flex line
+     degrades predictably as a game name or a reason grows. */
+  .grid { min-width: 0; display: block; }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    padding: 10px 0 10px 10px;
+    border-left: 3px solid var(--border);
+    border-bottom: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+  }
+  .row > * {
+    padding: 0;
+    min-height: 0;
+    border-bottom: 0;
+  }
+  /* The rail moves to the row itself, so clear the desktop inset. */
+  .row > :first-child {
+    box-shadow: none;
+    background: none;
+    padding-left: 0;
+  }
+  .row[data-state="agree"] {
+    border-left-color: color-mix(in oklab, var(--primary) 55%, var(--border));
+  }
+  .row[data-state="you-only"]    { border-left-color: var(--secondary); }
+  .row[data-state="idle"]        { border-left-color: var(--border); }
+  .row[data-state="replay-only"] {
+    border-left: 0;
+    padding-left: 13px;
+    background: var(--sim-hatch) left / 3px 100% no-repeat;
+  }
+
+  /* Line 1 = game + side + p + you; line 2 = replay; line 3 = why. */
+  .cellReplay,
+  .cellWhy { flex-basis: 100%; }
+  .num { text-align: left; }
+  .foot { gap: 6px 12px; }
+}

@@ -12,6 +12,46 @@ Severity legend:
 
 ---
 
+## 🔴 TIER 7 — 2026-07-28 money-path + dashboard audit
+
+16-agent review (6 lenses, adversarial verification). 35 raw findings,
+8 confirmed, all fixed. See CHANGELOG 2026-07-28.
+
+- [x] **T7.1 — Kelly daily cap double-counted on every odds re-import** ✅ 2026-07-28
+  `tracker._committed_on` seeded from ALL STRONG rows including the pre-lock rows the batch was about to re-size, and each re-size ADDED without releasing. Committed exposure ran ~2x truth; with Railway re-importing every 5 minutes, stakes oscillated full → trimmed → zero and froze at whatever the lock window caught. Now seeds only from `bet_placed='Y'`, plus `kelly_reset_daily_committed()` at the top of every `import_odds` batch (also clears the never-expiring `_bankroll_cache`). Regression: three consecutive simulated batches now produce identical stakes.
+
+- [x] **T7.2 — end_of_day heal fabricated bets from deliberate no-bets** ✅ 2026-07-28
+  Orphan-heal skipped only `bet_placed='Y'`, sweeping Kelly zero-stake / cap-zeroed / pre-lock-pending `'N'` rows into `Y` at flat 1.00u. Invented P&L then mis-sized later stakes through the compounding bankroll. Heals only truly-blank rows; preserves recorded Kelly stakes.
+
+- [x] **T7.3 — StakeChip sized from the static nominal bankroll** ✅ 2026-07-28
+  Chip used 100u while `tracker` sizes from the compounded bank — overstates the stake in a drawdown. Predictor exports `kellyCurrentBankrollUnits`; once locked the chip shows the ledger's frozen `unitsRisked`.
+
+- [x] **T7.4 — hero card hard-coded 1u per placed bet** ✅ 2026-07-28
+  `TonightsActionCard` summed a constant 1 under live quarter-Kelly (4-10u stakes), understating the night's exposure severalfold.
+
+- [x] **T7.5 — sizing bankroll compounded -110 placeholder P&L** ✅ 2026-07-28
+  `current_bankroll_units()` counted wins settled at the flat fallback price — the April artefact, inside the money path. Now skips rows without a real picked-side price.
+
+- [x] **T7.6 — season record claimed to replay the live model but did not** ✅ 2026-07-28
+  Scored with a walk-forward calibrator reading +0.008 to +0.027 higher than the shipped one; since YRFI fires on a LOW p_nrfi that cost 31 bets over the real window. Now reports the deployed figure as the headline with the walk-forward figure beside it as the no-hindsight floor.
+
+- [x] **T7.7 — doubleheader key collision in the season record** ✅ 2026-07-28
+  `(date, away, home)` is not a key: both legs of 2026-07-19 LAD@NYY and 2026-07-22 PIT@NYY rendered as the same bet twice and doubled their day totals. `load_season` emits a stable `rid`; legs label as `G2`. Season totals were unaffected.
+
+- [x] **T7.8 — CLV rendered "+0.00pp" for an unmeasurable quantity** ✅ 2026-07-28
+  `board-supabase.ts` coerced NULL to 0 via `num()` (Supabase is the production path, so every `clvPct != null` guard was dead), and the CSV genuinely stores `0.0000` because the price freezes on placement. Now measured only when opening and taken price differ; otherwise reads "Not measurable".
+
+- [x] **T7.9 — ZoneCard tone disagreed with its own number** ✅ 2026-07-28
+  Tone keyed off placeholder-inflated `unitsPL` while the card printed `realPL`.
+
+- [x] **T7.10 — watermarks overlapped live figures; sub-AA contrast** ✅ 2026-07-28
+  The 56px rotated "PAPER" sat on the −52.4pp value. Both watermarks removed together with the `z-index` rule holding them behind text. Light mode: four tokens below AA, fixed in BOTH light blocks (they had diverged). Dark mode: card border was 1.17:1 (invisible) → 2.27:1, `--muted-foreground` 5.75 → 7.25, `--destructive` lifted to clear AA on the lightened muted surface.
+
+- [ ] **T7.11 — `game_pk` is not unique in picks_2026.csv** 🟡
+  1563 rows, 1543 distinct; doubleheader legs share one pk and 2026-06-17 SF@ATL has both legs labelled game 1. No P&L impact today. Worked around by `rid`; the writer should still be fixed.
+
+---
+
 ## 🔴 TIER 1 — Real bugs, fix this week
 
 These can corrupt picks, lose data, or silently mis-grade.

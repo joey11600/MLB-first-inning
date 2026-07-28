@@ -594,7 +594,17 @@
   border-color: color-mix(in oklab, var(--destructive) 40%, var(--border));
 }
 .yrfiStrong .pickDot   { background: var(--destructive); box-shadow: 0 0 8px color-mix(in oklab, var(--destructive) 60%, transparent); }
-.yrfiStrong .pickLabel { color: var(--destructive); }
+/* Contrast repair (2026-07-28).  Plain var(--destructive) ink on this pill
+   (14% destructive over --card, i.e. #3b2216 in dark) measures 4.43:1 at
+   12px/600 -- below WCAG AA, and the STRONG YRFI label is the single string
+   on the board the operator acts on.  Its NRFI twin already passes at
+   6.69:1, so the two sides of the board were not visually equal-weight.
+   Mixing 30% --foreground into the ink lifts this pair to 5.96:1 on the same
+   pill.  Do NOT darken the --destructive token instead: 274 references and
+   344 color-mix() surfaces would shift toward salmon to fix one pair. */
+.yrfiStrong .pickLabel {
+  color: color-mix(in oklab, var(--destructive) 70%, var(--foreground));
+}
 
 /* "Starter pending" / "Lineup pending" -- dashed muted treatment.
    Reads as data-quality halt, not model decision.

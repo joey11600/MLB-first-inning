@@ -32,6 +32,49 @@ failure mode to the specific tool that gives you the answer in <5 min.
 
 ---
 
+## The performance panel (rebuilt 2026-07-28)
+
+Two surfaces that must never be confusable:
+
+| surface | what it is | visual language |
+|---|---|---|
+| **Ledger** (`TotalCard`) | real money, real DK prices, bets actually placed | raised card, tone rail, figures take `--primary` / `--destructive` |
+| **Model replay** (`SeasonRecordCard`) | a simulation of what the current model would do | recessed card, hatched left rail, `.simCard` forces every figure to `--foreground !important` |
+
+**`data/season_record.json`** (written by `tools/export_season_record.py`,
+served verbatim by `/api/season-record`) carries two figure sets per side:
+
+  - the **headline**, scored with the shipped calibrator at the live gate
+    — "what is the system I am running worth"
+  - the **floor** (`side.floor`), a walk-forward calibrator refit at each
+    date from strictly earlier games — the no-hindsight bound
+
+The compounded Kelly bankroll lives under `side.sim`, never at the top
+level. `side.flatProfit` is the headline. `projected` and `real` are both
+nullable.
+
+`days[]` carries a per-date reconciliation: every game either the live
+ledger flagged STRONG or the current model would bet, with both
+dispositions and a machine-readable skip `code`.
+
+**Two rules that exist because breaking them caused a real incident:**
+
+1. **Every bet count on the page comes from `dashboard/lib/reconcile.ts`.**
+   The panel once showed `6 STRONG YRFI`, `4 graded bets` and `1 bet` for
+   the same night because three components each derived their own count.
+2. **`days[].flatPnl` is the REPLAY's flat P&L, not the ledger's**
+   (2026-07-27: −1.00 vs −0.33). Sum `games[].ledger.pnl` for the
+   operator's own number.
+
+Card inventory: `TonightsActionCard` → `TotalCard` → zone cards →
+`DayReconcile` → `SeasonRecordCard` → lean block → no-bet row.
+`KellyCard` and the standalone `LeanPaperTradeCard` no longer exist.
+
+Types live in `dashboard/lib/season-record.ts` — one definition. A stale
+inline copy is not a type error, it is a runtime crash.
+
+---
+
 ## What this is
 
 An MLB first-inning **NRFI** (no run first inning) / **YRFI** (yes run first

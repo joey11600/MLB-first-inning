@@ -1219,9 +1219,15 @@
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+/* --success and --warning are now declared in globals.css (as --primary
+   and --secondary).  Until they were, these var() fallbacks were what
+   actually painted: #2e8b57 is sea green -- the terminal green the
+   operator explicitly rejected -- and #c08a1d measured 2.95:1 in light
+   mode.  The fallbacks are removed so a future token change propagates
+   instead of being silently overridden by a hardcoded hex. */
 .reasoningOk {
-  background: color-mix(in oklab, var(--success, #2e8b57) 15%, transparent);
-  color: var(--success, #2e8b57);
+  background: color-mix(in oklab, var(--success) 15%, transparent);
+  color: var(--success);
 }
 
 .reasoningRow {
@@ -1254,10 +1260,10 @@
 }
 
 .shrunkHigh {
-  color: var(--warning, #c08a1d);
+  color: var(--warning);
 }
 .flatZone {
-  color: var(--warning, #c08a1d);
+  color: var(--warning);
 }
 
 .reasoningWarnList {
@@ -1265,7 +1271,10 @@
   margin: 0;
   padding: 0;
   font-size: 12.5px;
-  color: var(--destructive, #c0392b);
+  /* Same class of defect: --destructive has always been declared, so
+     #c0392b (a pure red, off-palette) was dead code -- but it would have
+     become live the moment anyone renamed the token. */
+  color: var(--destructive);
   line-height: 1.5;
 }
 .reasoningWarn {

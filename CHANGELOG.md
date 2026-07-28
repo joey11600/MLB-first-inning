@@ -11,6 +11,137 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-28] — Dashboard rebuild: one night, one set of numbers
+
+Operator report: *"the dashboard looks like shit visually and its so
+difficult to read"*, and separately that it *"is not reflecting the
+proper units won or lost per day"*. Both were true, and the second was
+not a display bug.
+
+### The defect
+
+One night rendered three different ways on one screen, with nothing
+explaining the difference:
+
+| surface | 2026-07-27 |
+|---|---|
+| ticker | `6 STRONG YRFI` |
+| ledger card | `4 graded bets · −0.33u` |
+| season record | `1 bet · −11.15u` |
+
+Two independent causes stacked:
+
+1. **The gate moved and the ledger is frozen at the old one.** Those six
+   picks were made under the 0.44 cutoff; the record replays the current
+   0.40. Five of the six scored 0.418–0.450 — through 0.44, not through
+   0.40. Both numbers were right about different systems.
+2. **The record card was mislabelled.** It said "CURRENT MODEL REPLAYED"
+   while scoring every game with a calibrator rebuilt from scratch at each
+   date. That curve reads +0.0252 higher than the shipped one in April,
+   +0.0077 in July, and because YRFI fires on a LOW p_nrfi, reading high
+   means betting less. Over the real window the gap alone was 31 bets and
+   +6.71u of flat profit.
+
+### Changed
+
+- **The record now reports BOTH methods and leads with the deployed one**
+  (`tools/export_season_record.py`). Headline scores with
+  `data/calibration_v2.json` at the live gate — the model actually
+  running. The no-hindsight walk-forward figure is computed alongside and
+  printed beside it as the floor, never hidden.
+
+  | | bets | record | flat |
+  |---|---|---|---|
+  | REAL deployed (headline) | 125 | 78-47, 62.4% | **+11.33u** |
+  | REAL walk-forward (floor) | 94 | 61-33, 64.9% | +11.23u |
+  | PROJECTED deployed | 190 | 127-63, 66.8% | **+34.66u** |
+  | PROJECTED walk-forward | 139 | 94-45, 67.6% | +25.45u |
+
+  Note the real window: 31 extra bets, +0.10u. The deployed model's extra
+  volume is roughly break-even; the edge is in the shared core.
+
+- **The headline is flat profit, not the compounded bankroll.** Quarter
+  Kelly on an imaginary 100u bank turns a +34.66u edge into +879.64u. That
+  figure still renders — it is one sentence tagged SIMULATED inside the
+  replay card, and `.simCard` forces every figure in that card to
+  `--foreground !important` so a simulated number can never appear in the
+  same peach as real profit. A one-week dismissible note says where it
+  went; the operator's incident history is entirely about things
+  appearing to vanish.
+
+- **Real money and simulated money are now different surfaces.** Ledger =
+  raised card, tone rail. Replay = recessed, hatched left rail, no tone.
+
+### Added
+
+- **`DayReconcile`** — the per-date drill-down that reconciles the three
+  counts game by game: `FLAGGED 6 · PLACED 4 · SETTLED 4 −0.33u`, with the
+  replay count deliberately OFF that chain (it is a different population,
+  not a fourth stage), and a plain-English reason on every skip:
+  *"model wasn't confident enough (0.418 vs 0.40 needed)"*.
+- **`dashboard/lib/reconcile.ts`** — the single source for every count on
+  the page. One function, one string, quoted verbatim by the ticker, the
+  hero card and the day header. The three-numbers problem was three
+  components each deriving its own count.
+- **`dashboard/lib/season-record.ts`** — one definition of the record's
+  shape, replacing inline interfaces that a schema change turns into a
+  runtime crash rather than a type error.
+- `selectedBets` / `droppedZeroStake` / `droppedFlatPnl` disclosure —
+  PROJECTED stakes 190 of 225 qualifying bets; the 35 Kelly-zeroed ones
+  used to vanish from the headline silently.
+
+### Fixed
+
+- **Doubleheader double-count** (`tools/export_season_record.py`,
+  `tools/season_replay.py`). `(date, away, home)` is not a key: both legs
+  of 2026-07-19 LAD@NYY and 2026-07-22 PIT@NYY rendered as the same bet
+  twice and doubled their day totals. `load_season` now emits a stable
+  `rid` (CSV row index) and the record joins on it. Season totals were
+  unaffected — only the day view collapsed. Doubleheader legs now label as
+  `LAD@NYY G2`.
+- **"TONIGHT CLV +0.00pp" was never a measurement.** Two defects:
+  `board-supabase.ts` coerced NULL to 0 via `num()` (Supabase is the
+  production read path, so every `clvPct != null` guard in the codebase
+  was dead), and separately the CSV genuinely stores `0.0000` for most
+  placed rows because the price freezes on placement (T2.23) — opening and
+  taken price are the same recorded number. A bet now counts as measured
+  only when the picked side has both prices AND they differ; otherwise the
+  card reads **"Not measurable"** with the reason, never a number.
+- **Light-mode contrast below AA.** `--primary` #b05f28→#9a4f1c
+  (4.51/4.08/3.70 → 5.80/5.25/4.76 on card/background/muted),
+  `--secondary` #a4690f→#8a5407 (4.42/4.00/3.63 → 6.07/5.50/4.98),
+  `--muted-foreground` #7c6b59→#6b5a48 (4.96/4.49/4.07 → 6.40/5.79/5.25),
+  `--destructive` #a84a30→#9c4228 (5.52/5.00/4.53 → 6.32/5.71/5.18).
+  Applied to BOTH light blocks — `.light` and the
+  `prefers-color-scheme` copy — which had silently diverged.
+- **Terminal green was still in the tree.** `GameDetails.module.css` fell
+  back to `#2e8b57` (sea green) and `#c08a1d` because `--success` and
+  `--warning` were never declared. Tokens added, fallbacks removed.
+- **Zone card colour disagreed with its own number** — tone keyed off the
+  placeholder-inflated `unitsPL` while the card printed `realPL`, so a
+  zone could print a loss in the colour of a win.
+- **Both watermarks removed.** The 56px rotated "PAPER" overlapped the
+  −52.4pp figure. Deleted with the `z-index: 1` rule that was the only
+  thing holding it behind the numbers — that rule alone would have put the
+  word on top.
+- Typography: monospace is now for figures only. Nine classes were
+  monospace *prose*, which was most of "everything is monospace at nearly
+  one size". Six sizes replace 43; the unused 24-class `.t-*` scale that
+  nothing referenced is deleted.
+- A null record side no longer hides the entire card (the guard required
+  both sides truthy, failing silently).
+- `season_record.json` is now written atomically — a cron tick could read
+  it mid-write.
+
+### Deferred
+
+- Doubleheader `game_pk` is not unique in `picks_2026.csv` (1563 rows,
+  1543 distinct) and 2026-06-17 SF@ATL has both legs labelled game 1. No
+  P&L impact today — neither row was bet — but the writer should be fixed.
+  Spawned as a separate task.
+
+---
+
 ## [2026-07-27] — Loss investigation: the leak is selectivity, not the calibrator
 
 Operator asked why the system is losing. Investigation of all 526 graded

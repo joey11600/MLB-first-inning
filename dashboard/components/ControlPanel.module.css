@@ -1,7 +1,10 @@
 .panel {
   position: relative;
   padding: 18px 22px;
-  margin: 16px 0 22px;
+  /* No vertical margin -- .shell { gap: 16px } owns inter-section
+     spacing.  The old `margin: 16px 0 22px` stacked on top of that gap,
+     so the gap above this panel was 32px and below it 38px while its
+     neighbours sat at 16px. */
   border: 1px solid var(--border);
   background: var(--card);
   border-radius: var(--radius);
@@ -232,10 +235,12 @@
   letter-spacing: 0;
   font-family: var(--font-sans);
 }
-.input:focus {
+/* One focus treatment across the app: 2px --ring at 2px offset.  This
+   was the odd one out (1px offset plus a border-colour change, i.e. two
+   signals where .select and .runBtn use one). */
+.input:focus-visible {
   outline: 2px solid var(--ring);
-  outline-offset: 1px;
-  border-color: var(--ring);
+  outline-offset: 2px;
 }
 
 /* Run-job buttons */

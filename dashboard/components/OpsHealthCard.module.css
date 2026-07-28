@@ -136,8 +136,12 @@
 .statusOk .metricLabel { color: var(--muted-foreground); }
 .statusOk .statusText  { color: var(--primary); }
 
-.statusWarn      { color: #c9a227; }   /* amber */
-.statusWarn .statusText { color: #c9a227; }
+/* var(--secondary), not #c9a227: the hardcoded amber measured 2.35:1 on
+   the light card, was off-palette, and being theme-blind it stayed the
+   same hex in both themes. --secondary is the palette's amber and is
+   already the reserved "pending / unknown / needs attention" colour. */
+.statusWarn      { color: var(--secondary); }
+.statusWarn .statusText { color: var(--secondary); }
 
 .statusDegraded  { color: var(--destructive); }
 .statusDegraded .statusText { color: var(--destructive); }

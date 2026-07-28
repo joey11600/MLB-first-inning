@@ -320,7 +320,10 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   return (
     <>
       {/* Full-bleed sticky ticker, outside the max-width shell */}
-      <Ticker rows={data.rows} date={data.date} />
+      {/* `details` is required now: the ticker renders the SHARED
+          flagged/placed/settled string from lib/reconcile instead of
+          inventing its own count, and settlement lives on the detail. */}
+      <Ticker rows={data.rows} details={data.details} date={data.date} />
       <main className={styles.shell}>
       {/* Tightened single-row header.  Brand on the left, slate hero
           centered, primary actions (history) and the settings dropdown

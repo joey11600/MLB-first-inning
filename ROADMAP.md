@@ -13,6 +13,18 @@ Companion to:
 
 ---
 
+## ✅ Recently shipped (Jul 2026)
+
+| item | shipped | what |
+|---|---|---|
+| Dashboard rebuild — one night, one set of numbers | 2026-07-28 | Fixed the "6 / 4 / 1 on one screen" defect: `DayReconcile` reconciles flagged → placed → settled against the model replay game by game with a plain reason on every skip; all counts now come from `lib/reconcile.ts`. |
+| Record leads with the deployed model | 2026-07-28 | Headline scores with the shipped calibrator at the live gate (+11.33u real / +34.66u projected, flat); walk-forward printed beside it as the no-hindsight floor. |
+| Flat profit is the headline; Kelly demoted to a labelled simulation | 2026-07-28 | The compounded bankroll still renders, tagged SIMULATED, in a recessed card whose figures can never take a tone colour. |
+| Money-path audit (T7.1-T7.10) | 2026-07-28 | Four P0 bugs in live Kelly staking + four wrong-number display bugs. |
+| Legibility pass | 2026-07-28 | Six type sizes replace 43; monospace for figures only; AA contrast in both themes; both watermarks removed. |
+
+---
+
 ## ✅ Recently shipped (May 2026)
 
 | Date | Ref | Item |

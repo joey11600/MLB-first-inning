@@ -967,12 +967,42 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
     ? ""
     : (edgePct >= 0 ? `+${edgePct.toFixed(1)}%` : `${edgePct.toFixed(1)}%`);
 
+  // 2026-07-28: this line used to render whenever `detail.clvPct != null`,
+  // and so it claimed a measured "CLV: +0.00pp" on essentially every priced
+  // chip.  Two separate defects produced that:
+  //   - board-supabase.ts (the PRODUCTION read path) coerced a NULL clv_pct
+  //     to 0, so the `!= null` guard never fired outside local dev;
+  //   - the ledger genuinely stores 0.0000 for most placed bets, because we
+  //     bet the first price we see and lock it (T2.23), so the opened and
+  //     current prices are the same captured number.  Of 314 placed bets
+  //     since 2026-05-07 that have both prices, 295 are identical.
+  // Measurability therefore comes from the PRICES, not from clv_pct: only
+  // claim a CLV when the picked side has both an opened and a current price
+  // and they differ -- the same guard LineDriftNotice already uses.  The
+  // rounding check keeps a real-but-negligible move from printing "+0.00pp",
+  // which reads as a small win rather than as nothing.
+  const openedRaw = (row.pickSide === "NRFI"
+    ? detail.openedNrfiOdds
+    : detail.openedYrfiOdds).trim();
+  const currentRaw = (row.pickSide === "NRFI"
+    ? detail.marketNrfiOdds
+    : detail.marketYrfiOdds).trim();
+  const lineMoved = Boolean(openedRaw && currentRaw && openedRaw !== currentRaw);
+  const clvPp =
+    lineMoved && typeof detail.clvPct === "number" && Number.isFinite(detail.clvPct)
+      ? detail.clvPct * 100
+      : null;
+  const clvSuffix =
+    clvPp != null && Math.abs(clvPp) >= 0.005
+      ? `\nCLV: ${clvPp > 0 ? "+" : "−"}${Math.abs(clvPp).toFixed(2)}pp`
+      : "";
+
   const titleText = (bet === "Y"
     ? `Bet placed: ${row.pickSide} @ ${price} (edge ${edgeStr})`
     : bet === "N"
       ? `Skipped: edge ${edgeStr || "below threshold"} on ${row.pickSide} @ ${price}`
       : `${row.pickSide} @ ${price}${edgeStr ? ` (edge ${edgeStr})` : ""}`)
-    + (detail.clvPct != null ? `\nCLV: ${(detail.clvPct * 100 >= 0 ? "+" : "")}${(detail.clvPct * 100).toFixed(2)}pp` : "")
+    + clvSuffix
     + ageSuffix;
 
   return (

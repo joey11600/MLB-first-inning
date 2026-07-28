@@ -28,23 +28,11 @@
   overflow: hidden;
 }
 
-/* Subtle phosphor wash on the right edge so the card has a sense of
-   "primary surface" without resorting to a saturated fill.  Mimics
-   the BoardRow status gradient at lower intensity. */
-.wrap::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 40%;
-  pointer-events: none;
-  background: linear-gradient(
-    270deg,
-    color-mix(in oklab, var(--primary) 8%, transparent) 0%,
-    transparent 100%
-  );
-}
+/* The 40%-wide primary gradient wash that used to live here (.wrap::after)
+   is DELETED.  It sat directly under the side stack and dragged the
+   contrast of every label in it down for pure decoration -- part of the
+   "brown-on-brown" complaint.  The card's own --card surface + border +
+   shadow-1 already read as "primary surface". */
 
 .head {
   display: flex;
@@ -53,14 +41,13 @@
   margin-bottom: 12px;
 }
 
+/* The local 11px/600/0.18em reimplementation is gone -- it was one of
+   the copies that let the eyebrow tracking drift (0.18em here, 0.14em
+   elsewhere) and it used `line-height: 1rem`, which is 15px in this
+   app, not 16px.  `composes` pulls in the single global .eyebrow role
+   so `styles.eyebrow` keeps working from the JSX either way. */
 .eyebrow {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
+  composes: eyebrow from global;
 }
 
 .subtitle {
@@ -86,12 +73,17 @@
   flex-wrap: wrap;
 }
 
+/* One step below the page's single .figHero (44px).  It is a COUNT, not
+   money, so it is never tone-coloured.  Flat 40 -> 32; the old curve went
+   52 -> 56 (@980px) -> 48 (@640px), i.e. it GREW as the viewport shrank,
+   which is why the hero fought the board for attention on a laptop.
+   Weight 500 matches the figure roles (600 is reserved for eyebrows). */
 .heroNum {
   font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 52px;
-  line-height: 1;
-  letter-spacing: -2.4px;
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
   color: var(--foreground);
   font-variant-numeric: tabular-nums;
 }
@@ -246,9 +238,8 @@
   padding: 18px 24px;
 }
 
-.empty::after {
-  display: none;  /* no phosphor wash on calm state */
-}
+/* `.empty::after { display: none }` deleted along with the .wrap::after
+   wash it was suppressing -- there is no wash on any state now. */
 
 .emptyInner {
   display: flex;
@@ -257,13 +248,9 @@
   flex-wrap: wrap;
 }
 
+/* Second copy of the same eyebrow -- also routed to the global role. */
 .emptyEyebrow {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
+  composes: eyebrow from global;
 }
 
 .emptyMain {
@@ -295,22 +282,22 @@
     width: 100%;
     height: 1px;
   }
+}
 
+/* Monotonic: 40 -> 32, matching the .figHero role's own 44 -> 32 step. */
+@media (max-width: 720px) {
   .heroNum {
-    font-size: 56px;
-    letter-spacing: -2.5px;
+    font-size: 32px;
+    letter-spacing: -0.015em;
   }
 }
 
 @media (max-width: 640px) {
   .wrap {
+    /* No margin-top -- .shell { gap: 16px } owns inter-section spacing at
+       every width.  This override re-added an 18px top margin below 640px
+       and was the reason the phone layout had a different rhythm. */
     padding: 18px 18px;
-    margin-top: 18px;
-  }
-
-  .heroNum {
-    font-size: 48px;
-    letter-spacing: -2px;
   }
 
   .heroUnit {

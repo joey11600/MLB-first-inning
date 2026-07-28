@@ -259,7 +259,12 @@ export function aggregateTodayRoi(
 /** Helper: today's CLV summary (avg pp delta on STRONG bets that
  *  have both opened + closing odds).  Matches the SummaryStrip
  *  computation that's being moved into RoiPanel's today view.
- *  Returns null when no STRONG bets have CLV data yet. */
+ *  Returns null when no STRONG bets have CLV data yet.
+ *
+ *  DEPRECATED (2026-07-28): trusts clv_pct on its own, which cannot
+ *  distinguish "the line never moved" from "we never measured it".
+ *  Kept only so existing callers keep compiling; new call sites must
+ *  use aggregateTodayClvMeasured below. */
 export function aggregateTodayClv(
   rows:    BoardRow[],
   details: Record<string, GameDetail>,
@@ -276,4 +281,91 @@ export function aggregateTodayClv(
     n   += 1;
   }
   return n > 0 ? { avgPp: (sum / n) * 100, n } : null;
+}
+
+/** Result of aggregateTodayClvMeasured.
+ *
+ *  `avgPp` is null EXACTLY when `measured === 0`.  That is deliberate: the
+ *  type makes it impossible to print an average that was never computed,
+ *  which is how the dashboard came to show "TONIGHT CLV +0.00pp" on nights
+ *  where nothing was measured at all.  Render the "Not measurable" copy in
+ *  that branch, never a number. */
+export interface TodayClvMeasured {
+  /** Average closing-line value in percentage points, over `measured`
+   *  bets.  null when measured === 0 -- there is no number to show. */
+  avgPp:    number | null;
+  /** How many placed bets actually saw the price move (the sample size
+   *  behind avgPp).  Must always be shown next to avgPp. */
+  measured: number;
+  /** How many bets were placed at all today.  Lets the caption say
+   *  "0 of 4 placed bets saw the line move" instead of going silent. */
+  placed:   number;
+}
+
+/** Today's closing-line value, computed from the PRICES rather than from
+ *  the stored clv_pct column.
+ *
+ *  Why not just read clv_pct?  Two independent reasons, and fixing only one
+ *  leaves the bug in place:
+ *
+ *   1. board-supabase.ts used to coerce a NULL clv_pct to 0, and Supabase is
+ *      the production read path.  That is fixed now, but it means no code
+ *      that ran against production has ever seen a null here.
+ *   2. Even with that fixed, the ledger genuinely stores 0.0000 for the vast
+ *      majority of placed bets: we bet the first price we see and lock it
+ *      (T2.23), so opened_*_odds and market_*_odds hold the SAME captured
+ *      number and the difference is a true zero.  Verified 2026-07-28 on
+ *      data/picks_2026.csv from 2026-05-07: of 314 placed bets that have
+ *      both prices on the picked side, 295 are identical and only 19 moved.
+ *      A stored 0.0000 therefore means "no closing price to compare
+ *      against", not "we measured no edge".
+ *
+ *  So a bet counts as MEASURED only when the picked side has both an opened
+ *  and a current price AND the two differ -- the same guard the line-drift
+ *  notice already applies in GameDetails.tsx -- and the row carries a usable
+ *  clv_pct to average.
+ *
+ *  Returns null only when nothing was placed today (nothing to report at
+ *  all).  Otherwise always returns an object, so the caller can say how many
+ *  of the placed bets moved even when the answer is zero. */
+export function aggregateTodayClvMeasured(
+  rows:    BoardRow[],
+  details: Record<string, GameDetail>,
+): TodayClvMeasured | null {
+  let sum      = 0;
+  let measured = 0;
+  let placed   = 0;
+
+  for (const r of rows) {
+    if (!(r.pickSide === "NRFI" || r.pickSide === "YRFI")) continue;
+    const d = lookupDetail(r, details);
+    if (!d) continue;
+    // "Placed" is the ledger fact, not the model's opinion: a STRONG call
+    // that was demoted to bet_placed='N' is not a bet and must not appear
+    // in the denominator of "N of M placed bets saw the line move".
+    if (d.betPlaced !== "Y") continue;
+    placed += 1;
+
+    // Trim before comparing so a stray space in one column can't read as
+    // a price move.  Otherwise this mirrors GameDetails' drift guard
+    // exactly: raw captured strings, picked side only.
+    const opened  = (r.pickSide === "NRFI" ? d.openedNrfiOdds : d.openedYrfiOdds).trim();
+    const current = (r.pickSide === "NRFI" ? d.marketNrfiOdds : d.marketYrfiOdds).trim();
+    if (!opened || !current || opened === current) continue;
+
+    // The price moved, so a CLV exists -- but we still need the stored
+    // number to state it.  Without it we know the line moved and nothing
+    // more, which is not a figure we can average.
+    if (typeof d.clvPct !== "number" || !Number.isFinite(d.clvPct)) continue;
+
+    sum      += d.clvPct;
+    measured += 1;
+  }
+
+  if (placed === 0) return null;
+  return {
+    avgPp: measured > 0 ? (sum / measured) * 100 : null,
+    measured,
+    placed,
+  };
 }

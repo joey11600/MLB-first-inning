@@ -91,161 +91,56 @@
 .body.loading { opacity: 0.55; }
 
 /* ---- Total card ---- */
-.totalCard {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) 2fr;
-  gap: 28px;
-  align-items: stretch;
-  padding: 22px 26px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--card);
-  box-shadow: var(--shadow-1);
-  position: relative;
-  overflow: hidden;
-}
-.totalCardEmpty { min-height: 92px; }
-.totalCard_win {
-  background: linear-gradient(135deg,
-    color-mix(in oklab, var(--primary) 10%, var(--card)) 0%,
-    var(--card) 70%);
-  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
-}
-.totalCard_loss {
-  background: linear-gradient(135deg,
-    color-mix(in oklab, var(--destructive) 10%, var(--card)) 0%,
-    var(--card) 70%);
-  border-color: color-mix(in oklab, var(--destructive) 35%, var(--border));
-}
-.totalCard_neutral { /* default */ }
-
-/* ---- LEAN paper-trade card (Phase 1.3, 2026-05-12) ---- */
-/* Visually distinct from .totalCard via dashed border + diagonal "PAPER"
-   watermark so the operator never mistakes paper-trade P&L for real
-   bankroll movement.  Shares the same grid layout so it slots in
-   directly under the TotalCard. */
-.leanCard {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) 2fr;
-  gap: 28px;
-  align-items: stretch;
-  padding: 22px 26px;
-  border-radius: var(--radius);
-  border: 1px dashed color-mix(in oklab, var(--border) 80%, var(--muted-foreground));
-  background: color-mix(in oklab, var(--card) 92%, transparent);
-  position: relative;
-  overflow: hidden;
-  /* Muted tone vs totalCard -- this is HYPOTHETICAL money. */
-  opacity: 0.96;
-}
-.leanCard_win {
-  border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
-  background: linear-gradient(135deg,
-    color-mix(in oklab, var(--primary) 6%, var(--card)) 0%,
-    var(--card) 70%);
-}
-.leanCard_loss {
-  border-color: color-mix(in oklab, var(--destructive) 28%, var(--border));
-  background: linear-gradient(135deg,
-    color-mix(in oklab, var(--destructive) 6%, var(--card)) 0%,
-    var(--card) 70%);
-}
-.leanCard_neutral { /* default */ }
-.leanCard_win  .totalUnits { color: var(--primary); }
-.leanCard_loss .totalUnits { color: var(--destructive); }
-
-/* Diagonal "PAPER" watermark sitting behind the content.  font-size and
-   color are tuned to be readable as "this isn't real" without competing
-   with the actual P&L number for attention. */
-.leanWatermark {
-  position: absolute;
-  top: 50%;
-  right: 28px;
-  transform: translateY(-50%) rotate(-12deg);
-  font-family: var(--font-mono);
-  font-size: 56px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-}
-.leanCard .totalLeft,
-.leanCard .totalRight {
-  position: relative;
-  z-index: 1;
-}
-
 .totalLeft {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 4px;
+  gap: 8px;
   border-right: 1px solid var(--border);
   padding-right: 24px;
+  min-width: 0;
 }
-.totalEyebrow {
-  font-family: var(--font-sans);
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  font-weight: 600;
-}
-.totalUnits {
-  font-family: var(--font-mono);
-  font-size: 44px;
-  font-weight: 500;
-  line-height: 3rem;
-  letter-spacing: -1.6px;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
-}
-.totalCard_win .totalUnits  { color: var(--primary); }
-.totalCard_loss .totalUnits { color: var(--destructive); }
-.totalSub {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: var(--muted-foreground);
-}
-
+/* Capped and right-aligned. A `repeat(3, 1fr)` track spread three
+   figures across ~760px on a 1900px monitor, so reading three numbers
+   meant crossing the whole card. */
 .totalRight {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-  align-items: center;
+  grid-template-columns: repeat(3, minmax(0, 190px));
+  justify-content: end;
+  gap: 24px;
+  align-items: start;
 }
 
 .stat {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
+  text-align: right;
 }
 .statLabel {
   font-family: var(--font-sans);
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted-foreground);
   font-weight: 600;
 }
-.statValue {
-  font-family: var(--font-mono);
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 2rem;
-  letter-spacing: -0.04em;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
-}
-.statValueRecord {
-  font-size: 22px;
-  letter-spacing: 0.04em;
-}
 
+/* Model-replay card internals. */
+.recHead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.recGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 14px;
+}
 .tone_win  { color: var(--primary) !important; }
 .tone_loss { color: var(--destructive) !important; }
 .tone_neutral { color: var(--foreground); }
@@ -428,45 +323,13 @@
 @media (max-width: 720px) {
   .totalCard { grid-template-columns: 1fr; }
   .totalLeft { border-right: 0; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 14px; }
-  .totalUnits { font-size: 36px; line-height: 2.5rem; }
   .totalRight { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .statValue { font-size: 18px; line-height: 1.5rem; }
 }
 
 
 /* Kelly simulated-bankroll card (2026-07-28).
    Dashed border + SIM watermark, mirroring the LEAN paper card, so the
    operator cannot mistake a counterfactual bankroll for realized P&L. */
-.kellyCard {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  margin-top: 0.75rem;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--card) 92%, transparent);
-  overflow: hidden;
-}
-.kellyWatermark {
-  position: absolute;
-  right: 0.9rem;
-  top: 0.45rem;
-  font-size: 0.62rem;
-  letter-spacing: 0.18em;
-  font-weight: 700;
-  color: var(--muted-foreground);
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-/* Provenance qualifier (2026-07-28).
-   Appears only when a figure is partly built from bets that never had a
-   captured DraftKings price. Deliberately plain text rather than a badge
-   or tooltip: the operator is not a developer and should not have to
-   hover or decode an icon to learn that a number is not real money. */
 .provNote {
   display: flex;
   align-items: flex-start;
@@ -486,128 +349,142 @@
   background: var(--secondary);
 }
 
-/* System record card (2026-07-28) -- the two numbers the operator
-   tracks: PROJECTED (whole season, -125 fill) and REAL (since 5/07,
-   real prices only). Solid border, no watermark: unlike the SIM and
-   PAPER cards this is presented as the record, per operator decision. */
-.recCard {
-  padding: 1rem 1.25rem;
-  margin-bottom: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--card) 96%, transparent);
+
+/* ═══════════════════════════════════════════════════════════
+   TYPE ROLES (2026-07-28 rebuild)
+
+   Six sizes, not the 43 that had accumulated. The rule that does
+   most of the work: MONOSPACE IS FOR FIGURES ONLY. Nine classes
+   here were monospace PROSE -- .range, .totalSub, .recSub,
+   .recStats, .recMeta, .recFootnote, .recBet, .recSelDayLabel,
+   .recSelDaySum -- which is most of why the panel read as a log
+   file. Words are sans; numbers are mono with tabular figures so
+   columns align.
+   ═══════════════════════════════════════════════════════════ */
+.figHero, .figLead, .figStat {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--foreground);
+  line-height: 1.05;
 }
-.recHead {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.6rem;
+.figHero { font-size: 40px; font-weight: 700; letter-spacing: -0.01em; }
+.figLead { font-size: 26px; font-weight: 700; }
+.figStat { font-size: 20px; font-weight: 600; }
+.copy {
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.55;
+  color: var(--foreground); max-width: 68ch;
 }
-.recMethod {
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
+.meta {
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.5;
+  color: var(--muted-foreground); max-width: 72ch;
 }
-.recGrid {
+.tag, .tagInline {
+  display: inline-block; padding: 2px 6px; border-radius: 3px;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  background: color-mix(in oklab, var(--secondary) 18%, transparent);
+  color: var(--secondary);
+  border: 1px solid color-mix(in oklab, var(--secondary) 40%, transparent);
+}
+.tagInline { margin-right: 6px; }
+
+/* ── REAL MONEY: raised, tone shown as a rail ─────────────────
+   The tone used to be a full-card gradient wash, which lowered the
+   contrast of every glyph on it and made a -0.33u night and a -40u
+   night read as the same KIND of object. */
+.moneyCard {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.25rem;
-}
-.recCol { display: flex; flex-direction: column; gap: 0.15rem; }
-.recBank {
-  font-family: var(--font-mono);
-  font-size: 1.9rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-.recBank_win  { color: var(--primary); }
-.recBank_loss { color: var(--destructive); }
-.recBank_neutral { color: var(--foreground); }
-.recSub { font-size: 0.78rem; color: var(--muted-foreground); }
-.recStats {
-  display: flex;
-  gap: 0.9rem;
-  flex-wrap: wrap;
-  margin-top: 0.35rem;
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
-}
-.recMeta { font-size: 0.66rem; color: var(--muted-foreground); margin-top: 0.2rem; }
-.recDays { margin-top: 0.55rem; font-size: 0.72rem; }
-.recDays > summary {
-  cursor: pointer;
-  color: var(--muted-foreground);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  font-size: 0.64rem;
-}
-.recDayScroll {
-  max-height: 320px;
-  overflow-y: auto;
-  margin-top: 0.5rem;
-  padding-right: 0.4rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-.recDay { border-top: 1px solid var(--border); padding-top: 0.4rem; }
-.recDayHead {
-  display: flex;
-  gap: 0.8rem;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 0.2rem;
-}
-.recBankAfter { margin-left: auto; color: var(--muted-foreground); }
-.recBet {
-  display: flex;
-  gap: 0.7rem;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted-foreground);
-  padding-left: 0.6rem;
-}
-.recBetGame { min-width: 6.2ch; color: var(--foreground); }
-.recPos { color: var(--primary); }
-.recNeg { color: var(--destructive); }
-
-/* Selected-day strip inside the record card (2026-07-28): the slate
-   date picker drives it, so filtering a day shows that day's SYSTEM
-   bets with their Kelly stakes. */
-.recSelDay {
-  margin-top: 0.5rem;
-  padding: 0.45rem 0.6rem;
+  grid-template-columns: minmax(320px, 1fr) auto;
+  gap: 32px;
+  padding: 22px 26px;
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
 }
-.recSelDayLabel {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
-  color: var(--muted-foreground);
+.moneyCard::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
 }
-.recSelDayNone { font-size: 0.7rem; color: var(--muted-foreground); }
-.recSelDaySum {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
-  margin-top: 0.15rem;
+.moneyCard[data-tone="win"]::before  { background: var(--primary); }
+.moneyCard[data-tone="loss"]::before { background: var(--destructive); }
+.moneyCard[data-tone="win"]  { border-color: color-mix(in oklab, var(--primary) 28%, var(--border)); }
+.moneyCard[data-tone="loss"] { border-color: color-mix(in oklab, var(--destructive) 28%, var(--border)); }
+.moneyCard[data-tone="win"]  .figHero { color: var(--primary); }
+.moneyCard[data-tone="loss"] .figHero { color: var(--destructive); }
+
+.statCaption {
+  font-family: var(--font-sans); font-size: 11px; line-height: 1.45;
+  color: var(--muted-foreground); text-align: right; max-width: 26ch;
+}
+.statMuted { font-size: 15px; font-weight: 600; color: var(--muted-foreground); }
+
+/* ── SIMULATED: recessed, hatched, NEVER tone-coloured ────────
+   The !important is deliberate. The old .kellyCard silently lost
+   its tone class to a cascade-order accident, and a simulated
+   figure rendering in the same peach as real profit is the exact
+   confusion this rebuild exists to remove. */
+.simCard {
+  position: relative;
+  padding: 20px 24px 20px 28px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+.simCard::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: var(--sim-hatch, repeating-linear-gradient(
+    45deg,
+    color-mix(in oklab, var(--muted-foreground) 45%, transparent) 0 3px,
+    transparent 3px 6px));
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+.simCard .figHero,
+.simCard .figLead,
+.simCard .figStat { color: var(--foreground) !important; }
+
+.recCol { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.floorBlock {
+  margin-top: 10px; padding-top: 8px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.simNote {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
 }
 
-.recFootnote {
-  display: block;
-  margin-top: 0.55rem;
-  font-size: 0.64rem;
+/* One-week note announcing that the compounded bankroll headline
+   moved. The operator's incident history is entirely about things
+   appearing to disappear -- so the change is announced, not found. */
+.migrationNote {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; padding: 10px 14px;
+  border: 1px dashed color-mix(in oklab, var(--secondary) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--secondary) 7%, transparent);
+}
+.noteDismiss {
+  flex: none; background: none; border: 0; cursor: pointer; padding: 2px 4px;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--muted-foreground);
+}
+.noteDismiss:hover { color: var(--foreground); }
+
+/* RoiPanel.tsx can produce sideTone "neutral"; without this key CSS
+   Modules interpolates the literal string "undefined" into class. */
+.zone_neutral { }
+
+@media (max-width: 720px) {
+  .moneyCard { grid-template-columns: 1fr; gap: 18px; }
+  .figHero { font-size: 32px; }
+  .figLead { font-size: 22px; }
+  .figStat { font-size: 18px; }
+}
+@media (max-width: 900px) {
+  .recGrid { grid-template-columns: 1fr; }
 }

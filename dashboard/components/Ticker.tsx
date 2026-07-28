@@ -1,29 +1,44 @@
 "use client";
 
-import type { BoardRow } from "@/lib/types";
+import type { BoardRow, GameDetail } from "@/lib/types";
+import { chainText, nightFromBoard } from "@/lib/reconcile";
 import styles from "./Ticker.module.css";
 
 /**
  * Top-bar status strip.  Originally a scrolling marquee of every game's
  * matchup + lambda; that competed for attention with the main header.
  *
- * Now a static, condensed status bar: live indicator + zone count
- * chips (STRONG NRFI / PASS / STRONG YRFI) + slate average + game count.
- * Same height, a fraction of the cognitive weight.
+ * 2026-07-28 redesign (invariant I1 -- ONE VOCABULARY): the centre
+ * segment used to be three zone chips whose loudest reading was
+ * "6 STRONG YRFI".  Nothing else on the page used that phrase, so the
+ * operator saw one night described one way up here, a different way on
+ * the hero card and a third way in the season record -- and concluded
+ * bets had gone missing.  The centre now renders chainText() from
+ * lib/reconcile, the same string the hero card and the day view build
+ * from the same counts.  Nothing here recounts anything.
+ *
+ * Slate context that is NOT a bet count (average lambda, game count)
+ * stays -- it never took part in the confusion.
  */
-export function Ticker({ rows, date }: { rows: BoardRow[]; date: string }) {
+export function Ticker({
+  rows,
+  details,
+  date,
+}: {
+  rows: BoardRow[];
+  /** Required on purpose.  nightFromBoard needs the ledger detail to know
+   *  what was PLACED and SETTLED; defaulting it to {} would silently
+   *  publish "PLACED 0 · SETTLED 0" on a night with four live bets, which
+   *  is the exact failure this rewrite exists to remove. */
+  details: Record<string, GameDetail>;
+  date: string;
+}) {
   const avgLambda =
     rows.length === 0
       ? 0
       : rows.reduce((a, r) => a + r.lambda, 0) / rows.length;
 
-  const strongNrfi = rows.filter(
-    (r) => r.pickSide === "NRFI" && r.pickStrength === "STRONG",
-  ).length;
-  const strongYrfi = rows.filter(
-    (r) => r.pickSide === "YRFI" && r.pickStrength === "STRONG",
-  ).length;
-  const pass = rows.length - strongNrfi - strongYrfi;
+  const night = nightFromBoard(rows, details, date);
 
   return (
     <div className={styles.bar} aria-label="Slate ticker">
@@ -33,9 +48,8 @@ export function Ticker({ rows, date }: { rows: BoardRow[]; date: string }) {
       </div>
 
       <div className={styles.summary}>
-        <Chip label="Strong NRFI" count={strongNrfi} tone="nrfi" />
-        <Chip label="Pass" count={pass} tone="pass" />
-        <Chip label="Strong YRFI" count={strongYrfi} tone="yrfi" />
+        {/* Rendered verbatim, never reworded per surface. */}
+        <span className={styles.metricVal}>{chainText(night)}</span>
         <span className={styles.divider} aria-hidden />
         <span className={styles.metric}>
           <span className={styles.metricKey}>λ̄</span>
@@ -51,22 +65,5 @@ export function Ticker({ rows, date }: { rows: BoardRow[]; date: string }) {
         {date ? date.replace(/-/g, ".") : "—"}
       </div>
     </div>
-  );
-}
-
-function Chip({
-  label,
-  count,
-  tone,
-}: {
-  label: string;
-  count: number;
-  tone: "nrfi" | "yrfi" | "pass";
-}) {
-  return (
-    <span className={styles.chip} data-tone={tone}>
-      <span className={styles.chipCount}>{count}</span>
-      <span className={styles.chipLabel}>{label}</span>
-    </span>
   );
 }
