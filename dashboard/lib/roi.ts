@@ -19,6 +19,7 @@ import path from "node:path";
 import { parseCsv } from "./csv";
 import { getServerSupabase } from "./supabase";
 import type { PickSide, PickStrength } from "./types";
+import { readKellyConfig, simulateKelly, type KellySim } from "./kelly-sim";
 
 // ---------------------------------------------------------------------------
 // Constants -- fallbacks used only when profit_loss_units is missing.
@@ -114,6 +115,13 @@ export interface RoiResponse {
   /** rolling cumulative P&L by date for STRONG bet zones only (LEAN
    *  excluded -- paper-trade does not move the bankroll curve). */
   cumulativePL: { date: string; units: number }[];
+  /** Counterfactual "what if we'd staked by Kelly from the start"
+   *  bankroll.  Recomputed on read from each row's probability + real
+   *  captured price -- the ledger is NEVER rewritten with simulated
+   *  stakes (see lib/kelly-sim.ts for why).  Always spans the whole
+   *  season regardless of `window`, because a bankroll is a running
+   *  quantity and a 7-day bankroll is meaningless. */
+  kelly: KellySim;
 }
 
 // ---------------------------------------------------------------------------
@@ -261,6 +269,7 @@ export async function loadRoi(
       hitRate: NaN, paperPL: 0, edgeVsBreakEven: NaN,
     },
     cumulativePL: [],
+    kelly: simulateKelly([], readKellyConfig(null).cfg, false),
   };
 
   const year = today.slice(0, 4);
@@ -440,6 +449,22 @@ export async function loadRoi(
     cumulativePL.push({ date: d, units: cum });
   }
 
+  // Kelly counterfactual.  Deliberately fed `rows` (the whole season)
+  // rather than the windowed subset: a bankroll compounds, so slicing it
+  // to "last 7 days" would restart it at 100u and report a number that
+  // means nothing.
+  const thresholdsRaw = await safeRead(path.join(dataDir(), "thresholds.json"));
+  let thresholds: Record<string, unknown> | null = null;
+  if (thresholdsRaw) {
+    try {
+      thresholds = JSON.parse(thresholdsRaw) as Record<string, unknown>;
+    } catch {
+      thresholds = null;   // malformed file -> fall back, never throw
+    }
+  }
+  const { cfg: kellyCfg, available: kellyAvailable } = readKellyConfig(thresholds);
+  const kelly = simulateKelly(rows, kellyCfg, kellyAvailable);
+
   return {
     window,
     startDate,
@@ -452,6 +477,7 @@ export async function loadRoi(
     total: totalFinal,
     leanPaperTrade,
     cumulativePL,
+    kelly,
   };
 }
 

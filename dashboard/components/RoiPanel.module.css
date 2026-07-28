@@ -432,3 +432,32 @@
   .totalRight { grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .statValue { font-size: 18px; line-height: 1.5rem; }
 }
+
+
+/* Kelly simulated-bankroll card (2026-07-28).
+   Dashed border + SIM watermark, mirroring the LEAN paper card, so the
+   operator cannot mistake a counterfactual bankroll for realized P&L. */
+.kellyCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-top: 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  overflow: hidden;
+}
+.kellyWatermark {
+  position: absolute;
+  right: 0.9rem;
+  top: 0.45rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  opacity: 0.45;
+  pointer-events: none;
+}

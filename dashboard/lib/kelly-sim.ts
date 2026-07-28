@@ -1,0 +1,231 @@
+/**
+ * Counterfactual Kelly bankroll — "what would the record look like if we
+ * had been staking by Kelly from the start?"
+ *
+ * WHY THIS IS A SEPARATE LAYER AND NOT A LEDGER REWRITE
+ * -----------------------------------------------------
+ * The obvious way to make the dashboard show a Kelly record is to
+ * overwrite `units_risked` / `profit_loss_units` in picks_<year>.csv.
+ * That must not happen. Those columns record what was ACTUALLY risked at
+ * a real price; overwriting them with a simulation destroys the only
+ * copy of the real position and makes the simulation permanently
+ * unauditable — precisely the 2026-05-05 backfill-mirror failure that
+ * CLAUDE.md's data-integrity rules exist to prevent.
+ *
+ * So the ledger keeps the truth (flat 1u), and this module recomputes the
+ * counterfactual on read. It is regenerable, comparable against reality,
+ * and impossible to corrupt.
+ *
+ * CONFIG COMES FROM data/thresholds.json, which the predictor writes from
+ * tracker.py's own constants. Re-deriving Kelly's parameters here in
+ * TypeScript would silently drift from what actually stakes the bets.
+ *
+ * APRIL CANNOT BE SIMULATED. 170 of April's 176 placed bets never had a
+ * real DraftKings price captured — they settled against a flat -110
+ * placeholder. Kelly's stake is a function of the price, so a bet whose
+ * price was never observed cannot be sized without inventing one, and
+ * inventing one is what made April look like +39u in the first place.
+ * Those rows are skipped and counted in `skippedNoPrice` so the UI can
+ * say so out loud rather than quietly starting the curve in May.
+ */
+
+export interface KellyConfig {
+  enabled: boolean;
+  fraction: number;
+  bankrollUnits: number;
+  maxStakeFrac: number;
+  maxDailyFrac: number;
+  minStakeUnits: number;
+}
+
+export const KELLY_FALLBACK: KellyConfig = {
+  enabled: false,
+  fraction: 0.25,
+  bankrollUnits: 100,
+  maxStakeFrac: 0.1,
+  maxDailyFrac: 0.15,
+  minStakeUnits: 0.1,
+};
+
+export interface KellySim {
+  /** false when thresholds.json had no Kelly block (older deploy). */
+  available: boolean;
+  config: KellyConfig;
+  startBank: number;
+  finalBank: number;
+  profit: number;
+  /** bets Kelly actually funded */
+  bets: number;
+  wins: number;
+  losses: number;
+  /** Kelly sized these to zero — no positive expected value */
+  skippedZeroEdge: number;
+  /** no real captured price, so unsizeable (April, mostly) */
+  skippedNoPrice: number;
+  maxDrawdownPct: number;
+  largestStakeUnits: number;
+  /** first slate date the simulation could actually start from */
+  firstDate: string | null;
+  curve: { date: string; units: number }[];
+  /** the same games staked flat 1u, for an apples-to-apples comparison */
+  flatProfit: number;
+}
+
+function num(s: string | undefined | null): number | null {
+  if (s === undefined || s === null) return null;
+  const t = String(s).trim().replace("−", "-").replace("–", "-");
+  if (!t) return null;
+  const v = Number.parseFloat(t);
+  return Number.isFinite(v) ? v : null;
+}
+
+/** Net profit per 1 unit staked. */
+function payoutPerUnit(american: number): number {
+  return american > 0 ? american / 100 : 100 / Math.abs(american);
+}
+
+/** Full-Kelly fraction of bankroll; 0 when the bet has no edge. */
+export function kellyFraction(p: number, american: number): number {
+  const b = payoutPerUnit(american);
+  if (!(b > 0) || !(p > 0 && p < 1)) return 0;
+  return Math.max((p * b - (1 - p)) / b, 0);
+}
+
+export function readKellyConfig(
+  thresholds: Record<string, unknown> | null | undefined,
+): { cfg: KellyConfig; available: boolean } {
+  if (!thresholds || thresholds["kellyFraction"] === undefined) {
+    return { cfg: KELLY_FALLBACK, available: false };
+  }
+  const pick = (k: string, d: number) => {
+    const v = thresholds[k];
+    return typeof v === "number" && Number.isFinite(v) ? v : d;
+  };
+  return {
+    available: true,
+    cfg: {
+      enabled: thresholds["kellyEnabled"] === true,
+      fraction: pick("kellyFraction", KELLY_FALLBACK.fraction),
+      bankrollUnits: pick("kellyBankrollUnits", KELLY_FALLBACK.bankrollUnits),
+      maxStakeFrac: pick("kellyMaxStakeFrac", KELLY_FALLBACK.maxStakeFrac),
+      maxDailyFrac: pick("kellyMaxDailyFrac", KELLY_FALLBACK.maxDailyFrac),
+      minStakeUnits: pick("kellyMinStakeUnits", KELLY_FALLBACK.minStakeUnits),
+    },
+  };
+}
+
+/**
+ * Replay every graded STRONG bet in date order, compounding.
+ *
+ * Mirrors tracker.kelly_stake_units: quarter-Kelly by default, per-bet
+ * cap, and a same-day exposure cap — the last one matters because Kelly
+ * sizes one bet against one outcome, whereas a slate settles together
+ * (see KELLY_MAX_DAILY_FRAC in tracker.py).
+ *
+ * Deliberately ALWAYS runs from the first eligible bet of the season, not
+ * from the caller's window: a bankroll is a running quantity and a
+ * "last 7 days" bankroll is meaningless.
+ */
+export function simulateKelly(
+  rows: Record<string, string>[],
+  cfg: KellyConfig,
+  available: boolean,
+): KellySim {
+  const out: KellySim = {
+    available,
+    config: cfg,
+    startBank: cfg.bankrollUnits,
+    finalBank: cfg.bankrollUnits,
+    profit: 0,
+    bets: 0,
+    wins: 0,
+    losses: 0,
+    skippedZeroEdge: 0,
+    skippedNoPrice: 0,
+    maxDrawdownPct: 0,
+    largestStakeUnits: 0,
+    firstDate: null,
+    curve: [],
+    flatProfit: 0,
+  };
+
+  // Bets that were ACTUALLY PLACED, graded, and real-money-eligible.
+  //
+  // bet_placed === "Y" is load-bearing, not incidental. Filtering on
+  // pick_strength alone picks up 519 graded STRONG rows when only 353
+  // were ever bet -- the other 166 were demoted by the cluster rules or
+  // never reached the lock window. Simulating those changes the bet
+  // SELECTION as well as the sizing, which answers a different question
+  // and flatters the result badly (it turned a genuine -10.89u into a
+  // fictional +95.51u during development). The counterfactual must hold
+  // selection fixed and vary only the stake.
+  type Bet = { date: string; p: number; odds: number; win: boolean };
+  const byDay = new Map<string, Bet[]>();
+  for (const r of rows) {
+    const graded = (r.graded_result ?? "").trim().toUpperCase();
+    if (graded !== "WIN" && graded !== "LOSS") continue;
+    if ((r.bet_placed ?? "").trim().toUpperCase() !== "Y") continue;
+    const side = (r.pick_side ?? "").trim().toUpperCase();
+    if (side !== "NRFI" && side !== "YRFI") continue;
+
+    const p = num(side === "NRFI" ? r.nrfi_prob : r.yrfi_prob);
+    const odds = num(side === "NRFI" ? r.market_nrfi_odds : r.market_yrfi_odds);
+    if (p === null || odds === null || odds === 0) {
+      out.skippedNoPrice += 1;   // unsizeable without a real observed price
+      continue;
+    }
+    const date = (r.date ?? "").trim();
+    if (!date) continue;
+    if (!byDay.has(date)) byDay.set(date, []);
+    byDay.get(date)!.push({ date, p, odds, win: graded === "WIN" });
+  }
+
+  const days = Array.from(byDay.keys()).sort();
+  if (days.length === 0) return out;
+  out.firstDate = days[0];
+
+  let bank = cfg.bankrollUnits;
+  let peak = bank;
+  for (const d of days) {
+    const morning = bank;          // no intraday compounding
+    let committed = 0;
+    let pnl = 0;
+    for (const b of byDay.get(d)!) {
+      out.flatProfit += b.win ? payoutPerUnit(b.odds) : -1;
+
+      let f = Math.min(kellyFraction(b.p, b.odds) * cfg.fraction, cfg.maxStakeFrac);
+      let stake = morning * f;
+      // Same-day exposure ceiling, first-come-first-served exactly as
+      // tracker.py allocates it.
+      const room = morning * cfg.maxDailyFrac - committed;
+      stake = Math.min(stake, Math.max(room, 0));
+      if (stake < cfg.minStakeUnits) {
+        out.skippedZeroEdge += 1;
+        continue;
+      }
+      stake = Math.round(stake * 100) / 100;
+      committed += stake;
+      out.bets += 1;
+      out.largestStakeUnits = Math.max(out.largestStakeUnits, stake);
+      if (b.win) {
+        out.wins += 1;
+        pnl += stake * payoutPerUnit(b.odds);
+      } else {
+        out.losses += 1;
+        pnl -= stake;
+      }
+    }
+    bank += pnl;
+    peak = Math.max(peak, bank);
+    if (peak > 0) {
+      out.maxDrawdownPct = Math.max(out.maxDrawdownPct, ((peak - bank) / peak) * 100);
+    }
+    out.curve.push({ date: d, units: Math.round(bank * 100) / 100 });
+    if (bank <= 0) break;
+  }
+
+  out.finalBank = Math.round(bank * 100) / 100;
+  out.profit = Math.round((bank - cfg.bankrollUnits) * 100) / 100;
+  out.flatProfit = Math.round(out.flatProfit * 100) / 100;
+  return out;
+}

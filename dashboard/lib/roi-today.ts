@@ -26,6 +26,7 @@
 
 import type { BoardRow, GameDetail, PickSide, PickStrength } from "./types";
 import type { LeanPaperTrade, RoiResponse, ZoneRoi } from "./roi";
+import { simulateKelly, KELLY_FALLBACK, type KellySim } from "./kelly-sim";
 
 const DEFAULT_WIN_PROFIT_UNITS = 100 / 110;       // 0.9091
 const DEFAULT_LOSS_UNITS       = -1.0;
@@ -217,6 +218,16 @@ export function aggregateTodayRoi(
     ? [{ date: today, units: dayPL }]
     : [];
 
+  // Kelly bankroll is a season-long running quantity, and this
+  // client-side aggregator only ever sees TODAY's rows -- simulating
+  // from them would restart the bankroll at 100u every morning and
+  // report a meaningless number.  Return an explicitly unavailable sim;
+  // the UI renders the Kelly card only from the server-side season view.
+  const kelly: KellySim = {
+    ...simulateKelly([], KELLY_FALLBACK, false),
+    available: false,
+  };
+
   return {
     window:       "today",
     startDate:    today,
@@ -229,6 +240,7 @@ export function aggregateTodayRoi(
     total:        totalFinal,
     leanPaperTrade,
     cumulativePL,
+    kelly,
   };
 }
 

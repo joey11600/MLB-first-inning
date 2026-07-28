@@ -1084,6 +1084,26 @@ _LR_LAMBDA_NRFI_CEILING = 0.52
 _FLAT_ZONE_DEMOTE_SIZE = 99
 
 
+def _kelly_thresholds() -> dict:
+    """Kelly staking config, read from tracker so there is exactly one
+    definition.  Soft-fails to an explicit disabled marker rather than
+    guessing, so a dashboard reading a stale file can tell the difference
+    between "Kelly is off" and "we could not read the config"."""
+    try:
+        import tracker
+        return {
+            "kellyEnabled":      bool(tracker.KELLY_ENABLED),
+            "kellyFraction":     float(tracker.KELLY_FRACTION),
+            "kellyBankrollUnits": float(tracker.KELLY_BANKROLL_UNITS),
+            "kellyMaxStakeFrac": float(tracker.KELLY_MAX_STAKE_FRAC),
+            "kellyMaxDailyFrac": float(tracker.KELLY_MAX_DAILY_FRAC),
+            "kellyMinStakeUnits": float(tracker.KELLY_MIN_STAKE_UNITS),
+            "kellyEpoch":        str(tracker.KELLY_BANKROLL_EPOCH),
+        }
+    except Exception:
+        return {"kellyEnabled": None}
+
+
 def _write_thresholds_json() -> None:
     """Write the classifier thresholds to data/thresholds.json so the
     dashboard's TS tentative-classifier reads them at request time
@@ -1096,6 +1116,11 @@ def _write_thresholds_json() -> None:
         "passLoP":         _LR_PASS_LO_P,
         "leanYrfiP":       _LR_LEAN_YRFI_P,
         "strongYrfiP":     _LR_STRONG_YRFI_P,
+        # 2026-07-28: Kelly staking parameters are exported here so the
+        # dashboard's counterfactual bankroll curve reads the SAME numbers
+        # tracker.py stakes with.  Duplicating them in TypeScript would
+        # drift the moment anyone tuned one side.
+        **_kelly_thresholds(),
         "lambdaYrfiFloor": _LR_LAMBDA_YRFI_FLOOR,
         "lambdaNrfiCeiling": _LR_LAMBDA_NRFI_CEILING,
         # 2026-06-01: must be a VALID ISO-8601 string.  The old form

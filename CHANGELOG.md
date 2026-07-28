@@ -500,6 +500,62 @@ been run against the live API** — there is no key in this environment.
 Treat the first live run as verification: check the row count against the
 slate before trusting any price.
 
+### Added — dashboard shows the counterfactual Kelly bankroll
+
+Operator asked for the dashboard record to reflect "what it would be if
+we'd started Kelly from the beginning".
+
+**The ledger is NOT rewritten.** The obvious implementation — overwriting
+`units_risked` / `profit_loss_units` with simulated stakes — would destroy
+the only record of what was actually risked at a real price and make the
+simulation permanently unauditable. That is the 2026-05-05 backfill-mirror
+failure. Instead the counterfactual is recomputed **on read** from each
+row's stored probability and captured price.
+
+- **`dashboard/lib/kelly-sim.ts`** — day-by-day compounding replay.
+  Mirrors `tracker.kelly_stake_units` including the per-bet and same-day
+  exposure caps.
+- **Config comes from `data/thresholds.json`**, which the predictor now
+  exports from tracker.py's own constants (`kellyFraction`,
+  `kellyBankrollUnits`, `kellyMaxStakeFrac`, `kellyMaxDailyFrac`,
+  `kellyMinStakeUnits`, `kellyEpoch`). Re-deriving Kelly's parameters in
+  TypeScript would drift the moment either side was tuned.
+- **`KellyCard` in RoiPanel** — dashed border + "SIM" watermark, matching
+  the LEAN paper-trade card so a simulated bankroll can't be mistaken for
+  realized P&L. Hidden on the TODAY tab (a compounding season figure
+  there invites reading +95u as tonight's result); shown on 7d/30d/season.
+
+**Result: 100u → 195.51u (+95.51u)**, 165W-122L over 287 staked bets
+since 2026-04-29, max drawdown 33.8%, largest single stake 19.20u (10% of
+a bankroll that had grown to ~192u). The same bets flat-1u: **-0.69u**.
+
+**Why this is far better than the -10.89u in the earlier season backfill:**
+that backfill ran *before* `KELLY_MAX_DAILY_FRAC` existed, so it had no
+same-day exposure cap. The gate sweep independently measured the same
+effect (uncapped -10.89u vs +48.63u with a 15% daily cap). The daily cap
+is doing a large share of the work, not the Kelly formula alone.
+
+**Verification:** the TypeScript simulation was cross-checked against an
+independent Python reimplementation on the same CSV — final bankroll,
+profit, bet count, W/L, max drawdown and largest stake all agree exactly.
+
+**Caveats stated on the card and worth repeating.** 11 bets are marked
+unsizeable (no captured price — Kelly's stake is a function of the price,
+so inventing one recreates the April artefact). The simulation uses the
+probabilities stored at pick time, which came from the OLD plateaued
+calibrator; live Kelly now runs on the CIR curve, so future results are
+not drawn from the same distribution as this backfill.
+
+### Found — picks_2026.csv and Supabase disagree about April `bet_placed`
+
+While validating the above: the committed CSV has **10** April rows
+flagged `bet_placed=Y`, while the Supabase snapshot has **176**. The
+dashboard reads the CSV, `tools/pl_calc.py` prefers Supabase. That is why
+the Kelly curve starts 2026-04-29 rather than at opening day, and it is a
+pre-existing divergence this change did not cause. Not fixed here —
+reconciling them changes what every historical total reports, which needs
+its own decision. `tools/diff_csv_vs_supabase.py` exists for this.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.

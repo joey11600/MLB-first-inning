@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { BoardRow, GameDetail } from "@/lib/types";
 import type { LeanPaperTrade, RoiResponse, RoiWindow, ZoneRoi } from "@/lib/roi";
+import type { KellySim } from "@/lib/kelly-sim";
 import { aggregateTodayRoi, aggregateTodayClv } from "@/lib/roi-today";
 import styles from "./RoiPanel.module.css";
 
@@ -85,6 +86,25 @@ export function RoiPanel({
     };
   }, [window, initialDate]);
 
+  // The Kelly bankroll is season-to-date by nature -- it compounds, so
+  // it is NOT a function of the selected window.  Fetch it once from the
+  // season endpoint and render it under every window, including TODAY
+  // (whose client-side aggregator only ever sees one slate and therefore
+  // reports the sim as unavailable).
+  const [seasonKelly, setSeasonKelly] = useState<KellySim | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/roi?window=season", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: RoiResponse | null) => {
+        if (!cancelled && j?.kelly) setSeasonKelly(j.kelly);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [initialDate]);
+
   // Effective render data: today's local agg or server fetch.
   const view = window === "today" ? todayData : data;
 
@@ -156,6 +176,14 @@ export function RoiPanel({
         />
         {view?.leanPaperTrade && view.leanPaperTrade.picks > 0 && (
           <LeanPaperTradeCard paper={view.leanPaperTrade} />
+        )}
+        {/* Kelly bankroll is season-to-date and compounding, so it is
+            deliberately hidden on the TODAY tab -- that tab answers
+            "how did tonight go", and a running bankroll there invites
+            reading +95u as tonight's result.  Shown on 7d / 30d /
+            season, where a bankroll figure is what the panel is for. */}
+        {window !== "today" && seasonKelly?.available && seasonKelly.bets > 0 && (
+          <KellyCard kelly={seasonKelly} />
         )}
         <div className={styles.zoneGrid}>
           {(view?.betZones ?? []).map((z) => (
@@ -245,6 +273,67 @@ function TotalCard({
           label={thirdLabel}
           value={thirdValue}
           tone={thirdTone}
+          variant="num"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Kelly bankroll card (2026-07-28).
+ *
+ *  Answers "what would the record be if we'd staked by Kelly from the
+ *  start?".  The number is RECOMPUTED ON READ from each row's model
+ *  probability and real captured price -- picks_<year>.csv still stores
+ *  what was actually risked (flat 1u for most of the season) and is
+ *  never overwritten with simulated stakes.  See lib/kelly-sim.ts.
+ *
+ *  Always season-to-date regardless of the window toggle: a bankroll
+ *  compounds, so a "last 7 days bankroll" would restart at the nominal
+ *  bank and mean nothing.
+ *
+ *  `skippedNoPrice` is surfaced deliberately.  April captured a real DK
+ *  price on only 6 of 176 placed bets; Kelly's stake is a function of
+ *  the price, so those bets cannot be sized without inventing one.  The
+ *  card says so rather than quietly starting the curve in May. */
+function KellyCard({ kelly }: { kelly: KellySim }) {
+  const tone: "win" | "loss" | "neutral" =
+    kelly.profit > 0.05 ? "win" : kelly.profit < -0.05 ? "loss" : "neutral";
+  const delta = kelly.profit - kelly.flatProfit;
+
+  return (
+    <div className={`${styles.kellyCard} ${styles[`totalCard_${tone}`]}`}>
+      <div className={styles.kellyWatermark} aria-hidden>SIM</div>
+      <div className={styles.totalLeft}>
+        <span className={styles.totalEyebrow}>
+          Kelly bankroll · simulated · {(kelly.config.fraction * 100).toFixed(0)}% Kelly
+        </span>
+        <span className={styles.totalUnits}>{kelly.finalBank.toFixed(2)}u</span>
+        <span className={styles.totalSub}>
+          {`from ${kelly.startBank.toFixed(0)}u · ${formatUnits(kelly.profit)} · `}
+          {`${kelly.wins}W-${kelly.losses}L over ${kelly.bets} staked bets`}
+          {kelly.firstDate ? ` since ${kelly.firstDate}` : ""}
+          {kelly.skippedNoPrice > 0
+            ? ` · ${kelly.skippedNoPrice} bets unsizeable (no captured price)`
+            : ""}
+        </span>
+      </div>
+      <div className={styles.totalRight}>
+        <Stat
+          label="vs flat 1u"
+          value={formatUnits(delta)}
+          tone={delta > 0 ? "win" : delta < 0 ? "loss" : "neutral"}
+          variant="num"
+        />
+        <Stat
+          label="Max drawdown"
+          value={`${kelly.maxDrawdownPct.toFixed(1)}%`}
+          tone={kelly.maxDrawdownPct > 30 ? "loss" : "neutral"}
+          variant="num"
+        />
+        <Stat
+          label="Biggest bet"
+          value={`${kelly.largestStakeUnits.toFixed(2)}u`}
           variant="num"
         />
       </div>
