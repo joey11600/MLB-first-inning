@@ -304,6 +304,14 @@ function SystemCard({
             : `${fmtU(pct * bankUnits)} on your ${bankUnits.toFixed(0)}u bankroll`}
           {` · ${y.bets} ${y.bets === 1 ? "bet" : "bets"} · ${y.wins}-${y.bets - y.wins} · YRFI · ${w.from} → ${w.to}`}
         </span>
+        {w.assumed > 0 && (
+          <span className={styles.provNote}>
+            <span className={styles.provDot} aria-hidden />
+            {`${w.assumed} of ${w.bets} bets had no captured DraftKings price and `}
+            {`were priced at an assumed −125. Assume −155 instead and the `}
+            {`season's simulated bank falls by roughly a third.`}
+          </span>
+        )}
         {w.nrfi.bets > 0 && (
           <span className={styles.provNote}>
             <span className={styles.provDot} aria-hidden />

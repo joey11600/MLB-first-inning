@@ -198,6 +198,11 @@ export interface ReplayWindow {
   /** Split by side, because only one of them is actually bet. */
   yrfi: { bets: number; wins: number; pnl: number };
   nrfi: { bets: number; wins: number; pnl: number };
+  /** Bets priced at the -125 stand-in because no DK price was ever
+   *  captured. Load-bearing: change that assumption to -155 and the
+   *  season's simulated bank falls from ~967u to ~641u. A figure built
+   *  substantially on an assumed price has to say so on its face. */
+  assumed: number;
 }
 
 /**
@@ -223,7 +228,7 @@ export function replayWindow(
   if (!side || !startIso || !endIso) return null;
   const days = side.days.filter((d) => d.date >= startIso && d.date <= endIso);
   if (days.length === 0) return null;
-  let bets = 0, wins = 0, pnl = 0;
+  let bets = 0, wins = 0, pnl = 0, assumed = 0;
   const y = { bets: 0, wins: 0, pnl: 0 };
   const n = { bets: 0, wins: 0, pnl: 0 };
   for (const d of days) {
@@ -232,6 +237,7 @@ export function replayWindow(
       const p = g.record.pnl ?? 0;
       const w = g.record.win === true;
       bets += 1; if (w) wins += 1; pnl += p;
+      if (g.record.assumed) assumed += 1;
       const bucket = g.side === "NRFI" ? n : y;
       bucket.bets += 1; if (w) bucket.wins += 1; bucket.pnl += p;
     }
@@ -246,6 +252,6 @@ export function replayWindow(
     pct: isNum(bankStart) && bankStart > 0 ? pnl / bankStart : null,
     bankStart,
     bankEnd: isNum(last.simBankAfter) ? last.simBankAfter : null,
-    yrfi: y, nrfi: n,
+    yrfi: y, nrfi: n, assumed,
   };
 }
