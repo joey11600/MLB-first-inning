@@ -19,10 +19,16 @@ since changed:
 So the economics underneath the 6/07 decision are different, and the
 question deserves a fresh answer rather than an appeal to the old one.
 
-THE PUZZLE THIS RESOLVES.  The dashboard shows STRONG NRFI at 59.4% over
-all graded picks, but the ones actually BET went 24W-30L (44.4%).  Either
-the betting rule was selecting the worse subset, or the unbet ones got
-lucky.  That gap has to be explained before re-enabling anything.
+SELECTION BUG THIS SCRIPT ONCE HAD (fixed 2026-07-28, operator caught it).
+The first version filtered on pick_strength == "STRONG" and evaluated 49
+picks ending 2026-06-14.  But disabling NRFI set _LR_STRONG_NRFI_P = 1.01,
+which no probability can exceed, so from that day the classifier stopped
+emitting "STRONG NRFI" at all and the same games came out "LEAN NRFI".
+The filter therefore discarded SIX WEEKS of live predictions -- 158 graded
+games, 157 with real captured prices -- and judged re-enabling on a stale
+sample.  Now selects on side + probability, giving 309 picks including 184
+that are genuinely out-of-sample (we bet none of them, so none of our
+money moved those lines).
 
 Everything below uses REAL captured DK prices only.
 
@@ -69,9 +75,21 @@ def load():
             if (r.get("graded_result") or "").upper() not in ("WIN", "LOSS") \
                and (r.get("actual_result") or "").upper() not in ("NRFI", "YRFI"):
                 continue
+            # DO NOT filter on pick_strength.  When NRFI betting was
+            # disabled on 2026-06-07 the threshold was set to
+            # _LR_STRONG_NRFI_P = 1.01, which no probability can exceed --
+            # so from that day on the classifier stopped emitting
+            # "STRONG NRFI" entirely and those same games came out as
+            # "LEAN NRFI" instead.  Filtering on strength therefore drops
+            # every NRFI prediction after 2026-06-14 (158 graded games,
+            # 157 of them with a real captured price) and silently
+            # evaluates re-enabling on a 6-week-stale sample.
+            #
+            # The strength LABEL changed meaning; the model's probability
+            # did not.  Select on side + probability and re-derive the
+            # strength ourselves at whatever gate is being tested.
             side = (r.get("pick_side") or "").upper()
-            strength = (r.get("pick_strength") or "").upper()
-            if side != "NRFI" or strength != "STRONG":
+            if side != "NRFI":
                 continue
             odds = num(r.get("market_nrfi_odds"))
             p = num(r.get("nrfi_prob"))
@@ -141,18 +159,22 @@ def row(label, bets):
 
 def main():
     bets = load()
-    print(f"Graded STRONG NRFI picks with a real captured DK price: {len(bets)}")
+    print(f"Graded NRFI-side predictions with a real captured DK price: {len(bets)}")
     print(f"  {bets[0]['date']} .. {bets[-1]['date']}\n")
 
     print(f"  {'segment':<34}{'n':>5}{'hit%':>7}{'need':>7}{'flat 1u':>10}"
           f"{'K bets':>6}{'K P&L':>10}{'K maxDD':>7}")
     print("  " + "-" * 87)
-    row("ALL graded STRONG NRFI", bets)
+    row("ALL graded NRFI predictions", bets)
     row("  ...that we actually BET", [b for b in bets if b["placed"]])
-    row("  ...that we did NOT bet", [b for b in bets if not b["placed"]])
+    row("  ...predicted but never bet", [b for b in bets if not b["placed"]])
     print()
-    row(f"before {DISABLE_DATE}", [b for b in bets if b["date"] < DISABLE_DATE])
-    row(f"since {DISABLE_DATE} (unbet)", [b for b in bets if b["date"] >= DISABLE_DATE])
+    row(f"before {DISABLE_DATE} (betting era)", [b for b in bets if b["date"] < DISABLE_DATE])
+    row(f"since {DISABLE_DATE} (all unbet)", [b for b in bets if b["date"] >= DISABLE_DATE])
+    print()
+    print("  The 'since' row is the 6 weeks the model kept predicting NRFI")
+    print("  while we sat out -- the honest out-of-sample window, because")
+    print("  no bet of ours could have moved those lines.")
 
     print("\n" + "=" * 92)
     print("  DOES THE MODEL BEAT THE MARKET ON NRFI?  (the only question that matters)")

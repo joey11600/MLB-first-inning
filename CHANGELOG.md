@@ -614,6 +614,34 @@ stakes off. Now uses `CIRCalibrator`.
   definition instead of the bake-off owning a copy the refit path didn't
   know about.
 
+### Corrected — the NRFI check was reading a 6-week-stale sample
+
+Operator caught this. The first `nrfi_reenable_check.py` filtered on
+`pick_strength == "STRONG"` and judged re-enabling on 49 picks ending
+2026-06-14. But disabling NRFI set `_LR_STRONG_NRFI_P = 1.01`, which no
+probability can exceed — so from that date the classifier stopped emitting
+"STRONG NRFI" entirely and the same games came out as **LEAN NRFI**. The
+strength LABEL changed meaning; the probability did not. The filter
+therefore discarded **158 graded predictions (157 with real prices)** —
+every NRFI call the model made while we sat out.
+
+Fixed to select on side + probability. Sample goes 49 → **309**, of which
+**184 are genuinely out-of-sample** (we bet none of them, so none of our
+money touched those lines).
+
+**The conclusion is unchanged and now much better supported:**
+
+| segment | n | hit | needs | flat 1u | Kelly |
+|---|---|---|---|---|---|
+| all NRFI predictions | 309 | 46.3% | 55.9% | **-53.89u** | -46.65u |
+| ...actually bet | 49 | 44.9% | 57.9% | -11.29u | -30.57u |
+| ...predicted, never bet | 260 | 46.5% | 55.6% | **-42.60u** | -23.14u |
+| **since 6/07 (clean OOS)** | **184** | **46.7%** | **55.1%** | **-28.67u** | -33.15u |
+
+Still negative in every probability band (-9.5pp / -8.4pp / -11.2pp /
+-11.4pp) and at every re-enable threshold from 0.55 to 0.66. The six weeks
+we sat out confirm it rather than overturning it.
+
 ### Investigated — NRFI stays OFF, and CLV is unmeasurable for structural reasons
 
 **NRFI: do not re-enable.** The 2026-06-07 decision holds, now re-tested
