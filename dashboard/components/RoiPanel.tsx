@@ -191,7 +191,7 @@ export function RoiPanel({
         {/* THE system record, always visible regardless of window --
             projected (whole season, -125 fill) and real (since 5/07,
             real prices only). Operator spec 2026-07-28. */}
-        {seasonRecord && <SeasonRecordCard rec={seasonRecord} />}
+        {seasonRecord && <SeasonRecordCard rec={seasonRecord} selectedDate={initialDate} />}
         <TotalCard
           total={view?.total}
           window={window}
@@ -298,17 +298,21 @@ function fmtOdds(o: number): string {
  *  drill-down (native <details>, no state) listing every bet taken that
  *  day with price, stake, result and P&L -- exactly the "which bets were
  *  taken and which brought us profit" view the operator asked for. */
-function RecordColumn({ side }: { side: SeasonRecordSide }) {
+function RecordColumn({ side, selectedDate }: { side: SeasonRecordSide; selectedDate?: string }) {
   const tone: "win" | "loss" | "neutral" =
     side.kellyProfit > 0.05 ? "win" : side.kellyProfit < -0.05 ? "loss" : "neutral";
+  // Operator 2026-07-28: the HEADLINE is the PROFIT -- every unit above
+  // the 100u start -- not the final bank. Bank moves to the sub-line.
+  const inWindow = !selectedDate || (selectedDate >= side.from && selectedDate <= side.to);
+  const selDay = selectedDate ? side.days.find((d) => d.date === selectedDate) : undefined;
   return (
     <div className={styles.recCol}>
       <span className={styles.totalEyebrow}>{side.label}</span>
       <span className={`${styles.recBank} ${styles[`recBank_${tone}`]}`}>
-        {side.finalBank.toFixed(2)}u
+        {side.kellyProfit >= 0 ? "+" : ""}{side.kellyProfit.toFixed(2)}u
       </span>
       <span className={styles.recSub}>
-        {`from ${side.startBank.toFixed(0)}u · ${side.kellyProfit >= 0 ? "+" : ""}${side.kellyProfit.toFixed(2)}u`}
+        {`bankroll ${side.startBank.toFixed(0)}u → ${side.finalBank.toFixed(2)}u`}
       </span>
       <div className={styles.recStats}>
         <span>{side.wins}-{side.losses} ({(100 * side.hitRate).toFixed(1)}%)</span>
@@ -322,6 +326,38 @@ function RecordColumn({ side }: { side: SeasonRecordSide }) {
           ? ` · missing prices at ${fmtOdds(side.priceFill)} (${side.assumedBets} of ${side.bets} bets)`
           : " · real captured prices only"}
       </span>
+      {/* Selected-day strip (operator 2026-07-28): the ControlPanel date
+          picker drives this, so filtering to a day shows THAT day's
+          system bets -- Kelly stakes, not the ledger's flat-1u era. */}
+      {selectedDate && (
+        <div className={styles.recSelDay}>
+          <span className={styles.recSelDayLabel}>{selectedDate}</span>
+          {!inWindow ? (
+            <span className={styles.recSelDayNone}>outside this record&apos;s window</span>
+          ) : !selDay ? (
+            <span className={styles.recSelDayNone}>no system bets this day</span>
+          ) : (
+            <>
+              {selDay.bets.map((b, i) => (
+                <div key={i} className={styles.recBet}>
+                  <span className={styles.recBetGame}>{b.game}</span>
+                  <span>{b.side}</span>
+                  <span>{fmtOdds(b.odds)}{b.assumed ? " est." : ""}</span>
+                  <span>{b.stake.toFixed(2)}u</span>
+                  <span className={b.win ? styles.recPos : styles.recNeg}>
+                    {b.win ? "WIN" : "LOSS"} {b.pnl >= 0 ? "+" : ""}{b.pnl.toFixed(2)}u
+                  </span>
+                </div>
+              ))}
+              <span className={styles.recSelDaySum}>
+                day {selDay.bets.reduce((s, b) => s + b.pnl, 0) >= 0 ? "+" : ""}
+                {selDay.bets.reduce((s, b) => s + b.pnl, 0).toFixed(2)}u ·
+                bank {selDay.bankAfter.toFixed(2)}u
+              </span>
+            </>
+          )}
+        </div>
+      )}
       <details className={styles.recDays}>
         <summary>Day-by-day · {side.days.length} betting days</summary>
         <div className={styles.recDayScroll}>
@@ -356,7 +392,7 @@ function RecordColumn({ side }: { side: SeasonRecordSide }) {
   );
 }
 
-function SeasonRecordCard({ rec }: { rec: SeasonRecordFile }) {
+function SeasonRecordCard({ rec, selectedDate }: { rec: SeasonRecordFile; selectedDate?: string }) {
   return (
     <div className={styles.recCard}>
       <div className={styles.recHead}>
@@ -369,8 +405,8 @@ function SeasonRecordCard({ rec }: { rec: SeasonRecordFile }) {
         </span>
       </div>
       <div className={styles.recGrid}>
-        <RecordColumn side={rec.projected} />
-        <RecordColumn side={rec.real} />
+        <RecordColumn side={rec.projected} selectedDate={selectedDate} />
+        <RecordColumn side={rec.real} selectedDate={selectedDate} />
       </div>
     </div>
   );

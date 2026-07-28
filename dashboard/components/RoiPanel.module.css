@@ -577,3 +577,30 @@
 .recBetGame { min-width: 6.2ch; color: var(--foreground); }
 .recPos { color: var(--primary); }
 .recNeg { color: var(--destructive); }
+
+/* Selected-day strip inside the record card (2026-07-28): the slate
+   date picker drives it, so filtering a day shows that day's SYSTEM
+   bets with their Kelly stakes. */
+.recSelDay {
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.recSelDayLabel {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
+}
+.recSelDayNone { font-size: 0.7rem; color: var(--muted-foreground); }
+.recSelDaySum {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  margin-top: 0.15rem;
+}

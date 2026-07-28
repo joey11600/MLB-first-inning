@@ -783,6 +783,24 @@ the stake chip rendered on its own: `PENDING · LOCKS 6:40 PM ET · DK Y
 -110 · STAKE UP TO 4.4u`. The chip was never broken — every earlier test
 ran against slates with zero STRONG rows.
 
+### Changed — record card: profit headline + date-picker day view
+
+Operator feedback on first contact with the card:
+- **Headline is now the PROFIT** (+365.10u / +130.18u — every unit above
+  the 100u start), with the bankroll (100u → 465.10u / 230.18u) moved to
+  the sub-line. Previously the big number was the final bank.
+- **The slate date picker now drives a selected-day strip** in both
+  record columns: pick any date and each column shows that day's SYSTEM
+  bets — game, side, price, Kelly stake, result, P&L, bank after — or
+  says "no system bets this day". Previously day filtering only touched
+  the ledger cards below, which show the flat-1u era and made it look
+  like the record was "stuck on flat 1 unit".
+- Bet-count question answered with the same-window head-to-head: old
+  system 5/07-onward, real prices: **314 bets, 55.4% vs 56.2% needed,
+  -5.34u**. New record, same window: **94 bets, 64.9% vs 58.0% needed,
+  +11.23u**. The ~220 missing bets are the 0.40-0.44 band (117 games),
+  LEAN NRFI, and low-lambda games — the volume that was losing.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
