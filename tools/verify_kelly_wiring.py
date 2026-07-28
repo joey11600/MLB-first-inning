@@ -48,16 +48,40 @@ def main():
     bets = load_bets()
     print(f"Loaded {len(bets)} graded placed 2026 bets with a real captured price.\n")
 
-    # ---- 1. inert when disabled -------------------------------------
-    print("=== CHECK 1: default-off ===")
+    # ---- 1. enabled, with a working kill switch ---------------------
+    print("=== CHECK 1: enabled by default, kill switch works ===")
     print(f"  tracker.KELLY_ENABLED       = {tracker.KELLY_ENABLED}")
     print(f"  NRFI_KELLY_ENABLED env var  = {os.getenv('NRFI_KELLY_ENABLED')!r}")
-    if tracker.KELLY_ENABLED:
-        print("  [FAIL] Kelly is ON by default -- it must ship default-off")
+    print(f"  KELLY_FRACTION              = {tracker.KELLY_FRACTION}")
+    print(f"  KELLY_BANKROLL_UNITS        = {tracker.KELLY_BANKROLL_UNITS}")
+    print(f"  KELLY_BANKROLL_EPOCH        = {tracker.KELLY_BANKROLL_EPOCH}")
+    if not tracker.KELLY_ENABLED:
+        print("  [FAIL] Kelly should be ON (operator enabled 2026-07-27)")
         ok = False
     else:
-        print("  [PASS] Kelly is off unless NRFI_KELLY_ENABLED is set; "
-              "sizing falls through to flat 1u")
+        print("  [PASS] Kelly is on")
+    if tracker.KELLY_FRACTION != 0.25:
+        print(f"  [FAIL] expected quarter Kelly, got {tracker.KELLY_FRACTION}")
+        ok = False
+    else:
+        print("  [PASS] quarter Kelly as agreed")
+
+    # ---- 1b. bankroll must start at the nominal bank, not season P&L -
+    print("\n=== CHECK 1b: bankroll epoch prevents retroactive compounding ===")
+    tracker._bankroll_cache = None
+    bank_now = tracker.current_bankroll_units()
+    print(f"  computed starting bankroll: {bank_now:.2f}u "
+          f"(nominal {tracker.KELLY_BANKROLL_UNITS:.0f}u)")
+    print("  Without the epoch this would include the full season's +32.7u of")
+    print("  realized P&L -- itself ~15u inflated by April's -110 fallback --")
+    print("  and every stake would be ~33% too large.")
+    if bank_now > tracker.KELLY_BANKROLL_UNITS * 1.05:
+        print(f"  [FAIL] bankroll is inflated above nominal by "
+              f"{bank_now - tracker.KELLY_BANKROLL_UNITS:+.2f}u")
+        ok = False
+    else:
+        print("  [PASS] starts at (or near) the nominal bank")
+    tracker._bankroll_cache = None
 
     # ---- 2. shipped helper vs backtest formula ----------------------
     print("\n=== CHECK 2: shipped helper matches the backtest formula ===")

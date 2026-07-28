@@ -191,11 +191,28 @@ is justified.** No production model files were touched.
   `.claude/` is gitignored, so this is a local-machine artifact only and
   will need reinstalling on another checkout.
 
-### Added — Kelly bankroll-fraction staking (DEFAULT OFF)
+### Changed — Kelly staking ENABLED at quarter Kelly (operator decision)
+
+After reviewing the full-season backfill below, the operator enabled
+quarter Kelly on a ~100-unit bankroll. `KELLY_ENABLED` now defaults to
+**True**; `NRFI_KELLY_ENABLED=0` is the kill switch and takes effect on
+the next cron tick with no code change.
+
+- **Typical stakes go from 1u to roughly 4-7u.** At -135: yrfi_p 0.64 →
+  3.85u, 0.66 → 5.03u, 0.68 → 6.20u, 0.70 → 7.37u, 0.75 → 10.00u (cap).
+- **Bankroll epoch added (`KELLY_BANKROLL_EPOCH`, default 2026-07-28).**
+  Caught before going live: `current_bankroll_units()` summed the WHOLE
+  season's realized P&L (+32.7u) on top of the nominal bank, so the first
+  Kelly bet would have sized off ~133u instead of 100u — **every stake
+  33% too large**. Worse, that +32.7u is itself ~15u inflated by April's
+  -110 fallback, so the error would have compounded on partly-fabricated
+  profit. Only P&L from the epoch forward now compounds. Verified: the
+  computed starting bankroll is exactly 100.00u.
+
+### Added — Kelly bankroll-fraction staking
 
 Built at operator request 2026-07-27, explicitly reversing the T4.25-27
-flat-1u-only preference recorded in CLAUDE.md. **Ships disabled** and
-must be switched on deliberately.
+flat-1u-only preference recorded in CLAUDE.md.
 
 - **`tracker.kelly_fraction_of_bankroll` / `current_bankroll_units` /
   `kelly_stake_units`**, wired into `_apply_odds_to_row`'s sizing block.

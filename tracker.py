@@ -3082,8 +3082,13 @@ def payout_per_unit(odds_str: str) -> float | None:
 # measured overconfidence and the operator's flat-1u history, the
 # smaller fraction is the defensible starting point; raise it
 # deliberately, not by drift.
-KELLY_ENABLED = (os.getenv("NRFI_KELLY_ENABLED", "") or "").strip().lower() in (
-    "1", "true", "yes", "on",
+# 2026-07-27: operator reviewed the full-season backfill and enabled
+# quarter Kelly, so the DEFAULT IS NOW ON.  Set NRFI_KELLY_ENABLED=0
+# (or false/no/off) to switch it back to flat 1u -- that is the kill
+# switch, and it takes effect on the next cron tick with no code change.
+_kelly_env = (os.getenv("NRFI_KELLY_ENABLED", "") or "").strip().lower()
+KELLY_ENABLED = (
+    _kelly_env in ("1", "true", "yes", "on") if _kelly_env else True
 )
 # Fraction of full Kelly to stake.  0.25 = quarter Kelly.
 KELLY_FRACTION = float(os.getenv("NRFI_KELLY_FRACTION", "0.25") or 0.25)
@@ -3098,6 +3103,21 @@ KELLY_BANKROLL_UNITS = float(os.getenv("NRFI_KELLY_BANKROLL", "100") or 100)
 KELLY_MAX_STAKE_FRAC = float(os.getenv("NRFI_KELLY_MAX_STAKE", "0.10") or 0.10)
 # Never stake less than this; below it the bet is not worth placing.
 KELLY_MIN_STAKE_UNITS = 0.10
+# Date from which realized P&L is allowed to compound the bankroll.
+#
+# WHY THIS EXISTS.  Without an epoch, current_bankroll_units() sums the
+# WHOLE season's realized P&L (+32.7u as of 2026-07-27) on top of the
+# nominal bank, so the very first Kelly bet would size off ~133u instead
+# of the operator's actual ~100u -- every stake 33% too large.  Worse,
+# that +32.7u is itself inflated by roughly 15u: April settled 170 of
+# 176 bets at the flat -110 fallback because no real DK price was ever
+# captured (see CHANGELOG 2026-07-27).  Compounding a bankroll on
+# partly-fabricated profit would be a silent, ongoing sizing error.
+#
+# Kelly should compound from the moment you START staking by Kelly, not
+# retroactively absorb profit earned under a different scheme at prices
+# that were never real.  Default is the day Kelly went live.
+KELLY_BANKROLL_EPOCH = (os.getenv("NRFI_KELLY_EPOCH", "") or "2026-07-28").strip()
 
 _bankroll_cache: float | None = None
 
@@ -3120,7 +3140,11 @@ def kelly_fraction_of_bankroll(p: float, odds_str: str) -> float | None:
 
 
 def current_bankroll_units(season: int = 2026) -> float:
-    """Nominal bankroll + realized season P&L, so stakes compound.
+    """Nominal bankroll + realized P&L SINCE KELLY_BANKROLL_EPOCH.
+
+    Only P&L from the epoch onward compounds -- see the constant's note
+    for why counting the full season would both over-size stakes and
+    compound partly-fabricated April profit.
 
     Read once and cached for the life of the process: this is called
     per-row inside odds-import loops and re-reading the ledger each time
@@ -3135,6 +3159,8 @@ def current_bankroll_units(season: int = 2026) -> float:
         for r in _read_rows(_csv_path(season)):
             if (r.get("bet_placed") or "").strip().upper() != "Y":
                 continue
+            if (r.get("date") or "") < KELLY_BANKROLL_EPOCH:
+                continue          # pre-Kelly history does not compound
             v = (r.get("profit_loss_units") or "").strip()
             if not v:
                 continue
