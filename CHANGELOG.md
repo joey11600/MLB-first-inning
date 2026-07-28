@@ -11,6 +11,98 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-27] — Loss investigation: the leak is selectivity, not the calibrator
+
+Operator asked why the system is losing. Investigation of all 526 graded
+placed bets. Three diagnostic tools added; **no production behaviour
+changed** — every candidate fix is a betting-policy change and is parked
+pending operator sign-off.
+
+### Findings
+
+- **The season "+32.7u" is not real.** April captured a real DK price on
+  only 6 of 176 placed bets (3%); the other 170 settled at `_calc_pnl`'s
+  flat -110 fallback. April's 64.2% hit rate is genuine, but at the ~-131
+  average the 6 captured rows actually show, the month is worth ~+23u, not
+  +39u. Odds capture became reliable 2026-05-01 (94% May, 100% Jun/Jul).
+  **Real-price record since 5/01: -6.40u over 350 bets** (May -3.65u,
+  June -3.37u, July +0.62u). Overall 55.9% hit against a 56.1% break-even.
+
+- **The STRONG gate is far too loose.** `_LR_PASS_LO_P = 0.44` admits
+  **648 of 1520 graded 2026 games (42.6%)** as STRONG YRFI. A genuine
+  strong edge cannot exist on 43% of a slate.
+
+- **Two calibrator plateaus sit directly under the gate.**
+  `data/calibration_v2.json` bins 1-3 all map to calibrated NRFI 0.40639
+  (YRFI 0.5936) — 204 games, 98 distinct lambda values, one probability.
+  A second plateau at 0.43836 holds 85 more. Together **289 of the 648
+  qualifying games (45%) come from two "I can't tell these apart" values.**
+  Plateau bets: 51.4% hit vs 54.9% market-implied, **-7.18u**. Non-plateau
+  bets at the same average price: 57.0% hit, **+8.40u**.
+
+- **Rebuilding the calibrator does NOT fix the P&L** (negative result,
+  worth recording so it is not retried). A calibrator is a *monotone*
+  relabelling, so it cannot change which games rank highest — only the
+  number printed on them. Measured: AUC is 0.5346 for the raw model and
+  0.5334-0.5352 for every candidate, and **at matched bet volume all six
+  candidates select the same games for the same P&L** (+21.51u at 100
+  bets, +21.53u at 150 bets, identical across the board). Out-of-sample
+  Brier differences are ≤0.0005. The plateau is a real defect, but it
+  costs money only because it shovels marginal games over a fixed gate —
+  raising the gate on the existing calibrator achieves the same thing.
+
+- **The calibrator fix does matter for Kelly**, which is the reason to
+  keep it on the table: 204 games sharing one probability means
+  bankroll-fraction staking would size them all identically off a number
+  known to be wrong.
+
+### Added
+
+- **`tools/calibrator_bakeoff.py`** — out-of-sample comparison of six
+  calibrators (iso20/iso40 = current family, cir20/cir40 = Centered
+  Isotonic Regression, platt, blend) under the mandatory CLAUDE.md
+  3-split rule (2024→2025, 2025→2024, 2024+2025→2026). Reports Brier,
+  log loss, ECE, and plateau mass. `--money` adds a 2026 real-odds P&L
+  test. CIR cuts plateau mass 68.2% → 12.5% at no Brier cost; Platt
+  eliminates it entirely.
+- **`tools/calibrator_shape_vs_selectivity.py`** — separates "ranks games
+  better" (AUC, equal-volume P&L) from "bets less often". This is the
+  tool that produced the negative result above; run it before proposing
+  any future calibrator swap.
+- **`tools/kelly_backtest.py`** — bankroll-fraction staking backtest on
+  the real bet ledger, per operator request 2026-07-27 (overrides the
+  earlier T4.25-27 flat-1u-only preference). Full/half/quarter/eighth
+  Kelly against three probability sources (model-claimed, shrunk-to-
+  market, market-implied control). Writes
+  `data/diagnostics/kelly_backtest.json`.
+
+### Kelly results (100u starting bankroll, 25% single-bet stake cap)
+
+| selection | flat 1u | quarter K | half K | full K |
+|---|---|---|---|---|
+| current 349 bets | -3.65u | +4.25u | -40.40u | **-98.04u (bankroll 1.96, 99% DD)** |
+| walk-forward gate, 109 bets | +6.49u | +32.45u | **+47.98u** | +16.66u (86% DD) |
+| in-sample p≥0.64, 105 bets | +17.08u | +83.21u | +182.46u | +326.51u |
+
+Full Kelly on today's selection **wipes out the bankroll.** Note half
+Kelly beats full Kelly on the walk-forward set — the signature of staking
+past the growth-optimal point on overstated probabilities. The p≥0.64 row
+is in-sample (threshold chosen on the same data) and is an upper bound,
+not a forecast; the walk-forward row is the honest number.
+
+### Deferred (awaiting operator decision — all are money-policy changes)
+
+- Raising the STRONG gate. Walk-forward validated: +6.60u / +6.05% ROI vs
+  the -0.63% baseline, positive in all three full months, leave-one-month-
+  out stable at +13.6%..+16.9%, bootstrap 90% CI [+1.8%, +28.4%] excludes
+  zero. Costs volume: 4.1 → 1.2 bets/day, 30 of 86 days going to zero.
+- Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
+  Only worth shipping as a prerequisite for Kelly.
+- Kelly sizing itself. Unsafe until selection is fixed; half Kelly or
+  less if adopted.
+
+---
+
 ## [2026-07-19] — Units fill hourly (not nightly) + daily system heartbeat
 
 Operator reported "won units aren't tracking" and "telegrams come in
