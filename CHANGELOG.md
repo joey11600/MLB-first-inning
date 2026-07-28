@@ -682,6 +682,54 @@ would produce a number, because there is no second observation to make.
 Recorded rather than "fixed": the honest action is to stop treating CLV
 as a validation signal here, not to manufacture one.
 
+### Investigated — is the NRFI signal INVERTED? Suggestive, not proven
+
+Operator: "I think we may be predicting it wrong, or targeting the wrong
+probabilities or brackets." Tested on all 309 NRFI-side predictions with
+both prices captured.
+
+**The model's NRFI zone is genuinely mis-ordered.** Actual YRFI rate by
+what the model said:
+
+| model says | actual YRFI rate |
+|---|---|
+| YRFI | 56.7% |
+| **NRFI** | **53.7%** |
+| PASS | 47.8% |
+
+Games the model calls NRFI are **more** YRFI-prone than the ones it calls
+PASS. The ranking is inverted between those two zones — the PASS bucket
+is a better NRFI detector than the NRFI bucket is. That is a real defect,
+and it is the concrete form of "we may be predicting it wrong".
+
+**Fading it looks profitable but does not clear the bar.** Betting YRFI on
+games the model calls NRFI: 53.7% vs 50.6% needed, **+3.1pp, +18.25u,
++5.91% ROI** over 309 games.
+
+Control test rules out a market artefact: blind-betting YRFI on **every**
+graded game LOSES (51.9% vs 52.9% needed, -1.0pp, -19.17u). So YRFI is not
+generically underpriced; the model is carrying real information and
+partially inverting it.
+
+But it fails validation:
+- full-sample bootstrap 90% CI on ROI **[-3.43%, +15.14%]** — includes zero
+- clean out-of-sample (184 picks since 6/07, none ever bet): +3.12% ROI,
+  CI **[-8.75%, +14.47%]** — includes zero
+- **July was negative (-4.05u)**; positive in 3 of 4 months
+- most of the profit sits in the 0.50-0.55 band (+17.25u of +18.25u),
+  i.e. where the model is barely leaning at all
+
+For comparison, the STRONG-gate change that shipped had a CI of
+[+1.8%, +28.4%], excluding zero. The fade does not meet that standard.
+**Do not act on it.** Recorded as a watch item.
+
+**Also tested and rejected:** betting NRFI on the PASS zone (-1.9pp,
+-15.17u, CI [-9.8%, +4.1%] spans zero).
+
+**The durable finding is the mis-ordering, not the fade.** The right fix
+is in the model — the NRFI side of the classifier is not separating
+low-scoring games from the PASS zone — not a new bet type layered on top.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
