@@ -3049,6 +3049,122 @@ def payout_per_unit(odds_str: str) -> float | None:
         return 100.0 / abs(odds)
 
 
+# ---------------------------------------------------------------------------
+# Kelly bankroll-fraction staking (2026-07-27, operator request)
+# ---------------------------------------------------------------------------
+#
+# READ THIS BEFORE ENABLING.  CLAUDE.md's money rules say "flat 1u plays
+# only" and record that the operator previously REJECTED Kelly
+# (T4.25-27).  The operator explicitly reversed that on 2026-07-27.  The
+# feature therefore ships DEFAULT-OFF and must be switched on
+# deliberately via the NRFI_KELLY_ENABLED environment variable.
+#
+# WHY IT IS DANGEROUS HERE.  Kelly stakes scale with CLAIMED edge, and
+# this model's claimed edge was measured overconfident exactly where it
+# bets most (2026-07-27 investigation):
+#     model says 59.2% -> actually won 50.3%   (157 bets)
+#     model says 62.3% -> actually won 55.1%   (107 bets)
+#     model says 67.3% -> actually won 67.1%   ( 85 bets)
+# Backtested on the real 2026 ledger (tools/kelly_backtest.py, 100u
+# start, 25% cap):
+#     selection                 flat 1u   1/4 K    1/2 K    full K
+#     the pre-2026-07-27 gate    -3.65u   +4.25u  -40.40u  -98.04u (!)
+#     walk-forward gate          +6.49u  +32.45u  +47.98u  +16.66u
+# Full Kelly on the OLD selection took a 100u bankroll to 1.96u.  Kelly
+# is only safe on top of the tightened STRONG gate shipped the same day
+# (_LR_STRONG_YRFI_P = 0.36).  Note also that half Kelly BEAT full Kelly
+# on the walk-forward set -- the signature of staking past the
+# growth-optimal point on inflated probabilities.
+#
+# DEFAULT IS QUARTER KELLY, not half.  Quarter returned +32.45u with a
+# 32% max drawdown and a 9.3% largest single stake, versus half Kelly's
+# +47.98u with a 57% drawdown and an 18.6% single stake.  Given the
+# measured overconfidence and the operator's flat-1u history, the
+# smaller fraction is the defensible starting point; raise it
+# deliberately, not by drift.
+KELLY_ENABLED = (os.getenv("NRFI_KELLY_ENABLED", "") or "").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+# Fraction of full Kelly to stake.  0.25 = quarter Kelly.
+KELLY_FRACTION = float(os.getenv("NRFI_KELLY_FRACTION", "0.25") or 0.25)
+# Nominal starting bankroll, expressed in the operator's existing "units"
+# so that 1u == 1% of the starting bank and the old mental model still
+# reads correctly.
+KELLY_BANKROLL_UNITS = float(os.getenv("NRFI_KELLY_BANKROLL", "100") or 100)
+# Hard ceiling on any single stake, as a fraction of current bankroll.
+# Backtested quarter Kelly peaked at 9.3%, so this does not bind in
+# normal operation -- it is a guard against a bad probability producing
+# an absurd stake.
+KELLY_MAX_STAKE_FRAC = float(os.getenv("NRFI_KELLY_MAX_STAKE", "0.10") or 0.10)
+# Never stake less than this; below it the bet is not worth placing.
+KELLY_MIN_STAKE_UNITS = 0.10
+
+_bankroll_cache: float | None = None
+
+
+def kelly_fraction_of_bankroll(p: float, odds_str: str) -> float | None:
+    """Full-Kelly fraction for a bet at `odds_str` with true win prob `p`.
+
+        f* = (p*b - q) / b        b = net decimal payout, q = 1 - p
+
+    Returns None when the inputs are unusable, and 0.0 when the bet has
+    no positive expectation (Kelly says stake nothing).
+    """
+    if p is None or not (0.0 < p < 1.0):
+        return None
+    b = payout_per_unit(odds_str)
+    if b is None or b <= 0:
+        return None
+    f = (p * b - (1.0 - p)) / b
+    return max(f, 0.0)
+
+
+def current_bankroll_units(season: int = 2026) -> float:
+    """Nominal bankroll + realized season P&L, so stakes compound.
+
+    Read once and cached for the life of the process: this is called
+    per-row inside odds-import loops and re-reading the ledger each time
+    would be quadratic.  A stale-by-one-run bankroll is harmless (it
+    moves by well under 1%), whereas the re-read is not.
+    """
+    global _bankroll_cache
+    if _bankroll_cache is not None:
+        return _bankroll_cache
+    realized = 0.0
+    try:
+        for r in _read_rows(_csv_path(season)):
+            if (r.get("bet_placed") or "").strip().upper() != "Y":
+                continue
+            v = (r.get("profit_loss_units") or "").strip()
+            if not v:
+                continue
+            try:
+                realized += float(v)
+            except ValueError:
+                continue
+    except Exception:
+        realized = 0.0     # soft-fail: fall back to the nominal bank
+    _bankroll_cache = max(KELLY_BANKROLL_UNITS + realized, 1.0)
+    return _bankroll_cache
+
+
+def kelly_stake_units(p: float, odds_str: str, season: int = 2026) -> float | None:
+    """Stake in UNITS for one bet, or None to fall back to flat sizing.
+
+    Returns None (not 0) when Kelly cannot be computed, so callers can
+    distinguish "no opinion, use the flat default" from "Kelly says do
+    not bet this".
+    """
+    f = kelly_fraction_of_bankroll(p, odds_str)
+    if f is None:
+        return None
+    f = min(f * KELLY_FRACTION, KELLY_MAX_STAKE_FRAC)
+    stake = current_bankroll_units(season) * f
+    if stake < KELLY_MIN_STAKE_UNITS:
+        return 0.0
+    return round(stake, 2)
+
+
 def _pick_dh_candidate(
     rows:        list[dict],
     candidates:  list[int],
@@ -3312,6 +3428,33 @@ def _apply_odds_to_row(
         would_be_units = units_strong if strength == "STRONG" else (
             units_lean if strength == "LEAN" else 0.0
         )
+        # Kelly staking (2026-07-27).  STRONG only, and only when we have
+        # BOTH a real captured price and the model's probability for the
+        # side we are betting -- otherwise fall through to the flat
+        # stake.  LEAN is track-only so it keeps its notional flat size.
+        # Never fabricate a stake from a missing price: that is the same
+        # failure mode as the -110 fallback that inflated April's P&L.
+        if KELLY_ENABLED and strength == "STRONG":
+            prob_col = "nrfi_prob" if pick == "NRFI" else "yrfi_prob"
+            odds_col = "market_nrfi_odds" if pick == "NRFI" else "market_yrfi_odds"
+            try:
+                p_model = float((row.get(prob_col) or "").strip())
+            except (TypeError, ValueError):
+                p_model = None
+            k = kelly_stake_units(p_model, row.get(odds_col, ""))
+            if k is not None:
+                # NOTE -- POLICY CONSEQUENCE.  Kelly returns 0 whenever the
+                # model's probability does not beat the market's implied
+                # probability.  A 0 stake falls through to the else-branch
+                # below and sets bet_placed="N", which means enabling Kelly
+                # IMPLICITLY ADDS AN EDGE GATE TO STRONG -- the exact thing
+                # CLAUDE.md's money rules say requires explicit operator
+                # permission (T2.24: "if the model commits STRONG, we bet at
+                # whatever odds DK has").  That is inherent to Kelly, not a
+                # bug: staking a positive amount on a non-positive-EV bet is
+                # precisely what Kelly forbids.  It is called out here so the
+                # next reader does not discover it by watching bets vanish.
+                would_be_units = k
         if strength == "STRONG" and would_be_units > 0:
             # T2.58: STRONG pre-lock = stake recorded but not bet.
             #        STRONG inside lock window = commit.

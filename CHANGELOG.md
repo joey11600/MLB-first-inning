@@ -191,6 +191,82 @@ is justified.** No production model files were touched.
   `.claude/` is gitignored, so this is a local-machine artifact only and
   will need reinstalling on another checkout.
 
+### Added — Kelly bankroll-fraction staking (DEFAULT OFF)
+
+Built at operator request 2026-07-27, explicitly reversing the T4.25-27
+flat-1u-only preference recorded in CLAUDE.md. **Ships disabled** and
+must be switched on deliberately.
+
+- **`tracker.kelly_fraction_of_bankroll` / `current_bankroll_units` /
+  `kelly_stake_units`**, wired into `_apply_odds_to_row`'s sizing block.
+  STRONG only; LEAN keeps its notional flat size. Requires BOTH a real
+  captured DK price and the model's probability for the picked side —
+  with either missing it returns `None` and the caller falls back to the
+  flat stake. It never fabricates a stake from a missing price, which is
+  the same failure mode as the -110 fallback that inflated April.
+- **Config (all env vars):** `NRFI_KELLY_ENABLED` (default off),
+  `NRFI_KELLY_FRACTION` (default **0.25**, quarter Kelly),
+  `NRFI_KELLY_BANKROLL` (default 100 units, so 1u still reads as 1% of
+  bank), `NRFI_KELLY_MAX_STAKE` (default 0.10 = 10% hard cap).
+- **Bankroll compounds**: nominal bank + realized season P&L, read once
+  and cached per process (this is called per-row inside odds-import
+  loops; re-reading the ledger each time would be quadratic).
+- **Stakes freeze on bet placement** automatically — the existing T2.23
+  odds lock already covers `units_risked`.
+- **`_calc_pnl` needed no change**; it already honours `units_risked`.
+
+**Why quarter and not half.** Kelly stakes scale with *claimed* edge, and
+this model's claimed edge is measurably inflated where it bets most
+(claims 59.2% → won 50.3% on 157 bets; claims 62.3% → won 55.1% on 107).
+Simulated on the real ledger at the shipped gate, 100u start:
+
+| staking | final | profit | max DD | top stake |
+|---|---|---|---|---|
+| flat 1u | 114.15u | +14.15u | 4.2% | 1.0% |
+| 1/8 Kelly | 130.52u | +30.52u | 13.3% | 4.6% |
+| **1/4 Kelly (default)** | **163.20u** | **+63.20u** | **25.3%** | 9.3% |
+| 1/2 Kelly | 218.01u | +118.01u | 35.2% | 10.0% (capped) |
+
+On the PRE-gate selection full Kelly took 100u to **1.96u** (99% drawdown)
+— Kelly is only survivable on top of the tightened gate shipped the same
+day. Half Kelly also beat full Kelly on the walk-forward set, the
+signature of staking past the growth-optimal point on inflated
+probabilities.
+
+**POLICY CONSEQUENCE, called out explicitly:** Kelly stakes 0 whenever
+the model's probability does not beat the market's implied probability,
+and a 0 stake sets `bet_placed="N"`. Enabling Kelly therefore
+*implicitly adds an edge gate to STRONG* — the thing CLAUDE.md/T2.24 says
+requires explicit operator permission. That is inherent to Kelly, not a
+bug, but it means enabling it changes which bets fire, not just their
+size. 4 of the bets in the simulated window were skipped this way.
+
+- **`tools/verify_kelly_wiring.py`** — drives the SHIPPED
+  `tracker.kelly_stake_units` (not a local copy of the formula) over the
+  real ledger. Confirms default-off, exact formula agreement (largest
+  disagreement 0.0000u over 349 bets), cap enforcement, 0 stake on -EV,
+  and `None` fallback when no price was captured.
+
+### Added — top-N-per-day analysis
+
+- **`tools/top_n_per_day.py`**, answering "what if we only took the top
+  pick every day?" over the 86 betting days with real captured prices:
+
+| strategy | bets | hit | P&L | ROI |
+|---|---|---|---|---|
+| bet everything | 349 | 55.9% | -1.89u | -0.5% |
+| top 1/day by confidence | 86 | 66.3% | +12.49u | +14.5% |
+| top 1/day by **edge** | 86 | 62.8% | **+15.65u** | **+18.2%** |
+| top 2/day by confidence | 167 | 64.7% | +22.61u | +13.5% |
+
+  Ranking by EDGE (model p minus market implied) is the EV-correct
+  criterion and the only variant positive in **every** full month
+  (May +4.37u, Jun +5.04u, Jul +6.47u); confidence-ranking went flat in
+  June. Edge-ranking also gets a far better average price (-59 vs -136).
+  Longest losing streak 4 bets (edge) / 3 bets (confidence).
+  Both are hindsight over a partial season — a one-per-day strategy
+  concentrates all variance into very few bets.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.
