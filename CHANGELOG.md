@@ -730,6 +730,59 @@ For comparison, the STRONG-gate change that shipped had a CI of
 is in the model — the NRFI side of the classifier is not separating
 low-scoring games from the PASS zone — not a new bet type layered on top.
 
+### Added — PROJECTED PROFIT / REAL PROFIT: the system record, on the dashboard
+
+Operator spec (2026-07-28), now live end to end:
+
+- **PROJECTED PROFIT** — whole season, every game the current system
+  would bet, missing DraftKings prices filled at an explicit **-125**:
+  **94W-45L (67.6%), edge +10.3pp, flat +25.45u, bank 100u → 465.10u,
+  maxDD 18.1%** (37 of 139 bets priced by assumption, and the card says
+  so).
+- **REAL PROFIT** — **2026-05-07 onward** (first day DK capture became
+  reliable: 99.6% of games priced from there), real captured prices
+  only, nothing assumed: **61W-33L (64.9%), edge +6.9pp, flat +11.23u,
+  bank 100u → 230.18u, maxDD 18.0%**.
+
+Both include **YRFI (live 0.40 gate) and NRFI (p≥0.60)** per the
+operator's decision. Live NRFI *betting* remains disabled — only 9
+real-priced NRFI bets exist — but the displayed record counts both
+sides. Method is walk-forward: the calibrator at each date is refit
+from strictly earlier games, so no game is scored by a curve that saw
+its outcome.
+
+- Each side of the card has a **day-by-day drill-down**: every betting
+  day, expandable to the individual bets — game, side, price (marked
+  `est.` when assumed), stake, WIN/LOSS, P&L, and bank after the day.
+- Pipeline: `tools/export_season_record.py` (rewritten) →
+  `data/season_record.json` → `copy-data.mjs` → `/api/season-record` →
+  `SeasonRecordCard` in RoiPanel, rendered under every window.
+- Wired into the nightly grade tick in `daily.yml`, so the record
+  refreshes itself after each day's grading; the existing
+  `git add data/` commit step picks it up.
+- `gate_validation.select()` now carries game/side/assumed on each bet
+  (additive keys) so the drill-down can name the bets.
+
+### Fixed — the session-long "changes don't render" mystery, explained
+
+The dev tab's console finally surfaced it:
+`Text content did not match. Server: "Net P&L · real prices only"
+Client: "Net P&L · bet zones only"` — the server rendered NEW code while
+the browser hydrated a STALE cached client chunk. Next dev serves chunks
+at unhashed URLs, and the embedded browser cached them across reloads,
+cache-busting query params, and dev-server restarts. Every false
+"it doesn't render" in this session — including the stake-chip hunt —
+traces to this. Production builds use content-hashed chunk filenames and
+are immune; the card was verified against `npm run build` + `npm run
+start` (a `nrfi-dashboard-prod` launch config now exists for exactly
+this). **Verify dashboard changes against a prod build, not the dev
+server, from now on.**
+
+And with a STRONG pick appearing on tonight's slate during verification,
+the stake chip rendered on its own: `PENDING · LOCKS 6:40 PM ET · DK Y
+-110 · STAKE UP TO 4.4u`. The chip was never broken — every earlier test
+ran against slates with zero STRONG rows.
+
 ### Deferred (still awaiting operator decision)
 
 - Swapping the calibrator to CIR. Brier-neutral, kills the plateau.

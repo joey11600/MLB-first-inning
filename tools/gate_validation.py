@@ -76,12 +76,18 @@ def select(rows, probs, *, side, gate, fill):
                 continue
             odds = r["nrfi_odds"]
             win = not r["yrfi_hit"]
-        if odds is None:
+        missing = odds is None
+        if missing:
             if fill is None:
                 continue
             odds = float(fill)
+        # game/side/assumed added 2026-07-28 for the dashboard's day-by-day
+        # drill-down (export_season_record.py). Additive keys only -- every
+        # existing consumer reads date/p/odds/win and ignores the rest.
         out.append({"date": r["date"], "p": (1.0 - p) if side == "YRFI" else p,
-                    "odds": odds, "win": win})
+                    "odds": odds, "win": win,
+                    "game": f"{r['away']}@{r['home']}", "side": side,
+                    "assumed": missing})
     return out
 
 

@@ -1,335 +1,3018 @@
 {
-  "generatedUtc": "2026-07-28T18:21:48Z",
-  "method": "walk-forward -- the calibrator at each date is refit from strictly earlier games, so no game is scored by a curve that has already seen it",
-  "gate": 0.4,
-  "kellyFraction": 0.25,
-  "startBank": 100.0,
+ "generatedUtc": "2026-07-28T18:51:39Z",
+ "method": "walk-forward replay of the current model and staking -- the calibrator at each date is refit from strictly earlier games, so no game is scored by a curve that saw its outcome",
+ "gates": {
+  "yrfi": 0.4,
+  "nrfi": 0.6
+ },
+ "kellyFraction": 0.25,
+ "startBank": 100.0,
+ "realStart": "2026-05-07",
+ "projected": {
+  "label": "Projected profit",
   "priceFill": -125.0,
-  "gradedGames": 1531,
-  "slateDays": 115,
-  "betDays": 69,
-  "bets": 111,
-  "wins": 74,
-  "losses": 37,
-  "hitRate": 0.6667,
-  "breakEvenNeeded": 0.5739,
-  "edgePts": 9.28,
-  "assumedBets": 28,
-  "flatProfit": 18.41,
-  "finalBank": 429.59,
-  "kellyProfit": 329.59,
+  "from": "2026-04-01",
+  "to": "2026-07-27",
+  "bets": 139,
+  "wins": 94,
+  "losses": 45,
+  "hitRate": 0.6763,
+  "breakEvenNeeded": 0.5728,
+  "edgePts": 10.34,
+  "assumedBets": 37,
+  "flatProfit": 25.45,
+  "startBank": 100.0,
+  "finalBank": 465.1,
+  "kellyProfit": 365.1,
   "maxDrawdownPct": 18.06,
-  "largestStakeUnits": 42.81,
   "monthly": [
-    {
-      "month": "2026-04",
-      "bets": 23,
-      "wins": 16,
-      "losses": 7,
-      "flat": 5.68,
-      "assumedBets": 21
-    },
-    {
-      "month": "2026-05",
-      "bets": 25,
-      "wins": 18,
-      "losses": 7,
-      "flat": 7.9,
-      "assumedBets": 3
-    },
-    {
-      "month": "2026-06",
-      "bets": 36,
-      "wins": 23,
-      "losses": 13,
-      "flat": 4.0,
-      "assumedBets": 3
-    },
-    {
-      "month": "2026-07",
-      "bets": 27,
-      "wins": 17,
-      "losses": 10,
-      "flat": 0.83,
-      "assumedBets": 1
-    }
+   {
+    "month": "2026-04",
+    "bets": 38,
+    "wins": 26,
+    "losses": 12,
+    "flat": 8.65,
+    "assumedBets": 35
+   },
+   {
+    "month": "2026-05",
+    "bets": 38,
+    "wins": 28,
+    "losses": 10,
+    "flat": 11.96,
+    "assumedBets": 2
+   },
+   {
+    "month": "2026-06",
+    "bets": 36,
+    "wins": 23,
+    "losses": 13,
+    "flat": 4.0,
+    "assumedBets": 0
+   },
+   {
+    "month": "2026-07",
+    "bets": 27,
+    "wins": 17,
+    "losses": 10,
+    "flat": 0.83,
+    "assumedBets": 0
+   }
   ],
-  "curve": [
-    {
-      "date": "2026-04-16",
-      "units": 102.28
-    },
-    {
-      "date": "2026-04-17",
-      "units": 114.4
-    },
-    {
-      "date": "2026-04-18",
-      "units": 116.81
-    },
-    {
-      "date": "2026-04-19",
-      "units": 109.8
-    },
-    {
-      "date": "2026-04-20",
-      "units": 114.53
-    },
-    {
-      "date": "2026-04-21",
-      "units": 122.43
-    },
-    {
-      "date": "2026-04-22",
-      "units": 137.11
-    },
-    {
-      "date": "2026-04-23",
-      "units": 152.45
-    },
-    {
-      "date": "2026-04-25",
-      "units": 142.38
-    },
-    {
-      "date": "2026-04-26",
-      "units": 138.32
-    },
-    {
-      "date": "2026-04-27",
-      "units": 148.73
-    },
-    {
-      "date": "2026-04-29",
-      "units": 162.25
-    },
-    {
-      "date": "2026-05-05",
-      "units": 187.49
-    },
-    {
-      "date": "2026-05-07",
-      "units": 173.06
-    },
-    {
-      "date": "2026-05-09",
-      "units": 185.88
-    },
-    {
-      "date": "2026-05-13",
-      "units": 192.12
-    },
-    {
-      "date": "2026-05-14",
-      "units": 205.36
-    },
-    {
-      "date": "2026-05-15",
-      "units": 208.36
-    },
-    {
-      "date": "2026-05-16",
-      "units": 220.32
-    },
-    {
-      "date": "2026-05-17",
-      "units": 198.29
-    },
-    {
-      "date": "2026-05-18",
-      "units": 194.13
-    },
-    {
-      "date": "2026-05-19",
-      "units": 201.64
-    },
-    {
-      "date": "2026-05-20",
-      "units": 225.62
-    },
-    {
-      "date": "2026-05-21",
-      "units": 235.17
-    },
-    {
-      "date": "2026-05-25",
-      "units": 243.44
-    },
-    {
-      "date": "2026-05-26",
-      "units": 239.33
-    },
-    {
-      "date": "2026-05-30",
-      "units": 272.46
-    },
-    {
-      "date": "2026-05-31",
-      "units": 304.2
-    },
-    {
-      "date": "2026-06-02",
-      "units": 277.75
-    },
-    {
-      "date": "2026-06-04",
-      "units": 271.9
-    },
-    {
-      "date": "2026-06-05",
-      "units": 286.95
-    },
-    {
-      "date": "2026-06-06",
-      "units": 298.53
-    },
-    {
-      "date": "2026-06-07",
-      "units": 314.38
-    },
-    {
-      "date": "2026-06-08",
-      "units": 283.74
-    },
-    {
-      "date": "2026-06-09",
-      "units": 300.97
-    },
-    {
-      "date": "2026-06-10",
-      "units": 270.87
-    },
-    {
-      "date": "2026-06-11",
-      "units": 267.65
-    },
-    {
-      "date": "2026-06-12",
-      "units": 279.57
-    },
-    {
-      "date": "2026-06-14",
-      "units": 264.14
-    },
-    {
-      "date": "2026-06-15",
-      "units": 269.91
-    },
-    {
-      "date": "2026-06-17",
-      "units": 269.48
-    },
-    {
-      "date": "2026-06-18",
-      "units": 257.61
-    },
-    {
-      "date": "2026-06-19",
-      "units": 269.32
-    },
-    {
-      "date": "2026-06-20",
-      "units": 293.6
-    },
-    {
-      "date": "2026-06-21",
-      "units": 270.61
-    },
-    {
-      "date": "2026-06-23",
-      "units": 286.81
-    },
-    {
-      "date": "2026-06-24",
-      "units": 301.79
-    },
-    {
-      "date": "2026-06-25",
-      "units": 324.94
-    },
-    {
-      "date": "2026-06-26",
-      "units": 348.49
-    },
-    {
-      "date": "2026-06-28",
-      "units": 375.44
-    },
-    {
-      "date": "2026-06-29",
-      "units": 337.57
-    },
-    {
-      "date": "2026-06-30",
-      "units": 351.4
-    },
-    {
-      "date": "2026-07-01",
-      "units": 357.21
-    },
-    {
-      "date": "2026-07-02",
-      "units": 371.2
-    },
-    {
-      "date": "2026-07-03",
-      "units": 389.08
-    },
-    {
-      "date": "2026-07-04",
-      "units": 400.03
-    },
-    {
-      "date": "2026-07-05",
-      "units": 401.44
-    },
-    {
-      "date": "2026-07-06",
-      "units": 414.19
-    },
-    {
-      "date": "2026-07-07",
-      "units": 436.66
-    },
-    {
-      "date": "2026-07-08",
-      "units": 435.86
-    },
-    {
-      "date": "2026-07-09",
-      "units": 405.59
-    },
-    {
-      "date": "2026-07-17",
-      "units": 412.32
-    },
-    {
-      "date": "2026-07-18",
-      "units": 421.7
-    },
-    {
-      "date": "2026-07-19",
-      "units": 439.71
-    },
-    {
-      "date": "2026-07-20",
-      "units": 467.33
-    },
-    {
-      "date": "2026-07-21",
-      "units": 491.85
-    },
-    {
-      "date": "2026-07-22",
-      "units": 447.86
-    },
-    {
-      "date": "2026-07-24",
-      "units": 439.89
-    },
-    {
-      "date": "2026-07-27",
-      "units": 429.59
-    }
+  "days": [
+   {
+    "date": "2026-04-16",
+    "bankAfter": 102.28,
+    "bets": [
+     {
+      "game": "LAA@NYY",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 9.6,
+      "win": true,
+      "pnl": 7.68,
+      "assumed": true
+     },
+     {
+      "game": "TB@CWS",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 5.4,
+      "win": false,
+      "pnl": -5.4,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-17",
+    "bankAfter": 114.55,
+    "bets": [
+     {
+      "game": "ATL@PHI",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 4.92,
+      "win": true,
+      "pnl": 3.94,
+      "assumed": true
+     },
+     {
+      "game": "CWS@OAK",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 10.23,
+      "win": true,
+      "pnl": 8.18,
+      "assumed": true
+     },
+     {
+      "game": "DET@BOS",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 0.19,
+      "win": true,
+      "pnl": 0.15,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-18",
+    "bankAfter": 116.97,
+    "bets": [
+     {
+      "game": "LAD@COL",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 10.89,
+      "win": true,
+      "pnl": 8.71,
+      "assumed": true
+     },
+     {
+      "game": "SD@LAA",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 6.29,
+      "win": false,
+      "pnl": -6.29,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-19",
+    "bankAfter": 109.95,
+    "bets": [
+     {
+      "game": "LAD@COL",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 11.7,
+      "win": false,
+      "pnl": -11.7,
+      "assumed": true
+     },
+     {
+      "game": "CWS@OAK",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 5.85,
+      "win": true,
+      "pnl": 4.68,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-20",
+    "bankAfter": 115.84,
+    "bets": [
+     {
+      "game": "LAD@COL",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 11.0,
+      "win": true,
+      "pnl": 8.8,
+      "assumed": true
+     },
+     {
+      "game": "STL@MIA",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 4.06,
+      "win": false,
+      "pnl": -4.06,
+      "assumed": true
+     },
+     {
+      "game": "BAL@KC",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 1.43,
+      "win": true,
+      "pnl": 1.14,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-21",
+    "bankAfter": 123.82,
+    "bets": [
+     {
+      "game": "NYY@BOS",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 3.29,
+      "win": false,
+      "pnl": -3.29,
+      "assumed": true
+     },
+     {
+      "game": "ATL@WSH",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 3.24,
+      "win": true,
+      "pnl": 2.59,
+      "assumed": true
+     },
+     {
+      "game": "CWS@ARI",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 10.85,
+      "win": true,
+      "pnl": 8.68,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-22",
+    "bankAfter": 138.68,
+    "bets": [
+     {
+      "game": "SD@COL",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 9.87,
+      "win": true,
+      "pnl": 7.9,
+      "assumed": true
+     },
+     {
+      "game": "ATL@WSH",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 8.7,
+      "win": true,
+      "pnl": 6.96,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-23",
+    "bankAfter": 155.32,
+    "bets": [
+     {
+      "game": "SD@COL",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 13.65,
+      "win": true,
+      "pnl": 10.92,
+      "assumed": true
+     },
+     {
+      "game": "CWS@ARI",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 5.74,
+      "win": true,
+      "pnl": 4.59,
+      "assumed": true
+     },
+     {
+      "game": "LAD@SF",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 1.41,
+      "win": true,
+      "pnl": 1.13,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-24",
+    "bankAfter": 149.19,
+    "bets": [
+     {
+      "game": "PIT@MIL",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 9.09,
+      "win": true,
+      "pnl": 7.27,
+      "assumed": true
+     },
+     {
+      "game": "MIA@SF",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 5.61,
+      "win": false,
+      "pnl": -5.61,
+      "assumed": true
+     },
+     {
+      "game": "OAK@TEX",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 7.79,
+      "win": false,
+      "pnl": -7.79,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-25",
+    "bankAfter": 139.23,
+    "bets": [
+     {
+      "game": "CHC@LAD",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 9.86,
+      "win": false,
+      "pnl": -9.86,
+      "assumed": true
+     },
+     {
+      "game": "PHI@ATL",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 5.62,
+      "win": false,
+      "pnl": -5.62,
+      "assumed": true
+     },
+     {
+      "game": "BOS@BAL",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 3.91,
+      "win": true,
+      "pnl": 3.13,
+      "assumed": true
+     },
+     {
+      "game": "MIA@SF",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 2.99,
+      "win": true,
+      "pnl": 2.39,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-26",
+    "bankAfter": 135.25,
+    "bets": [
+     {
+      "game": "NYY@HOU",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 9.39,
+      "win": true,
+      "pnl": 7.51,
+      "assumed": true
+     },
+     {
+      "game": "MIN@TB",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 11.49,
+      "win": false,
+      "pnl": -11.49,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-27",
+    "bankAfter": 151.48,
+    "bets": [
+     {
+      "game": "LAA@CWS",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 12.73,
+      "win": true,
+      "pnl": 10.18,
+      "assumed": true
+     },
+     {
+      "game": "BOS@TOR",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 7.56,
+      "win": true,
+      "pnl": 6.05,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-28",
+    "bankAfter": 149.95,
+    "bets": [
+     {
+      "game": "NYY@TEX",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 9.11,
+      "win": false,
+      "pnl": -9.11,
+      "assumed": true
+     },
+     {
+      "game": "ARI@MIL",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 9.47,
+      "win": true,
+      "pnl": 7.58,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-29",
+    "bankAfter": 166.85,
+    "bets": [
+     {
+      "game": "COL@CIN",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 7.46,
+      "win": true,
+      "pnl": 5.53,
+      "assumed": false
+     },
+     {
+      "game": "KC@OAK",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 10.93,
+      "win": true,
+      "pnl": 8.1,
+      "assumed": false
+     },
+     {
+      "game": "TB@CLE",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 4.1,
+      "win": true,
+      "pnl": 3.28,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-04-30",
+    "bankAfter": 163.68,
+    "bets": [
+     {
+      "game": "ARI@MIL",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 11.49,
+      "win": false,
+      "pnl": -11.49,
+      "assumed": true
+     },
+     {
+      "game": "TOR@MIN",
+      "side": "NRFI",
+      "odds": -130,
+      "stake": 10.82,
+      "win": true,
+      "pnl": 8.32,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-02",
+    "bankAfter": 166.08,
+    "bets": [
+     {
+      "game": "ARI@CHC",
+      "side": "NRFI",
+      "odds": -155,
+      "stake": 3.72,
+      "win": true,
+      "pnl": 2.4,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-03",
+    "bankAfter": 167.23,
+    "bets": [
+     {
+      "game": "CIN@PIT",
+      "side": "NRFI",
+      "odds": -155,
+      "stake": 1.77,
+      "win": true,
+      "pnl": 1.14,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-05",
+    "bankAfter": 193.23,
+    "bets": [
+     {
+      "game": "MIN@WSH",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 5.73,
+      "win": true,
+      "pnl": 4.58,
+      "assumed": true
+     },
+     {
+      "game": "TEX@NYY",
+      "side": "YRFI",
+      "odds": 115,
+      "stake": 16.72,
+      "win": true,
+      "pnl": 19.23,
+      "assumed": false
+     },
+     {
+      "game": "CWS@LAA",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 2.63,
+      "win": true,
+      "pnl": 2.19,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-06",
+    "bankAfter": 202.05,
+    "bets": [
+     {
+      "game": "CLE@KC",
+      "side": "NRFI",
+      "odds": -145,
+      "stake": 2.99,
+      "win": true,
+      "pnl": 2.06,
+      "assumed": false
+     },
+     {
+      "game": "SD@SF",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 8.45,
+      "win": true,
+      "pnl": 6.76,
+      "assumed": true
+     }
+    ]
+   },
+   {
+    "date": "2026-05-07",
+    "bankAfter": 186.5,
+    "bets": [
+     {
+      "game": "NYM@COL",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 15.55,
+      "win": false,
+      "pnl": -15.55,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-08",
+    "bankAfter": 193.7,
+    "bets": [
+     {
+      "game": "NYY@MIL",
+      "side": "NRFI",
+      "odds": -140,
+      "stake": 6.66,
+      "win": true,
+      "pnl": 4.76,
+      "assumed": false
+     },
+     {
+      "game": "MIN@CLE",
+      "side": "NRFI",
+      "odds": -150,
+      "stake": 4.89,
+      "win": false,
+      "pnl": -4.89,
+      "assumed": false
+     },
+     {
+      "game": "DET@KC",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 9.16,
+      "win": true,
+      "pnl": 7.33,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-09",
+    "bankAfter": 213.54,
+    "bets": [
+     {
+      "game": "SEA@CWS",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 19.37,
+      "win": true,
+      "pnl": 14.35,
+      "assumed": false
+     },
+     {
+      "game": "LAA@TOR",
+      "side": "NRFI",
+      "odds": -120,
+      "stake": 6.59,
+      "win": true,
+      "pnl": 5.49,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-10",
+    "bankAfter": 207.45,
+    "bets": [
+     {
+      "game": "NYY@MIL",
+      "side": "NRFI",
+      "odds": -120,
+      "stake": 10.76,
+      "win": false,
+      "pnl": -10.76,
+      "assumed": false
+     },
+     {
+      "game": "CHC@TEX",
+      "side": "NRFI",
+      "odds": -145,
+      "stake": 6.78,
+      "win": true,
+      "pnl": 4.68,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-13",
+    "bankAfter": 218.21,
+    "bets": [
+     {
+      "game": "WSH@CIN",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 8.35,
+      "win": true,
+      "pnl": 6.96,
+      "assumed": false
+     },
+     {
+      "game": "SD@MIL",
+      "side": "NRFI",
+      "odds": -165,
+      "stake": 2.07,
+      "win": true,
+      "pnl": 1.25,
+      "assumed": false
+     },
+     {
+      "game": "TB@TOR",
+      "side": "NRFI",
+      "odds": -155,
+      "stake": 3.95,
+      "win": true,
+      "pnl": 2.55,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-14",
+    "bankAfter": 222.35,
+    "bets": [
+     {
+      "game": "STL@OAK",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 21.82,
+      "win": true,
+      "pnl": 15.05,
+      "assumed": false
+     },
+     {
+      "game": "SD@MIL",
+      "side": "NRFI",
+      "odds": -130,
+      "stake": 10.91,
+      "win": false,
+      "pnl": -10.91,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-15",
+    "bankAfter": 225.59,
+    "bets": [
+     {
+      "game": "BAL@WSH",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 9.76,
+      "win": false,
+      "pnl": -9.76,
+      "assumed": false
+     },
+     {
+      "game": "ARI@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 22.24,
+      "win": true,
+      "pnl": 14.35,
+      "assumed": false
+     },
+     {
+      "game": "LAD@LAA",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 1.35,
+      "win": false,
+      "pnl": -1.35,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-16",
+    "bankAfter": 238.55,
+    "bets": [
+     {
+      "game": "ARI@COL",
+      "side": "YRFI",
+      "odds": -150,
+      "stake": 19.44,
+      "win": true,
+      "pnl": 12.96,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-17",
+    "bankAfter": 214.7,
+    "bets": [
+     {
+      "game": "SF@OAK",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 23.85,
+      "win": false,
+      "pnl": -23.85,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-18",
+    "bankAfter": 210.19,
+    "bets": [
+     {
+      "game": "NYM@WSH",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 4.51,
+      "win": false,
+      "pnl": -4.51,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-19",
+    "bankAfter": 218.31,
+    "bets": [
+     {
+      "game": "ATL@MIA",
+      "side": "YRFI",
+      "odds": 100,
+      "stake": 10.64,
+      "win": true,
+      "pnl": 10.64,
+      "assumed": false
+     },
+     {
+      "game": "OAK@LAA",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 7.41,
+      "win": false,
+      "pnl": -7.41,
+      "assumed": false
+     },
+     {
+      "game": "TEX@COL",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 6.36,
+      "win": true,
+      "pnl": 4.89,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-20",
+    "bankAfter": 244.28,
+    "bets": [
+     {
+      "game": "OAK@LAA",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 21.83,
+      "win": true,
+      "pnl": 16.79,
+      "assumed": false
+     },
+     {
+      "game": "TEX@COL",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 10.55,
+      "win": true,
+      "pnl": 9.17,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-21",
+    "bankAfter": 254.62,
+    "bets": [
+     {
+      "game": "OAK@LAA",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 11.89,
+      "win": true,
+      "pnl": 10.34,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-25",
+    "bankAfter": 263.57,
+    "bets": [
+     {
+      "game": "MIN@CWS",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 10.29,
+      "win": true,
+      "pnl": 8.95,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-26",
+    "bankAfter": 259.13,
+    "bets": [
+     {
+      "game": "SEA@OAK",
+      "side": "YRFI",
+      "odds": -150,
+      "stake": 4.44,
+      "win": false,
+      "pnl": -4.44,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-30",
+    "bankAfter": 294.99,
+    "bets": [
+     {
+      "game": "SF@COL",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 15.99,
+      "win": true,
+      "pnl": 11.84,
+      "assumed": false
+     },
+     {
+      "game": "DET@CWS",
+      "side": "YRFI",
+      "odds": 105,
+      "stake": 22.88,
+      "win": true,
+      "pnl": 24.02,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-31",
+    "bankAfter": 329.36,
+    "bets": [
+     {
+      "game": "LAA@TB",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 17.56,
+      "win": true,
+      "pnl": 15.96,
+      "assumed": false
+     },
+     {
+      "game": "NYY@OAK",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 26.69,
+      "win": true,
+      "pnl": 18.41,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-02",
+    "bankAfter": 300.72,
+    "bets": [
+     {
+      "game": "COL@LAA",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 28.64,
+      "win": false,
+      "pnl": -28.64,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-04",
+    "bankAfter": 294.38,
+    "bets": [
+     {
+      "game": "CLE@NYY",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 6.34,
+      "win": false,
+      "pnl": -6.34,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-05",
+    "bankAfter": 310.67,
+    "bets": [
+     {
+      "game": "MIL@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 25.25,
+      "win": true,
+      "pnl": 16.29,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-06",
+    "bankAfter": 323.22,
+    "bets": [
+     {
+      "game": "CWS@PHI",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 7.23,
+      "win": true,
+      "pnl": 5.36,
+      "assumed": false
+     },
+     {
+      "game": "MIL@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 11.14,
+      "win": true,
+      "pnl": 7.19,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-07",
+    "bankAfter": 340.37,
+    "bets": [
+     {
+      "game": "MIL@COL",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 24.01,
+      "win": true,
+      "pnl": 17.15,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-08",
+    "bankAfter": 307.2,
+    "bets": [
+     {
+      "game": "HOU@LAA",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 33.17,
+      "win": false,
+      "pnl": -33.17,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-09",
+    "bankAfter": 325.85,
+    "bets": [
+     {
+      "game": "CHC@COL",
+      "side": "YRFI",
+      "odds": -185,
+      "stake": 25.72,
+      "win": true,
+      "pnl": 13.9,
+      "assumed": false
+     },
+     {
+      "game": "HOU@LAA",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 6.18,
+      "win": true,
+      "pnl": 4.75,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-10",
+    "bankAfter": 293.26,
+    "bets": [
+     {
+      "game": "CHC@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 32.59,
+      "win": false,
+      "pnl": -32.59,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-11",
+    "bankAfter": 289.78,
+    "bets": [
+     {
+      "game": "CHC@COL",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 3.48,
+      "win": false,
+      "pnl": -3.48,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-12",
+    "bankAfter": 302.69,
+    "bets": [
+     {
+      "game": "LAD@CWS",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 14.84,
+      "win": true,
+      "pnl": 12.9,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-14",
+    "bankAfter": 285.98,
+    "bets": [
+     {
+      "game": "SEA@WSH",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 14.37,
+      "win": true,
+      "pnl": 10.64,
+      "assumed": false
+     },
+     {
+      "game": "TB@LAA",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 27.35,
+      "win": false,
+      "pnl": -27.35,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-15",
+    "bankAfter": 292.23,
+    "bets": [
+     {
+      "game": "LAA@ARI",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 14.49,
+      "win": true,
+      "pnl": 12.08,
+      "assumed": false
+     },
+     {
+      "game": "PIT@OAK",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 5.83,
+      "win": false,
+      "pnl": -5.83,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-17",
+    "bankAfter": 291.75,
+    "bets": [
+     {
+      "game": "KC@WSH",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 10.93,
+      "win": true,
+      "pnl": 7.05,
+      "assumed": false
+     },
+     {
+      "game": "TOR@BOS",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 15.51,
+      "win": false,
+      "pnl": -15.51,
+      "assumed": false
+     },
+     {
+      "game": "LAA@ARI",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 10.38,
+      "win": true,
+      "pnl": 7.98,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-18",
+    "bankAfter": 278.91,
+    "bets": [
+     {
+      "game": "CWS@NYY",
+      "side": "YRFI",
+      "odds": -160,
+      "stake": 24.6,
+      "win": false,
+      "pnl": -24.6,
+      "assumed": false
+     },
+     {
+      "game": "LAA@OAK",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 18.22,
+      "win": true,
+      "pnl": 11.75,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-19",
+    "bankAfter": 291.58,
+    "bets": [
+     {
+      "game": "BAL@LAD",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 15.84,
+      "win": true,
+      "pnl": 12.67,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-20",
+    "bankAfter": 317.87,
+    "bets": [
+     {
+      "game": "PIT@COL",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 22.12,
+      "win": true,
+      "pnl": 16.39,
+      "assumed": false
+     },
+     {
+      "game": "CIN@NYY",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 18.11,
+      "win": true,
+      "pnl": 13.41,
+      "assumed": false
+     },
+     {
+      "game": "LAA@OAK",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 3.51,
+      "win": false,
+      "pnl": -3.51,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-21",
+    "bankAfter": 292.98,
+    "bets": [
+     {
+      "game": "PIT@COL",
+      "side": "YRFI",
+      "odds": -160,
+      "stake": 24.89,
+      "win": false,
+      "pnl": -24.89,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-23",
+    "bankAfter": 310.52,
+    "bets": [
+     {
+      "game": "BOS@COL",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 8.95,
+      "win": true,
+      "pnl": 6.39,
+      "assumed": false
+     },
+     {
+      "game": "KC@TB",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 12.26,
+      "win": true,
+      "pnl": 11.15,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-24",
+    "bankAfter": 326.73,
+    "bets": [
+     {
+      "game": "BOS@COL",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 20.27,
+      "win": true,
+      "pnl": 16.22,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-25",
+    "bankAfter": 351.81,
+    "bets": [
+     {
+      "game": "KC@TB",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 30.09,
+      "win": true,
+      "pnl": 25.07,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-26",
+    "bankAfter": 377.31,
+    "bets": [
+     {
+      "game": "ARI@TB",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 29.32,
+      "win": true,
+      "pnl": 25.5,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-28",
+    "bankAfter": 406.48,
+    "bets": [
+     {
+      "game": "KC@CWS",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 33.55,
+      "win": true,
+      "pnl": 29.17,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-29",
+    "bankAfter": 365.48,
+    "bets": [
+     {
+      "game": "LAD@OAK",
+      "side": "YRFI",
+      "odds": -170,
+      "stake": 27.21,
+      "win": false,
+      "pnl": -27.21,
+      "assumed": false
+     },
+     {
+      "game": "MIA@COL",
+      "side": "YRFI",
+      "odds": -170,
+      "stake": 13.79,
+      "win": false,
+      "pnl": -13.79,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-30",
+    "bankAfter": 380.45,
+    "bets": [
+     {
+      "game": "MIA@COL",
+      "side": "YRFI",
+      "odds": -180,
+      "stake": 12.25,
+      "win": true,
+      "pnl": 6.81,
+      "assumed": false
+     },
+     {
+      "game": "LAD@OAK",
+      "side": "YRFI",
+      "odds": -165,
+      "stake": 13.48,
+      "win": true,
+      "pnl": 8.17,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-01",
+    "bankAfter": 386.73,
+    "bets": [
+     {
+      "game": "MIA@COL",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 23.21,
+      "win": true,
+      "pnl": 16.58,
+      "assumed": false
+     },
+     {
+      "game": "DET@NYY",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 10.3,
+      "win": false,
+      "pnl": -10.3,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-02",
+    "bankAfter": 401.88,
+    "bets": [
+     {
+      "game": "MIA@COL",
+      "side": "YRFI",
+      "odds": -185,
+      "stake": 7.28,
+      "win": true,
+      "pnl": 3.94,
+      "assumed": false
+     },
+     {
+      "game": "SD@LAD",
+      "side": "YRFI",
+      "odds": -165,
+      "stake": 18.5,
+      "win": true,
+      "pnl": 11.21,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-03",
+    "bankAfter": 421.24,
+    "bets": [
+     {
+      "game": "MIN@NYY",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 27.1,
+      "win": true,
+      "pnl": 19.36,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-04",
+    "bankAfter": 433.09,
+    "bets": [
+     {
+      "game": "MIA@OAK",
+      "side": "YRFI",
+      "odds": -180,
+      "stake": 0.99,
+      "win": false,
+      "pnl": -0.99,
+      "assumed": false
+     },
+     {
+      "game": "MIN@NYY",
+      "side": "YRFI",
+      "odds": -165,
+      "stake": 21.19,
+      "win": true,
+      "pnl": 12.84,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-05",
+    "bankAfter": 434.62,
+    "bets": [
+     {
+      "game": "SF@COL",
+      "side": "YRFI",
+      "odds": -185,
+      "stake": 2.83,
+      "win": true,
+      "pnl": 1.53,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-06",
+    "bankAfter": 448.43,
+    "bets": [
+     {
+      "game": "HOU@WSH",
+      "side": "YRFI",
+      "odds": -160,
+      "stake": 22.09,
+      "win": true,
+      "pnl": 13.81,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-07",
+    "bankAfter": 472.74,
+    "bets": [
+     {
+      "game": "NYY@TB",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 17.67,
+      "win": false,
+      "pnl": -17.67,
+      "assumed": false
+     },
+     {
+      "game": "COL@LAD",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 7.3,
+      "win": true,
+      "pnl": 5.21,
+      "assumed": false
+     },
+     {
+      "game": "KC@NYM",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 42.29,
+      "win": true,
+      "pnl": 36.77,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-08",
+    "bankAfter": 471.88,
+    "bets": [
+     {
+      "game": "COL@LAD",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 40.24,
+      "win": true,
+      "pnl": 29.81,
+      "assumed": false
+     },
+     {
+      "game": "NYY@TB",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 30.67,
+      "win": false,
+      "pnl": -30.67,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-09",
+    "bankAfter": 439.11,
+    "bets": [
+     {
+      "game": "BOS@CWS",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 32.77,
+      "win": false,
+      "pnl": -32.77,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-17",
+    "bankAfter": 446.39,
+    "bets": [
+     {
+      "game": "CIN@COL",
+      "side": "YRFI",
+      "odds": -175,
+      "stake": 12.74,
+      "win": true,
+      "pnl": 7.28,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-18",
+    "bankAfter": 456.54,
+    "bets": [
+     {
+      "game": "CIN@COL",
+      "side": "YRFI",
+      "odds": -190,
+      "stake": 31.86,
+      "win": true,
+      "pnl": 16.77,
+      "assumed": false
+     },
+     {
+      "game": "STL@ARI",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 16.61,
+      "win": false,
+      "pnl": -16.61,
+      "assumed": false
+     },
+     {
+      "game": "WSH@OAK",
+      "side": "YRFI",
+      "odds": -185,
+      "stake": 18.49,
+      "win": true,
+      "pnl": 9.99,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-19",
+    "bankAfter": 476.05,
+    "bets": [
+     {
+      "game": "CIN@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 30.23,
+      "win": true,
+      "pnl": 19.5,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-20",
+    "bankAfter": 505.95,
+    "bets": [
+     {
+      "game": "WSH@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 46.35,
+      "win": true,
+      "pnl": 29.9,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-21",
+    "bankAfter": 532.5,
+    "bets": [
+     {
+      "game": "WSH@COL",
+      "side": "YRFI",
+      "odds": -250,
+      "stake": 20.49,
+      "win": true,
+      "pnl": 8.2,
+      "assumed": false
+     },
+     {
+      "game": "STL@LAA",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 22.02,
+      "win": true,
+      "pnl": 18.35,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-22",
+    "bankAfter": 484.88,
+    "bets": [
+     {
+      "game": "STL@LAA",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 24.07,
+      "win": false,
+      "pnl": -24.07,
+      "assumed": false
+     },
+     {
+      "game": "PIT@NYY",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 23.55,
+      "win": false,
+      "pnl": -23.55,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-24",
+    "bankAfter": 476.25,
+    "bets": [
+     {
+      "game": "ARI@WSH",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 8.63,
+      "win": false,
+      "pnl": -8.63,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-27",
+    "bankAfter": 465.1,
+    "bets": [
+     {
+      "game": "TOR@WSH",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 11.15,
+      "win": false,
+      "pnl": -11.15,
+      "assumed": false
+     }
+    ]
+   }
   ]
+ },
+ "real": {
+  "label": "Real profit",
+  "priceFill": null,
+  "from": "2026-05-07",
+  "to": "2026-07-27",
+  "bets": 94,
+  "wins": 61,
+  "losses": 33,
+  "hitRate": 0.6489,
+  "breakEvenNeeded": 0.5802,
+  "edgePts": 6.87,
+  "assumedBets": 0,
+  "flatProfit": 11.23,
+  "startBank": 100.0,
+  "finalBank": 230.18,
+  "kellyProfit": 130.18,
+  "maxDrawdownPct": 18.04,
+  "monthly": [
+   {
+    "month": "2026-05",
+    "bets": 31,
+    "wins": 21,
+    "losses": 10,
+    "flat": 6.4,
+    "assumedBets": 0
+   },
+   {
+    "month": "2026-06",
+    "bets": 36,
+    "wins": 23,
+    "losses": 13,
+    "flat": 4.0,
+    "assumedBets": 0
+   },
+   {
+    "month": "2026-07",
+    "bets": 27,
+    "wins": 17,
+    "losses": 10,
+    "flat": 0.83,
+    "assumedBets": 0
+   }
+  ],
+  "days": [
+   {
+    "date": "2026-05-07",
+    "bankAfter": 92.3,
+    "bets": [
+     {
+      "game": "NYM@COL",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 7.7,
+      "win": false,
+      "pnl": -7.7,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-08",
+    "bankAfter": 95.86,
+    "bets": [
+     {
+      "game": "NYY@MIL",
+      "side": "NRFI",
+      "odds": -140,
+      "stake": 3.3,
+      "win": true,
+      "pnl": 2.36,
+      "assumed": false
+     },
+     {
+      "game": "MIN@CLE",
+      "side": "NRFI",
+      "odds": -150,
+      "stake": 2.42,
+      "win": false,
+      "pnl": -2.42,
+      "assumed": false
+     },
+     {
+      "game": "DET@KC",
+      "side": "NRFI",
+      "odds": -125,
+      "stake": 4.53,
+      "win": true,
+      "pnl": 3.62,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-09",
+    "bankAfter": 105.68,
+    "bets": [
+     {
+      "game": "SEA@CWS",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 9.59,
+      "win": true,
+      "pnl": 7.1,
+      "assumed": false
+     },
+     {
+      "game": "LAA@TOR",
+      "side": "NRFI",
+      "odds": -120,
+      "stake": 3.26,
+      "win": true,
+      "pnl": 2.72,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-10",
+    "bankAfter": 102.66,
+    "bets": [
+     {
+      "game": "NYY@MIL",
+      "side": "NRFI",
+      "odds": -120,
+      "stake": 5.33,
+      "win": false,
+      "pnl": -5.33,
+      "assumed": false
+     },
+     {
+      "game": "CHC@TEX",
+      "side": "NRFI",
+      "odds": -145,
+      "stake": 3.35,
+      "win": true,
+      "pnl": 2.31,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-13",
+    "bankAfter": 107.98,
+    "bets": [
+     {
+      "game": "WSH@CIN",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 4.13,
+      "win": true,
+      "pnl": 3.44,
+      "assumed": false
+     },
+     {
+      "game": "SD@MIL",
+      "side": "NRFI",
+      "odds": -165,
+      "stake": 1.02,
+      "win": true,
+      "pnl": 0.62,
+      "assumed": false
+     },
+     {
+      "game": "TB@TOR",
+      "side": "NRFI",
+      "odds": -155,
+      "stake": 1.95,
+      "win": true,
+      "pnl": 1.26,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-14",
+    "bankAfter": 110.03,
+    "bets": [
+     {
+      "game": "STL@OAK",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 10.8,
+      "win": true,
+      "pnl": 7.45,
+      "assumed": false
+     },
+     {
+      "game": "SD@MIL",
+      "side": "NRFI",
+      "odds": -130,
+      "stake": 5.4,
+      "win": false,
+      "pnl": -5.4,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-15",
+    "bankAfter": 111.62,
+    "bets": [
+     {
+      "game": "BAL@WSH",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 4.83,
+      "win": false,
+      "pnl": -4.83,
+      "assumed": false
+     },
+     {
+      "game": "ARI@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 11.0,
+      "win": true,
+      "pnl": 7.1,
+      "assumed": false
+     },
+     {
+      "game": "LAD@LAA",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 0.67,
+      "win": false,
+      "pnl": -0.67,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-16",
+    "bankAfter": 118.04,
+    "bets": [
+     {
+      "game": "ARI@COL",
+      "side": "YRFI",
+      "odds": -150,
+      "stake": 9.62,
+      "win": true,
+      "pnl": 6.41,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-17",
+    "bankAfter": 106.24,
+    "bets": [
+     {
+      "game": "SF@OAK",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 11.8,
+      "win": false,
+      "pnl": -11.8,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-18",
+    "bankAfter": 104.01,
+    "bets": [
+     {
+      "game": "NYM@WSH",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 2.23,
+      "win": false,
+      "pnl": -2.23,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-19",
+    "bankAfter": 108.03,
+    "bets": [
+     {
+      "game": "ATL@MIA",
+      "side": "YRFI",
+      "odds": 100,
+      "stake": 5.27,
+      "win": true,
+      "pnl": 5.27,
+      "assumed": false
+     },
+     {
+      "game": "OAK@LAA",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 3.67,
+      "win": false,
+      "pnl": -3.67,
+      "assumed": false
+     },
+     {
+      "game": "TEX@COL",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 3.15,
+      "win": true,
+      "pnl": 2.42,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-20",
+    "bankAfter": 120.88,
+    "bets": [
+     {
+      "game": "OAK@LAA",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 10.8,
+      "win": true,
+      "pnl": 8.31,
+      "assumed": false
+     },
+     {
+      "game": "TEX@COL",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 5.22,
+      "win": true,
+      "pnl": 4.54,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-21",
+    "bankAfter": 125.99,
+    "bets": [
+     {
+      "game": "OAK@LAA",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 5.88,
+      "win": true,
+      "pnl": 5.11,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-25",
+    "bankAfter": 130.42,
+    "bets": [
+     {
+      "game": "MIN@CWS",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 5.09,
+      "win": true,
+      "pnl": 4.43,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-26",
+    "bankAfter": 128.22,
+    "bets": [
+     {
+      "game": "SEA@OAK",
+      "side": "YRFI",
+      "odds": -150,
+      "stake": 2.2,
+      "win": false,
+      "pnl": -2.2,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-30",
+    "bankAfter": 145.96,
+    "bets": [
+     {
+      "game": "SF@COL",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 7.91,
+      "win": true,
+      "pnl": 5.86,
+      "assumed": false
+     },
+     {
+      "game": "DET@CWS",
+      "side": "YRFI",
+      "odds": 105,
+      "stake": 11.32,
+      "win": true,
+      "pnl": 11.89,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-05-31",
+    "bankAfter": 162.97,
+    "bets": [
+     {
+      "game": "LAA@TB",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 8.69,
+      "win": true,
+      "pnl": 7.9,
+      "assumed": false
+     },
+     {
+      "game": "NYY@OAK",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 13.2,
+      "win": true,
+      "pnl": 9.1,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-02",
+    "bankAfter": 148.8,
+    "bets": [
+     {
+      "game": "COL@LAA",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 14.17,
+      "win": false,
+      "pnl": -14.17,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-04",
+    "bankAfter": 145.67,
+    "bets": [
+     {
+      "game": "CLE@NYY",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 3.13,
+      "win": false,
+      "pnl": -3.13,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-05",
+    "bankAfter": 153.72,
+    "bets": [
+     {
+      "game": "MIL@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 12.49,
+      "win": true,
+      "pnl": 8.06,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-06",
+    "bankAfter": 159.93,
+    "bets": [
+     {
+      "game": "CWS@PHI",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 3.58,
+      "win": true,
+      "pnl": 2.65,
+      "assumed": false
+     },
+     {
+      "game": "MIL@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 5.51,
+      "win": true,
+      "pnl": 3.55,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-07",
+    "bankAfter": 168.42,
+    "bets": [
+     {
+      "game": "MIL@COL",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 11.88,
+      "win": true,
+      "pnl": 8.49,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-08",
+    "bankAfter": 152.01,
+    "bets": [
+     {
+      "game": "HOU@LAA",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 16.41,
+      "win": false,
+      "pnl": -16.41,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-09",
+    "bankAfter": 161.24,
+    "bets": [
+     {
+      "game": "CHC@COL",
+      "side": "YRFI",
+      "odds": -185,
+      "stake": 12.72,
+      "win": true,
+      "pnl": 6.88,
+      "assumed": false
+     },
+     {
+      "game": "HOU@LAA",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 3.06,
+      "win": true,
+      "pnl": 2.35,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-10",
+    "bankAfter": 145.12,
+    "bets": [
+     {
+      "game": "CHC@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 16.12,
+      "win": false,
+      "pnl": -16.12,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-11",
+    "bankAfter": 143.4,
+    "bets": [
+     {
+      "game": "CHC@COL",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 1.72,
+      "win": false,
+      "pnl": -1.72,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-12",
+    "bankAfter": 149.78,
+    "bets": [
+     {
+      "game": "LAD@CWS",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 7.34,
+      "win": true,
+      "pnl": 6.38,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-14",
+    "bankAfter": 141.52,
+    "bets": [
+     {
+      "game": "SEA@WSH",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 7.11,
+      "win": true,
+      "pnl": 5.27,
+      "assumed": false
+     },
+     {
+      "game": "TB@LAA",
+      "side": "YRFI",
+      "odds": -145,
+      "stake": 13.53,
+      "win": false,
+      "pnl": -13.53,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-15",
+    "bankAfter": 144.61,
+    "bets": [
+     {
+      "game": "LAA@ARI",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 7.17,
+      "win": true,
+      "pnl": 5.98,
+      "assumed": false
+     },
+     {
+      "game": "PIT@OAK",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 2.88,
+      "win": false,
+      "pnl": -2.88,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-17",
+    "bankAfter": 144.38,
+    "bets": [
+     {
+      "game": "KC@WSH",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 5.41,
+      "win": true,
+      "pnl": 3.49,
+      "assumed": false
+     },
+     {
+      "game": "TOR@BOS",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 7.67,
+      "win": false,
+      "pnl": -7.67,
+      "assumed": false
+     },
+     {
+      "game": "LAA@ARI",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 5.14,
+      "win": true,
+      "pnl": 3.95,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-18",
+    "bankAfter": 138.03,
+    "bets": [
+     {
+      "game": "CWS@NYY",
+      "side": "YRFI",
+      "odds": -160,
+      "stake": 12.17,
+      "win": false,
+      "pnl": -12.17,
+      "assumed": false
+     },
+     {
+      "game": "LAA@OAK",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 9.01,
+      "win": true,
+      "pnl": 5.81,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-19",
+    "bankAfter": 144.3,
+    "bets": [
+     {
+      "game": "BAL@LAD",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 7.84,
+      "win": true,
+      "pnl": 6.27,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-20",
+    "bankAfter": 157.32,
+    "bets": [
+     {
+      "game": "PIT@COL",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 10.95,
+      "win": true,
+      "pnl": 8.11,
+      "assumed": false
+     },
+     {
+      "game": "CIN@NYY",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 8.96,
+      "win": true,
+      "pnl": 6.64,
+      "assumed": false
+     },
+     {
+      "game": "LAA@OAK",
+      "side": "YRFI",
+      "odds": -130,
+      "stake": 1.73,
+      "win": false,
+      "pnl": -1.73,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-21",
+    "bankAfter": 145.0,
+    "bets": [
+     {
+      "game": "PIT@COL",
+      "side": "YRFI",
+      "odds": -160,
+      "stake": 12.32,
+      "win": false,
+      "pnl": -12.32,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-23",
+    "bankAfter": 153.68,
+    "bets": [
+     {
+      "game": "BOS@COL",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 4.43,
+      "win": true,
+      "pnl": 3.16,
+      "assumed": false
+     },
+     {
+      "game": "KC@TB",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 6.07,
+      "win": true,
+      "pnl": 5.52,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-24",
+    "bankAfter": 161.7,
+    "bets": [
+     {
+      "game": "BOS@COL",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 10.03,
+      "win": true,
+      "pnl": 8.02,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-25",
+    "bankAfter": 174.11,
+    "bets": [
+     {
+      "game": "KC@TB",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 14.89,
+      "win": true,
+      "pnl": 12.41,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-26",
+    "bankAfter": 186.73,
+    "bets": [
+     {
+      "game": "ARI@TB",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 14.51,
+      "win": true,
+      "pnl": 12.62,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-28",
+    "bankAfter": 201.16,
+    "bets": [
+     {
+      "game": "KC@CWS",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 16.6,
+      "win": true,
+      "pnl": 14.43,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-29",
+    "bankAfter": 180.87,
+    "bets": [
+     {
+      "game": "LAD@OAK",
+      "side": "YRFI",
+      "odds": -170,
+      "stake": 13.47,
+      "win": false,
+      "pnl": -13.47,
+      "assumed": false
+     },
+     {
+      "game": "MIA@COL",
+      "side": "YRFI",
+      "odds": -170,
+      "stake": 6.82,
+      "win": false,
+      "pnl": -6.82,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-06-30",
+    "bankAfter": 188.28,
+    "bets": [
+     {
+      "game": "MIA@COL",
+      "side": "YRFI",
+      "odds": -180,
+      "stake": 6.06,
+      "win": true,
+      "pnl": 3.37,
+      "assumed": false
+     },
+     {
+      "game": "LAD@OAK",
+      "side": "YRFI",
+      "odds": -165,
+      "stake": 6.67,
+      "win": true,
+      "pnl": 4.04,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-01",
+    "bankAfter": 191.39,
+    "bets": [
+     {
+      "game": "MIA@COL",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 11.49,
+      "win": true,
+      "pnl": 8.21,
+      "assumed": false
+     },
+     {
+      "game": "DET@NYY",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 5.1,
+      "win": false,
+      "pnl": -5.1,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-02",
+    "bankAfter": 198.88,
+    "bets": [
+     {
+      "game": "MIA@COL",
+      "side": "YRFI",
+      "odds": -185,
+      "stake": 3.6,
+      "win": true,
+      "pnl": 1.95,
+      "assumed": false
+     },
+     {
+      "game": "SD@LAD",
+      "side": "YRFI",
+      "odds": -165,
+      "stake": 9.15,
+      "win": true,
+      "pnl": 5.55,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-03",
+    "bankAfter": 208.46,
+    "bets": [
+     {
+      "game": "MIN@NYY",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 13.41,
+      "win": true,
+      "pnl": 9.58,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-04",
+    "bankAfter": 214.33,
+    "bets": [
+     {
+      "game": "MIA@OAK",
+      "side": "YRFI",
+      "odds": -180,
+      "stake": 0.49,
+      "win": false,
+      "pnl": -0.49,
+      "assumed": false
+     },
+     {
+      "game": "MIN@NYY",
+      "side": "YRFI",
+      "odds": -165,
+      "stake": 10.49,
+      "win": true,
+      "pnl": 6.36,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-05",
+    "bankAfter": 215.08,
+    "bets": [
+     {
+      "game": "SF@COL",
+      "side": "YRFI",
+      "odds": -185,
+      "stake": 1.4,
+      "win": true,
+      "pnl": 0.76,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-06",
+    "bankAfter": 221.92,
+    "bets": [
+     {
+      "game": "HOU@WSH",
+      "side": "YRFI",
+      "odds": -160,
+      "stake": 10.93,
+      "win": true,
+      "pnl": 6.83,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-07",
+    "bankAfter": 233.96,
+    "bets": [
+     {
+      "game": "NYY@TB",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 8.74,
+      "win": false,
+      "pnl": -8.74,
+      "assumed": false
+     },
+     {
+      "game": "COL@LAD",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 3.61,
+      "win": true,
+      "pnl": 2.58,
+      "assumed": false
+     },
+     {
+      "game": "KC@NYM",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 20.94,
+      "win": true,
+      "pnl": 18.21,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-08",
+    "bankAfter": 233.53,
+    "bets": [
+     {
+      "game": "COL@LAD",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 19.91,
+      "win": true,
+      "pnl": 14.75,
+      "assumed": false
+     },
+     {
+      "game": "NYY@TB",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 15.18,
+      "win": false,
+      "pnl": -15.18,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-09",
+    "bankAfter": 217.31,
+    "bets": [
+     {
+      "game": "BOS@CWS",
+      "side": "YRFI",
+      "odds": -110,
+      "stake": 16.22,
+      "win": false,
+      "pnl": -16.22,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-17",
+    "bankAfter": 220.92,
+    "bets": [
+     {
+      "game": "CIN@COL",
+      "side": "YRFI",
+      "odds": -175,
+      "stake": 6.31,
+      "win": true,
+      "pnl": 3.61,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-18",
+    "bankAfter": 225.94,
+    "bets": [
+     {
+      "game": "CIN@COL",
+      "side": "YRFI",
+      "odds": -190,
+      "stake": 15.77,
+      "win": true,
+      "pnl": 8.3,
+      "assumed": false
+     },
+     {
+      "game": "STL@ARI",
+      "side": "YRFI",
+      "odds": -125,
+      "stake": 8.22,
+      "win": false,
+      "pnl": -8.22,
+      "assumed": false
+     },
+     {
+      "game": "WSH@OAK",
+      "side": "YRFI",
+      "odds": -185,
+      "stake": 9.15,
+      "win": true,
+      "pnl": 4.95,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-19",
+    "bankAfter": 235.59,
+    "bets": [
+     {
+      "game": "CIN@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 14.96,
+      "win": true,
+      "pnl": 9.65,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-20",
+    "bankAfter": 250.39,
+    "bets": [
+     {
+      "game": "WSH@COL",
+      "side": "YRFI",
+      "odds": -155,
+      "stake": 22.94,
+      "win": true,
+      "pnl": 14.8,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-21",
+    "bankAfter": 263.53,
+    "bets": [
+     {
+      "game": "WSH@COL",
+      "side": "YRFI",
+      "odds": -250,
+      "stake": 10.14,
+      "win": true,
+      "pnl": 4.06,
+      "assumed": false
+     },
+     {
+      "game": "STL@LAA",
+      "side": "YRFI",
+      "odds": -120,
+      "stake": 10.9,
+      "win": true,
+      "pnl": 9.08,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-22",
+    "bankAfter": 239.97,
+    "bets": [
+     {
+      "game": "STL@LAA",
+      "side": "YRFI",
+      "odds": -115,
+      "stake": 11.91,
+      "win": false,
+      "pnl": -11.91,
+      "assumed": false
+     },
+     {
+      "game": "PIT@NYY",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 11.65,
+      "win": false,
+      "pnl": -11.65,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-24",
+    "bankAfter": 235.7,
+    "bets": [
+     {
+      "game": "ARI@WSH",
+      "side": "YRFI",
+      "odds": -135,
+      "stake": 4.27,
+      "win": false,
+      "pnl": -4.27,
+      "assumed": false
+     }
+    ]
+   },
+   {
+    "date": "2026-07-27",
+    "bankAfter": 230.18,
+    "bets": [
+     {
+      "game": "TOR@WSH",
+      "side": "YRFI",
+      "odds": -140,
+      "stake": 5.52,
+      "win": false,
+      "pnl": -5.52,
+      "assumed": false
+     }
+    ]
+   }
+  ]
+ }
 }

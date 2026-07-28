@@ -581,6 +581,24 @@ jobs:
           python tools/end_of_day_check.py --date "$YDAY_ISO" 2>&1 \
             || echo "::warning::end_of_day_check yesterday failed (non-blocking)"
 
+      - name: Refresh season record (projected + real profit)
+        # 2026-07-28: regenerates data/season_record.json, the file behind
+        # the dashboard's PROJECTED PROFIT / REAL PROFIT card (operator
+        # spec: projected = whole season with missing prices at an
+        # explicit -125; real = 2026-05-07 onward, real captured prices
+        # only; both include YRFI and NRFI). Walk-forward replay, ~1-2
+        # min, so gated to the nightly grade tick rather than the hourly
+        # predicts. The commit step below already does `git add data/`,
+        # which picks the refreshed JSON up automatically.
+        if: steps.action.outputs.what == 'grade'
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          python tools/export_season_record.py 2>&1 \
+            || echo "::warning::season-record export failed (non-blocking)"
+
       - name: Daily heartbeat (system-alive summary)
         # 2026-07-19: once-a-day Telegram confirming the system ran and
         # what today holds ("16 games, 6 STRONG, 4 LEAN" or "no games --

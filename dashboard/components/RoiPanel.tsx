@@ -105,6 +105,25 @@ export function RoiPanel({
     };
   }, [initialDate]);
 
+  // THE system record (operator spec 2026-07-28): PROJECTED (whole
+  // season, missing prices at an explicit -125) and REAL (2026-05-07
+  // onward, real captured prices only), both sides included. Written by
+  // tools/export_season_record.py, served verbatim by /api/season-record.
+  // Season-to-date by definition, so it renders under every window.
+  const [seasonRecord, setSeasonRecord] = useState<SeasonRecordFile | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/season-record", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: SeasonRecordFile | null) => {
+        if (!cancelled && j?.projected && j?.real) setSeasonRecord(j);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [initialDate]);
+
   // Effective render data: today's local agg or server fetch.
   const view = window === "today" ? todayData : data;
 
@@ -169,6 +188,10 @@ export function RoiPanel({
       </header>
 
       <div className={`${styles.body} ${loading ? styles.loading : ""}`}>
+        {/* THE system record, always visible regardless of window --
+            projected (whole season, -125 fill) and real (since 5/07,
+            real prices only). Operator spec 2026-07-28. */}
+        {seasonRecord && <SeasonRecordCard rec={seasonRecord} />}
         <TotalCard
           total={view?.total}
           window={window}
@@ -211,6 +234,145 @@ export function RoiPanel({
         )}
       </div>
     </section>
+  );
+}
+
+/* ============================================================
+   SYSTEM RECORD (operator spec 2026-07-28)
+   ============================================================ */
+
+interface SeasonRecordBet {
+  game: string;
+  side: string;
+  odds: number;
+  stake: number;
+  win: boolean;
+  pnl: number;
+  assumed: boolean;
+}
+
+interface SeasonRecordDay {
+  date: string;
+  bankAfter: number;
+  bets: SeasonRecordBet[];
+}
+
+interface SeasonRecordSide {
+  label: string;
+  priceFill: number | null;
+  from: string;
+  to: string;
+  bets: number;
+  wins: number;
+  losses: number;
+  hitRate: number;
+  breakEvenNeeded: number;
+  edgePts: number;
+  assumedBets: number;
+  flatProfit: number;
+  startBank: number;
+  finalBank: number;
+  kellyProfit: number;
+  maxDrawdownPct: number;
+  monthly: { month: string; bets: number; wins: number; losses: number;
+             flat: number; assumedBets: number }[];
+  days: SeasonRecordDay[];
+}
+
+interface SeasonRecordFile {
+  generatedUtc: string;
+  method: string;
+  gates: { yrfi: number; nrfi: number };
+  kellyFraction: number;
+  startBank: number;
+  realStart: string;
+  projected: SeasonRecordSide;
+  real: SeasonRecordSide;
+}
+
+function fmtOdds(o: number): string {
+  return o > 0 ? `+${o}` : String(o);
+}
+
+/** One side of the record: headline bank, record line, and a day-by-day
+ *  drill-down (native <details>, no state) listing every bet taken that
+ *  day with price, stake, result and P&L -- exactly the "which bets were
+ *  taken and which brought us profit" view the operator asked for. */
+function RecordColumn({ side }: { side: SeasonRecordSide }) {
+  const tone: "win" | "loss" | "neutral" =
+    side.kellyProfit > 0.05 ? "win" : side.kellyProfit < -0.05 ? "loss" : "neutral";
+  return (
+    <div className={styles.recCol}>
+      <span className={styles.totalEyebrow}>{side.label}</span>
+      <span className={`${styles.recBank} ${styles[`recBank_${tone}`]}`}>
+        {side.finalBank.toFixed(2)}u
+      </span>
+      <span className={styles.recSub}>
+        {`from ${side.startBank.toFixed(0)}u · ${side.kellyProfit >= 0 ? "+" : ""}${side.kellyProfit.toFixed(2)}u`}
+      </span>
+      <div className={styles.recStats}>
+        <span>{side.wins}-{side.losses} ({(100 * side.hitRate).toFixed(1)}%)</span>
+        <span>edge {side.edgePts >= 0 ? "+" : ""}{side.edgePts.toFixed(1)}pp</span>
+        <span>flat {side.flatProfit >= 0 ? "+" : ""}{side.flatProfit.toFixed(2)}u</span>
+        <span>maxDD {side.maxDrawdownPct.toFixed(1)}%</span>
+      </div>
+      <span className={styles.recMeta}>
+        {side.from} → {side.to}
+        {side.priceFill != null
+          ? ` · missing prices at ${fmtOdds(side.priceFill)} (${side.assumedBets} of ${side.bets} bets)`
+          : " · real captured prices only"}
+      </span>
+      <details className={styles.recDays}>
+        <summary>Day-by-day · {side.days.length} betting days</summary>
+        <div className={styles.recDayScroll}>
+          {[...side.days].reverse().map((d) => {
+            const dayPnl = d.bets.reduce((s, b) => s + b.pnl, 0);
+            return (
+              <div key={d.date} className={styles.recDay}>
+                <div className={styles.recDayHead}>
+                  <span>{d.date}</span>
+                  <span className={dayPnl >= 0 ? styles.recPos : styles.recNeg}>
+                    {dayPnl >= 0 ? "+" : ""}{dayPnl.toFixed(2)}u
+                  </span>
+                  <span className={styles.recBankAfter}>bank {d.bankAfter.toFixed(2)}u</span>
+                </div>
+                {d.bets.map((b, i) => (
+                  <div key={i} className={styles.recBet}>
+                    <span className={styles.recBetGame}>{b.game}</span>
+                    <span>{b.side}</span>
+                    <span>{fmtOdds(b.odds)}{b.assumed ? " est." : ""}</span>
+                    <span>{b.stake.toFixed(2)}u</span>
+                    <span className={b.win ? styles.recPos : styles.recNeg}>
+                      {b.win ? "WIN" : "LOSS"} {b.pnl >= 0 ? "+" : ""}{b.pnl.toFixed(2)}u
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function SeasonRecordCard({ rec }: { rec: SeasonRecordFile }) {
+  return (
+    <div className={styles.recCard}>
+      <div className={styles.recHead}>
+        <span className={styles.totalEyebrow}>
+          System record · current model replayed · YRFI + NRFI
+        </span>
+        <span className={styles.recMethod}>
+          walk-forward · {(rec.kellyFraction * 100).toFixed(0)}% Kelly ·
+          gates Y&lt;{rec.gates.yrfi} / N≥{rec.gates.nrfi}
+        </span>
+      </div>
+      <div className={styles.recGrid}>
+        <RecordColumn side={rec.projected} />
+        <RecordColumn side={rec.real} />
+      </div>
+    </div>
   );
 }
 
