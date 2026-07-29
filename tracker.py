@@ -2029,8 +2029,13 @@ def _notify_lineup_pending_resolved_telegram(row: dict) -> None:
     iso_date = (row.get("date") or "").strip()
     game_pk  = (row.get("game_pk") or "").strip()
 
+    # 2026-07-28: read from the row.  This used to reference a local
+    # `nrfi_prob` that _classify_tentative_lean's caller unpacked; when
+    # that helper was changed to take the whole row, the local vanished
+    # and this line raised NameError -- which aborted grade_date partway
+    # through the slate.  Read the row directly so the two cannot drift.
     try:
-        nrfi_pct = f"{float(nrfi_prob) * 100:.1f}%"
+        nrfi_pct = f"{float(row.get('nrfi_prob')) * 100:.1f}%"
     except (TypeError, ValueError):
         nrfi_pct = "—"
     score = (
