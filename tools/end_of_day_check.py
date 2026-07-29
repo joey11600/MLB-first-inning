@@ -123,7 +123,30 @@ def find_orphaned_strong_bets(rows: list[dict], iso_date: str) -> list[int]:
         # current_bankroll_units compounds realized P&L) mis-sizing
         # every real stake placed later the same night.
         if bet_placed == "N":
-            continue   # deliberate no-bet decision -- never fabricate it
+            # 2026-07-28 REFINEMENT.  The blanket skip above was too broad
+            # and it cost a real bet the same night it shipped.
+            #
+            # T2.58 records a STRONG pick's Kelly stake in units_risked and
+            # leaves bet_placed="N" until the game's lock window opens,
+            # then commits it to "Y".  If nothing runs during that window
+            # the row GRADES while still pending, freezes at "N", and
+            # _calc_pnl books 0 -- so a bet the system sized, told the
+            # operator to place, and that he did place, records as nothing.
+            # That is 2026-07-28 NYY@CWS: STRONG YRFI, -115, edge +17.8%,
+            # sized 9.56u, graded LOSS, booked 0.00u.
+            #
+            # The discriminator is the STAKE.  A DELIBERATE no-bet has no
+            # positive stake to record -- Kelly's zero-edge gate and the
+            # daily-cap zeroing both produce units_risked "" or 0, and LEAN
+            # never reaches here (STRONG-only filter above).  A pending
+            # that never committed carries a real positive Kelly stake.
+            # Heal only the latter, at the stake the system actually sized.
+            try:
+                staked = float((r.get("units_risked") or "").strip() or 0.0)
+            except ValueError:
+                staked = 0.0
+            if staked <= 0:
+                continue   # genuine no-bet decision -- never fabricate it
         graded = (r.get("graded_result") or "").strip().upper()
         # Only retro-fix games whose result is in: WIN / LOSS.
         # PASS shouldn't happen for STRONG NRFI/YRFI rows (PASS is
