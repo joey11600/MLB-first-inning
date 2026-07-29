@@ -294,6 +294,61 @@ validation split (a model fit on 2024 scores below chance on 2024, CV AUC
 Full do-not-retread list in user memory `2026-07-28_nrfi_deep_dive`.
 Analysis scripts preserved read-only in `tools/nrfi_deep_dive/` (44 files).
 
+### Changed — dashboard recoloured and cut down; audit's display defects fixed
+
+Operator: *"recolor the dashboard, remove redundant things from the
+dashboard, simplify it more."* Plus the display half of the probability
+audit, which had been queued behind this work to avoid edit collisions.
+
+**Cut** (each surface's information survives, or is noted): ClvStat (CLV
+is structurally unmeasurable — it only ever said so), LegacyLedgerLine
+(it was the arithmetic sum of two zone cards 40px below it), the LEAN
+zone cards and LeanBlock (paper money for a tier that is never wagered,
+rendered in the same card shape as real money — the root of the
+distrust), and the duplicated RecordColumn renderings (the model's record
+was on screen four times, on four different populations). Panel is now:
+**THE SYSTEM → OLDER LEDGER → WHY THE SYSTEM DID THAT → board.**
+
+**Recoloured.** Surfaces untouched — this morning's desaturation stands
+and the warmth still lives in the ink. What changed is the accent range,
+so peach/rust/amber are distinguishable rather than three shades of one
+orange, plus new `--side-nrfi` / `--side-yrfi` tokens 2.4x apart in
+luminance. Borders lifted (dark 2.02 → 2.95 on muted; light 1.58 → 2.72).
+
+**It also found a live accessibility failure I had missed:**
+`--accent-cyan` in light mode was 3.96 / 4.32 / 3.51 against
+background / card / muted — below AA on all three, across 21 call sites.
+Now aliased to `--muted-foreground` at 5.79 / 6.33 / 5.13. My earlier
+claim that "every contrast pair passes AA" was true only of dark mode.
+
+### Fixed — the display defects from the probability audit
+
+- **HistoryView showed +33.50u for a season the ROI panel showed as
+  −1.03u.** Opposite signs, same bets. It summed the raw column including
+  177 graded bets settled against a fabricated −110. Now uses the
+  real-priced figure, mirroring RoiPanel. The footnote asserting "Actual
+  P/L uses real DK odds when captured" — printed directly under the
+  inflated column — is rewritten to say how many bets are excluded.
+- **Zone cards mixed two populations on one line.** The units figure came
+  from real-priced bets; the hit rate and edge on the next line came from
+  all graded bets. STRONG NRFI literally rendered *"−11.29u · 59.4% hit ·
+  +7.0pp"* where the −11.29u is 49 bets that went 22-27 (44.9%) and the
+  59.4% folds in 47 placeholder-priced bets that went 35-12.
+  `ZoneProvenance` now carries `realPricedWins/Losses`.
+- **"vs break-even" was hardcoded at −110 (52.38%)** while the real-priced
+  bets averaged an implied 56%. Every edge figure was overstated ~4
+  points. Now computed from the prices actually paid, per zone; the −110
+  constant survives only for LEAN, where the flat hypothetical is correct.
+- **`num()` coerced missing values to 0**, so 349 April rows rendered
+  *"0.00 projected first-inning runs"* badged green (strongest-NRFI tone)
+  with the correct value in the next fallback, and 16 rows with a real
+  price but no stored edge rendered a fabricated *"+0.0%"* — including
+  "Skipped: edge +0.0%". Both now use `nullableNum`.
+- **The board displayed and sorted by the legacy Poisson lambda** rather
+  than the model's own `lambda_lr_total` (r=0.43, 36% pairwise rank
+  inversion). Now prefers the model's.
+- `Ticker` accepts the shared `night` object rather than recomputing.
+
 ### Deferred
 
 - Doubleheader `game_pk` is not unique in `picks_2026.csv` (1563 rows,

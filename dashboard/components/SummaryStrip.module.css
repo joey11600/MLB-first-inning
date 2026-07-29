@@ -1,3 +1,31 @@
+/* ============================================================
+   SummaryStrip -- UNMOUNTED as of the 2026-07-28 redesign.
+
+   The component and this stylesheet are intact and restorable, but
+   DashboardShell no longer renders them.  Everything the strip
+   reported now lives somewhere it cannot drift from:
+
+     "Games today"          -> the ticker's `games shown/total`
+     "Avg λ" + its min–max  -> the ticker's λ̄ segment (mean AND range)
+     Strong NRFI / YRFI     -> TonightsActionCard's side rows, which use
+                               a byte-identical predicate
+     Pass bucket            -> TonightsActionCard's "Passed" row, plus
+                               every passed game on the board with a chip
+                               saying why
+
+   NOT carried over: the small "NRFI n · YRFI n" pair under "Games
+   today".  It counted every row with a side at ANY strength -- leans
+   and games whose lineups had not posted included -- so it was
+   routinely larger than the STRONG counts sitting beside it, with
+   nothing on screen explaining the gap.
+
+   The tone colours below were rewritten at the same time so that a
+   future restore cannot reintroduce the old ambiguity, where peach
+   meant either "NRFI" or "you made money" depending on which surface
+   you were looking at.  Side identity is ink WEIGHT now
+   (--side-nrfi / --side-yrfi); the money hues are reserved for money.
+   ============================================================ */
+
 .wrap {
   /* Section gap is owned by .shell { gap: 16px } -- this wrap only
      needs a hair of internal breathing room. */
@@ -38,9 +66,11 @@
    card and was the most visible contributor to the "orange haze". A tile
    does not need a light source to read as primary -- a 2px top rule does
    it without tinting the surface underneath the numbers. */
+/* Was a 55% peach top rule.  A slate-count tile is not money, so it
+   carries a plain border now. */
 .tile.primary {
   background: var(--card);
-  border-top: 2px solid color-mix(in oklab, var(--primary) 55%, var(--border));
+  border-top: 2px solid var(--border);
 }
 
 /* T3.21: dropped .plTile, .plPositive, .plNegative, .plUnit,
@@ -81,8 +111,9 @@
   height: 7px;
   border-radius: 50%;
 }
-.tinyDot[data-tone="nrfi"] { background: var(--primary); }
-.tinyDot[data-tone="yrfi"] { background: var(--destructive); }
+/* Side = ink weight, never a money hue. */
+.tinyDot[data-tone="nrfi"] { background: var(--side-nrfi); }
+.tinyDot[data-tone="yrfi"] { background: var(--side-yrfi); }
 
 .sep { color: var(--border); margin: 0 2px; }
 
@@ -172,29 +203,35 @@
   letter-spacing: 0.04em;
 }
 
-/* Tone-specific accents */
-.strongNrfi { border-top: 2px solid var(--primary); }
-.strongNrfi .bucketFill { background: var(--primary); }
-.strongNrfi .bucketCount { color: var(--primary); }
+/* SIDE ACCENTS -- WEIGHT, NOT HUE.
+   These buckets used the money hues: Strong NRFI was peach (= "money
+   up") and Strong YRFI was rust (= "money down"), so a peach bar on
+   this strip and a peach figure on the money panel meant two unrelated
+   things.  Sides are now the two side inks, which are 2.37x apart in
+   luminance (2.43x in light) and neither of which is a P&L colour.
+   Every bucket count stays --foreground; the bar carries the identity.
+   Contrast on --card: --side-nrfi 5.62 dark / 6.29 light. */
+.strongNrfi { border-top: 2px solid var(--side-nrfi); }
+.strongNrfi .bucketFill { background: var(--side-nrfi); }
+.strongNrfi .bucketCount { color: var(--foreground); }
 
-.leanNrfi { border-top: 2px solid color-mix(in oklab, var(--primary) 55%, transparent); }
-.leanNrfi .bucketFill { background: color-mix(in oklab, var(--primary) 55%, transparent); }
-.leanNrfi .bucketCount { color: var(--primary); opacity: 0.78; }
+.leanNrfi { border-top: 2px solid color-mix(in oklab, var(--side-nrfi) 55%, transparent); }
+.leanNrfi .bucketFill { background: color-mix(in oklab, var(--side-nrfi) 55%, transparent); }
+.leanNrfi .bucketCount { color: var(--muted-foreground); }
 
-.pass { border-top: 2px solid var(--secondary); }
-.pass .bucketFill { background: var(--secondary); }
-/* Use --secondary directly (amber).  --secondary-foreground is
-   near-black -- intended for text ON amber backgrounds, not for a
-   number on the dark bucket card where it was invisible. */
-.pass .bucketCount { color: var(--secondary); }
+/* Pass loses its amber: amber now means "a decision is waiting on you",
+   and a game the model declined is the opposite of that. */
+.pass { border-top: 2px solid var(--border); }
+.pass .bucketFill { background: var(--muted-foreground); }
+.pass .bucketCount { color: var(--muted-foreground); }
 
-.leanYrfi { border-top: 2px solid color-mix(in oklab, var(--destructive) 55%, transparent); }
-.leanYrfi .bucketFill { background: color-mix(in oklab, var(--destructive) 55%, transparent); }
-.leanYrfi .bucketCount { color: var(--destructive); opacity: 0.85; }
+.leanYrfi { border-top: 2px solid color-mix(in oklab, var(--side-yrfi) 55%, transparent); }
+.leanYrfi .bucketFill { background: color-mix(in oklab, var(--side-yrfi) 55%, transparent); }
+.leanYrfi .bucketCount { color: var(--muted-foreground); }
 
-.strongYrfi { border-top: 2px solid var(--destructive); }
-.strongYrfi .bucketFill { background: var(--destructive); }
-.strongYrfi .bucketCount { color: var(--destructive); }
+.strongYrfi { border-top: 2px solid var(--side-yrfi); }
+.strongYrfi .bucketFill { background: var(--side-yrfi); }
+.strongYrfi .bucketCount { color: var(--foreground); }
 
 @media (max-width: 640px) {
   .tile { min-height: 102px; }

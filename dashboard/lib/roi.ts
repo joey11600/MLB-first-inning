@@ -87,6 +87,20 @@ export interface ZoneProvenance {
   placeholderBets: number;
   /** P&L attributable to real-priced bets only */
   realPricedPL: number;
+  /** W-L over the real-priced subset ONLY. 2026-07-28 audit: the cards
+   *  printed realPricedPL next to a hit rate computed over ALL graded
+   *  bets -- two populations on one line. STRONG NRFI rendered
+   *  "-11.29u · 59.4% hit" where the -11.29u is 49 real-priced bets that
+   *  went 22-27 (44.9%) and the 59.4% folds in 47 placeholder-priced
+   *  bets that went 35-12. */
+  realPricedWins: number;
+  realPricedLosses: number;
+  /** Mean implied probability of the prices actually paid on the
+   *  real-priced subset -- the TRUE break-even for this zone. The
+   *  hardcoded 110/210 (52.38%) assumes every bet was -110; the real
+   *  average is ~56%, so every "vs break-even" figure was overstated by
+   *  about 4 points. */
+  realBreakEven: number;
   /** true when this zone is track-only (LEAN): nothing was ever wagered */
   paperOnly: boolean;
   /** share of graded bets that carry a real price, 0..1 (NaN when none) */
@@ -214,6 +228,9 @@ function emptyZone(label: string, side: PickSide, strength: PickStrength): ZoneR
       realPricedBets: 0,
       placeholderBets: 0,
       realPricedPL: 0,
+      realPricedWins: 0,
+      realPricedLosses: 0,
+      realBreakEven: NaN,
       paperOnly: strength === "LEAN",
       realShare: NaN,
     },
@@ -226,6 +243,10 @@ function finalize(z: ZoneRoi, plOverride?: number): ZoneRoi {
   const prov = z.provenance;
   const provTotal = prov.realPricedBets + prov.placeholderBets;
   prov.realShare = provTotal > 0 ? prov.realPricedBets / provTotal : NaN;
+  // realBreakEven accumulated a SUM above; turn it into the mean.
+  prov.realBreakEven = prov.realPricedBets > 0 && Number.isFinite(prov.realBreakEven)
+    ? prov.realBreakEven / prov.realPricedBets
+    : NaN;
   // Prefer the explicit P&L sum (which tracks actual realized prices via
   // profit_loss_units).  Fall back to flat-odds estimate when not provided.
   const unitsPL =
@@ -237,8 +258,31 @@ function finalize(z: ZoneRoi, plOverride?: number): ZoneRoi {
     bets,
     hitRate,
     unitsPL,
-    edgeVsBreakEven: bets > 0 ? hitRate - DEFAULT_BREAK_EVEN_RATE : NaN,
+    // 2026-07-28 audit: measure the edge against the prices actually
+    // PAID, not against a -110 that most of these bets never had. Falls
+    // back to the -110 constant only when no real price exists (LEAN
+    // zones, where the flat -110 hypothetical is the correct reference).
+    edgeVsBreakEven: (() => {
+      if (bets === 0) return NaN;
+      const rp = prov.realPricedBets;
+      if (rp > 0 && Number.isFinite(prov.realBreakEven)) {
+        const realHit = (prov.realPricedWins + prov.realPricedLosses) > 0
+          ? prov.realPricedWins / (prov.realPricedWins + prov.realPricedLosses)
+          : NaN;
+        return Number.isFinite(realHit) ? realHit - prov.realBreakEven : NaN;
+      }
+      return hitRate - DEFAULT_BREAK_EVEN_RATE;
+    })(),
   };
+}
+
+/** American odds string -> implied probability, or null. */
+function impliedFromAmerican(v: string | null | undefined): number | null {
+  const t = (v ?? "").trim();
+  if (!t) return null;
+  const n = Number.parseFloat(t);
+  if (!Number.isFinite(n) || n === 0) return null;
+  return n > 0 ? 100 / (n + 100) : Math.abs(n) / (Math.abs(n) + 100);
 }
 
 function zoneLabel(side: PickSide, strength: PickStrength): string {
@@ -394,6 +438,14 @@ export async function loadRoi(
         if (hasRealPrice) {
           z.provenance.realPricedBets += 1;
           z.provenance.realPricedPL += pl;
+          if (graded === "WIN") z.provenance.realPricedWins += 1;
+          else if (graded === "LOSS") z.provenance.realPricedLosses += 1;
+          // Accumulate the implied probability of the price actually paid.
+          const impl = impliedFromAmerican(priceCol);
+          if (impl != null) {
+            z.provenance.realBreakEven =
+              (Number.isFinite(z.provenance.realBreakEven) ? z.provenance.realBreakEven : 0) + impl;
+          }
         } else {
           z.provenance.placeholderBets += 1;
         }

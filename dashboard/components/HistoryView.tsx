@@ -876,12 +876,24 @@ function parseIso(iso: string): Date | null {
 
 /* ------------- T4.17 win-rate by zone ------------- */
 
+/** P&L over bets that had a REAL captured DraftKings price.
+ *
+ *  Falls back to the raw column only when provenance is unknown (nothing
+ *  classified), which mirrors RoiPanel.realPL so the two screens cannot
+ *  print different signs for the same season again. */
+function realZonePL(z: import("@/lib/roi").ZoneRoi): number {
+  const pr = z.provenance;
+  const known = pr.realPricedBets + pr.placeholderBets;
+  return known > 0 ? pr.realPricedPL : z.unitsPL;
+}
+
 function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
   const withBets = zones.filter((z) => z.bets > 0);
   if (withBets.length === 0) {
     return <div className={styles.chartEmpty}>No graded bets in this window yet.</div>;
   }
-  const breakEven = 0.524; // -110 break-even
+  const breakEven = 0.524; // -110 reference line only; see the footnote
+  const placeholderTotal = withBets.reduce((a, z) => a + z.provenance.placeholderBets, 0);
   return (
     <div className={styles.zoneChart}>
       {withBets.map((z) => {
@@ -904,16 +916,28 @@ function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
             <div className={`${styles.zoneRate} ${above ? styles.numWin : styles.numLoss}`}>
               {pct.toFixed(1)}%
             </div>
-            <div className={`${styles.zonePL} ${z.unitsPL >= 0 ? styles.numWin : styles.numLoss}`}>
-              {formatUnits(z.unitsPL)}
+            {/* 2026-07-28 AUDIT FIX: this printed z.unitsPL -- the raw sum
+                INCLUDING bets settled against a fabricated -110 because no
+                DraftKings price was ever captured. That made this table read
+                +33.50u for the season while the ROI panel one click away read
+                -1.03u for the same bets. Opposite signs, same season. Show the
+                real-priced figure, matching RoiPanel. */}
+            <div className={`${styles.zonePL} ${realZonePL(z) >= 0 ? styles.numWin : styles.numLoss}`}>
+              {formatUnits(realZonePL(z))}
             </div>
           </div>
         );
       })}
       <div className={styles.zoneFoot}>
-        Vertical mark = {(breakEven * 100).toFixed(1)}% break-even threshold (the -110-equivalent hit
-        rate at which a bet zone breaks even).  Bars right of the line are profitable in expectation;
-        left of it are net losers.  Actual P/L uses real DK odds when captured.
+        Vertical mark = {(breakEven * 100).toFixed(1)}% break-even at &minus;110.
+        Most bets were placed at worse prices than that, so a bar just right of
+        the line is not necessarily a winner &mdash; read the units column, which
+        counts only bets that had a real captured DraftKings price.
+        {placeholderTotal > 0 && (
+          <> {placeholderTotal} graded {placeholderTotal === 1 ? "bet" : "bets"} had
+          no captured price and are excluded here; they settled against a
+          placeholder &minus;110.</>
+        )}
       </div>
     </div>
   );

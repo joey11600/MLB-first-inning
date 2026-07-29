@@ -1,5 +1,43 @@
+/* ═══════════════════════════════════════════════════════════════════
+   PERFORMANCE PANEL — stylesheet.
+
+   REDESIGN 2026-07-28 (second pass).  Eight blocks became four.
+
+   ONE RULE: A HUE MEANS REAL MONEY.
+     --gain  peach   real money UP
+     --loss  rust    real money DOWN
+     --attn  amber   money AT RISK / a decision is waiting on you
+   Everything else — chrome, active tabs, tags, side labels — is ink.
+
+   COROLLARY: SIMULATED FIGURES ARE NEVER TONE-COLOURED.  Coloured =
+   your money.  Neutral = a back-test.  No exception, no carve-out.
+
+   DELETED FROM THIS FILE, and where the information now lives:
+     .legacyLine      -> the .ledgerBlock eyebrow carries its wording
+     .zoneGrid /.zoneCard /.zone_* /.zoneHead /.zoneLabel /.zoneCount
+     .zoneUnits /.zoneUnitsLabel /.zoneSub /.zoneSep /.zoneSubMuted
+     .zoneBar /.zoneBarFill /.zoneBarBE /.edge_* /.tone_*
+                      -> the two STRONG zones are now .ledgerRow;
+                         the two LEAN zones are gone (never bet)
+     .passRow /.passEyebrow /.passChip /.passChipLabel /.passChipCount
+                      -> the board's per-game PASS chips + the board
+                         header's "{n} pass" counter
+     .simCard /.recHead /.recGrid /.recCol /.floorBlock /.simNote
+                      -> the model replay now lives inside .howBox
+     .migrationNote /.noteDismiss  -> the component was never mounted
+     .title /.tagInline /.windowRow -> referenced by nothing
+     .figHero /.figLead /.figStat /.copy /.meta /.tag
+                      -> these SEVEN TYPE ROLES are declared once, in
+                         globals.css.  A second copy here at different
+                         values (40px/700 vs the global 44px/500) was
+                         silently winning wherever this panel rendered,
+                         which is the exact drift the roles block exists
+                         to end.  Call sites now use the plain global
+                         class names.
+   ═══════════════════════════════════════════════════════════════════ */
+
 .wrap {
-  /* Was 18/6; .shell { gap: 16px } now owns the section gap. */
+  /* .shell { gap: 16px } owns the section gap. */
   padding: 4px 0;
   display: flex;
   flex-direction: column;
@@ -21,23 +59,6 @@
   flex-wrap: wrap;
 }
 
-.eyebrow {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  font-weight: 600;
-}
-
-.title {
-  font-family: var(--font-mono);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--foreground);
-}
-
 .range {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -53,7 +74,9 @@
   font-style: italic;
 }
 
-/* ---- Window toggle ---- */
+/* ---- Window toggle ----
+   The active pill loses its peach fill.  A control is chrome, not a
+   result: peach now means real money and nothing else. */
 .windowToggle {
   display: inline-flex;
   border: 1px solid var(--border);
@@ -76,10 +99,10 @@
 }
 .windowBtn:hover { color: var(--foreground); }
 .windowBtnActive {
-  color: var(--primary-foreground);
-  background: var(--primary);
+  color: var(--foreground);
+  background: var(--muted);
 }
-.windowBtnActive:hover { color: var(--primary-foreground); }
+.windowBtnActive:hover { color: var(--foreground); }
 
 /* ---- Body ---- */
 .body {
@@ -90,7 +113,37 @@
 }
 .body.loading { opacity: 0.55; }
 
-/* ---- Total card ---- */
+/* ── REAL MONEY: raised, tone shown as a rail ─────────────────
+   The tone used to be a full-card gradient wash, which lowered the
+   contrast of every glyph on it and made a -0.33u night and a -40u
+   night read as the same KIND of object. */
+.moneyCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) auto;
+  gap: 14px 32px;
+  padding: 22px 26px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  max-width: 100%;
+}
+.moneyCard::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+}
+.moneyCard[data-tone="win"]::before  { background: var(--gain, var(--primary)); }
+.moneyCard[data-tone="loss"]::before { background: var(--loss, var(--destructive)); }
+.moneyCard[data-tone="win"]  { border-color: color-mix(in oklab, var(--gain, var(--primary)) 28%, var(--border)); }
+.moneyCard[data-tone="loss"] { border-color: color-mix(in oklab, var(--loss, var(--destructive)) 28%, var(--border)); }
+/* :global() is required — the call sites now use the GLOBAL type-role
+   class from globals.css, so a module-hashed `.figHero` would never
+   match it. */
+.moneyCard[data-tone="win"]  :global(.figHero) { color: var(--gain, var(--primary)); }
+.moneyCard[data-tone="loss"] :global(.figHero) { color: var(--loss, var(--destructive)); }
+
 .totalLeft {
   display: flex;
   flex-direction: column;
@@ -126,192 +179,200 @@
   color: var(--muted-foreground);
   font-weight: 600;
 }
+.statCaption {
+  font-family: var(--font-sans); font-size: 11px; line-height: 1.45;
+  color: var(--muted-foreground); text-align: right; max-width: 26ch;
+}
+/* "Priced" — provenance, not money.  Never tone-coloured.  Written as a
+   descendant so it outranks the global .figStat colour it sits on. */
+.stat > .statProv { color: var(--muted-foreground); font-weight: 500; }
 
-/* Model-replay card internals. */
-.recHead {
+/* Provenance notes under the headline. */
+.provNote {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-.recGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 14px;
-}
-.tone_win  { color: var(--primary) !important; }
-.tone_loss { color: var(--destructive) !important; }
-.tone_neutral { color: var(--foreground); }
-
-/* ---- Per-zone grid ---- */
-.zoneGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-@media (max-width: 1100px) {
-  .zoneGrid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 640px) {
-  .zoneGrid { grid-template-columns: 1fr; }
-}
-
-.zoneCard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px 12px;
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 2px);
-  background: var(--card);
-  position: relative;
-  overflow: hidden;
-}
-.zone_nrfi { border-top: 2px solid color-mix(in oklab, var(--primary) 70%, var(--border)); }
-.zone_yrfi { border-top: 2px solid color-mix(in oklab, var(--destructive) 70%, var(--border)); }
-
-.zoneHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-.zoneLabel {
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  max-width: 46ch;
   font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-.zone_nrfi .zoneLabel { color: color-mix(in oklab, var(--primary)     85%, var(--foreground)); }
-.zone_yrfi .zoneLabel { color: color-mix(in oklab, var(--destructive) 85%, var(--foreground)); }
-.zoneCount {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
-}
-
-.zoneUnits {
-  font-family: var(--font-mono);
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1.75rem;
-  letter-spacing: -0.04em;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.tone_win  .zoneUnits { color: var(--primary); }
-.tone_loss .zoneUnits { color: var(--destructive); }
-.zoneUnitsLabel {
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-.zoneSub {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-  font-family: var(--font-mono);
   font-size: 11px;
+  line-height: 1.45;
   color: var(--muted-foreground);
-  letter-spacing: 0.04em;
 }
-.zoneSep { color: var(--border); }
-.zoneSubMuted { font-style: italic; opacity: 0.8; }
-
-.edge_win  { color: var(--primary); font-weight: 600; }
-.edge_loss { color: var(--destructive); font-weight: 600; }
-.edge_neutral { color: var(--muted-foreground); }
-
-/* ---- Hit-rate bar with break-even line ---- */
-.zoneBar {
-  position: relative;
-  height: 4px;
-  width: 100%;
-  background: var(--muted);
-  border-radius: 999px;
-  overflow: hidden;
-  margin-top: 2px;
-}
-.zoneBarFill {
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
+.provDot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: 6px;
+  border-radius: 50%;
   background: var(--muted-foreground);
-  border-radius: 999px;
-  transition: width 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.tone_win  .zoneBarFill { background: var(--primary); }
-.tone_loss .zoneBarFill { background: var(--destructive); }
-/* break-even tick at 52.38% */
-.zoneBarBE {
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  left: calc(52.38% - 1px);
-  width: 2px;
-  background: var(--accent-cyan, var(--foreground));
-  opacity: 0.7;
-  border-radius: 1px;
+/* AMBER IS ATTENTION, and an uncaptured price is one of the only three
+   things left on the page allowed to wear it. */
+.provDot[data-attn="1"] { background: var(--attn, var(--secondary)); }
+
+/* ── The CLV footnote ─────────────────────────────────────────
+   Replaces the "Closing-line value / Not measurable" stat tile.  The
+   number was never measurable (we lock the first price we see), so the
+   tile was a disclaimer wearing a figure's clothes.  The explanation
+   survives here word for word; the freed slot went to "Priced". */
+.clvFootnote {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+  max-width: 62ch;
 }
 
-/* ---- Pass-row ---- */
-.passRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* ── THE RECONCILER ───────────────────────────────────────────
+   Nothing on the page said this before: why the headline's record and
+   the replay's record are different numbers. */
+.reconciler {
+  grid-column: 1 / -1;
+  margin: 0;
   padding: 10px 14px;
   border: 1px dashed var(--border);
   border-radius: var(--radius);
-  background: color-mix(in oklab, var(--background) 70%, transparent);
-  flex-wrap: wrap;
-}
-.passEyebrow {
   font-family: var(--font-sans);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  font-weight: 700;
-  margin-right: 4px;
-}
-.passChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--muted);
-  font-family: var(--font-mono);
-}
-.passChipLabel {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-.passChipCount {
   font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+.reconciler b { color: var(--foreground); font-weight: 600; }
+
+/* ── "How this number was computed" ───────────────────────────
+   Absorbs the entire deleted model-replay card.  Collapsed by default;
+   NOTHING was deleted from it. */
+.howBox {
+  grid-column: 1 / -1;
+  margin-top: 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+  min-width: 0;
+}
+.howBox > summary {
+  cursor: pointer; list-style: none;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.howBox > summary::-webkit-details-marker { display: none; }
+.howBox > summary::after { content: " \25B8"; }
+.howBox[open] > summary::after { content: " \25BE"; }
+.howBox > summary:hover { color: var(--foreground); }
+.howBox p {
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.55;
+  color: var(--muted-foreground); max-width: 68ch; margin: 10px 0 0;
+}
+/* The compounded bank arrow, preserved and labelled.  For an operator
+   whose incident history is entirely about things vanishing, these six
+   lines are the most important in the file. */
+.howBox .simBank {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
   color: var(--foreground);
-  font-variant-numeric: tabular-nums;
+}
+/* SIMULATED FIGURES ARE NEVER TONE-COLOURED.  Everything inside this box
+   is a back-test, so nothing inside it may take --gain or --loss.  The
+   selector is written long so it outranks the tone rail's
+   `.moneyCard[data-tone] :global(.figHero)` above. */
+.moneyCard .howBox :global(.figHero),
+.moneyCard .howBox :global(.figLead),
+.moneyCard .howBox :global(.figStat) { color: var(--foreground); }
+
+/* ── MERGED LEDGER BLOCK ──────────────────────────────────────
+   Replaces the 4-up zone grid AND the one-line legacy summary that
+   summed it (they could not disagree — same accumulation).  Two rows,
+   one eyebrow.  Every figure survives: label, W-L, units, hit rate,
+   points vs break-even, the bar and its break-even tick. */
+.ledgerBlock {
+  border-left: 2px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 45%, transparent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  max-width: 100%;
+}
+.ledgerRow {
+  display: grid;
+  grid-template-columns: 132px 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+.ledgerRow + .ledgerRow {
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+}
+.ledgerLabel {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+/* Side is carried by ink WEIGHT, never by a money hue. */
+.ledgerRow[data-side="NRFI"] .ledgerLabel { color: var(--side-nrfi, var(--muted-foreground)); }
+.ledgerRow[data-side="YRFI"] .ledgerLabel { color: var(--side-yrfi, var(--foreground)); }
+.ledgerCount {
+  font-family: var(--font-mono); font-size: 12px;
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+.ledgerMid {
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.ledgerSub {
+  display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-family: var(--font-sans); font-size: 11px;
+  color: var(--muted-foreground);
+}
+.ledgerSub :global(.num) {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--foreground);
+}
+.ledgerSep { color: var(--border); }
+.ledgerUnits {
+  font-family: var(--font-mono); font-size: 18px; font-weight: 500;
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--foreground); text-align: right;
+}
+.ledgerRow[data-tone="win"]  .ledgerUnits { color: var(--gain, var(--primary)); }
+.ledgerRow[data-tone="loss"] .ledgerUnits { color: var(--loss, var(--destructive)); }
+.ledgerBar {
+  position: relative; height: 4px; width: 100%;
+  background: var(--muted); border-radius: 999px; overflow: hidden;
+}
+.ledgerBarFill {
+  position: absolute; inset: 0 auto 0 0;
+  background: var(--muted-foreground); border-radius: 999px;
+  transition: width 480ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ledgerRow[data-tone="win"]  .ledgerBarFill { background: var(--gain, var(--primary)); }
+.ledgerRow[data-tone="loss"] .ledgerBarFill { background: var(--loss, var(--destructive)); }
+/* Break-even tick at 52.38% — was the last --accent-cyan on this panel. */
+.ledgerBarBE {
+  position: absolute; top: -2px; bottom: -2px; left: calc(52.38% - 1px);
+  width: 2px; background: var(--foreground); opacity: 0.55; border-radius: 1px;
 }
 
+/* ── LEAN: a COUNT, never a price ─────────────────────────────
+   Replaces the LEAN paper-trade block and the two LEAN zone cards.  No
+   money figure BY DESIGN: LEAN is never wagered, and rendering a
+   hypothetical −110 P&L in the same shape as real money is exactly what
+   made the panel feel untrustworthy. */
+.leanLine {
+  margin: 0;
+  padding: 8px 14px;
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.5;
+  color: var(--muted-foreground);
+  max-width: 72ch;
+}
+.leanLine :global(.num) { color: var(--foreground); }
+
 .emptyZone {
-  grid-column: 1 / -1;
-  padding: 22px;
+  padding: 18px;
   text-align: center;
   color: var(--muted-foreground);
   font-family: var(--font-sans);
@@ -320,193 +381,71 @@
   border-radius: var(--radius);
 }
 
-@media (max-width: 720px) {
-  .totalCard { grid-template-columns: 1fr; }
-  .totalLeft { border-right: 0; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 14px; }
-  .totalRight { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-}
-
-
-/* Kelly simulated-bankroll card (2026-07-28).
-   Dashed border + SIM watermark, mirroring the LEAN paper card, so the
-   operator cannot mistake a counterfactual bankroll for realized P&L. */
-.provNote {
+/* ── ZONE 3 · WHY ─────────────────────────────────────────────
+   The rule, the spacing and the header row come from the GLOBAL .zoneWhy
+   / .zoneHead in globals.css -- one declaration, shared with every other
+   zone boundary on the page.  This class adds only the stacking, which
+   globals does not set, so the two never declare the same property. */
+.whyZone {
   display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
-  margin-top: 0.45rem;
-  max-width: 46ch;
-  font-size: 0.68rem;
-  line-height: 1.45;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── THE RECONCILE LINE ───────────────────────────────────────
+   LIVE DEFECT FIXED 2026-07-28: TonightsActionCard.tsx has been applying
+   `money.reconLine` / `money.reconSep` since the hero card shipped, and
+   neither class was ever declared here — the sentence the whole rewrite
+   was built around rendered as <p class="undefined">, unstyled.  They
+   live HERE, not in TonightsActionCard.module.css, because the same
+   sentence must look identical in the hero card and in this panel or it
+   stops reading as the same statement. */
+.reconLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  margin: 12px 0 0;
+  padding: 9px 14px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--muted-foreground);
+  max-width: 100%;
 }
-.provDot {
-  flex: none;
-  width: 5px;
-  height: 5px;
-  margin-top: 0.42rem;
-  border-radius: 50%;
-  background: var(--secondary);
-}
-
-
-/* ═══════════════════════════════════════════════════════════
-   TYPE ROLES (2026-07-28 rebuild)
-
-   Six sizes, not the 43 that had accumulated. The rule that does
-   most of the work: MONOSPACE IS FOR FIGURES ONLY. Nine classes
-   here were monospace PROSE -- .range, .totalSub, .recSub,
-   .recStats, .recMeta, .recFootnote, .recBet, .recSelDayLabel,
-   .recSelDaySum -- which is most of why the panel read as a log
-   file. Words are sans; numbers are mono with tabular figures so
-   columns align.
-   ═══════════════════════════════════════════════════════════ */
-.figHero, .figLead, .figStat {
+/* The COUNTS are mono and tabular so FLAGGED / PLACED / SETTLED line up
+   with the same numbers in the ticker and the table; the WORDS stay
+   sans.  That contrast is the Diamond Terminal identity in one rule. */
+.reconLine b {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-weight: 500;
+  font-size: 13px;
   color: var(--foreground);
-  line-height: 1.05;
+  letter-spacing: -0.005em;
 }
-.figHero { font-size: 40px; font-weight: 700; letter-spacing: -0.01em; }
-.figLead { font-size: 26px; font-weight: 700; }
-.figStat { font-size: 20px; font-weight: 600; }
-.copy {
-  font-family: var(--font-sans); font-size: 13px; line-height: 1.55;
-  color: var(--foreground); max-width: 68ch;
-}
-.meta {
-  font-family: var(--font-sans); font-size: 12px; line-height: 1.5;
-  color: var(--muted-foreground); max-width: 72ch;
-}
-.tag, .tagInline {
-  display: inline-block; padding: 2px 6px; border-radius: 3px;
-  font-family: var(--font-sans); font-size: 11px; font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase;
-  background: color-mix(in oklab, var(--secondary) 18%, transparent);
-  color: var(--secondary);
-  border: 1px solid color-mix(in oklab, var(--secondary) 40%, transparent);
-}
-.tagInline { margin-right: 6px; }
+.reconSep { color: var(--border); user-select: none; }
 
-/* ── REAL MONEY: raised, tone shown as a rail ─────────────────
-   The tone used to be a full-card gradient wash, which lowered the
-   contrast of every glyph on it and made a -0.33u night and a -40u
-   night read as the same KIND of object. */
-.moneyCard {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) auto;
-  gap: 32px;
-  padding: 22px 26px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-1);
-  overflow: hidden;
-}
-.moneyCard::before {
-  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
-  background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
-}
-.moneyCard[data-tone="win"]::before  { background: var(--primary); }
-.moneyCard[data-tone="loss"]::before { background: var(--destructive); }
-.moneyCard[data-tone="win"]  { border-color: color-mix(in oklab, var(--primary) 28%, var(--border)); }
-.moneyCard[data-tone="loss"] { border-color: color-mix(in oklab, var(--destructive) 28%, var(--border)); }
-.moneyCard[data-tone="win"]  .figHero { color: var(--primary); }
-.moneyCard[data-tone="loss"] .figHero { color: var(--destructive); }
-
-.statCaption {
-  font-family: var(--font-sans); font-size: 11px; line-height: 1.45;
-  color: var(--muted-foreground); text-align: right; max-width: 26ch;
-}
-.statMuted { font-size: 15px; font-weight: 600; color: var(--muted-foreground); }
-
-/* ── SIMULATED: recessed, hatched, NEVER tone-coloured ────────
-   The !important is deliberate. The old .kellyCard silently lost
-   its tone class to a cascade-order accident, and a simulated
-   figure rendering in the same peach as real profit is the exact
-   confusion this rebuild exists to remove. */
-.simCard {
-  position: relative;
-  padding: 20px 24px 20px 28px;
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: none;
-}
-.simCard::before {
-  content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
-  background: var(--sim-hatch, repeating-linear-gradient(
-    45deg,
-    color-mix(in oklab, var(--muted-foreground) 45%, transparent) 0 3px,
-    transparent 3px 6px));
-  border-radius: var(--radius) 0 0 var(--radius);
-}
-/* Simulated figures stay neutral by default. The ONE exception is the
-   replay headline (.simFig): the operator now stakes by Kelly, so this
-   is the number they read performance in, and win/loss has to be legible
-   at a glance. The other three honesty signals -- recessed surface,
-   hatched rail, SIMULATED tag -- still ship, so the card can never be
-   mistaken for the real-money ledger. */
-.simCard .figHero,
-.simCard .figStat { color: var(--foreground) !important; }
-.simCard .figLead:not(.simFig) { color: var(--foreground) !important; }
-.recCol[data-tone="win"]  .simFig { color: var(--primary); }
-.recCol[data-tone="loss"] .simFig { color: var(--destructive); }
-
-.recCol { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.floorBlock {
-  margin-top: 10px; padding-top: 8px;
-  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
-  display: flex; flex-direction: column; gap: 4px;
-}
-.simNote {
-  margin-top: 12px; padding-top: 10px;
-  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
-}
-
-/* One-week note announcing that the compounded bankroll headline
-   moved. The operator's incident history is entirely about things
-   appearing to disappear -- so the change is announced, not found. */
-.migrationNote {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 16px; padding: 10px 14px;
-  border: 1px dashed color-mix(in oklab, var(--secondary) 45%, var(--border));
-  border-radius: var(--radius);
-  background: color-mix(in oklab, var(--secondary) 7%, transparent);
-}
-.noteDismiss {
-  flex: none; background: none; border: 0; cursor: pointer; padding: 2px 4px;
-  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-.noteDismiss:hover { color: var(--foreground); }
-
-/* RoiPanel.tsx can produce sideTone "neutral"; without this key CSS
-   Modules interpolates the literal string "undefined" into class. */
-.zone_neutral { }
-
+/* ---- Responsive.  Wide content scrolls inside its own container; the
+        page itself never scrolls sideways. ---- */
 @media (max-width: 720px) {
   .moneyCard { grid-template-columns: 1fr; gap: 18px; }
-  .figHero { font-size: 32px; }
-  .figLead { font-size: 22px; }
-  .figStat { font-size: 18px; }
-}
-@media (max-width: 900px) {
-  .recGrid { grid-template-columns: 1fr; }
-}
-
-.windowRow {
-  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px;
-  margin: 2px 0 8px;
-}
-
-/* The superseded flat-1u ledger. Deliberately quiet: real money, but a
-   system the operator no longer runs. */
-.legacyLine {
-  padding: 10px 14px;
-  border-left: 2px solid var(--border);
-  background: color-mix(in oklab, var(--muted) 45%, transparent);
-  border-radius: 0 var(--radius) var(--radius) 0;
+  .totalLeft {
+    border-right: 0; border-bottom: 1px solid var(--border);
+    padding-right: 0; padding-bottom: 14px;
+  }
+  .totalRight { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  /* Two columns on a phone: the label and its units on one line, the
+     record and the hit-rate bar beneath.  Explicit placement because the
+     DOM order is label / record / bar / units. */
+  .ledgerRow { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+  .ledgerLabel { grid-column: 1; grid-row: 1; }
+  .ledgerUnits { grid-column: 2; grid-row: 1; }
+  .ledgerCount { grid-column: 1 / -1; grid-row: 2; text-align: left; }
+  .ledgerMid   { grid-column: 1 / -1; grid-row: 3; }
+  .reconLine { gap: 2px 8px; font-size: 11px; }
 }

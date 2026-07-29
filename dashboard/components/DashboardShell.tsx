@@ -5,20 +5,48 @@ import type { BoardResponse, BoardRow } from "@/lib/types";
 import { useSupabaseRealtime } from "@/lib/useSupabaseRealtime";
 import { todayEtIso } from "@/lib/date";
 import { ControlPanel, type Filters } from "./ControlPanel";
-import { SummaryStrip } from "./SummaryStrip";
 import { OpsHealthCard } from "./OpsHealthCard";
 import { DemotionsBanner } from "./DemotionsBanner";
-import { ShadowPnlCard } from "./ShadowPnlCard";
 import { RoiPanel } from "./RoiPanel";
 import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
 import { Ticker } from "./Ticker";
 import type { RecFile } from "@/lib/season-record";
 import { replayStakesFor } from "@/lib/season-record";
-import { StatusLine } from "./StatusLine";
+import { nightFromBoard, nightFromRecord } from "@/lib/reconcile";
 import { TonightsActionCard } from "./TonightsActionCard";
 import { SettingsDropdown } from "./SettingsDropdown";
 import styles from "./DashboardShell.module.css";
+
+// 2026-07-28 redesign -- SURFACES REMOVED FROM THIS SHELL.
+// The component files still exist and are unchanged, so any of these can
+// be re-mounted by restoring one import + one line of JSX.
+//
+//   SummaryStrip  -- "Games today" now reads off the ticker's
+//                    `games shown/total`; the Avg-λ tile (mean AND its
+//                    min–max range) moves into the ticker; the STRONG
+//                    NRFI / STRONG YRFI distribution buckets are the
+//                    hero card's side rows (same predicate); the Pass
+//                    bucket is the hero card's "Passed" row plus the
+//                    board's per-game pass reasons.
+//                    GONE WITH NO REPLACEMENT: the small "NRFI n · YRFI n"
+//                    pair under "Games today".  It counted every row with
+//                    a side at ANY strength -- leans and games without
+//                    lineups included -- so it was always larger than the
+//                    STRONG counts beside it with nothing explaining why.
+//   StatusLine    -- the footer.  DATE lives in the header and the
+//                    ticker's right cap; GAMES shown/total lives in the
+//                    ticker; SIDE / STRENGTH / SORT are the ControlPanel
+//                    buttons themselves.  Its three NRFI/PASS/YRFI colour
+//                    swatches are gone deliberately: colour no longer
+//                    encodes side, so the legend would be wrong.
+//   ShadowPnlCard -- folded into DemotionsBanner as its expanded body,
+//                    next to the demotion it describes.
+//
+// Their imports are removed as well as their mounts, so none of the three
+// ships in the JavaScript bundle any more.  To restore one:
+//   import { SummaryStrip } from "./SummaryStrip";   // file is untouched
+//   <SummaryStrip rows={data.rows} />                // in the JSX below
 
 // T-V21-LOCKIN-2026-05-06: removed ModelToggle (V2/V3 pill) and
 // ShadowDeltaCard (V2-vs-V2.1 daily delta tile).  V2.1 is now the
@@ -137,7 +165,7 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         }
         // Else: response semantically identical to current state.
         // Skip setData entirely so React doesn't trigger a re-render
-        // cascade through ChangeBanner / SummaryStrip / RoiPanel /
+        // cascade through ChangeBanner / TonightsActionCard / RoiPanel /
         // BoardTable / Ticker just to repaint the same content.
       }
     } finally {
@@ -338,13 +366,56 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
     [seasonRecord, data?.date],
   );
 
+  // ── D1 · ONE NIGHT OBJECT, RESOLVED ONCE ───────────────────────────
+  // The ticker, the hero card and the money panel each used to call
+  // nightFromBoard() themselves.  The comments said "one source", and
+  // they were right about the FUNCTION but not about the DATASET: the
+  // money panel preferred the nightly export (season_record.json) while
+  // the ticker and the hero always read the live board.  On any date the
+  // export covers, a grade or a manual-odds heal landing after the export
+  // put one chain in the bar and a different chain in the table -- which
+  // is exactly the "my bets are missing" reading this redesign exists to
+  // kill.  Resolve it HERE, pass it down, and the three cannot disagree.
+  //
+  // Precedence is copied verbatim from what the money panel already did:
+  // the REAL record per-day first (real captured prices, starts 5/07),
+  // then PROJECTED per-day (April is projected-only), then the live board
+  // for a date nothing has replayed yet -- i.e. tonight.
+  const night = useMemo(() => {
+    const realDay = seasonRecord?.real?.days.find((d) => d.date === data.date) ?? null;
+    const projDay = seasonRecord?.projected?.days.find((d) => d.date === data.date) ?? null;
+    return (
+      nightFromRecord(realDay ?? projDay) ??
+      nightFromBoard(data.rows, data.details, data.date)
+    );
+  }, [seasonRecord, data.rows, data.details, data.date]);
+
+  // Plumbing health, fetched once here.  It drives TWO things: the small
+  // dot on the header's "Generated ..." line (the healthy state, which no
+  // longer needs a card of its own), and whether the full ops card is
+  // mounted at all.  Previously the card always rendered -- a full-width
+  // system chip wedged between the hero and the money numbers on a night
+  // when nothing was wrong.
+  const ops = useOpsHealth();
+  const opsNeedsAttention = ops !== null && ops.status !== "ok";
+
   return (
     <>
-      {/* Full-bleed sticky ticker, outside the max-width shell */}
-      {/* `details` is required now: the ticker renders the SHARED
-          flagged/placed/settled string from lib/reconcile instead of
-          inventing its own count, and settlement lives on the detail. */}
-      <Ticker rows={data.rows} details={data.details} date={data.date} />
+      {/* Full-bleed sticky ticker, outside the max-width shell.
+          It is the only surface that survives scrolling, so it is now the
+          single home for every slate-wide total: the shared
+          flagged/placed/settled chain, the average λ AND its min–max
+          range (inherited from the deleted SummaryStrip), and the
+          shown/total game count (inherited from the deleted StatusLine).
+          `night` is passed in rather than recomputed -- see the D1 note
+          above. */}
+      <Ticker
+        rows={data.rows}
+        details={data.details}
+        date={data.date}
+        night={night}
+        shown={displayed.length}
+      />
       <main className={styles.shell}>
       {/* Tightened single-row header.  Brand on the left, slate hero
           centered, primary actions (history) and the settings dropdown
@@ -354,10 +425,10 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         <div className={styles.brand}>
           <div className={styles.mark} aria-hidden />
           <div className={styles.brandText}>
+            {/* `brandSub` ("FIRST-INNING INTELLIGENCE") removed -- it was
+                decoration taking 18px above the fold, and the mark plus
+                the title already carry the identity. */}
             <div className={styles.brandTitle}>NRFI TERMINAL</div>
-            <div className={styles.brandSub}>
-              FIRST-INNING INTELLIGENCE
-            </div>
           </div>
         </div>
 
@@ -366,8 +437,12 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           <div className={styles.slateDate}>
             {formatDateHeader(data.date)}
           </div>
+          {/* Freshness line.  "Is the data recent" and "is the plumbing
+              alive" are the same question, so the healthy ops state is a
+              dot and two ages here instead of a full-width card. */}
           <div className={styles.slateMeta}>
             Generated {formatRelativeTime(data.generatedAt)}
+            <OpsDot health={ops} />
           </div>
         </div>
 
@@ -384,33 +459,61 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         </div>
       </header>
 
-      {/* 2026-07-28 redesign order (approved shape brief, PRODUCT.md):
-          the page answers "what do I bet tonight, and how much" first,
-          then the money record, then the full board; slate distribution
-          and system plumbing drop below the fold.
-          1. TonightsActionCard -- plays + stakes (hero)
-          2. OpsHealth/Demotions -- render ONLY when something is wrong,
-             so keeping them high costs nothing on a healthy day
-          3. RoiPanel           -- System Record first inside, then ledger
-          4. ControlPanel + ChangeBanner + Board -- the full slate
-          5. SummaryStrip       -- slate distribution (retrospective)
-          6. ShadowPnlCard      -- experiment plumbing
-          7. StatusLine         -- footer
-       */}
+      {/* ══ 2026-07-28 redesign · THREE ZONES FOR THREE QUESTIONS ══
+          The operator opens this page to answer exactly three things,
+          and the page is now ordered to answer them in that order:
+
+            ZONE 1 · TONIGHT        what do I bet, and how much
+              hero card (amber rail) -> alerts -> filters -> the board
+            ZONE 2 · PERFORMANCE    how am I doing
+              inside RoiPanel: the system record, then the older ledger
+            ZONE 3 · WHY            why did the system do that
+              inside RoiPanel: the night-by-night reconciliation, below a
+              hairline rule, on the page background rather than a card
+
+          The one reorder from the previous layout: ChangeBanner moved UP
+          from under the filters to the top of Zone 1.  A pick that
+          flipped since he last looked is the most time-sensitive fact on
+          the page and he has to act on it before first pitch; it was
+          sitting below the fold underneath the money panel.  RoiPanel
+          moves down for the mirror-image reason -- a record is not a
+          thing you act on tonight. */}
+
+      {/* ZONE 1 -- the hero.  `date` is passed now (it was not before, so
+          the eyebrow read a bare "Tonight" even over a slate from three
+          weeks ago).  `replayStakes` is passed so the card's "at risk"
+          figure is the SUM OF THE STAKE CHIPS the operator can see on the
+          rows below -- previously it added up the ledger's units, which
+          are a flat 1.00 on every bet placed before Kelly sizing went
+          live, so the two disagreed on any older slate. */}
       <TonightsActionCard
         rows={data.rows}
         details={data.details}
+        date={data.date}
+        night={night}
+        replayStakes={replayStakes}
       />
 
-      <OpsHealthCard />
+      {/* ZONE 1 -- the alerts rail.  All three of these render nothing
+          when nothing is wrong, so on a healthy night this band is zero
+          pixels tall.  Order is deliberate: a pick that flipped, then a
+          STRONG pick that is deliberately carrying no bet (he has to
+          understand that BEFORE he reads the P&L or the P&L looks
+          broken), then the plumbing. */}
+      <div className={styles.alerts}>
+        <ChangeBanner changes={data.pickChanges} />
 
-      {/* 2026-05-11: surfaces active cluster demotions so an
-          experiment that should be 4 days doesn't quietly become
-          permanent.  Renders nothing if no demotions are active. */}
-      <DemotionsBanner />
+        {/* 2026-05-11: surfaces active cluster demotions so an
+            experiment that should be 4 days doesn't quietly become
+            permanent.  Renders nothing if no demotions are active. */}
+        <DemotionsBanner />
 
-      <RoiPanel initialDate={data.date} rows={data.rows} details={data.details} seasonRecord={seasonRecord} />
+        {/* Only when something is actually wrong.  The healthy state is
+            the dot on the header's "Generated ..." line. */}
+        {opsNeedsAttention && <OpsHealthCard />}
+      </div>
 
+      {/* ZONE 1 -- the board's own controls, touching the board. */}
       <ControlPanel
         dates={data.availableDates}
         date={data.date}
@@ -420,8 +523,9 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         loading={loading}
       />
 
-      <ChangeBanner changes={data.pickChanges} />
-
+      {/* ZONE 1 -- the slate, game by game.  Nothing is cut here; this is
+          where density IS the product.  The hero says how many and how
+          much in total, the board says which games and at what price. */}
       <section className={styles.board}>
         <BoardTable
           rows={displayed}
@@ -434,24 +538,109 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         />
       </section>
 
-      {/* T3.21: SummaryStrip slimmed -- retrospective slate-distribution
-          tiles. 2026-07-28: moved below the board; it was sitting
-          between the hero and the money numbers. */}
-      <SummaryStrip rows={data.rows} />
-
-      {/* 2026-05-11: side-by-side comparison of placed (REAL) vs
-          skipped (SHADOW) bets for each active cluster demotion.
-          Renders nothing if no demotions are active. */}
-      <ShadowPnlCard />
-
-      <StatusLine
-        count={displayed.length}
-        total={data.rows.length}
-        filters={filters}
-        date={data.date}
+      {/* ZONES 2 AND 3 -- how am I doing, then why did it do that.
+          Both live inside RoiPanel; `night` comes from the D1 hoist so
+          the reconciliation table cannot describe a different night from
+          the ticker and the hero. */}
+      <RoiPanel
+        initialDate={data.date}
+        rows={data.rows}
+        details={data.details}
+        seasonRecord={seasonRecord}
+        night={night}
       />
+
+      {/* No footer.  The page ends on the reconciliation table -- the
+          reference material -- rather than on a text restatement of the
+          filter buttons that are visible 400px above it. */}
       </main>
     </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   OPS HEALTH, COLLAPSED TO A DOT
+   ───────────────────────────────────────────────────────────────────
+   The full ops card used to render on every load -- "checking…" first,
+   then a full-width "System Healthy · predict 4 min ago · live state
+   just now · grade 1 h ago" chip sitting between the hero and the money
+   numbers.  On a healthy night that is a whole band of screen spent
+   saying nothing happened.
+
+   It now collapses to a 7px dot and two ages on the header line that
+   already reports data freshness, and the full card is mounted only when
+   the status is not "ok" -- at which point it IS a tonight-action fact,
+   because a broken predict cron means tonight's picks are wrong.
+
+   Fetched here rather than inside the card so ONE fetch drives both the
+   dot and the decision of whether to mount the card at all.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Only the fields the header line needs.  The full card fetches (and
+ *  types) the rest of the payload for itself when it mounts. */
+interface OpsHealthSummary {
+  status:               "ok" | "warn" | "degraded" | "unknown";
+  minutesSincePredict:  number | null;
+  minutesSinceGrade?:   number | null;
+  errorsLast24h?:       number;
+  gamesAwaitingGrade?:  number;
+  reasons?:             string[];
+}
+
+const OPS_POLL_MS = 60_000;
+
+function useOpsHealth(): OpsHealthSummary | null {
+  const [health, setHealth] = useState<OpsHealthSummary | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/health-live", { cache: "no-store" });
+        if (!res.ok) return;
+        const json = (await res.json()) as OpsHealthSummary;
+        if (!cancelled) setHealth(json);
+      } catch {
+        // Swallow: a failed health check must never blank the dashboard.
+        // The dot keeps showing the last state it successfully read.
+      }
+    };
+    void load();
+    const id = window.setInterval(() => { void load(); }, OPS_POLL_MS);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
+  return health;
+}
+
+/** Ages on the header line are deliberately terser than the ones inside
+ *  the ops card ("4m", not "4 min ago") -- this line is a glance, not a
+ *  report. */
+function compactAge(min: number | null | undefined): string {
+  if (min === null || min === undefined || !Number.isFinite(min)) return "—";
+  if (min < 1)    return "now";
+  if (min < 60)   return `${Math.round(min)}m`;
+  if (min < 1440) return `${Math.floor(min / 60)}h`;
+  return `${Math.floor(min / 1440)}d`;
+}
+
+function OpsDot({ health }: { health: OpsHealthSummary | null }) {
+  const status = health?.status ?? "unknown";
+  const title =
+    health === null
+      ? "Still checking whether the background jobs are running."
+      : status === "ok"
+        ? "The background jobs are running normally."
+        : (health.reasons && health.reasons.length > 0
+            ? health.reasons.join(" · ")
+            : "Something in the background jobs needs a look — see the alert above the board.");
+
+  return (
+    <span className={styles.opsInline} data-status={status} title={title}>
+      <span aria-hidden>·</span>
+      <span className={styles.opsDot} aria-hidden />
+      <span>predict {compactAge(health?.minutesSincePredict)}</span>
+      <span aria-hidden>·</span>
+      <span>grade {compactAge(health?.minutesSinceGrade)}</span>
+    </span>
   );
 }
 

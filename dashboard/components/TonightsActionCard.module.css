@@ -1,31 +1,51 @@
 /* ============================================================
    TonightsActionCard
-   The new top-of-fold "what should I do tonight" surface.
-   Sits between the dashboard header and SummaryStrip.
+   The top-of-fold "what should I do tonight" surface, and the
+   first card in ZONE 1 · TONIGHT.
 
    Visual rhythm:
      [eyebrow]
-     [hero count] PLAYS  [Nu staked]
+     [hero count] FLAGGED STRONG  [N.NNu at risk]
      |
-     [N] NRFI  count  units  >
-     [Y] YRFI  count  units  >
-     [·] Pending  count  meta
+     [·] NRFI     count  units
+     [·] YRFI     count  units
+     [·] Passed   count  model declined
+     [·] Pending  count  lineup not posted
 
-   The hero count is mono-tabular and visually larger than any
-   number inside SummaryStrip, so the eye lands here first.
-   Side rows are clickable when there's a jumpable target.
+   COLOUR: a hue means real money.  The only tone-carrying figure on
+   this card is the at-risk stake, and it is AMBER, not peach --
+   exposure is not profit.  Counts are --foreground.  The side dots
+   moved OFF hue entirely and onto ink weight (see below).
    ============================================================ */
 
 .wrap {
   /* margin-top removed -- .shell { gap: 16px } owns inter-section
-     spacing now.  Internal padding tightened from 24/28 to 18/22. */
-  padding: 18px 22px;
+     spacing now.  Internal padding tightened from 24/28 to 18/22.
+     padding-top gains 2px to clear the zone rail below. */
+  padding: 20px 22px 18px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-1);
   position: relative;
   overflow: hidden;
+}
+
+/* THE ZONE 1 SIGNATURE.  A 2px amber rule across the top of the hero,
+   marking where "what do I do tonight" begins.  Amber because this whole
+   zone is the part of the page a decision is waiting on -- the same
+   meaning the at-risk figure and the pending dot carry.
+
+   Declared here rather than relying on a global `.zoneAct > .zoneCard`
+   rule so the rail cannot silently vanish if the zone classes are ever
+   renamed; there is exactly one Zone 1 card, and this is it.
+   Contrast: --attn on --card is 10.58:1 dark / 6.03:1 light. */
+.wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--attn);
 }
 
 /* The 40%-wide primary gradient wash that used to live here (.wrap::after)
@@ -100,11 +120,19 @@
   margin-bottom: 4px;
 }
 
+/* AT-RISK STAKE -- AMBER, NOT PEACH.
+   This was var(--primary), i.e. the same peach the page uses for "you
+   made money".  Money you have put up is not money you have won: under
+   the new rule peach means a gain, rust means a loss, and amber means
+   money is at risk / a decision is pending.  This is the single clearest
+   demonstration of that rule on the page.
+   Contrast: --attn on --card is 10.58:1 dark / 6.03:1 light -- both
+   comfortably past WCAG AA, and both HIGHER than the peach it replaces. */
 .heroStake {
   font-family: var(--font-mono);
   font-size: 13px;
   letter-spacing: 0.04em;
-  color: var(--primary);
+  color: var(--attn);
   font-variant-numeric: tabular-nums;
   align-self: center;
   font-weight: 500;
@@ -148,19 +176,38 @@
   background: var(--muted-foreground);
 }
 
+/* SIDE DOTS -- WEIGHT, NOT HUE.
+   These were peach (NRFI) and rust (YRFI), which are also the page's
+   money-up and money-down colours: a peach dot meant either "NRFI" or
+   "profit" and the reader could not tell which.  Side identity now rides
+   on ink weight, and the letters NRFI / YRFI are printed right beside the
+   dot anyway.  --side-nrfi and --side-yrfi are 2.37x apart in luminance
+   (2.43x in light), so the two rows still read as two things.
+   Contrast on --card: --side-nrfi 5.62 dark / 6.29 light;
+   --side-yrfi is --foreground, 13.34 dark / 15.25 light. */
 .sideDot[data-tone="nrfi"] {
-  background: var(--primary);
-  box-shadow: 0 0 8px color-mix(in oklab, var(--primary) 50%, transparent);
+  background: var(--side-nrfi);
+  box-shadow: none;
 }
 
 .sideDot[data-tone="yrfi"] {
-  background: var(--destructive);
-  box-shadow: 0 0 8px color-mix(in oklab, var(--destructive) 50%, transparent);
+  background: var(--side-yrfi);
+  box-shadow: none;
 }
 
+/* Passed: the model declined.  Recessive on purpose -- it is context,
+   not an instruction. */
+.sideDot[data-tone="pass"] {
+  background: var(--muted-foreground);
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+/* Pending KEEPS amber, and is one of the few callers allowed to: a game
+   whose lineup has not posted is a decision still waiting to happen. */
 .sideDot[data-tone="pending"] {
-  background: var(--secondary);
-  box-shadow: 0 0 6px color-mix(in oklab, var(--secondary) 40%, transparent);
+  background: var(--attn);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--attn) 40%, transparent);
 }
 
 .sideLabel {
@@ -212,21 +259,37 @@
   font-weight: 400;
 }
 
-/* Pending row: amber dot, slightly subordinate type so it doesn't
-   compete with the live NRFI/YRFI rows above it. */
-.sidePending {
+/* Passed + Pending: the two context rows.  Both sit below a hairline so
+   the eye reads "two plays, then two counts that are not plays".  Type is
+   subordinate but never dimmed below AA -- --muted-foreground is 7.36:1
+   dark / 6.33:1 light on --card. */
+.sidePassed {
   margin-top: 2px;
-  border-top: 1px dashed color-mix(in oklab, var(--border) 100%, var(--secondary) 8%);
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
   padding-top: 10px;
   border-radius: 0;
 }
 
+.sidePassed .sideLabel,
 .sidePending .sideLabel {
-  color: var(--secondary);
+  color: var(--muted-foreground);
 }
 
+/* A COUNT IS NOT MONEY and it is not an alert either.  These were amber
+   numerals, which under the new rule would claim a decision is waiting on
+   the operator for every game the model quietly declined.  The amber lives
+   in the DOT only; the figures are ink. */
 .sidePending .sideCount {
-  color: var(--secondary);
+  color: var(--foreground);
+}
+
+.sidePassed .sideCount {
+  color: var(--muted-foreground);
+}
+
+/* Pending sits directly under Passed, which already carries the rule. */
+.sidePending {
+  border-radius: 0;
 }
 
 /* ===========================
@@ -235,7 +298,14 @@
 
 .empty {
   background: color-mix(in oklab, var(--card) 100%, transparent);
-  padding: 18px 24px;
+  padding: 20px 24px 18px;
+}
+
+/* No decision is waiting on an empty slate, so the zone rail drops to a
+   plain line.  The zone still starts here -- amber would be claiming
+   there is something to do when there is not. */
+.empty::before {
+  background: var(--border);
 }
 
 /* `.empty::after { display: none }` deleted along with the .wrap::after
@@ -296,8 +366,9 @@
   .wrap {
     /* No margin-top -- .shell { gap: 16px } owns inter-section spacing at
        every width.  This override re-added an 18px top margin below 640px
-       and was the reason the phone layout had a different rhythm. */
-    padding: 18px 18px;
+       and was the reason the phone layout had a different rhythm.
+       Top padding keeps the extra 2px that clears the zone rail. */
+    padding: 20px 18px 18px;
   }
 
   .heroUnit {

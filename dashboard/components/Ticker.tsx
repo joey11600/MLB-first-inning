@@ -1,6 +1,7 @@
 "use client";
 
 import type { BoardRow, GameDetail } from "@/lib/types";
+import type { NightCounts } from "@/lib/reconcile";
 import { chainText, nightFromBoard } from "@/lib/reconcile";
 import styles from "./Ticker.module.css";
 
@@ -24,6 +25,8 @@ export function Ticker({
   rows,
   details,
   date,
+  night: nightProp,
+  shown,
 }: {
   rows: BoardRow[];
   /** Required on purpose.  nightFromBoard needs the ledger detail to know
@@ -32,13 +35,20 @@ export function Ticker({
    *  is the exact failure this rewrite exists to remove. */
   details: Record<string, GameDetail>;
   date: string;
+  /** THE night, resolved once in DashboardShell and shared with the hero
+   *  card and the money panel so the three cannot describe different
+   *  nights.  Falls back to reading the board when absent. */
+  night?: NightCounts;
+  /** Games currently passing the board's filters, when that differs from
+   *  the full slate. */
+  shown?: number;
 }) {
   const avgLambda =
     rows.length === 0
       ? 0
       : rows.reduce((a, r) => a + r.lambda, 0) / rows.length;
 
-  const night = nightFromBoard(rows, details, date);
+  const night = nightProp ?? nightFromBoard(rows, details, date);
 
   return (
     <div className={styles.bar} aria-label="Slate ticker">
@@ -57,7 +67,11 @@ export function Ticker({
         </span>
         <span className={styles.metric}>
           <span className={styles.metricKey}>games</span>
-          <span className={styles.metricVal}>{rows.length}</span>
+          <span className={styles.metricVal}>
+            {shown != null && shown !== rows.length
+              ? `${shown}/${rows.length}`
+              : rows.length}
+          </span>
         </span>
       </div>
 

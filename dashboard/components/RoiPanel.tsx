@@ -2,44 +2,62 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BoardRow, GameDetail } from "@/lib/types";
-import type { LeanPaperTrade, RoiResponse, RoiWindow, ZoneRoi, ZoneProvenance } from "@/lib/roi";
-import { aggregateTodayRoi, aggregateTodayClvMeasured } from "@/lib/roi-today";
-import type { TodayClvMeasured } from "@/lib/roi-today";
+import type { RoiResponse, RoiWindow, ZoneRoi, ZoneProvenance } from "@/lib/roi";
+import { aggregateTodayRoi } from "@/lib/roi-today";
 import type { RecFile, RecSide } from "@/lib/season-record";
 import { isNum, replayWindow } from "@/lib/season-record";
+import type { NightCounts } from "@/lib/reconcile";
 import { nightFromRecord, nightFromBoard, fmtU } from "@/lib/reconcile";
 import { DayReconcile } from "./DayReconcile";
 import styles from "./RoiPanel.module.css";
 
 /* ============================================================
-   Performance panel.
+   Performance panel.  ZONE 2 (how am I doing) + ZONE 3 (why).
 
-   REBUILT 2026-07-28. The operator's complaint was that one night
-   appeared three different ways on this one screen -- "6 STRONG YRFI"
-   in the ticker, "4 graded bets -0.33" here, and "1 bet -11.15u" in
-   the season record -- with nothing saying why. Three components each
-   derived their own count from a different source.
+   REBUILT 2026-07-28, cut again the same day.  The operator asked for
+   the dashboard to be recoloured and simplified; this panel is where
+   most of the duplication lived.  Eight blocks are now four:
 
-   The structural answers:
+     1. SystemCard      the current model, quarter-Kelly, one headline
+     2. .ledgerBlock    the superseded flat-1u ledger, two rows
+     3. the LEAN line   a count, with no money on it
+     4. DayReconcile    the night game by game (Zone 3, "why")
 
-     * REAL MONEY AND SIMULATED MONEY ARE DIFFERENT SURFACES. The
-       ledger is a raised card with a tone rail. The replay is a
-       recessed, hatched card whose figures can never take a tone
-       colour (see .simCard in the stylesheet). Previously the two
-       largest numbers on the panel -- +365.10u and +130.18u -- were
-       simulated bankrolls presented in the same visual language as
-       real P&L, sitting directly above a real ledger reading -0.33.
+   WHAT WAS REMOVED AND WHERE ITS NUMBERS WENT — every deletion here
+   was a second rendering of a fact already on the page:
 
-     * THE HEADLINE IS FLAT PROFIT. Compounding quarter-Kelly on an
-       imaginary 100u bank turns a +34u edge into a +880u "profit"
-       that was never staked. That figure still renders -- the
-       operator has a history of things appearing to vanish -- but as
-       one sentence, tagged SIMULATED, at meta size.
+     * LegacyLedgerLine  summed only the STRONG zones, i.e. exactly the
+                         cards printed below it.  Its wording is now the
+                         ledger block's eyebrow.
+     * the 4 ZoneCards   the two STRONG ones became the two .ledgerRow
+                         rows (every figure kept).  The two LEAN ones are
+                         gone: LEAN is never wagered, so their "units"
+                         were a hypothetical −110 sum wearing the same
+                         type and colour as real money.
+     * LeanBlock         was the sum of those two LEAN cards.  Replaced
+                         by a sentence carrying the COUNT and no money.
+     * the pass row      a window-wide count of games the model declined.
+                         The board shows every one of them individually,
+                         with the reason, and the board header counts
+                         them.
+     * ClvStat           closing-line value is not measurable on this
+                         system (we lock the first price we see), so the
+                         tile could only ever print a disclaimer.  The
+                         disclaimer survives as a footnote; the freed
+                         slot went to "Priced", which is the number that
+                         actually says whether the headline is real.
+     * SeasonRecordCard  the model replay moved inside the collapsed
+                         "How this number was computed" box on the same
+                         card as the headline it explains.  Nothing was
+                         dropped — bank arrow, stakes, drawdown, date
+                         range, no-hindsight check, method and caveat
+                         are all in there.
+     * MigrationNote     was never mounted anywhere.
 
-     * EVERY COUNT COMES FROM lib/reconcile. Not recomputed here.
-
-   The per-date drill-down lives in DayReconcile, which is where the
-   three numbers are actually reconciled game by game.
+   TWO RULES THIS FILE OBEYS:
+     * EVERY COUNT COMES FROM lib/reconcile.  Never recomputed here.
+     * A HUE MEANS REAL MONEY.  Peach up, rust down, amber = something
+       needs a decision.  Simulated figures are never tone-coloured.
    ============================================================ */
 
 const WINDOWS: { key: RoiWindow; label: string }[] = [
@@ -56,19 +74,18 @@ interface RoiPanelProps {
   /** Fetched once by DashboardShell and shared with the board's stake
    *  chips, so the two surfaces can never quote different stakes. */
   seasonRecord: RecFile | null;
+  /** The night's counts, resolved ONCE by DashboardShell and handed to
+   *  the ticker, the hero and this panel, so the three chains cannot
+   *  read different datasets.  Optional: when it is absent this panel
+   *  resolves it exactly the same way (lib/reconcile, never local
+   *  arithmetic). */
+  night?: NightCounts | null;
 }
 
-export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelProps) {
+export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nightProp }: RoiPanelProps) {
   const [window, setWindow]   = useState<RoiWindow>("today");
   const [data, setData]       = useState<RoiResponse | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Closing-line value, measured properly: a bet only counts when the
-  // opening and the taken price actually DIFFER. See lib/roi-today.
-  const clv = useMemo(
-    () => aggregateTodayClvMeasured(rows, details),
-    [rows, details],
-  );
 
   const todayData = useMemo<RoiResponse | null>(() => {
     if (window !== "today" || !initialDate) return null;
@@ -116,14 +133,21 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelP
     [rows, details, initialDate],
   );
   // A graded date uses the record's reconciliation; the live slate uses
-  // the board, whose replay fields are null (never 0).
-  const night = fromRec ?? tonight;
+  // the board, whose replay fields are null (never 0).  If the shell
+  // already resolved it, use ITS object so the ticker, the hero and this
+  // table cannot read different datasets.
+  const night = nightProp ?? fromRec ?? tonight;
+
+  // The superseded flat-1u ledger, STRONG only.  LEAN never reaches this
+  // block: nothing was wagered on it, so it has no P&L to show.
+  const ledgerZones = (view?.betZones ?? []).filter((z) => z.strength === "STRONG");
+  const leanCalls   = view?.leanPaperTrade?.picks ?? 0;
 
   return (
     <section className={styles.wrap}>
       <header className={styles.head}>
         <div className={styles.headLeft}>
-          <span className={styles.eyebrow}>Performance</span>
+          <span className="eyebrow">Performance</span>
           {view && (
             <span className={styles.range}>
               {window === "today"
@@ -178,61 +202,64 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelP
             am I doing". Dates before 2026-07-28 are that model replayed;
             from 7/28 it is live. */}
         <SystemCard
+          rec={seasonRecord}
           side={seasonRecord?.projected ?? seasonRecord?.real ?? null}
           bankUnits={seasonRecord?.startBank ?? 100}
           startDate={view?.startDate}
           endDate={view?.endDate}
           window={window}
-          clv={clv}
-        />
-        {/* The old flat-1u ledger, demoted to one line. Real money that
-            really moved, so not deleted -- but it is the PREVIOUS gate at
-            a stake the system no longer uses, and leading with it is what
-            made the dashboard feel like it reported someone else's
-            system. */}
-        <LegacyLedgerLine total={view?.total} window={window} />
-
-        <div className={styles.zoneGrid}>
-          {(view?.betZones ?? []).map((z) => (
-            <ZoneCard key={z.label} zone={z} />
-          ))}
-          {view && view.betZones.length === 0 && (
-            <div className={styles.emptyZone}>
-              {window === "today"
-                ? "No graded bets tonight yet."
-                : "No graded bets in this window yet."}
-            </div>
-          )}
-        </div>
-
-        {/* Then the night-by-night reconciliation -- the answer to
-            "where did my bets go". */}
-        <DayReconcile
-          day={recDay}
-          tonight={night}
-          selectedDate={initialDate}
-          sideFrom={recSide?.from}
-          sideTo={recSide?.to}
         />
 
-        {/* Then, clearly marked as simulation, the model replay. */}
-        {seasonRecord && <SeasonRecordCard rec={seasonRecord} />}
-
-        {view?.leanPaperTrade && view.leanPaperTrade.picks > 0 && (
-          <LeanBlock paper={view.leanPaperTrade} />
-        )}
-
-        {view && view.passZones.length > 0 && (
-          <div className={styles.passRow}>
-            <span className={styles.passEyebrow}>No-bet calls</span>
-            {view.passZones.map((z) => (
-              <span key={z.label} className={styles.passChip}>
-                <span className={styles.passChipLabel}>{z.label}</span>
-                <span className={styles.passChipCount}>{z.picks}</span>
-              </span>
+        {/* The old flat-1u ledger. Real money that really moved, so it is
+            not deleted -- but it is the PREVIOUS gate at a stake the
+            system no longer uses, so it gets one quiet block rather than
+            a grid of its own. */}
+        {ledgerZones.length > 0 && (
+          <div className={styles.ledgerBlock}>
+            <span className="eyebrow">Older ledger · flat 1u · superseded 2026-07-28</span>
+            {ledgerZones.map((z) => (
+              <LedgerRow key={z.label} zone={z} />
             ))}
           </div>
         )}
+        {view && ledgerZones.length === 0 && (
+          <div className={styles.emptyZone}>
+            {window === "today"
+              ? "No graded bets tonight yet."
+              : "No graded bets in this window yet."}
+          </div>
+        )}
+
+        {/* LEAN calls: a COUNT, deliberately with no money on it. They are
+            never wagered, so any P&L here would be imaginary -- and an
+            imaginary figure in the same shape as a real one is what made
+            this panel hard to trust. The calls themselves are still on
+            the board, game by game, with their prices. */}
+        {leanCalls > 0 && (
+          <p className={styles.leanLine}>
+            <span className="num">{leanCalls}</span> LEAN {leanCalls === 1 ? "call" : "calls"} in
+            this window — never bet, so no P&amp;L is shown. They appear game by
+            game on the board.
+          </p>
+        )}
+
+        {/* ── ZONE 3 · WHY ──────────────────────────────────────────
+            A visible boundary, on the page background with no card. It
+            tells the operator he has left the money and entered the
+            reference material -- which is the visual form of "these
+            counts are ALLOWED to differ". */}
+        <div className={`zoneWhy ${styles.whyZone}`}>
+          <div className="zoneHead">
+            <span className="eyebrow">Why the system did that</span>
+          </div>
+          <DayReconcile
+            day={recDay}
+            tonight={night}
+            selectedDate={initialDate}
+            sideFrom={recSide?.from}
+            sideTo={recSide?.to}
+          />
+        </div>
       </div>
     </section>
   );
@@ -249,10 +276,16 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord }: RoiPanelP
  *
  *  NRFI is reported SEPARATELY and never folded into the headline:
  *  _LR_STRONG_NRFI_P is 1.01, so the live system does not place it, and
- *  counting it would report losses on bets that were never made. */
+ *  counting it would report losses on bets that were never made.
+ *
+ *  The card now carries three things that used to be separate surfaces:
+ *  the CLV footnote (was a stat tile that could only say "Not
+ *  measurable"), the reconciler sentence, and the whole model replay
+ *  inside a collapsed disclosure. */
 function SystemCard({
-  side, bankUnits, startDate, endDate, window: win, clv,
+  rec, side, bankUnits, startDate, endDate, window: win,
 }: {
+  rec: RecFile | null;
   side: RecSide | null;
   /** The operator's ACTUAL bankroll (100u). Every unit figure on this
    *  card is rebased to it. The raw simulation compounds to ~1200u by
@@ -261,221 +294,188 @@ function SystemCard({
   startDate: string | undefined;
   endDate: string | undefined;
   window: RoiWindow;
-  clv: TodayClvMeasured | null;
 }) {
   const w = replayWindow(side, startDate, endDate);
   const label = win === "season" ? "Season to date"
     : win === "today" ? "Tonight"
     : win === "7d" ? "Last 7 days" : "Last 30 days";
 
-  if (!w) {
-    return (
-      <div className={styles.moneyCard} data-tone="neutral">
-        <div className={styles.totalLeft}>
-          <span className={styles.eyebrow}>The system · ¼-Kelly · {label}</span>
-          <span className={styles.figHero}>—</span>
-          <span className={styles.meta}>No bets settled in this window yet.</span>
-        </div>
-        <div className={styles.totalRight}>
-          <Stat label="Record" value="0-0" />
-          <Stat label="Hit rate" value="—" />
-          <ClvStat clv={clv} />
-        </div>
-      </div>
-    );
-  }
-
-  const y = w.yrfi;
+  const y = w?.yrfi ?? null;
   const tone: "win" | "loss" | "neutral" =
-    y.pnl > 0.05 ? "win" : y.pnl < -0.05 ? "loss" : "neutral";
-  const pct = isNum(w.bankStart) && w.bankStart > 0 ? y.pnl / w.bankStart : null;
+    !y ? "neutral" : y.pnl > 0.05 ? "win" : y.pnl < -0.05 ? "loss" : "neutral";
+  const pct = w && y && isNum(w.bankStart) && w.bankStart > 0 ? y.pnl / w.bankStart : null;
 
   return (
     <div className={styles.moneyCard} data-tone={tone}>
       <div className={styles.totalLeft}>
-        <span className={styles.eyebrow}>The system · ¼-Kelly · {label}</span>
-        <span className={styles.figHero}>
-          {pct == null ? fmtU(y.pnl)
-            : `${pct >= 0 ? "+" : "−"}${Math.abs(100 * pct).toFixed(1)}%`}
-        </span>
-        <span className={styles.meta}>
-          {pct == null
-            ? `${y.bets} ${y.bets === 1 ? "bet" : "bets"}`
-            : `${fmtU(pct * bankUnits)} on your ${bankUnits.toFixed(0)}u bankroll`}
-          {` · ${y.bets} ${y.bets === 1 ? "bet" : "bets"} · ${y.wins}-${y.bets - y.wins} · YRFI · ${w.from} → ${w.to}`}
-        </span>
-        {w.assumed > 0 && (
-          <span className={styles.provNote}>
-            <span className={styles.provDot} aria-hidden />
-            {`${w.assumed} of ${w.bets} bets had no captured DraftKings price and `}
-            {`were priced at an assumed −125. Assume −155 instead and the `}
-            {`season's simulated bank falls by roughly a third.`}
-          </span>
-        )}
-        {w.nrfi.bets > 0 && (
-          <span className={styles.provNote}>
-            <span className={styles.provDot} aria-hidden />
-            {`NRFI is tracked but NOT bet — the live gate is switched off. `}
-            {`${w.nrfi.bets} would-be ${w.nrfi.bets === 1 ? "bet" : "bets"}, `}
-            {`${w.nrfi.wins}-${w.nrfi.bets - w.nrfi.wins}`}
-            {isNum(w.bankStart) && w.bankStart > 0
-              ? `, ${fmtU((w.nrfi.pnl / w.bankStart) * bankUnits)}` : ""}
-            {`. Not counted above.`}
-          </span>
+        <span className="eyebrow">The system · ¼-Kelly · {label}</span>
+        {w && y ? (
+          <>
+            <span className="figHero">
+              {pct == null ? fmtU(y.pnl)
+                : `${pct >= 0 ? "+" : "−"}${Math.abs(100 * pct).toFixed(1)}%`}
+            </span>
+            <span className="meta">
+              {pct == null
+                ? `${y.bets} ${y.bets === 1 ? "bet" : "bets"}`
+                : `${fmtU(pct * bankUnits)} on your ${bankUnits.toFixed(0)}u bankroll`}
+              {` · ${y.bets} ${y.bets === 1 ? "bet" : "bets"} · ${y.wins}-${y.bets - y.wins} · YRFI · ${w.from} → ${w.to}`}
+            </span>
+            {w.assumed > 0 && (
+              <span className={styles.provNote}>
+                {/* Amber: a price we never captured is a thing that needs
+                    the operator's attention, which is what amber means
+                    now. */}
+                <span className={styles.provDot} data-attn="1" aria-hidden />
+                {`${w.assumed} of ${w.bets} bets had no captured DraftKings price and `}
+                {`were priced at an assumed −125. Assume −155 instead and the `}
+                {`season's simulated bank falls by roughly a third.`}
+              </span>
+            )}
+            {w.nrfi.bets > 0 && (
+              <span className={styles.provNote}>
+                <span className={styles.provDot} aria-hidden />
+                {`NRFI is tracked but NOT bet — the live gate is switched off. `}
+                {`${w.nrfi.bets} would-be ${w.nrfi.bets === 1 ? "bet" : "bets"}, `}
+                {`${w.nrfi.wins}-${w.nrfi.bets - w.nrfi.wins}`}
+                {isNum(w.bankStart) && w.bankStart > 0
+                  ? `, ${fmtU((w.nrfi.pnl / w.bankStart) * bankUnits)}` : ""}
+                {`. Not counted above.`}
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <span className="figHero">—</span>
+            <span className="meta">No bets settled in this window yet.</span>
+          </>
         )}
       </div>
+
       <div className={styles.totalRight}>
-        <Stat label="Record" value={`${y.wins}-${y.bets - y.wins}`} />
+        <Stat label="Record"
+          value={w && y ? `${y.wins}-${y.bets - y.wins}` : "0-0"} />
         <Stat label="Hit rate"
-          value={y.bets > 0 ? `${(100 * y.wins / y.bets).toFixed(1)}%` : "—"} />
-        <ClvStat clv={clv} />
+          value={y && y.bets > 0 ? `${(100 * y.wins / y.bets).toFixed(1)}%` : "—"} />
+        {/* Replaces the closing-line-value tile. This is the number that
+            governs whether the headline above is real money or a priced
+            guess, and it was nowhere on the panel before. */}
+        <Stat
+          label="Priced"
+          value={w ? `${w.bets - w.assumed} of ${w.bets}` : "—"}
+          caption="at a captured DraftKings price"
+          muted
+        />
       </div>
+
+      {/* The closing-line-value explanation, kept word for word. The tile
+          it used to live in only ever printed "Not measurable", which is
+          a disclaimer, not a statistic. */}
+      <p className={styles.clvFootnote}>
+        Closing-line value is not measurable here — we bet the first price
+        we see and lock it, so there is no closing price to compare
+        against. Per-game moves, when they happen, still show in the odds
+        chip on the board.
+      </p>
+
+      {/* Nothing on this page said this before, and it is the whole answer
+          to "why does it say 43-38 up there and 112 bets 58-54 down
+          here". */}
+      <p className={styles.reconciler}>
+        <b>Above:</b> YRFI bets inside the window you picked. <b>Inside
+        &ldquo;How this number was computed&rdquo;:</b> the same replay over
+        its whole run, both sides. Different populations, so the bet counts
+        differ.
+      </p>
+
+      {rec && <HowComputed rec={rec} />}
     </div>
   );
 }
 
-/** The pre-2026-07-28 ledger, as one quiet line. Real money, old gate,
- *  flat 1u -- kept because it happened, demoted because it is not the
- *  system any more. */
-function LegacyLedgerLine({ total, window: win }: {
-  total: ZoneRoi | undefined; window: RoiWindow;
-}) {
-  if (!total || total.bets === 0) return null;
-  return (
-    <div className={styles.legacyLine}>
-      <span className={styles.meta}>
-        <b>Older ledger</b> — what was actually bet under the previous gate
-        at a flat 1u stake{win === "season" ? "" : " in this window"}:{" "}
-        {fmtU(realPL(total))} over {total.bets} settled{" "}
-        {total.bets === 1 ? "bet" : "bets"} ({total.wins}-{total.losses}).
-        Superseded on 2026-07-28.
-      </span>
-    </div>
-  );
-}
-
-/** One-week note explaining where the giant bankroll number went.
+/** THE MODEL REPLAY, folded into the card whose headline it explains.
  *
- *  The operator has watched a compounded figure (+365.10u) as though it
- *  were his season. Replacing the headline with flat profit moves it to
- *  +34.66u. His incident history is entirely about things appearing to
- *  disappear, so the change is announced rather than discovered. */
-function MigrationNote() {
-  const [gone, setGone] = useState(false);
-  if (gone) return null;
-  return (
-    <div className={styles.migrationNote}>
-      <span className={styles.copy}>
-        The big bankroll number moved. It is now one sentence inside{" "}
-        <b>Model replay</b>, marked SIMULATED — it was a compounding
-        back-test on an imaginary 100u bank, not your ledger. Nothing was
-        deleted.
-      </span>
-      <button type="button" className={styles.noteDismiss} onClick={() => setGone(true)}>
-        Dismiss
-      </button>
-    </div>
-  );
-}
-
-/** Closing-line value, or an honest statement that there isn't one.
+ *  This is the whole of the old "Model replay" card. It is collapsed
+ *  because every figure in it is SIMULATED, and a back-test must not sit
+ *  as a peer of the real ledger -- but nothing was dropped, and the
+ *  compounded bank arrow the operator has been reading as his season is
+ *  still here, now with a sentence saying what it actually is.
  *
- *  This used to render "+0.00pp" whenever no movement was observed,
- *  which reads as "we measured zero" when the truth is "there was
- *  nothing to measure": once a bet is placed the price is frozen
- *  (T2.23), so for most rows the opening and taken prices are the same
- *  recorded number. A measured zero and an unmeasurable quantity are
- *  different claims. */
-function ClvStat({ clv }: { clv: TodayClvMeasured | null }) {
-  // Narrow to a local so TypeScript can prove avgPp is a number in the
-  // measurable branch -- the library types avgPp as null EXACTLY when
-  // measured === 0, which is what makes "+0.00pp" unrepresentable.
-  const avg = clv && clv.measured > 0 ? clv.avgPp : null;
+ *  The side shown is `projected`, which is the SAME object SystemCard
+ *  leads with (RoiPanel passes projected ?? real). That is deliberate:
+ *  the two can now differ only by date window, never by population. */
+function HowComputed({ rec }: { rec: RecFile }) {
+  const real = rec.real;
   return (
-    <div className={styles.stat}>
-      <span className={styles.statLabel}>Closing-line value</span>
-      <span className={`${styles.figStat} ${avg == null ? styles.statMuted : ""}`}>
-        {avg == null ? "Not measurable" : signedPpText(avg / 100)}
-      </span>
-      <span className={styles.statCaption}>
-        {avg != null && clv
-          ? `across ${clv.measured} of ${clv.placed} placed bets`
-          : `We bet the first price we see and lock it, so there is no closing price to compare against.` +
-            (clv ? ` Tonight 0 of ${clv.placed} placed bets saw the line move.` : "")}
-      </span>
-    </div>
-  );
-}
+    <details className={styles.howBox}>
+      <summary>How this number was computed</summary>
 
-/* ---------------------------------------------------------------- */
+      <p>
+        <span className="tag">Simulated</span> {rec.headlineMethod}
+      </p>
 
-/** The model replay: what the CURRENTLY DEPLOYED model would have done.
- *
- *  Everything in here is simulated. The card is recessed and hatched,
- *  and .simCard forces every figure to --foreground so a simulated
- *  number can never render in the same peach as real profit. */
-function SeasonRecordCard({ rec }: { rec: RecFile }) {
-  return (
-    <div className={styles.simCard}>
-      <div className={styles.recHead}>
-        <span className={styles.eyebrow}>Model replay</span>
-        <span className={styles.tag}>Simulated</span>
-      </div>
-      <p className={styles.meta}>{rec.headlineMethod}</p>
-      <div className={styles.recGrid}>
-        <RecordColumn side={rec.real} which="real" />
-        <RecordColumn side={rec.projected} which="projected" />
-      </div>
-      <p className={`${styles.meta} ${styles.simNote}`}>{rec.caveat}</p>
-    </div>
-  );
-}
-
-function RecordColumn({ side, which }: { side: RecSide | null; which: "real" | "projected" }) {
-  const eyebrow = which === "real"
-    ? "Real prices · ¼-Kelly compounded"
-    : "Whole season · ¼-Kelly compounded";
-  if (!side) {
-    return (
-      <div className={styles.recCol}>
-        <span className={styles.eyebrow}>{eyebrow}</span>
-        <span className={styles.meta}>
+      {rec.projected ? (
+        <ReplayBody side={rec.projected} />
+      ) : (
+        <p>
           Model replay unavailable — the export ran but produced no staked
           bets for this side.
-        </span>
-      </div>
-    );
-  }
+        </p>
+      )}
+
+      {/* The one fact the deleted "Real prices" column carried that the
+          projected column does not: the same replay restricted to bets
+          that had a genuine captured DraftKings price. */}
+      {real && isNum(real.sim.profit) && (
+        <p>
+          {`Over real captured prices only (${real.from} → ${real.to}): `}
+          {`${fmtU(real.sim.profit)}, ${real.bets} ${real.bets === 1 ? "bet" : "bets"}, `}
+          {`${real.wins}-${real.losses}.`}
+        </p>
+      )}
+
+      <p>The flat-1u ledger below was superseded on 2026-07-28.</p>
+      <p>{rec.caveat}</p>
+    </details>
+  );
+}
+
+/** The replay's own figures. Every one of these was on the deleted
+ *  "Model replay" card and every one of them is still here. */
+function ReplayBody({ side }: { side: RecSide }) {
   const k = side.sim;
-  // 2026-07-28 (operator): the system stakes by quarter-Kelly now, so the
-  // record is read in Kelly units. Flat 1u stays on screen as the
-  // un-leveraged reference -- it is what the edge is worth before any
-  // sizing decision -- but it is no longer the headline.
-  const tone: "win" | "loss" | "neutral" =
-    !isNum(k?.profit) ? "neutral" : k.profit > 0.05 ? "win" : k.profit < -0.05 ? "loss" : "neutral";
   return (
-    <div className={styles.recCol} data-tone={tone}>
-      <span className={styles.eyebrow}>{eyebrow}</span>
-      <span className={`${styles.figLead} ${styles.simFig}`}>
-        {isNum(k?.profit) ? fmtU(k.profit) : "—"}
-      </span>
-      <span className={styles.meta}>
-        {isNum(k?.finalBank)
-          ? `bank ${k.startBank.toFixed(0)}u → ${k.finalBank.toFixed(2)}u · `
-          : ""}
-        {`${side.bets} bets · ${side.wins}-${side.losses} · `}
-        {isNum(side.hitRate) ? `${(100 * side.hitRate).toFixed(1)}% hit` : ""}
-      </span>
+    <>
+      <p>
+        {`Whole season · ¼-Kelly compounded: ${isNum(k.profit) ? fmtU(k.profit) : "—"} over `}
+        {`${side.bets} ${side.bets === 1 ? "bet" : "bets"}, ${side.wins}-${side.losses}`}
+        {isNum(side.hitRate) ? `, ${(100 * side.hitRate).toFixed(1)}% hit` : ""}.
+      </p>
+
+      {/* THE BIG BANKROLL NUMBER. Demoted to one sentence, never
+          removed -- this is the figure the operator has historically
+          read as his season. */}
+      {isNum(k.finalBank) && isNum(k.startBank) && (
+        <p>
+          Simulated bank{" "}
+          <span className={styles.simBank}>
+            {k.startBank.toFixed(0)}u → {k.finalBank.toFixed(2)}u
+          </span>{" "}
+          — a compounding back-test on an imaginary bank, not your ledger.
+        </p>
+      )}
+
       {/* What compounding actually asks of you. An average hides it: on
           the projected path the bank grows ~10x, so the 10%-per-bet cap
           puts late stakes near 80u. */}
-      {isNum(k?.medianStake) && (
-        <span className={styles.meta}>
-          {`typical bet ${k.medianStake.toFixed(2)}u · biggest ${(k.largestStake ?? 0).toFixed(2)}u · `}
-          {`deepest drawdown ${k.maxDrawdownPct.toFixed(1)}%`}
-        </span>
+      {isNum(k.medianStake) && (
+        <p>
+          {`Typical bet ${k.medianStake.toFixed(2)}u · biggest ${(k.largestStake ?? 0).toFixed(2)}u`}
+          {isNum(k.maxDrawdownPct) ? ` · deepest drawdown ${k.maxDrawdownPct.toFixed(1)}%` : ""}.
+        </p>
       )}
-      <span className={styles.meta}>
+
+      <p>
         {side.from} → {side.to}
         {side.priceFill != null
           ? ` · missing prices filled at ${side.priceFill} (${side.assumedBets} of ${side.bets})`
@@ -483,85 +483,71 @@ function RecordColumn({ side, which }: { side: RecSide | null; which: "real" | "
         {isNum(side.selectedBets) && (side.droppedZeroStake ?? 0) > 0 && (
           <> · staked {side.bets} of {side.selectedBets} qualifying ({side.droppedZeroStake} sized to zero)</>
         )}
-      </span>
+      </p>
+
       {side.floor && (
-        <div className={styles.floorBlock}>
-          <span className={styles.eyebrow}>No-hindsight check</span>
-          <span className={styles.meta}>
-            {`${fmtU(side.floor.sim.profit)} over ${side.floor.bets} bets `}
-            {`(${side.floor.wins}-${side.floor.losses}), same ¼-Kelly staking.`}
-          </span>
-        </div>
+        <p>
+          {`No-hindsight check: ${fmtU(side.floor.sim.profit)} over ${side.floor.bets} bets `}
+          {`(${side.floor.wins}-${side.floor.losses}), same ¼-Kelly staking.`}
+        </p>
       )}
-    </div>
+    </>
   );
 }
 
-/** LEAN picks: model calls that were never bet. */
-function LeanBlock({ paper }: { paper: LeanPaperTrade }) {
-  return (
-    <div className={styles.simCard}>
-      <div className={styles.recHead}>
-        <span className={styles.eyebrow}>Lean picks · never bet</span>
-        <span className={styles.tag}>Not bet</span>
-      </div>
-      <span className={styles.figLead}>
-        {paper.bets > 0 ? fmtU(paper.paperPL) : "—"}
-      </span>
-      <span className={styles.meta}>
-        {paper.bets > 0
-          ? `hypothetical flat −110 across ${paper.bets} graded LEAN (${paper.wins}W-${paper.losses}L)`
-          : `${paper.picks} LEAN picks not graded yet — nothing to evaluate.`}
-      </span>
-    </div>
-  );
-}
-
-function ZoneCard({ zone }: { zone: ZoneRoi }) {
+/** One row of the superseded flat-1u ledger.
+ *
+ *  Was a card in a four-up grid. Every figure it printed is still here:
+ *  the label, the W-L, the units, the hit rate, the points versus
+ *  break-even, the bar and its 52.38% break-even tick. What it lost is
+ *  the card shape, which is what made a never-bet LEAN tier look like a
+ *  peer of real money. */
+function LedgerRow({ zone }: { zone: ZoneRoi }) {
   const tone = zoneTone(zone);
-  const sideTone = zone.side === "NRFI" ? "nrfi" : zone.side === "YRFI" ? "yrfi" : "neutral";
   return (
-    <div className={`${styles.zoneCard} ${styles[`zone_${sideTone}`]} ${styles[`tone_${tone}`]}`}>
-      <header className={styles.zoneHead}>
-        <span className={styles.zoneLabel}>{zone.label}</span>
-        <span className={styles.zoneCount}>
-          {zone.bets > 0 ? `${zone.wins}-${zone.losses}` : "—"}
+    <div className={styles.ledgerRow} data-side={zone.side} data-tone={tone}>
+      <span className={styles.ledgerLabel}>{zone.label}</span>
+      <span className={styles.ledgerCount}>
+        {zone.bets > 0 ? `${zone.wins}-${zone.losses}` : "—"}
+      </span>
+      <div className={styles.ledgerMid}>
+        <div className={styles.ledgerBar}>
+          <span
+            className={styles.ledgerBarFill}
+            style={{ width: `${barWidthPct(zone.hitRate)}%` }}
+            aria-hidden
+          />
+          <span className={styles.ledgerBarBE} aria-hidden />
+        </div>
+        <span className={styles.ledgerSub}>
+          {zone.bets > 0 ? (
+            <>
+              <span><span className="num">{pctText(zone.hitRate)}</span> hit</span>
+              <span className={styles.ledgerSep} aria-hidden>·</span>
+              <span>
+                <span className="num">{signedPctText(zone.edgeVsBreakEven)}</span> vs break-even
+              </span>
+            </>
+          ) : (
+            <span>{zone.picks} picks, none graded yet</span>
+          )}
         </span>
-      </header>
-      <div className={styles.zoneUnits}>
+      </div>
+      <span className={styles.ledgerUnits}>
         {zone.bets > 0 ? fmtU(realPL(zone)) : "—"}
-        <span className={styles.zoneUnitsLabel}>units</span>
-      </div>
-      <div className={styles.zoneSub}>
-        {zone.bets > 0 ? (
-          <>
-            <span>{pctText(zone.hitRate)} hit</span>
-            <span className={styles.zoneSep}>·</span>
-            <span className={styles[`edge_${tone}`]}>
-              {signedPctText(zone.edgeVsBreakEven)} vs break-even
-            </span>
-          </>
-        ) : (
-          <span className={styles.zoneSubMuted}>{zone.picks} picks, none graded yet</span>
-        )}
-      </div>
-      <div className={styles.zoneBar}>
-        <span
-          className={styles.zoneBarFill}
-          style={{ width: `${barWidthPct(zone.hitRate)}%` }}
-          aria-hidden
-        />
-        <span className={styles.zoneBarBE} aria-hidden />
-      </div>
+      </span>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, caption, muted }: {
+  label: string; value: string; caption?: string; muted?: boolean;
+}) {
   return (
     <div className={styles.stat}>
       <span className={styles.statLabel}>{label}</span>
-      <span className={styles.figStat}>{value}</span>
+      <span className={`figStat ${muted ? styles.statProv : ""}`}>{value}</span>
+      {caption && <span className={styles.statCaption}>{caption}</span>}
     </div>
   );
 }
@@ -575,7 +561,7 @@ function realPL(z: ZoneRoi): number {
   return known > 0 ? p.realPricedPL : z.unitsPL;
 }
 
-/** Tone follows realPL -- the number the card PRINTS. It used to key off
+/** Tone follows realPL -- the number the row PRINTS. It used to key off
  *  z.unitsPL, the placeholder-inflated raw sum, so a zone could print a
  *  loss in the colour of a win. */
 function zoneTone(z: ZoneRoi): "win" | "loss" | "neutral" {
@@ -594,11 +580,6 @@ function pctText(p: number): string {
 function signedPctText(p: number): string {
   if (Number.isNaN(p)) return "—";
   return `${p >= 0 ? "+" : ""}${(p * 100).toFixed(1)}pp`;
-}
-
-function signedPpText(p: number): string {
-  if (!Number.isFinite(p)) return "—";
-  return `${p >= 0 ? "+" : ""}${(p * 100).toFixed(2)}pp`;
 }
 
 function barWidthPct(hitRate: number): number {

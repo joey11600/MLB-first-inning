@@ -200,7 +200,14 @@ function rowToBoardRow(r: PickRow, rank: number): BoardRow {
     // disagreed with archived board CSVs and the CSV-fallback path.
     // Stick to combined_lambda; fall back to lambda_lr_total only for
     // legacy rows that pre-date combined_lambda.
-    lambda:         num(r.combined_lambda ?? r.lambda_lr_total),
+    // 2026-07-28 AUDIT FIX: this preferred `combined_lambda`, the LEGACY V2
+    // Poisson lambda, over the model's own lambda_lr_total. They are not the
+    // same quantity -- Pearson r = 0.43, 36% of pairs rank-invert, means
+    // 0.989 vs 0.752 -- so the operator saw an expected-runs figure next to
+    // a verdict that a different model produced, and the board SORTED by it.
+    // Prefer the model's own lambda; fall back to the legacy column only for
+    // pre-2026-04-27 rows that genuinely predate it.
+    lambda:         nullableNum(r.lambda_lr_total) ?? num(r.combined_lambda),
     lambdaLrTotal:  nullableNum(r.lambda_lr_total),
     yrfiFloorUsed:  weatherAdjustedYrfiFloor(r),
     pickSide:       normalizePickSide(str(r.pick_side)),
@@ -282,7 +289,14 @@ function rowToGameDetail(r: PickRow): GameDetail {
     marketYrfiOdds:  str(r.market_yrfi_odds),
     sportsbook:      str(r.sportsbook),
     oddsCapturedAt:  str(r.odds_captured_at),
-    edgeOnPick:      num(r.edge_on_pick),
+    // 2026-07-28 AUDIT FIX: num() turns NULL/'' into 0, and "+0.0%" is a
+    // real-looking string, so 16 rows with a real captured price but no
+    // stored edge rendered a FABRICATED "+0.0%" -- including "Skipped:
+    // edge +0.0%", a skip justified by an edge of exactly nothing, when
+    // the correct copy ("edge below threshold") was already written and
+    // simply unreachable. The field is typed `number | null` for exactly
+    // this reason; every consumer already guards on null.
+    edgeOnPick:      nullableNum(r.edge_on_pick),
     betPlaced:       (() => {
       const up = str(r.bet_placed).trim().toUpperCase();
       return up === "Y" ? "Y" : up === "N" ? "N" : "";
