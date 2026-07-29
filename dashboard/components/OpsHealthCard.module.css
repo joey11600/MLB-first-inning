@@ -179,7 +179,15 @@
 .statusUnknown   { color: var(--muted-foreground); }
 .statusUnknown .statusText { color: var(--muted-foreground); }
 
-/* Expanded panel below the pill */
+/* Expanded panel below the pill.
+
+   FIX 3 (2026-07-28) — HEIGHT IS CAPPED.
+   This panel measured ~430px when an error existed, of which ~391px was
+   not errors: an open notices list, a "Why Warning" section restating the
+   tooltip, and untruncated multi-line stack messages.  On a 900px viewport
+   that pushed the money numbers below the fold.  Now it is capped at
+   216px and scrolls INSIDE ITSELF -- the page below never moves, and the
+   full text of any clipped message is on the element's tooltip. */
 .expand {
   margin-top: 8px;
   padding: 14px 16px 16px;
@@ -189,6 +197,9 @@
   box-shadow: var(--shadow-1);
   display: grid;
   gap: 14px;
+  max-height: 216px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .section {
@@ -203,8 +214,7 @@
 }
 
 .stepList,
-.errList,
-.reasonList {
+.errList {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -252,23 +262,58 @@
 .errTime {
   color: var(--muted-foreground);
 }
+/* Clamped to two lines.  A single Python traceback used to render eleven
+   lines here.  The full text is on the element's `title`, so nothing is
+   lost -- it just stops being the tallest thing on the page. */
 .errMessage {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11px;
   color: color-mix(in oklab, var(--foreground) 80%, var(--muted-foreground));
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.reasonRow {
-  font-size: 12px;
+/* ── ROUTINE NOTICES ──────────────────────────────────────────────
+   Collapsed by default and deliberately NOT wearing the error treatment.
+   The live ones are `reconcile-heal` successes: the system noticed a gap
+   and closed it.  Dressing a repair in rust made a working system look
+   broken.  Everything here is --muted-foreground on --card
+   (7.36:1 dark / 6.33:1 light -- clears WCAG AA 4.5:1).  No new colour
+   is introduced by this block. */
+.noticeBox {
+  border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+.noticeBox > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 11.5px;
   color: var(--muted-foreground);
 }
-/* The arrow bullet was a peach mix.  A list marker is chrome, not a
-   result -- plain ink. */
-.reasonRow::before {
-  content: "→ ";
+.noticeBox > summary::-webkit-details-marker { display: none; }
+.noticeBox > summary::after  { content: " \25B8"; }
+.noticeBox[open] > summary::after { content: " \25BE"; }
+.noticeBox > summary:hover { color: var(--foreground); }
+
+.noticeRow {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  background: color-mix(in oklab, var(--muted-foreground) 6%, transparent);
+  border-left: 2px solid color-mix(in oklab, var(--border) 70%, transparent);
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+.noticeStep {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 600;
   color: var(--muted-foreground);
-  font-weight: 700;
 }
 
 /* Mobile -- compact pill layout (status + predict age only; rest

@@ -158,7 +158,25 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
   // The superseded flat-1u ledger, STRONG only.  LEAN never reaches this
   // block: nothing was wagered on it, so it has no P&L to show.
   const ledgerZones = (view?.betZones ?? []).filter((z) => z.strength === "STRONG");
-  const leanCalls   = view?.leanPaperTrade?.picks ?? 0;
+
+  // FIX 2 (2026-07-28) — THE HEADER SAID THE SEASON STARTED IN JANUARY.
+  //
+  // The season window's startDate is built as `<year>-01-01`, so the range
+  // printed "2026-01-01 → 2026-07-28" — 209 days — next to a
+  // "across 116 days" count, implying 93 blank days the operator kept
+  // asking about.  The first row in the ledger is 2026-04-01.
+  //
+  // This is a DISPLAY clamp only: the first date the cumulative series
+  // actually carries is, by construction, the earliest date in the window
+  // with a graded bet.  It is applied to `season` alone — on 7d/30d the
+  // requested start is a real boundary the operator chose and must keep
+  // seeing, even if the first day or two graded nothing.
+  const displayStart = useMemo(() => {
+    if (!view) return "";
+    if (window !== "season") return view.startDate;
+    const firstGraded = view.cumulativePL?.[0]?.date;
+    return firstGraded && firstGraded > view.startDate ? firstGraded : view.startDate;
+  }, [view, window]);
 
   return (
     <section className={styles.wrap}>
@@ -169,7 +187,7 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
             <span className={styles.range}>
               {window === "today"
                 ? <>Tonight&rsquo;s slate</>
-                : <>{view.startDate} → {view.endDate}</>}
+                : <>{displayStart} → {view.endDate}</>}
               {view.daysIncluded > 0 && window !== "today" && (
                 <>
                   {" · "}
@@ -248,18 +266,16 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
           </div>
         )}
 
-        {/* LEAN calls: a COUNT, deliberately with no money on it. They are
-            never wagered, so any P&L here would be imaginary -- and an
-            imaginary figure in the same shape as a real one is what made
-            this panel hard to trust. The calls themselves are still on
-            the board, game by game, with their prices. */}
-        {leanCalls > 0 && (
-          <p className={styles.leanLine}>
-            <span className="num">{leanCalls}</span> LEAN {leanCalls === 1 ? "call" : "calls"} in
-            this window — never bet, so no P&amp;L is shown. They appear game by
-            game on the board.
-          </p>
-        )}
+        {/* CUT 2026-07-28 — the LEAN calls line.
+            It read: "N LEAN calls in this window — never bet, so no P&L is
+            shown. They appear game by game on the board."  A sentence
+            whose entire content is that it has no content.  Nothing is
+            pending a decision on LEAN either: season LEAN YRFI is 14
+            graded at 35.7% and LEAN NRFI 263 at 46.0%, both well under
+            break-even, and the playbook's tier-expansion criterion is 60
+            graded.  If LEAN ever becomes a live question it earns an
+            evaluation, not a count.  The calls themselves are unchanged
+            and still on the board, game by game, with their prices. */}
 
         {/* ZONE 3 ("why the system did that") used to render here. The
             operator asked for the record at the TOP of the page, so this
@@ -540,35 +556,59 @@ function ReplayBody({ side }: { side: RecSide }) {
 
 /** One row of the superseded flat-1u ledger.
  *
- *  Was a card in a four-up grid. Every figure it printed is still here:
- *  the label, the W-L, the units, the hit rate, the points versus
- *  break-even, the bar and its 52.38% break-even tick. What it lost is
- *  the card shape, which is what made a never-bet LEAN tier look like a
- *  peer of real money. */
+ *  FIX 6 (2026-07-28) — ONE POPULATION PER ROW.
+ *
+ *  This row used to print the record and the hit rate over ALL graded
+ *  bets, next to a "vs break-even" figure and a units figure computed
+ *  over the REAL-PRICED subset only.  STRONG NRFI rendered:
+ *
+ *      STRONG NRFI · 57-39 · 59.4% hit · −13.0pp vs break-even · −11.29u
+ *
+ *  which cannot be true of any single set of bets: 59.4% is 13 points
+ *  under break-even only if break-even is 72.4%.  The record and the hit
+ *  rate were 96 graded bets; the pp and the −11.29u were the 49 of those
+ *  that had a captured DraftKings price, and those 49 went 22-27 (44.9%)
+ *  against a true break-even of 57.87%.  The bar made it visible: the
+ *  fill ran to 59.4% and visibly cleared a tick hard-pinned at 52.38% on
+ *  a row whose units said the zone lost money.
+ *
+ *  Now every figure on the row — record, hit rate, bar fill, break-even
+ *  tick, points-vs-break-even and units — describes the same bets, and a
+ *  line underneath says how many bets that is out of how many graded. */
 function LedgerRow({ zone }: { zone: ZoneRoi }) {
   const tone = zoneTone(zone);
+  const pop  = ledgerPopulation(zone);
   return (
     <div className={styles.ledgerRow} data-side={zone.side} data-tone={tone}>
       <span className={styles.ledgerLabel}>{zone.label}</span>
       <span className={styles.ledgerCount}>
-        {zone.bets > 0 ? `${zone.wins}-${zone.losses}` : "—"}
+        {pop.graded > 0 ? `${pop.wins}-${pop.losses}` : "—"}
       </span>
       <div className={styles.ledgerMid}>
         <div className={styles.ledgerBar}>
           <span
             className={styles.ledgerBarFill}
-            style={{ width: `${barWidthPct(zone.hitRate)}%` }}
+            style={{ width: `${barWidthPct(pop.hitRate)}%` }}
             aria-hidden
           />
-          <span className={styles.ledgerBarBE} aria-hidden />
+          {/* The tick is the price this zone ACTUALLY paid, not a
+              hardcoded −110.  Inline because it is a datum, not a
+              style: 55.8% on YRFI, 57.9% on NRFI. */}
+          <span
+            className={styles.ledgerBarBE}
+            style={{ left: `calc(${(pop.breakEven * 100).toFixed(2)}% - 1px)` }}
+            aria-hidden
+          />
         </div>
         <span className={styles.ledgerSub}>
-          {zone.bets > 0 ? (
+          {pop.graded > 0 ? (
             <>
-              <span><span className="num">{pctText(zone.hitRate)}</span> hit</span>
+              <span><span className="num">{pctText(pop.hitRate)}</span> hit</span>
               <span className={styles.ledgerSep} aria-hidden>·</span>
               <span>
-                <span className="num">{signedPctText(zone.edgeVsBreakEven)}</span> vs break-even
+                <span className="num">{signedPctText(pop.hitRate - pop.breakEven)}</span>
+                {" vs break-even "}
+                <span className="num">{pctText(pop.breakEven)}</span>
               </span>
             </>
           ) : (
@@ -577,8 +617,36 @@ function LedgerRow({ zone }: { zone: ZoneRoi }) {
         </span>
       </div>
       <span className={styles.ledgerUnits}>
-        {zone.bets > 0 ? fmtU(realPL(zone)) : "—"}
+        {pop.graded > 0 ? fmtU(realPL(zone)) : "—"}
       </span>
+
+      {/* WHICH BETS THE ROW ABOVE IS ABOUT.  Without this the operator
+          reads a smaller record than he remembers placing and assumes
+          rows went missing — his single most common report. */}
+      {pop.graded > 0 && (
+        <span className={styles.ledgerProv}>
+          {pop.real ? (
+            zone.bets > pop.graded ? (
+              <>
+                {`${pop.graded} of ${zone.bets} graded ${zone.bets === 1 ? "bet" : "bets"} had a `}
+                {`captured DraftKings price. The other ${zone.bets - pop.graded} settled against a `}
+                {`placeholder −110 and are not counted here — nobody knows what those actually `}
+                {`paid, so including them would invent a result.`}
+              </>
+            ) : (
+              <>
+                {`All ${pop.graded} graded ${pop.graded === 1 ? "bet" : "bets"} had a captured `}
+                {`DraftKings price, so every figure above is a price you really paid.`}
+              </>
+            )
+          ) : (
+            <>
+              {`No bet in this zone has a captured DraftKings price, so every figure above `}
+              {`rests on a placeholder −110 (break-even 52.4%) rather than a price you paid.`}
+            </>
+          )}
+        </span>
+      )}
     </div>
   );
 }
@@ -596,6 +664,56 @@ function Stat({ label, value, caption, muted }: {
 }
 
 // ---------- helpers ----------
+
+/** THE ONE POPULATION a ledger row is allowed to describe.
+ *
+ *  Real-priced bets when the zone has any: their W-L, their hit rate, and
+ *  the mean implied probability of the prices actually paid, which is the
+ *  only honest break-even for them.  When a zone has none, everything it
+ *  could print rests on the fabricated −110, so we say that in words on
+ *  the row rather than dressing it up as a measurement.
+ *
+ *  0.5238 is the −110 break-even (110/210). It is used ONLY on the
+ *  no-real-price fallback, where the row states outright that that is
+ *  what it is doing. */
+const PLACEHOLDER_BREAK_EVEN = 0.5238;
+
+interface LedgerPopulation {
+  /** true when these figures come from bets with a captured DK price */
+  real:      boolean;
+  wins:      number;
+  losses:    number;
+  graded:    number;
+  hitRate:   number;
+  breakEven: number;
+}
+
+function ledgerPopulation(z: ZoneRoi): LedgerPopulation {
+  const p = z.provenance;
+  const realGraded = p.realPricedWins + p.realPricedLosses;
+  if (realGraded > 0) {
+    return {
+      real:      true,
+      wins:      p.realPricedWins,
+      losses:    p.realPricedLosses,
+      graded:    realGraded,
+      hitRate:   p.realPricedWins / realGraded,
+      // realBreakEven is NaN until at least one real price is captured;
+      // realGraded > 0 normally implies it is finite, but guard anyway --
+      // a NaN here would put the tick at `calc(NaN% - 1px)` and the whole
+      // declaration would be dropped, silently parking the tick at 0%.
+      breakEven: Number.isFinite(p.realBreakEven) ? p.realBreakEven : PLACEHOLDER_BREAK_EVEN,
+    };
+  }
+  return {
+    real:      false,
+    wins:      z.wins,
+    losses:    z.losses,
+    graded:    z.bets,
+    hitRate:   z.hitRate,
+    breakEven: PLACEHOLDER_BREAK_EVEN,
+  };
+}
 
 /** The P&L a zone earned at prices we actually observed. */
 function realPL(z: ZoneRoi): number {

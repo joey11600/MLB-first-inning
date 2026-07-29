@@ -1,0 +1,481 @@
+/* ============================================================
+   InsightCharts.module.css
+
+   Styles for the three charts approved in the 2026-07-28 spec:
+   the reliability curve, the underwater plot, and the replay-vs-
+   ledger divergence bar.  All three live in InsightCharts.tsx.
+
+   NO NEW COLOUR IS INTRODUCED.  Every rule below references a token
+   that globals.css already defines and already documents a ratio
+   for, so no new contrast measurement was needed.  The pairs relied
+   on, dark / light, composited on --card:
+
+     --foreground        13.34 / 15.25   figures, dots in the bet
+                                         region, in-bar counts, key
+                                         labels, rule labels
+     --muted-foreground   7.36 /  6.33   axis ticks, footnotes, and
+                                         EVERY simulated figure
+     --gain               8.27 /  5.74   real money up
+     --loss               6.23 /  7.01   real money down; the
+                                         underwater stroke and label
+     --attn              10.58 /  6.03   the never-committed callout,
+                                         and nothing else new
+     --side-nrfi          5.62 /  6.29   dots outside the bet region
+     --border             3.30 /  3.36   NON-TEXT only (grid, rules,
+                                         Wilson bars, diagonal), which
+                                         is the 3:1 WCAG 1.4.11 asks
+
+   All ten text pairs clear AA 4.5:1.  Nothing here paints chart text
+   on --muted: that token is a chip fill, never a chart surface.
+
+   Nothing references --primary / --secondary / --destructive
+   directly; globals.css:63-66 forbids it for new code.  Meaning
+   lives in --gain / --loss / --attn.
+
+   BOTH THEMES BY CONSTRUCTION: every value is a token, and the two
+   light blocks in globals.css carry the same 19 tokens, so this file
+   adds nothing that could drift between them.
+   ============================================================ */
+
+/* ---- card shell, shared by all three ----------------------- */
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* The page never scrolls sideways.  Wide content scrolls inside
+     .scroll below; this stops a long footnote or a wide flex row
+     from pushing the card itself out. */
+  min-width: 0;
+}
+
+.headRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--foreground);          /* 13.34 / 15.25 */
+}
+.titleSub {
+  font-weight: 400;
+  color: var(--muted-foreground);    /* 7.36 / 6.33 */
+}
+
+/* Every chart degrades to this line rather than an empty box.  An
+   empty box reads as a broken page -- the standing complaint is that
+   things appear to vanish. */
+.empty {
+  padding: 26px 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.foot {
+  margin: 0;
+  max-width: 68ch;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+/* A figure inside a sentence is still a figure: mono, tabular. */
+.fig {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--foreground);
+}
+/* Same, for a SIMULATED figure.  Never toned -- coloured means your
+   ledger, neutral means a back-test. */
+.figMuted {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+/* ---- legends ----------------------------------------------- */
+
+.legend {
+  display: inline-flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.legendItem { display: inline-flex; align-items: center; gap: 6px; }
+.legendDot  { width: 10px; height: 10px; border-radius: 50%; }
+.legendDot[data-in="1"] { background: var(--foreground); }
+.legendDot[data-in="0"] { background: var(--side-nrfi); }
+.legendBar {
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--border);
+}
+.legendLine {
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--loss);
+}
+
+/* ---- SVG surfaces ------------------------------------------ */
+
+/* Wide content scrolls inside its own container; the page does not. */
+.scroll { overflow-x: auto; }
+
+.calibSvg {
+  display: block;
+  width: 100%;
+  min-width: 600px;
+  max-width: 760px;
+  height: auto;
+}
+.wideSvg {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+}
+
+.grid {
+  stroke: color-mix(in oklab, var(--border) 60%, transparent);
+  stroke-width: 1;
+}
+
+/* 11px, not the 10px of the legacy .axisText in HistoryView -- 11 is
+   the floor the type-roles block in globals.css declares, and the old
+   class sits below it. */
+.axis {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  fill: var(--muted-foreground);     /* 7.36 / 6.33 */
+}
+.axisTitle {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  fill: var(--muted-foreground);
+}
+
+/* ============================================================
+   CHART 1 -- RELIABILITY CURVE
+
+   NO HUE ON THIS CHART.  globals.css spends its three hues on money
+   only, and a calibration miss is not money.  Separation comes from
+   INK WEIGHT: --foreground for the band he bets, --side-nrfi for
+   everything outside it (2.37x apart in dark, 2.43x in light -- the
+   same pairing the board's distribution meter already uses).
+   ============================================================ */
+
+.diag {
+  fill: none;
+  stroke: var(--border);             /* non-text, 3.30 / 3.36 */
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+/* The band he actually bets: model P(YRFI) above the gate. */
+.betBand { fill: color-mix(in oklab, var(--foreground) 5%, transparent); }
+
+.gateRule {
+  stroke: var(--foreground);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.5;
+}
+
+/* Break-even = the mean implied probability of the prices actually
+   paid.  A 1.5px rule is a non-text boundary, so --border clears the
+   3:1 WCAG 1.4.11 asks.  Its LABEL is --foreground. */
+.beRule {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.ruleLabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  fill: var(--foreground);           /* 13.34 / 15.25 */
+}
+
+.ci {
+  stroke: var(--border);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.dotIn  { fill: var(--foreground); stroke: var(--card); stroke-width: 1.5; }
+.dotOut { fill: var(--side-nrfi);  stroke: var(--card); stroke-width: 1.5; }
+
+.trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.trioLabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-bottom: 4px;
+}
+
+/* ============================================================
+   CHART 2 -- UNDERWATER PLOT
+   Zero at the top, depth downward.  --loss throughout: it is money
+   down, and the only question this chart answers is how far.
+   ============================================================ */
+
+.uwArea {
+  fill: color-mix(in oklab, var(--loss) 22%, transparent);
+  stroke: none;
+}
+.uwLine {
+  fill: none;
+  stroke: var(--loss);               /* 6.23 / 7.01 */
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+/* The high-water line, along the top. */
+.uwHighWater {
+  stroke: var(--border);             /* non-text */
+  stroke-width: 1;
+}
+/* Vertical rule at the day the stake size changed. */
+.uwEpoch {
+  stroke: var(--foreground);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.55;
+}
+.uwEpochLabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  fill: var(--foreground);           /* 13.34 / 15.25 */
+}
+.uwTroughDot {
+  fill: var(--loss);
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+.uwTroughLabel {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+  fill: var(--loss);                 /* 6.23 / 7.01 */
+}
+.uwAxis {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  fill: var(--muted-foreground);     /* 7.36 / 6.33 */
+}
+
+/* Three stat cells.  Shared with nothing else -- the underwater plot
+   is the only surface in this file that carries them. */
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.statLabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-bottom: 4px;
+}
+.statSub {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+/* ============================================================
+   CHART 3 -- REPLAY VS LEDGER DIVERGENCE
+   A bar, not a plot -- no SVG needed.
+   ============================================================ */
+
+.divBar {
+  display: flex;
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.divSeg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3px;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground);          /* 13.34 / 15.25 on every fill below */
+}
+.divSeg:last-child { border-right: none; }
+
+/* The two LEDGER segments carry INK WEIGHT, not hue -- the bar is a
+   census of games, not a P&L.  The replay segment is hatched because
+   that money never moved; DayReconcile's header states the same rule. */
+.divSeg[data-seg="agree"]       { background: color-mix(in oklab, var(--foreground) 22%, var(--card)); }
+.divSeg[data-seg="you-only"]    { background: color-mix(in oklab, var(--foreground) 10%, var(--card)); }
+.divSeg[data-seg="replay-only"] { background: var(--muted); background-image: var(--sim-hatch); }
+.divSeg[data-seg="idle"]        { background: var(--card); }
+
+.divKey {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Set here rather than on .divKeyU so the GLOBAL [data-money] rule
+     in globals.css still wins on the units cell.  Both selectors are
+     one class deep; whichever loads later takes it, and a CSS Module
+     always loads after globals -- so a colour declared on the cell
+     itself would silently kill the money tone. */
+  color: var(--foreground);
+}
+.divKeyRow {
+  display: grid;
+  grid-template-columns: 12px minmax(150px, 1.4fr) auto auto;
+  gap: 0 14px;
+  align-items: baseline;
+}
+.divKeySwatch {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  align-self: center;
+}
+.divKeySwatch[data-seg="agree"]       { background: color-mix(in oklab, var(--foreground) 22%, var(--card)); }
+.divKeySwatch[data-seg="you-only"]    { background: color-mix(in oklab, var(--foreground) 10%, var(--card)); }
+.divKeySwatch[data-seg="replay-only"] { background: var(--muted); background-image: var(--sim-hatch); }
+.divKeySwatch[data-seg="idle"]        { background: var(--card); }
+
+.divKeyLabel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--foreground);
+}
+.divKeyN {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: right;
+  color: var(--muted-foreground);
+}
+.divKeyU {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: right;
+}
+/* Only the two LEDGER rows may take a hue, and the global
+   [data-money] rule gives it to them.  data-sim wins by specificity
+   so a simulated figure can never come out peach or rust. */
+.divKeyU[data-sim="1"] { color: var(--muted-foreground); }  /* 7.36 / 6.33 */
+
+.divCodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: baseline;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.divCodesHead { font-weight: 600; }
+.divCode { display: inline-flex; gap: 5px; align-items: baseline; }
+.divCode b {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+/* Amber, and this is the ONLY new amber in the whole spec.  A STRONG
+   pick that never carried a bet is a decision waiting on the
+   operator, which is exactly what --attn means per globals.css.
+   The amber is spent on the BORDER and the dot only -- the sentence
+   itself stays --foreground, because amber-on-amber text would drop
+   the callout below AA on --card. */
+.divAlert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklab, var(--attn) 40%, var(--border));
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--foreground);          /* 13.34 / 15.25 -- NOT --attn */
+}
+.divAlertDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--attn);           /* 10.58 / 6.03 */
+}
+
+/* ---- narrow screens ---------------------------------------- */
+
+@media (max-width: 720px) {
+  .card { padding: 16px 16px; }
+  .trio,
+  .statRow { grid-template-columns: 1fr; gap: 12px; }
+  .divKeyRow { grid-template-columns: 12px 1fr auto; }
+  .divKeyU { grid-column: 2 / -1; text-align: left; }
+}

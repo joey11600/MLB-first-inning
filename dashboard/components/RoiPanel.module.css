@@ -120,7 +120,14 @@
 .moneyCard {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) auto;
+  /* Was `minmax(320px, 1fr) auto`.  The `auto` track sized itself to the
+     Record / Hit rate / Priced trio at its natural width, and below about
+     1150px that trio was physically WIDER than the −9.56u headline it
+     annotates -- the three small stats squeezed the thing they exist to
+     explain.  A weighted 1.6fr / 1fr split keeps the headline dominant at
+     every width, and `minmax(0, 1fr)` on the right lets the stats shrink
+     instead of forcing the card to overflow. */
+  grid-template-columns: minmax(420px, 1.6fr) minmax(0, 1fr);
   gap: 14px 32px;
   padding: 22px 26px;
   background: var(--card);
@@ -351,25 +358,42 @@
 }
 .ledgerRow[data-tone="win"]  .ledgerBarFill { background: var(--gain, var(--primary)); }
 .ledgerRow[data-tone="loss"] .ledgerBarFill { background: var(--loss, var(--destructive)); }
-/* Break-even tick at 52.38% — was the last --accent-cyan on this panel. */
+/* Break-even tick.  FIX 6 (2026-07-28): the `left` is now set INLINE from
+   provenance.realBreakEven -- the mean implied probability of the prices
+   this zone actually paid (55.8% on YRFI, 57.9% on NRFI).  It used to be
+   hard-pinned at 52.38%, the −110 break-even, which no zone here was
+   priced at; the fill visibly cleared the tick on a row whose units said
+   the zone lost money.  The 52.38% below survives only as the fallback
+   for a zone with no captured price at all, and the row says so in words
+   when that happens. */
 .ledgerBarBE {
   position: absolute; top: -2px; bottom: -2px; left: calc(52.38% - 1px);
   width: 2px; background: var(--foreground); opacity: 0.55; border-radius: 1px;
 }
 
-/* ── LEAN: a COUNT, never a price ─────────────────────────────
-   Replaces the LEAN paper-trade block and the two LEAN zone cards.  No
-   money figure BY DESIGN: LEAN is never wagered, and rendering a
-   hypothetical −110 P&L in the same shape as real money is exactly what
-   made the panel feel untrustworthy. */
-.leanLine {
-  margin: 0;
-  padding: 8px 14px;
-  font-family: var(--font-sans); font-size: 12px; line-height: 1.5;
+/* Which bets the row above is about.
+
+   COLOUR: --muted-foreground, the exact pairing .ledgerSub already uses
+   on this same .ledgerBlock surface -- no new colour is introduced.
+   globals.css documents --muted-foreground at 7.36:1 dark / 6.33:1 light
+   on --card; the .ledgerBlock wash (--muted at 45% over --background)
+   sits between --background and --card in luminance, so the measured
+   ratio here is no lower than those.  Clears WCAG AA 4.5:1 either way. */
+.ledgerProv {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.45;
   color: var(--muted-foreground);
-  max-width: 72ch;
+  max-width: 78ch;
 }
-.leanLine :global(.num) { color: var(--foreground); }
+
+/* .leanLine DELETED 2026-07-28.  It styled a sentence whose entire
+   content was that it had no content ("N LEAN calls — never bet, so no
+   P&L is shown").  LEAN is not pending a decision: both LEAN zones sit
+   well under break-even and the playbook's tier-expansion criterion is 60
+   graded picks.  The calls are unchanged on the board, game by game. */
 
 .emptyZone {
   padding: 18px;
@@ -432,6 +456,16 @@
 
 /* ---- Responsive.  Wide content scrolls inside its own container; the
         page itself never scrolls sideways. ---- */
+
+/* Between ~720px and 1200px the three stats no longer fit beside the
+   headline at a readable size.  Two columns and a wrap keeps every figure
+   legible instead of shrinking the headline to make room for its own
+   footnotes. */
+@media (max-width: 1200px) {
+  .moneyCard { grid-template-columns: minmax(0, 1fr) minmax(0, auto); }
+  .totalRight { grid-template-columns: repeat(2, minmax(0, 150px)); gap: 16px 20px; }
+}
+
 @media (max-width: 720px) {
   .moneyCard { grid-template-columns: 1fr; gap: 18px; }
   .totalLeft {
@@ -447,5 +481,6 @@
   .ledgerUnits { grid-column: 2; grid-row: 1; }
   .ledgerCount { grid-column: 1 / -1; grid-row: 2; text-align: left; }
   .ledgerMid   { grid-column: 1 / -1; grid-row: 3; }
+  .ledgerProv  { grid-column: 1 / -1; grid-row: 4; }
   .reconLine { gap: 2px 8px; font-size: 11px; }
 }

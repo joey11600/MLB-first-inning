@@ -2,6 +2,15 @@
 
 import { useMemo, useState } from "react";
 import type { RoiResponse, RoiWindow } from "@/lib/roi";
+// The underwater plot and the divergence bar live in InsightCharts, which
+// owns all three of the 2026-07-28 charts and their shared chrome.  Each
+// renders its OWN complete card -- mount it directly, never inside a
+// .chartCard, or you get a card inside a card.
+import {
+  UnderwaterChart,
+  DivergenceBar,
+  type DivergenceSummary,
+} from "./InsightCharts";
 import styles from "./HistoryView.module.css";
 
 const WINDOWS: { key: RoiWindow; label: string }[] = [
@@ -16,12 +25,54 @@ interface DayRecord {
   cumulative: number;  // running total
 }
 
+type SeriesPoint = { date: string; units: number };
+
+/** 2026-07-28 AUDIT FIX — THE HEADLINE WAS +34.5u WRONG.
+ *
+ *  Every figure on this page (net units tile, equity curve, all six
+ *  drawdown stats, the daily ledger) was built from `cumulativePL`, the
+ *  RAW P&L column.  That column includes 177 graded bets that settled
+ *  against a FABRICATED -110 because no DraftKings price was ever
+ *  captured for them, and those 177 carry +34.90u.  The page therefore
+ *  read +23.94u for a season whose real-priced ledger is -10.59u --
+ *  opposite signs, same bets.
+ *
+ *  `realPricedCumulativePL` (lib/roi.ts) is the same accumulator run over
+ *  only the bets whose picked side had a captured price.  That is THE
+ *  money series and it is what everything below reads.  The raw column
+ *  survives as one dashed, explicitly-labelled comparison line on the
+ *  equity chart so nothing appears to have silently vanished.
+ *
+ *  The fallback exists so a stale cached /api/roi payload (one served
+ *  before the roi.ts change shipped) degrades to the old behaviour
+ *  rather than rendering an empty page. */
+function pickMoneySeries(data: RoiResponse): { points: SeriesPoint[]; isReal: boolean } {
+  const withReal = data as RoiResponse & { realPricedCumulativePL?: SeriesPoint[] };
+  const s = withReal.realPricedCumulativePL;
+  if (Array.isArray(s) && s.length > 0) return { points: s, isReal: true };
+  return { points: data.cumulativePL ?? [], isReal: false };
+}
+
+/** First date at which stakes stopped being flat 1u.  Before it a loss is
+ *  -1.00u; after it a loss is whatever the stake was.  Undefined on a
+ *  payload that predates the roi.ts change. */
+function stakeEpochOf(data: RoiResponse): string | null {
+  const withEpoch = data as RoiResponse & { stakeEpoch?: string | null };
+  return withEpoch.stakeEpoch ?? null;
+}
+
 /** Bankroll history for the production V2.1 model.  T-V21-LOCKIN-2026-05-06
  *  removed the v2/v3 split (V3 was Variant K shadow, no longer surfaced). */
 export function HistoryView({
   initial,
+  divergence,
 }: {
   initial: RoiResponse;
+  /** Replay-vs-ledger census, read server-side from season_record.json
+   *  and passed down by app/history/page.tsx.  Optional: when it is not
+   *  supplied the divergence card is simply not mounted, so this page
+   *  keeps rendering on its own. */
+  divergence?: DivergenceSummary | null;
 }) {
   const [data, setData]     = useState<RoiResponse>(initial);
   const [window, setWindow] = useState<RoiWindow>(initial.window);
@@ -43,11 +94,15 @@ export function HistoryView({
   const eyebrowText = "Performance · daily breakdown";
   const titleText   = "Bankroll history";
 
-  // Derive per-day records from cumulativePL.  Daily = cum[i] - cum[i-1].
+  const money = useMemo(() => pickMoneySeries(data), [data]);
+  const stakeEpoch = stakeEpochOf(data);
+
+  // Derive per-day records from the REAL-PRICED cumulative series.
+  // Daily = cum[i] - cum[i-1].
   const days = useMemo<DayRecord[]>(() => {
     const out: DayRecord[] = [];
     let prev = 0;
-    for (const row of data.cumulativePL) {
+    for (const row of money.points) {
       out.push({
         date:       row.date,
         units:      row.units - prev,
@@ -56,13 +111,45 @@ export function HistoryView({
       prev = row.units;
     }
     return out;
-  }, [data.cumulativePL]);
+  }, [money.points]);
+
+  // How many of the graded bets behind this page carry a real captured
+  // price, and how many settled against the fabricated -110.  Summed over
+  // the same population the money series counts: bet zones, LEAN excluded
+  // (LEAN is never wagered, so it never moves the bankroll).
+  const priceSplit = useMemo(() => {
+    let real = 0;
+    let assumed = 0;
+    for (const z of data.betZones ?? []) {
+      if (z.strength === "LEAN") continue;
+      real    += z.provenance.realPricedBets;
+      assumed += z.provenance.placeholderBets;
+    }
+    return { real, assumed };
+  }, [data.betZones]);
+
+  // Which sides actually make up the number, and what each one did on
+  // real prices.  Derived from the zone provenance, never asserted: the
+  // operator has been told "the season is down" without ever being told
+  // WHICH book is down, and the two sides point opposite ways.
+  const composition = useMemo(() => {
+    const parts = (data.betZones ?? [])
+      .filter((z) => z.strength !== "LEAN" && z.provenance.realPricedBets > 0)
+      .map(
+        (z) =>
+          `${z.label} ${unitsText(z.provenance.realPricedPL)} over ` +
+          `${z.provenance.realPricedBets} ` +
+          `${z.provenance.realPricedBets === 1 ? "bet" : "bets"}`,
+      );
+    if (parts.length === 0) return undefined;
+    return (
+      "Split by side, counting only bets that had a real captured price: " +
+      `${parts.join(" · ")}.`
+    );
+  }, [data.betZones]);
 
   const totalUnits = days.length ? days[days.length - 1].cumulative : 0;
   const totalDays  = days.length;
-  const winDays    = days.filter((d) => d.units > 0).length;
-  const lossDays   = days.filter((d) => d.units < 0).length;
-  const flatDays   = days.filter((d) => d.units === 0).length;
   const bestDay    = days.length ? Math.max(...days.map((d) => d.units)) : 0;
   const worstDay   = days.length ? Math.min(...days.map((d) => d.units)) : 0;
 
@@ -102,50 +189,44 @@ export function HistoryView({
         </div>
       </header>
 
-      {/* Summary tiles */}
+      {/* One tile, not four.  "Day record 61/52/3" counted calendar days by
+          sign rather than bets and flattered a losing ledger; "Best day"
+          and "Worst day" were single observations of a heavy-tailed series
+          already visible as the first row of the table below. */}
       <section className={styles.tiles}>
         <div className={`${styles.tile} ${tileTone(totalUnits)}`}>
           <div className={styles.tileLabel}>Net units</div>
           <div className={styles.tileBig}>{formatUnits(totalUnits)}</div>
-          <div className={styles.tileSub}>across {totalDays} {totalDays === 1 ? "day" : "days"}</div>
-        </div>
-        <div className={styles.tile}>
-          <div className={styles.tileLabel}>Day record</div>
-          <div className={styles.tileBig}>
-            <span className={styles.numWin}>{winDays}</span>
-            <span className={styles.numSep}>/</span>
-            <span className={styles.numLoss}>{lossDays}</span>
-            {flatDays > 0 && (
+          <div className={styles.tileSub}>
+            across {totalDays} {totalDays === 1 ? "day" : "days"}
+          </div>
+          <div className={styles.tileProv}>
+            {money.isReal ? (
               <>
-                <span className={styles.numSep}>/</span>
-                <span className={styles.numFlat}>{flatDays}</span>
+                Counts only the {priceSplit.real} graded{" "}
+                {priceSplit.real === 1 ? "bet" : "bets"} that had a real captured
+                DraftKings price.
+                {priceSplit.assumed > 0 && (
+                  <>
+                    {" "}
+                    {priceSplit.assumed} more settled against an assumed &minus;110
+                    and are left out.
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                Includes bets settled against an assumed &minus;110 price. Reload
+                the page to pick up the real-priced figure.
               </>
             )}
           </div>
-          <div className={styles.tileSub}>
-            up · down{flatDays > 0 ? " · flat" : ""}
-          </div>
-        </div>
-        <div className={styles.tile}>
-          <div className={styles.tileLabel}>Best day</div>
-          <div className={`${styles.tileBig} ${styles.numWin}`}>
-            {formatUnits(bestDay)}
-          </div>
-          <div className={styles.tileSub}>single-session high</div>
-        </div>
-        <div className={styles.tile}>
-          <div className={styles.tileLabel}>Worst day</div>
-          <div className={`${styles.tileBig} ${styles.numLoss}`}>
-            {formatUnits(worstDay)}
-          </div>
-          <div className={styles.tileSub}>single-session low</div>
         </div>
       </section>
 
       {/* T2.42: Bankroll equity curve.  Pure cumulative line + drawdown
-          shading + peak marker + stats panel.  Goes above the daily
-          breakdown chart since this is the headline view of "where
-          does the bankroll stand?". */}
+          shading + peak marker + stats panel.  Reads the real-priced
+          series; the raw column rides along as a labelled dashed line. */}
       <section className={styles.chartCard}>
         <div className={styles.chartHead}>
           <div>
@@ -164,58 +245,53 @@ export function HistoryView({
             <span className={styles.legendItem}>
               <span className={styles.legendSwatch} data-tone="drawdown" /> Drawdown
             </span>
-            <span
-              className={styles.legendItem}
-              title={
-                "Trend line: average daily P&L × days elapsed.  If equity " +
-                "is ABOVE this line, you're running hot vs the model's " +
-                "long-run rate; BELOW this line means cold streak.  " +
-                "Helps separate variance from drift -- a cold gap that " +
-                "stays cold is a signal; a cold gap that closes is " +
-                "normal variance."
-              }
-            >
-              <span className={styles.legendLine} data-tone="trend" /> Expected (avg trend)
-            </span>
+            {money.isReal && (
+              <span
+                className={styles.legendItem}
+                title={
+                  "The same days, counting every graded bet including the " +
+                  "ones that had no captured DraftKings price and were " +
+                  "settled against an assumed -110. Shown only so the older, " +
+                  "higher number is still visible; it is not your ledger."
+                }
+              >
+                <span className={styles.legendLine} data-tone="assumed" /> Includes
+                assumed &minus;110 prices
+              </span>
+            )}
           </div>
         </div>
-        <EquityCurveChart days={days} />
+        <EquityCurveChart
+          days={days}
+          rawSeries={money.isReal ? data.cumulativePL : []}
+        />
       </section>
 
-      {/* Daily P&L breakdown chart -- bars per day + cumulative line. */}
-      <section className={styles.chartCard}>
-        <div className={styles.chartHead}>
-          <div>
-            <div className={styles.eyebrow}>Daily breakdown</div>
-            <div className={styles.chartTitle}>
-              Per-day +/- (DK odds) with cumulative overlay
-            </div>
-          </div>
-          <div className={styles.legend}>
-            <span className={styles.legendItem}>
-              <span className={styles.legendDot} data-tone="win" /> Up day
-            </span>
-            <span className={styles.legendItem}>
-              <span className={styles.legendDot} data-tone="loss" /> Down day
-            </span>
-            <span className={styles.legendItem}>
-              <span className={styles.legendLine} /> Cumulative
-            </span>
-          </div>
-        </div>
-        <PnlChart days={days} />
-      </section>
+      {/* CHART 2 -- underwater / drawdown depth.  Depth AND age, on a fixed
+          axis.  At compounding stakes these are the two numbers that decide
+          whether the operator can keep running the system, and the equity
+          curve buries both: a line that wanders can be read optimistically,
+          an underwater plot cannot.  Renders its own card. */}
+      <UnderwaterChart
+        series={money.points}
+        stakeEpoch={stakeEpoch}
+        composition={composition}
+      />
 
-      {/* T4.16: Calendar heatmap */}
-      <section className={styles.chartCard}>
-        <div className={styles.chartHead}>
-          <div>
-            <div className={styles.eyebrow}>Calendar heatmap</div>
-            <div className={styles.chartTitle}>Daily P&L by date · green = up, red = down</div>
-          </div>
-        </div>
-        <CalendarHeatmap days={days} />
-      </section>
+      {/* CHART 3 -- replay vs ledger divergence.  Only mounted when the
+          server handed us the census; the card renders nothing useful
+          without it, and an empty card is worse than no card. */}
+      {divergence && (
+        <DivergenceBar
+          summary={divergence}
+          contrastNote={
+            "This card counts the games in the season record's real-price " +
+            "window. The net units above count a different population — " +
+            "every real-priced graded bet of the whole season — which is " +
+            "why the two do not add up to the same figure."
+          }
+        />
+      )}
 
       {/* T4.17: Win-rate by zone */}
       <section className={styles.chartCard}>
@@ -223,24 +299,12 @@ export function HistoryView({
           <div>
             <div className={styles.eyebrow}>Hit rate by pick zone</div>
             <div className={styles.chartTitle}>
-              Wins / bets per zone vs {(52.4).toFixed(1)}% break-even threshold
+              Wins / bets per zone vs the break-even rate at the prices you
+              actually paid
             </div>
           </div>
         </div>
         <ZoneHitRateChart zones={data.betZones} />
-      </section>
-
-      {/* T4.23: Calibration plot */}
-      <section className={styles.chartCard}>
-        <div className={styles.chartHead}>
-          <div>
-            <div className={styles.eyebrow}>Calibration check</div>
-            <div className={styles.chartTitle}>
-              Per-zone predicted probability vs actual hit rate · diagonal = perfect calibration
-            </div>
-          </div>
-        </div>
-        <CalibrationPlot zones={data.betZones} />
       </section>
 
       {/* Table */}
@@ -267,6 +331,13 @@ export function HistoryView({
             ))
           )}
         </div>
+        {money.isReal && (
+          <div className={styles.tableFoot}>
+            Every row counts only bets that had a real captured DraftKings
+            price. A day on which the system bet but no price was ever
+            captured shows as 0.00u here.
+          </div>
+        )}
       </section>
     </main>
   );
@@ -277,28 +348,30 @@ export function HistoryView({
 interface EquityStats {
   peak: number;            // ATH cumulative value
   peakDate: string | null; // ISO date of the ATH
-  trough: number;          // lowest cumulative value AFTER the peak (max DD low)
-  troughDate: string | null;
-  maxDrawdown: number;     // peak - trough  (positive number)
-  maxDrawdownPct: number;  // maxDrawdown / peak * 100  (NaN if peak <= 0)
-  currentDrawdown: number; // peak - latest cumulative
-  currentDrawdownPct: number;
-  daysAtAth: number;       // count of days where cum == running max
+  maxDrawdown: number;     // deepest peak-to-trough draw (positive number)
+  maxDrawdownPct: number;  // maxDrawdown / peak * 100  (0 when peak <= 0)
   totalDays: number;
-  vol: number;             // stdev of daily P&L
-  sharpe: number;          // mean / stdev * sqrt(252) -- rough annualized
 }
+
+/* 2026-07-28: this struct lost `vol` and `sharpe` along with the two
+   cells that rendered them.
+     - Sharpe was (mean/stdev)*sqrt(252).  On the contaminated series it
+       printed +1.54 where the real-priced answer is -0.79 -- a SIGN FLIP,
+       not a mis-scale.  sqrt(252) also assumes 252 independent periods a
+       year when the system bets ~116 days and none in the off-season, and
+       the standard error on n=116 puts the season interval somewhere
+       around [-1.31, +4.48], which cannot be told apart from zero.  A
+       figure that looks rigorous and cannot be is worse than no figure.
+     - Volatility was the per-day stdev across two staking regimes (366
+       bets at flat 1.00u, then stakes that vary).  The stdev of a series
+       whose unit changed mid-window is not a stationary quantity.
+   It also lost `trough` / `currentDrawdown` / `daysAtAth`: the underwater
+   chart owns the drawdown story now, and it tells it with depth AND age
+   instead of a single number. */
 
 function computeEquityStats(days: DayRecord[]): EquityStats {
   if (days.length === 0) {
-    return {
-      peak: 0, peakDate: null,
-      trough: 0, troughDate: null,
-      maxDrawdown: 0, maxDrawdownPct: 0,
-      currentDrawdown: 0, currentDrawdownPct: 0,
-      daysAtAth: 0, totalDays: 0,
-      vol: 0, sharpe: 0,
-    };
+    return { peak: 0, peakDate: null, maxDrawdown: 0, maxDrawdownPct: 0, totalDays: 0 };
   }
 
   // Running peak per day -- once a day's cumulative exceeds the prior
@@ -306,9 +379,6 @@ function computeEquityStats(days: DayRecord[]): EquityStats {
   let runningPeak = -Infinity;
   let runningPeakDate: string | null = null;
   let maxDD = 0;          // largest peak-to-trough draw seen
-  let maxDDLow = 0;       // cumulative value at the bottom of that draw
-  let maxDDLowDate: string | null = null;
-  let daysAtAth = 0;
 
   for (const d of days) {
     if (d.cumulative > runningPeak) {
@@ -316,66 +386,58 @@ function computeEquityStats(days: DayRecord[]): EquityStats {
       runningPeakDate = d.date;
     }
     const dd = runningPeak - d.cumulative;
-    if (dd > maxDD) {
-      maxDD = dd;
-      maxDDLow = d.cumulative;
-      maxDDLowDate = d.date;
-    }
-    if (d.cumulative === runningPeak) {
-      daysAtAth += 1;
-    }
+    if (dd > maxDD) maxDD = dd;
   }
 
-  const latest = days[days.length - 1].cumulative;
-  const currentDD = Math.max(0, runningPeak - latest);
-
-  // Sharpe-ish: per-day mean / stdev, annualized by sqrt(252)
-  // (semi-arbitrary -- baseball season is ~180 days and we pick on
-  // most of them, but √252 is the convention bettors recognize).
-  const dailyUnits = days.map((d) => d.units);
-  const mean = dailyUnits.reduce((a, b) => a + b, 0) / dailyUnits.length;
-  const variance =
-    dailyUnits.length > 1
-      ? dailyUnits.reduce((s, x) => s + (x - mean) ** 2, 0) / (dailyUnits.length - 1)
-      : 0;
-  const vol = Math.sqrt(variance);
-  const sharpe = vol > 0 ? (mean / vol) * Math.sqrt(252) : 0;
-
   return {
-    peak:                runningPeak === -Infinity ? 0 : runningPeak,
-    peakDate:            runningPeakDate,
-    trough:              maxDDLow,
-    troughDate:          maxDDLowDate,
-    maxDrawdown:         maxDD,
-    maxDrawdownPct:      runningPeak > 0 ? (maxDD / runningPeak) * 100 : 0,
-    currentDrawdown:     currentDD,
-    currentDrawdownPct:  runningPeak > 0 ? (currentDD / runningPeak) * 100 : 0,
-    daysAtAth,
-    totalDays:           days.length,
-    vol,
-    sharpe,
+    peak:           runningPeak === -Infinity ? 0 : runningPeak,
+    peakDate:       runningPeakDate,
+    maxDrawdown:    maxDD,
+    maxDrawdownPct: runningPeak > 0 ? (maxDD / runningPeak) * 100 : 0,
+    totalDays:      days.length,
   };
 }
 
 
-function EquityCurveChart({ days }: { days: DayRecord[] }) {
+function EquityCurveChart({
+  days,
+  rawSeries,
+}: {
+  days: DayRecord[];
+  /** the raw P&L column, including bets settled at an assumed -110.
+   *  Empty array = don't draw the comparison line. */
+  rawSeries: SeriesPoint[];
+}) {
   if (days.length === 0) {
     return <div className={styles.chartEmpty}>No graded days in this window.</div>;
   }
 
   const stats = computeEquityStats(days);
 
-  // Layout — slightly taller than PnlChart since this is the headline view.
+  // Layout — slightly taller than the underwater plot since this is the
+  // headline view.
   const W = 1100;
   const H = 320;
   const padL = 56, padR = 12, padT = 16, padB = 36;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
+  // The raw (assumed-price) comparison line, aligned to this chart's
+  // x-axis by DATE.  Dates the real series doesn't have are skipped
+  // rather than shifted, which would silently mis-date the line.
+  const rawByDate = new Map(rawSeries.map((p) => [p.date, p.units]));
+  const rawValues = days
+    .map((d) => rawByDate.get(d.date))
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+
   // Y range pinned to include 0 so "where the bankroll started" is
   // always visible, even if we've been profitable the whole window.
-  const cumMax = Math.max(0, stats.peak,    days[days.length - 1].cumulative);
-  const cumMin = Math.min(0, stats.trough,  days[0].cumulative);
+  const cumMax = Math.max(0, stats.peak, days[days.length - 1].cumulative, ...rawValues);
+  const cumMin = Math.min(
+    0,
+    ...days.map((d) => d.cumulative),
+    ...rawValues,
+  );
   const cumRange = cumMax - cumMin || 1;
 
   const stepX = innerW / Math.max(days.length, 1);
@@ -388,26 +450,31 @@ function EquityCurveChart({ days }: { days: DayRecord[] }) {
     .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(d.cumulative).toFixed(1)}`)
     .join(" ");
 
-  // 2026-05-12: Expected-trend line.  Linear extrapolation of "if every
-  // day had returned the average daily P&L for this window, where would
-  // equity be?"  Gap between actual equity and expected line = variance
-  // accumulated so far.  Above the trend = running hot (variance
-  // favourable); below = cold streak (variance unfavourable).  When a
-  // cold gap KEEPS WIDENING over many days that's a drift signal; a
-  // cold gap that closes is normal mean reversion.
-  //
-  // Anchored at 0 on day 0 so it's directly comparable to the equity
-  // line (which also starts at 0).  Slope = final_cum / (days - 1)
-  // so the trend line lands exactly on the final point at the end of
-  // the window -- by construction equity[end] == trend[end].
-  const finalCum = days[days.length - 1].cumulative;
-  const slope = days.length > 1 ? finalCum / (days.length - 1) : 0;
-  const trendPath = days
-    .map((_, i) => {
-      const v = slope * i;   // day 0 = 0, day N-1 = finalCum
-      return `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(v).toFixed(1)}`;
-    })
-    .join(" ");
+  /* 2026-07-28: the "Expected (avg trend)" line was deleted here.  Its
+     slope was finalCum / (days - 1) anchored at 0 on day 0 -- i.e. the
+     chord from the first point of the series to the last point of the
+     SAME series.  The tooltip claimed it separated variance from drift,
+     but the gap between it and equity is guaranteed to close at the right
+     edge by construction, on every window, every time.  It could not
+     signal anything and it actively taught a false inference. */
+
+  // The raw-column comparison line.  Broken into segments so a missing
+  // date lifts the pen instead of drawing a straight line across a gap.
+  const rawPath = (() => {
+    if (rawByDate.size === 0) return "";
+    let out = "";
+    let penDown = false;
+    days.forEach((d, i) => {
+      const v = rawByDate.get(d.date);
+      if (typeof v !== "number" || !Number.isFinite(v)) {
+        penDown = false;
+        return;
+      }
+      out += `${penDown ? "L" : "M"} ${xFor(i).toFixed(1)} ${yFor(v).toFixed(1)} `;
+      penDown = true;
+    });
+    return out.trim();
+  })();
 
   // Build the area-fill path (line down to baseline = 0, back to start)
   const areaPath =
@@ -486,19 +553,18 @@ function EquityCurveChart({ days }: { days: DayRecord[] }) {
           {/* Zero baseline (dashed) */}
           <line x1={padL} x2={W - padR} y1={yZero} y2={yZero} className={styles.gridZero} />
 
-          {/* Drawdown polygons (red shading where equity is below ATH) */}
+          {/* Drawdown polygons (shading where equity is below ATH) */}
           {drawdownPolys.map((p, i) => (
             <path key={`dd-${i}`} d={p.d} className={styles.equityDrawdown} />
           ))}
 
-          {/* Area fill below the equity line (green where above zero,
-              red where below).  Drawn FIRST so the line + DD shading
-              render on top. */}
+          {/* Area fill below the equity line.  Drawn FIRST so the line +
+              DD shading render on top. */}
           <path d={areaPath} className={styles.equityArea} />
 
-          {/* Expected-trend line (dashed) -- drawn BEFORE the equity
-              line so the actual equity sits on top visually. */}
-          <path d={trendPath} className={styles.equityTrendLine} />
+          {/* The raw column, including bets settled at an assumed -110.
+              Dashed, muted, never toned -- it is a comparison, not money. */}
+          {rawPath && <path d={rawPath} className={styles.equityAssumedLine} />}
 
           {/* Equity line */}
           <path d={linePath} className={styles.equityLine} />
@@ -554,25 +620,34 @@ function EquityCurveChart({ days }: { days: DayRecord[] }) {
         </svg>
       </div>
 
-      {/* Stats panel below the chart */}
+      {/* Stats panel below the chart.  Three cells, not six: Volatility and
+          Sharpe are gone (see the note on EquityStats). */}
       <div className={styles.equityStats}>
         <div className={styles.equityStatCell}>
-          <div className={styles.equityStatLabel}>Bankroll</div>
+          <div className={styles.equityStatLabel}>Window P&amp;L</div>
           <div
             className={styles.equityStatBig}
             data-tone={days[lastIdx].cumulative >= 0 ? "pos" : "neg"}
           >
-            {days[lastIdx].cumulative >= 0 ? "+" : ""}
-            {days[lastIdx].cumulative.toFixed(2)}u
+            {formatUnits(days[lastIdx].cumulative)}
           </div>
           <div className={styles.equityStatSub}>
-            {stats.totalDays} {stats.totalDays === 1 ? "day" : "days"}
+            {/* 2026-07-28: this cell was labelled "Bankroll" and printed
+                cumulative window P&L.  The bankroll is 100u plus or minus
+                this figure -- two different quantities under one label. */}
+            over {stats.totalDays} {stats.totalDays === 1 ? "day" : "days"}
           </div>
         </div>
         <div className={styles.equityStatCell}>
           <div className={styles.equityStatLabel}>All-time high</div>
-          <div className={styles.equityStatBig} data-tone="pos">
-            {stats.peak >= 0 ? "+" : ""}{stats.peak.toFixed(2)}u
+          {/* 2026-07-28: data-tone was hardcoded "pos", so on a losing
+              window this rendered a NEGATIVE all-time high in the profit
+              colour. */}
+          <div
+            className={styles.equityStatBig}
+            data-tone={stats.peak > 0 ? "pos" : stats.peak < 0 ? "neg" : "neutral"}
+          >
+            {formatUnits(stats.peak)}
           </div>
           <div className={styles.equityStatSub}>
             {stats.peakDate ? `on ${stats.peakDate.slice(5)}` : "—"}
@@ -584,44 +659,18 @@ function EquityCurveChart({ days }: { days: DayRecord[] }) {
             className={styles.equityStatBig}
             data-tone={stats.maxDrawdown > 0 ? "neg" : "neutral"}
           >
-            {stats.maxDrawdown > 0 ? "−" : ""}{stats.maxDrawdown.toFixed(2)}u
+            {stats.maxDrawdown > 0 ? `−${stats.maxDrawdown.toFixed(2)}u` : "0.00u"}
           </div>
           <div className={styles.equityStatSub}>
-            {stats.peak > 0 && stats.maxDrawdown > 0
-              ? `${stats.maxDrawdownPct.toFixed(1)}% of peak`
-              : "no drawdown"}
+            {/* 2026-07-28: maxDrawdownPct guards on peak > 0 but the "no
+                drawdown" copy did not, so a window that never went positive
+                printed "no drawdown" underneath a -13.19u drawdown. */}
+            {stats.maxDrawdown <= 0
+              ? "never below the high"
+              : stats.peak > 0
+                ? `${stats.maxDrawdownPct.toFixed(1)}% of peak`
+                : "the window never went positive, so there is no peak to measure against"}
           </div>
-        </div>
-        <div className={styles.equityStatCell}>
-          <div className={styles.equityStatLabel}>Current drawdown</div>
-          <div
-            className={styles.equityStatBig}
-            data-tone={stats.currentDrawdown > 0.001 ? "neg" : "pos"}
-          >
-            {stats.currentDrawdown > 0.001
-              ? `−${stats.currentDrawdown.toFixed(2)}u`
-              : "at ATH"}
-          </div>
-          <div className={styles.equityStatSub}>
-            {stats.daysAtAth} of {stats.totalDays} days at ATH
-          </div>
-        </div>
-        <div className={styles.equityStatCell}>
-          <div className={styles.equityStatLabel}>Volatility</div>
-          <div className={styles.equityStatBig}>
-            {stats.vol.toFixed(2)}u
-          </div>
-          <div className={styles.equityStatSub}>per-day stdev</div>
-        </div>
-        <div className={styles.equityStatCell}>
-          <div className={styles.equityStatLabel}>Sharpe (annualized)</div>
-          <div
-            className={styles.equityStatBig}
-            data-tone={stats.sharpe > 1 ? "pos" : stats.sharpe < 0 ? "neg" : "neutral"}
-          >
-            {stats.sharpe.toFixed(2)}
-          </div>
-          <div className={styles.equityStatSub}>×√252</div>
         </div>
       </div>
     </>
@@ -629,250 +678,11 @@ function EquityCurveChart({ days }: { days: DayRecord[] }) {
 }
 
 
-/* ------------- chart ------------- */
-
-function PnlChart({ days }: { days: DayRecord[] }) {
-  if (days.length === 0) {
-    return <div className={styles.chartEmpty}>No graded days in this window.</div>;
-  }
-
-  // Layout
-  const W = 1100;
-  const H = 280;
-  const padL = 56, padR = 12, padT = 16, padB = 36;
-  const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
-
-  const cumMax = Math.max(0, ...days.map((d) => d.cumulative));
-  const cumMin = Math.min(0, ...days.map((d) => d.cumulative));
-  const cumRange = cumMax - cumMin || 1;
-
-  const barAbsMax = Math.max(0.01, ...days.map((d) => Math.abs(d.units)));
-
-  // X scale: index based, equal spacing
-  const stepX = innerW / Math.max(days.length, 1);
-  const xFor = (i: number) => padL + (i + 0.5) * stepX;
-
-  // Y for cumulative line
-  const yCum = (v: number) =>
-    padT + innerH - ((v - cumMin) / cumRange) * innerH;
-
-  // Y zero baseline for bars (centered)
-  const yZero = padT + innerH / 2;
-  // Bar height scaled to barAbsMax
-  const barH = (v: number) => (Math.abs(v) / barAbsMax) * (innerH / 2 - 4);
-
-  // Build cumulative path
-  const linePath = days
-    .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yCum(d.cumulative).toFixed(1)}`)
-    .join(" ");
-
-  // Y axis ticks for cumulative scale
-  const tickCount = 5;
-  const ticks = Array.from({ length: tickCount }).map((_, i) => {
-    const t = cumMin + (cumRange * i) / (tickCount - 1);
-    return { v: t, y: yCum(t) };
-  });
-
-  // X tick spacing -- show every Nth label so it doesn't overlap
-  const labelEvery = Math.max(1, Math.ceil(days.length / 10));
-
-  return (
-    <div className={styles.chartScroll}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className={styles.chartSvg}
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
-        aria-label="Daily and cumulative P&L chart"
-      >
-        {/* Grid + Y axis */}
-        {ticks.map((t, i) => (
-          <g key={i}>
-            <line
-              x1={padL}
-              x2={W - padR}
-              y1={t.y}
-              y2={t.y}
-              className={styles.gridLine}
-            />
-            <text
-              x={padL - 8}
-              y={t.y + 3}
-              textAnchor="end"
-              className={styles.axisText}
-            >
-              {t.v >= 0 ? "+" : ""}{t.v.toFixed(0)}u
-            </text>
-          </g>
-        ))}
-
-        {/* Zero baseline for bars (centered) */}
-        <line
-          x1={padL}
-          x2={W - padR}
-          y1={yZero}
-          y2={yZero}
-          className={styles.gridZero}
-        />
-
-        {/* Daily bars */}
-        {days.map((d, i) => {
-          const x = xFor(i);
-          const w = Math.max(2, stepX * 0.55);
-          const h = barH(d.units);
-          const y = d.units >= 0 ? yZero - h : yZero;
-          if (d.units === 0) return null;
-          // Tooltip via data-* attributes (avoid SVG <title> hydration mismatch)
-          return (
-            <rect
-              key={i}
-              x={x - w / 2}
-              y={y}
-              width={w}
-              height={Math.max(h, 1)}
-              className={d.units >= 0 ? styles.barWin : styles.barLoss}
-              rx={1}
-              data-date={d.date}
-              data-units={d.units.toFixed(2)}
-            />
-          );
-        })}
-
-        {/* Cumulative line */}
-        <path d={linePath} className={styles.cumLine} />
-        {days.map((d, i) => (
-          <circle
-            key={i}
-            cx={xFor(i)}
-            cy={yCum(d.cumulative)}
-            r={2.5}
-            className={styles.cumDot}
-            data-date={d.date}
-            data-cumulative={d.cumulative.toFixed(2)}
-          />
-        ))}
-
-        {/* X-axis date labels */}
-        {days.map((d, i) =>
-          i % labelEvery === 0 ? (
-            <text
-              key={i}
-              x={xFor(i)}
-              y={H - padB + 18}
-              textAnchor="middle"
-              className={styles.axisText}
-            >
-              {d.date.slice(5)}
-            </text>
-          ) : null,
-        )}
-      </svg>
-    </div>
-  );
-}
-
-/* ------------- T4.16 calendar heatmap ------------- */
-
-function CalendarHeatmap({ days }: { days: DayRecord[] }) {
-  if (days.length === 0) {
-    return <div className={styles.chartEmpty}>No graded days in this window.</div>;
-  }
-  // Build a date → DayRecord map for O(1) lookup.
-  const byDate = new Map(days.map((d) => [d.date, d]));
-  // Render a continuous grid from the first to the last day of the window,
-  // grouped by week (Sun–Sat).  Pad the start so the first week aligns
-  // with its weekday column.
-  const first = parseIso(days[0].date)!;
-  const last = parseIso(days[days.length - 1].date)!;
-  // Walk Sun → Sat starting from the Sunday on/before `first`
-  const start = new Date(first);
-  start.setUTCDate(start.getUTCDate() - start.getUTCDay());
-  // End on the Saturday on/after `last`
-  const end = new Date(last);
-  end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay()));
-  // Find max abs P&L for color scaling
-  const maxAbs = Math.max(0.01, ...days.map((d) => Math.abs(d.units)));
-  const cells: { date: string; rec?: DayRecord; inWindow: boolean }[] = [];
-  for (
-    let cur = new Date(start);
-    cur.getTime() <= end.getTime();
-    cur.setUTCDate(cur.getUTCDate() + 1)
-  ) {
-    const iso = cur.toISOString().slice(0, 10);
-    const inWindow = cur >= first && cur <= last;
-    cells.push({ date: iso, rec: byDate.get(iso), inWindow });
-  }
-  // Group into 7-cell weeks (rows)
-  const weeks: typeof cells[] = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
-  return (
-    <div className={styles.heatmapWrap}>
-      <div className={styles.heatmapDayLabels}>
-        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <span key={i}>{d}</span>
-        ))}
-      </div>
-      <div className={styles.heatmapGrid}>
-        {weeks.map((wk, wi) => (
-          <div key={wi} className={styles.heatmapRow}>
-            {wk.map((c, di) => (
-              <HeatCell key={c.date} cell={c} maxAbs={maxAbs} di={di} />
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className={styles.heatmapLegend}>
-        <span>Loss</span>
-        <span className={styles.heatLegendBar} aria-hidden />
-        <span>Win</span>
-      </div>
-    </div>
-  );
-}
-
-function HeatCell({
-  cell,
-  maxAbs,
-}: {
-  cell: { date: string; rec?: DayRecord; inWindow: boolean };
-  maxAbs: number;
-  di: number;
-}) {
-  const rec = cell.rec;
-  let bg = "transparent";
-  let title = `${cell.date} · no data`;
-  if (rec) {
-    const intensity = Math.min(1, Math.abs(rec.units) / maxAbs);
-    if (rec.units > 0) {
-      // primary (warm brown / win)
-      bg = `color-mix(in oklab, var(--primary) ${Math.round(15 + intensity * 65)}%, transparent)`;
-    } else if (rec.units < 0) {
-      bg = `color-mix(in oklab, var(--destructive) ${Math.round(15 + intensity * 65)}%, transparent)`;
-    } else {
-      bg = `color-mix(in oklab, var(--muted-foreground) 18%, transparent)`;
-    }
-    title = `${cell.date} · ${formatUnits(rec.units)}`;
-  }
-  return (
-    <span
-      className={styles.heatCell}
-      title={title}
-      style={{
-        background: bg,
-        opacity: cell.inWindow ? 1 : 0.25,
-      }}
-      aria-label={title}
-    />
-  );
-}
-
-function parseIso(iso: string): Date | null {
-  if (!iso) return null;
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(Date.UTC(y, m - 1, d));
-}
+/* 2026-07-28: the underwater plot used to be hand-rolled here.  It now
+   lives in InsightCharts.tsx alongside the reliability curve and the
+   divergence bar -- one module for the three charts so they share the
+   guarded formatters and the "never tone-colour a simulated figure"
+   rule.  This page just mounts it with the real-priced series. */
 
 /* ------------- T4.17 win-rate by zone ------------- */
 
@@ -887,34 +697,73 @@ function realZonePL(z: import("@/lib/roi").ZoneRoi): number {
   return known > 0 ? pr.realPricedPL : z.unitsPL;
 }
 
+/** Hit rate over the SAME population as the P&L and the break-even tick:
+ *  the real-priced subset.  Returns the all-graded rate only when no bet
+ *  in the zone carries a captured price (LEAN zones, where flat -110 is
+ *  the correct reference). */
+function realZoneHit(z: import("@/lib/roi").ZoneRoi): { rate: number; wins: number; losses: number; real: boolean } {
+  const pr = z.provenance;
+  const n = pr.realPricedWins + pr.realPricedLosses;
+  if (pr.realPricedBets > 0 && n > 0) {
+    return { rate: pr.realPricedWins / n, wins: pr.realPricedWins, losses: pr.realPricedLosses, real: true };
+  }
+  return { rate: z.hitRate, wins: z.wins, losses: z.losses, real: false };
+}
+
 function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
   const withBets = zones.filter((z) => z.bets > 0);
   if (withBets.length === 0) {
     return <div className={styles.chartEmpty}>No graded bets in this window yet.</div>;
   }
-  const breakEven = 0.524; // -110 reference line only; see the footnote
+  // -110 reference, used ONLY for a zone that has no captured price at all.
+  const FLAT_110 = 0.524;
   const placeholderTotal = withBets.reduce((a, z) => a + z.provenance.placeholderBets, 0);
   return (
     <div className={styles.zoneChart}>
       {withBets.map((z) => {
-        const pct = z.hitRate * 100;
-        const above = z.hitRate >= breakEven;
-        const fillW = Math.min(100, pct);
+        const hit = realZoneHit(z);
+        /* 2026-07-28 AUDIT FIX: this line was hardcoded to 0.524 -- the
+           break-even rate of a -110 bet -- for every zone, while the
+           footnote admitted in prose that most bets were placed at worse
+           prices. STRONG YRFI at 57.7% looked 5.3 points clear of the
+           line and is actually 1.9 points clear of its real one (55.82%).
+           A third of the apparent edge was the tick being in the wrong
+           place. */
+        const breakEven =
+          z.provenance.realPricedBets > 0 && Number.isFinite(z.provenance.realBreakEven)
+            ? z.provenance.realBreakEven
+            : FLAT_110;
+        const rate = hit.rate;
+        const hasRate = Number.isFinite(rate);
+        const above = hasRate && rate >= breakEven;
+        const fillW = hasRate ? Math.min(100, rate * 100) : 0;
+        const pl = realZonePL(z);
         return (
           <div key={z.label} className={styles.zoneRow}>
             <div className={styles.zoneLabel}>
               <span className={styles.zoneName}>{z.label}</span>
-              <span className={styles.zoneN}>{z.bets} bets</span>
+              <span className={styles.zoneN}>
+                {hit.wins}-{hit.losses}
+                {hit.real ? " priced" : " graded"}
+              </span>
             </div>
             <div className={styles.zoneBarTrack}>
               <div
                 className={`${styles.zoneBarFill} ${above ? styles.zoneAbove : styles.zoneBelow}`}
                 style={{ width: `${fillW}%` }}
               />
-              <span className={styles.zoneBreakEven} style={{ left: `${breakEven * 100}%` }} aria-hidden />
+              <span
+                className={styles.zoneBreakEven}
+                style={{ left: `${breakEven * 100}%` }}
+                aria-hidden
+              />
             </div>
-            <div className={`${styles.zoneRate} ${above ? styles.numWin : styles.numLoss}`}>
-              {pct.toFixed(1)}%
+            <div
+              className={`${styles.zoneRate} ${
+                !hasRate ? styles.numFlat : above ? styles.numWin : styles.numLoss
+              }`}
+            >
+              {hasRate ? `${(rate * 100).toFixed(1)}%` : "—"}
             </div>
             {/* 2026-07-28 AUDIT FIX: this printed z.unitsPL -- the raw sum
                 INCLUDING bets settled against a fabricated -110 because no
@@ -922,137 +771,43 @@ function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
                 +33.50u for the season while the ROI panel one click away read
                 -1.03u for the same bets. Opposite signs, same season. Show the
                 real-priced figure, matching RoiPanel. */}
-            <div className={`${styles.zonePL} ${realZonePL(z) >= 0 ? styles.numWin : styles.numLoss}`}>
-              {formatUnits(realZonePL(z))}
+            <div className={`${styles.zonePL} ${pl >= 0 ? styles.numWin : styles.numLoss}`}>
+              {formatUnits(pl)}
+            </div>
+            <div className={styles.zoneSub}>
+              {z.provenance.realPricedBets > 0 ? (
+                <>
+                  Needs {(breakEven * 100).toFixed(1)}% to break even at the
+                  prices actually paid.{" "}
+                  {z.provenance.placeholderBets > 0 && (
+                    <>
+                      {z.provenance.realPricedBets} of {z.bets} graded bets had a
+                      captured price; the other {z.provenance.placeholderBets}{" "}
+                      settled against an assumed &minus;110 and are not counted
+                      on this row.
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  No captured prices in this zone, so the mark sits at the
+                  &minus;110 break-even of 52.4% and the units are
+                  hypothetical.
+                </>
+              )}
             </div>
           </div>
         );
       })}
       <div className={styles.zoneFoot}>
-        Vertical mark = {(breakEven * 100).toFixed(1)}% break-even at &minus;110.
-        Most bets were placed at worse prices than that, so a bar just right of
-        the line is not necessarily a winner &mdash; read the units column, which
-        counts only bets that had a real captured DraftKings price.
+        The vertical mark on each bar is that zone&rsquo;s own break-even rate
+        &mdash; the average price actually paid, not a flat &minus;110. A bar
+        that reaches past its mark made money; one short of it lost.
         {placeholderTotal > 0 && (
-          <> {placeholderTotal} graded {placeholderTotal === 1 ? "bet" : "bets"} had
-          no captured price and are excluded here; they settled against a
-          placeholder &minus;110.</>
+          <> {placeholderTotal} graded {placeholderTotal === 1 ? "bet" : "bets"} across
+          all zones had no captured price and are excluded from both the rate
+          and the units here.</>
         )}
-      </div>
-    </div>
-  );
-}
-
-/* ------------- T4.23 calibration plot ------------- */
-
-function CalibrationPlot({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
-  // Predicted probability per zone — coarse, hand-coded from the LR
-  // classifier thresholds.  STRONG NRFI fires at p_nrfi >= 0.56, so use
-  // the bin midpoint (0.65 say) as a rough predicted probability.
-  // STRONG YRFI fires at p_nrfi < 0.44 → P(YRFI) >= 0.56 (0.65 mid).
-  // LEAN equivalently maps to a thinner band.
-  const predicted: Record<string, number> = {
-    "STRONG NRFI": 0.65,
-    "LEAN NRFI":   0.54,
-    "LEAN YRFI":   0.54,
-    "STRONG YRFI": 0.65,
-  };
-  const points = zones
-    .filter((z) => z.bets > 0 && z.label in predicted)
-    .map((z) => ({
-      label: z.label,
-      pred:  predicted[z.label],
-      actual: z.hitRate,
-      n:      z.bets,
-    }));
-  if (points.length === 0) {
-    return <div className={styles.chartEmpty}>Not enough data to plot calibration yet.</div>;
-  }
-  const W = 480;
-  const H = 320;
-  const padL = 50, padR = 16, padT = 14, padB = 36;
-  const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
-  // Both axes 0.30 → 0.80 (covers our practical zone range)
-  const xMin = 0.30, xMax = 0.80;
-  const yMin = 0.30, yMax = 0.80;
-  const xFor = (v: number) => padL + ((v - xMin) / (xMax - xMin)) * innerW;
-  const yFor = (v: number) => padT + innerH - ((v - yMin) / (yMax - yMin)) * innerH;
-  // Diagonal y=x reference
-  const diag = `M ${xFor(xMin)} ${yFor(yMin)} L ${xFor(xMax)} ${yFor(xMax)}`;
-  const ticks = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
-
-  return (
-    <div className={styles.calibPlot}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className={styles.chartSvg}
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
-        aria-label="Calibration plot: predicted probability vs actual hit rate"
-      >
-        {/* Grid */}
-        {ticks.map((t) => (
-          <g key={t}>
-            <line x1={xFor(t)} x2={xFor(t)} y1={padT} y2={padT + innerH} className={styles.gridLine} />
-            <line x1={padL} x2={padL + innerW} y1={yFor(t)} y2={yFor(t)} className={styles.gridLine} />
-            <text x={xFor(t)} y={H - padB + 16} textAnchor="middle" className={styles.axisText}>
-              {(t * 100).toFixed(0)}%
-            </text>
-            <text x={padL - 8} y={yFor(t) + 3} textAnchor="end" className={styles.axisText}>
-              {(t * 100).toFixed(0)}%
-            </text>
-          </g>
-        ))}
-        {/* Diagonal reference */}
-        <path d={diag} className={styles.calibDiag} />
-        {/* Zone points */}
-        {points.map((p) => {
-          const tone = p.actual > p.pred ? "above" : "below";
-          return (
-            <g key={p.label}>
-              <line
-                x1={xFor(p.pred)}
-                y1={yFor(p.pred)}
-                x2={xFor(p.pred)}
-                y2={yFor(p.actual)}
-                className={tone === "above" ? styles.calibStemAbove : styles.calibStemBelow}
-              />
-              <circle
-                cx={xFor(p.pred)}
-                cy={yFor(p.actual)}
-                r={Math.max(5, Math.min(14, Math.sqrt(p.n) * 2))}
-                className={tone === "above" ? styles.calibPointAbove : styles.calibPointBelow}
-              >
-                <title>{`${p.label}: predicted ${(p.pred*100).toFixed(0)}%, actual ${(p.actual*100).toFixed(1)}% (n=${p.n})`}</title>
-              </circle>
-              <text
-                x={xFor(p.pred) + 12}
-                y={yFor(p.actual) + 4}
-                className={styles.calibLabel}
-              >
-                {p.label}
-              </text>
-            </g>
-          );
-        })}
-        {/* Axis titles */}
-        <text x={padL + innerW / 2} y={H - 4} textAnchor="middle" className={styles.calibAxisTitle}>
-          Predicted hit rate
-        </text>
-        <text
-          x={-padT - innerH / 2}
-          y={14}
-          textAnchor="middle"
-          transform="rotate(-90)"
-          className={styles.calibAxisTitle}
-        >
-          Actual hit rate
-        </text>
-      </svg>
-      <div className={styles.calibFoot}>
-        Dot size = number of resolved bets in that zone.  Above the diagonal = the model is
-        underestimating the side; below = overestimating.  Aim for tight clustering on the line.
       </div>
     </div>
   );
@@ -1099,6 +854,7 @@ function DayRow({ day, maxAbs }: { day: DayRecord; maxAbs: number }) {
 /* ------------- helpers ------------- */
 
 function formatUnits(n: number): string {
+  if (!Number.isFinite(n)) return "—";
   if (n === 0) return "0.00u";
   const sign = n > 0 ? "+" : "";
   return `${sign}${n.toFixed(2)}u`;
@@ -1107,6 +863,7 @@ function formatUnits(n: number): string {
 function formatDate(iso: string): string {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return "—";
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.toLocaleDateString("en-US", {
     month: "short",
@@ -1114,6 +871,16 @@ function formatDate(iso: string): string {
     weekday: "short",
     timeZone: "UTC",
   });
+}
+
+/** Units as plain text for a prose sentence.  Uses U+2212 MINUS rather
+ *  than a hyphen so the figure reads as a negative number, not a dash.
+ *  Em dash on a missing value -- never "0.00u", which the operator would
+ *  read as "nothing happened". */
+function unitsText(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  if (n === 0) return "0.00u";
+  return n > 0 ? `+${n.toFixed(2)}u` : `−${Math.abs(n).toFixed(2)}u`;
 }
 
 function tileTone(units: number): string {

@@ -107,15 +107,21 @@ export function OpsHealthCard() {
     return () => clearInterval(id);
   }, [refresh]);
 
-  // Auto-open ONLY on non-ok status (warn/degraded) — historical errors in
-  // the last 24h alone don't warrant pre-expanding. The status field already
-  // encodes whether the system is currently unhappy; old resolved errors
-  // sitting in the audit log shouldn't pop the panel on every visit.
+  // FIX 3 (2026-07-28) — AUTO-OPEN ONLY ON "degraded".
+  //
+  // This used to auto-open on ANY non-ok status, i.e. on "warn" too.  A
+  // warn is routinely a single already-retried error sitting in the audit
+  // log, and the expanded panel measured ~430px of which ~391px was not
+  // errors — so the money numbers got shoved below the fold on a night
+  // when nothing needed doing.  Now: "warn" shows the one-line summary row
+  // (dot, status, ages, "N in the last hour · <step>") and the operator
+  // clicks to see more; only "degraded" — the state that means tonight's
+  // picks may actually be wrong — opens itself.
   // Skip if the user already closed it (sticky until status flips back
   // to ok and out again).
   useEffect(() => {
     if (!data) return;
-    const isBad = data.status !== "ok";
+    const isBad = data.status === "degraded";
     if (isBad && !open && !userClosed) {
       setOpen(true);
     }
@@ -164,6 +170,13 @@ export function OpsHealthCard() {
   const workerAge  = formatWorkerAge(lastWorkerAt);
   const gradeAge   = formatAge(minutesSinceGrade);
 
+  // FIX 3 — the collapsed row has to be USEFUL on its own, or closing the
+  // panel by default just hides the problem.  The newest failing step name
+  // is the single most useful token ("grade-today", "scrape-dk"), so it
+  // rides along on the errors chip and the operator can decide whether to
+  // expand without expanding.
+  const newestErrorStep = recentErrors.length > 0 ? recentErrors[0].step : null;
+
   // T4.13: tone the grade chip when the pipeline is lagging.  Red when
   // there's a real cron-lag bite (3+ ungraded for >15 min), amber when
   // 1-2 ungraded for >15 min.  Always-green when nothing's awaiting --
@@ -192,10 +205,10 @@ export function OpsHealthCard() {
         onClick={() => {
           setOpen(o => {
             const next = !o;
-            // Mark userClosed only if the system is actually unhealthy
-            // (matches the auto-open trigger). Historical errors alone
-            // don't sticky-suppress the panel.
-            if (!next && status !== "ok") {
+            // Mark userClosed only if the system is actually degraded
+            // (matches the auto-open trigger above). A warn never
+            // auto-opens, so closing one has nothing to suppress.
+            if (!next && status === "degraded") {
               setUserClosed(true);
             }
             return next;
@@ -249,7 +262,8 @@ export function OpsHealthCard() {
               <span className={`num ${styles.metricValue}`}>{errorsLast24h}</span>
               {errorsLastHour > 0 && (
                 <span className={styles.metricBadge}>
-                  {errorsLastHour} in last hour
+                  {errorsLastHour} in the last hour
+                  {newestErrorStep ? ` · ${newestErrorStep}` : ""}
                 </span>
               )}
             </span>
@@ -290,7 +304,9 @@ export function OpsHealthCard() {
                         {formatAge(Math.floor((Date.now() - Date.parse(e.capturedAtUtc)) / 60000))}
                       </span>
                     </span>
-                    <span className={styles.errMessage}>{e.message || "(no detail)"}</span>
+                    <span className={styles.errMessage} title={e.message || "(no detail)"}>
+                      {e.message || "(no detail)"}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -300,34 +316,42 @@ export function OpsHealthCard() {
               <span className={styles.allClear}>No errors in last 24 hours.</span>
             </div>
           )}
+
+          {/* FIX 3 — notices are behind their own collapsed disclosure.
+              They are not errors: the three live ones are `reconcile-heal`
+              SUCCESSES, i.e. the system fixing itself.  Rendered open, in
+              the same red-tinted row treatment as real errors, they were
+              the single biggest contributor to the panel's height and they
+              made a working repair look like a fault. */}
           {noticesLast24h > 0 && recentNotices.length > 0 && (
-            <div className={styles.section}>
-              <div className="eyebrow">Informational notices ({noticesLast24h})</div>
+            <details className={styles.noticeBox}>
+              <summary>
+                {noticesLast24h} routine {noticesLast24h === 1 ? "notice" : "notices"} —
+                {" "}things the system did on its own, not problems
+              </summary>
               <ul className={styles.errList}>
                 {recentNotices.map((e, i) => (
-                  <li key={`notice-${e.capturedAtUtc}-${i}`} className={styles.errRow}>
+                  <li key={`notice-${e.capturedAtUtc}-${i}`} className={styles.noticeRow}>
                     <span className={styles.errMeta}>
-                      <span className={styles.errStep}>{e.step}</span>
+                      <span className={styles.noticeStep}>{e.step}</span>
                       <span className={styles.errTime}>
                         {formatAge(Math.floor((Date.now() - Date.parse(e.capturedAtUtc)) / 60000))}
                       </span>
                     </span>
-                    <span className={styles.errMessage}>{e.message || "(no detail)"}</span>
+                    <span className={styles.errMessage} title={e.message || "(no detail)"}>
+                      {e.message || "(no detail)"}
+                    </span>
                   </li>
                 ))}
               </ul>
-            </div>
+            </details>
           )}
-          {reasons.length > 0 && (
-            <div className={styles.section}>
-              <div className="eyebrow">Why {statusLabel}</div>
-              <ul className={styles.reasonList}>
-                {reasons.map((r, i) => (
-                  <li key={i} className={styles.reasonRow}>{r}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+
+          {/* The "Why {statusLabel}" list was deleted here.  It restated
+              `reasons` verbatim, and `reasons` is already the summary
+              button's title attribute AND its aria-label — so the same
+              sentence rendered twice, once for sighted readers and once
+              for screen readers, plus a third copy in the tooltip. */}
         </div>
       )}
     </section>

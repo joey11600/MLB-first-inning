@@ -222,10 +222,15 @@
   margin: -1px;
 }
 
-/* ---- Summary tiles ---- */
+/* ---- Summary tile ----
+   2026-07-28: was four tiles.  "Day record" counted calendar days by
+   sign rather than bets and flattered a losing ledger; "Best day" and
+   "Worst day" were single observations of a heavy-tailed series that
+   the daily ledger already shows.  One tile, carrying its own
+   provenance split, is the whole summary now. */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: minmax(0, 420px);
   gap: 14px;
 }
 .tile {
@@ -245,13 +250,17 @@
   inset: 0;
   pointer-events: none;
 }
+/* --gain / --loss, not --primary / --destructive: globals.css:63-66 puts
+   the MEANING in the money tokens.  Same computed colour, so no contrast
+   change -- --gain is 8.27:1 dark / 5.74:1 light on --card, --loss is
+   6.23:1 / 7.01:1.  Both clear AA. */
 .tileTonePos {
-  border-left: 1px solid color-mix(in oklab, var(--primary) 60%, var(--border));
-  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--primary) 80%, transparent);
+  border-left: 1px solid color-mix(in oklab, var(--gain) 60%, var(--border));
+  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--gain) 80%, transparent);
 }
 .tileToneNeg {
-  border-left: 1px solid color-mix(in oklab, var(--destructive) 60%, var(--border));
-  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--destructive) 80%, transparent);
+  border-left: 1px solid color-mix(in oklab, var(--loss) 60%, var(--border));
+  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--loss) 80%, transparent);
 }
 .tileLabel {
   font-family: var(--font-sans);
@@ -272,22 +281,29 @@
   align-items: baseline;
   gap: 2px;
 }
-.tileTonePos .tileBig { color: var(--primary); }
-.tileToneNeg .tileBig { color: var(--destructive); }
+.tileTonePos .tileBig { color: var(--gain); }
+.tileToneNeg .tileBig { color: var(--loss); }
 .tileSub {
   font-family: var(--font-sans);
   font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--muted-foreground);
 }
-.numWin   { color: var(--primary); }
-.numLoss  { color: var(--destructive); }
-.numFlat  { color: var(--muted-foreground); }
-.numSep   {
-  color: var(--border);
-  margin: 0 4px;
-  font-weight: 400;
+/* The provenance split, on the face of the figure it qualifies.  A
+   number built partly from prices nobody ever saw has to say so where
+   it is read, not in a footnote three sections down. */
+.tileProv {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);   /* 7.36 dark / 6.33 light on --card */
 }
+.numWin   { color: var(--gain); }   /* 8.27 / 5.74 */
+.numLoss  { color: var(--loss); }   /* 6.23 / 7.01 */
+.numFlat  { color: var(--muted-foreground); }
 
 /* ---- Chart card ---- */
 .chartCard,
@@ -335,8 +351,8 @@
   height: 10px;
   border-radius: 2px;
 }
-.legendDot[data-tone="win"]  { background: var(--primary); }
-.legendDot[data-tone="loss"] { background: var(--destructive); }
+.legendDot[data-tone="win"]  { background: var(--gain); }
+.legendDot[data-tone="loss"] { background: var(--loss); }
 .legendLine {
   display: inline-block;
   width: 18px;
@@ -377,25 +393,10 @@
   fill: var(--muted-foreground);
   letter-spacing: 0.04em;
 }
-.barWin  {
-  fill: color-mix(in oklab, var(--primary) 75%, transparent);
-}
-.barLoss {
-  fill: color-mix(in oklab, var(--destructive) 75%, transparent);
-}
-.cumLine {
-  fill: none;
-  stroke: var(--foreground);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--foreground) 30%, transparent));
-}
-.cumDot {
-  fill: var(--foreground);
-  stroke: var(--card);
-  stroke-width: 1.5;
-}
+/* 2026-07-28: .barWin / .barLoss / .cumLine / .cumDot deleted with
+   PnlChart.  That card drew bars that duplicated the ledger table's
+   Distribution column plus a cumulative overlay that duplicated the
+   equity curve exactly -- the second of four renderings of one series. */
 
 /* ============================================================
    T2.42 — Bankroll equity curve
@@ -405,69 +406,59 @@
    so the eye instantly sees "below ATH" segments.
    ============================================================ */
 .equityArea {
-  fill: url(#equityAreaGradient);
-  /* Inline gradient defined in HistoryView.tsx via <defs> -- no, easier:
-     use color-mix for a flat translucent fill that adapts to theme.
-     Falls back to solid color if color-mix unsupported. */
-  fill: color-mix(in oklab, var(--primary) 14%, transparent);
+  /* Flat translucent fill that adapts to theme. */
+  fill: color-mix(in oklab, var(--gain) 14%, transparent);
 }
 
 .equityLine {
   fill: none;
-  stroke: var(--primary);
+  stroke: var(--gain);
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
   filter: drop-shadow(
-    0 0 6px color-mix(in oklab, var(--primary) 55%, transparent)
+    0 0 6px color-mix(in oklab, var(--gain) 55%, transparent)
   );
 }
 
 .equityPeakLine {
-  stroke: color-mix(in oklab, var(--primary) 60%, transparent);
+  stroke: color-mix(in oklab, var(--gain) 60%, transparent);
   stroke-width: 1;
   stroke-dasharray: 4 5;
   opacity: 0.7;
 }
 
 .equityPeakMarker {
-  fill: var(--primary);
+  fill: var(--gain);
   stroke: var(--card);
   stroke-width: 1.5;
   filter: drop-shadow(
-    0 0 5px color-mix(in oklab, var(--primary) 70%, transparent)
+    0 0 5px color-mix(in oklab, var(--gain) 70%, transparent)
   );
 }
 
 .equityCurrentMarker {
-  fill: var(--primary);
+  fill: var(--gain);
   stroke: var(--card);
   stroke-width: 1.5;
 }
 
 .equityDrawdown {
-  fill: color-mix(in oklab, var(--destructive) 28%, transparent);
+  fill: color-mix(in oklab, var(--loss) 28%, transparent);
   stroke: none;
 }
 
-/* 2026-05-12 -- Expected-trend line.  Anchored at 0 on day 0, lands
-   on the current equity point at the end of the window, so it
-   represents "average daily P&L extrapolated linearly."  Drawn as
-   a thin dashed line so it's clearly secondary to the actual
-   equity line. */
-.equityTrendLine {
-  fill: none;
-  stroke: color-mix(in oklab, var(--foreground) 45%, transparent);
-  stroke-width: 1.4;
-  stroke-dasharray: 5 4;
-  stroke-linecap: round;
-  opacity: 0.85;
-}
+/* 2026-07-28: .equityTrendLine deleted with the "Expected (avg trend)"
+   path.  Its slope was finalCum / (days - 1) anchored at 0 -- the chord
+   from the series' first point to its own last point -- so the gap it
+   drew was guaranteed to close at the right edge by construction, on
+   every window, every time.  It could not signal anything. */
 
-/* Stats panel under the equity chart */
+/* Stats panel under the equity chart.  Three cells, not six: Volatility
+   and Sharpe were deleted (see the note in HistoryView.tsx). */
 .equityStats {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-top: 18px;
   padding: 14px 16px;
@@ -504,8 +495,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.equityStatBig[data-tone="pos"] { color: var(--primary); }
-.equityStatBig[data-tone="neg"] { color: var(--destructive); }
+.equityStatBig[data-tone="pos"] { color: var(--gain); }
+.equityStatBig[data-tone="neg"] { color: var(--loss); }
 .equityStatBig[data-tone="neutral"] { color: var(--muted-foreground); }
 
 .equityStatSub {
@@ -542,12 +533,12 @@
   border-radius: 2px;
 }
 .legendSwatch[data-tone="drawdown"] {
-  background: color-mix(in oklab, var(--destructive) 28%, transparent);
-  border: 1px solid color-mix(in oklab, var(--destructive) 50%, var(--border));
+  background: color-mix(in oklab, var(--loss) 28%, transparent);
+  border: 1px solid color-mix(in oklab, var(--loss) 50%, var(--border));
 }
 .legendDot[data-tone="peak"] {
-  background: var(--primary);
-  box-shadow: 0 0 4px color-mix(in oklab, var(--primary) 70%, transparent);
+  background: var(--gain);
+  box-shadow: 0 0 4px color-mix(in oklab, var(--gain) 70%, transparent);
   width: 8px; height: 8px; border-radius: 50%;
   display: inline-block; vertical-align: middle; margin-right: 4px;
 }
@@ -557,19 +548,22 @@
   height: 2px;
   vertical-align: middle;
   margin-right: 4px;
-  background: var(--primary);
+  background: var(--gain);
   filter: drop-shadow(
-    0 0 3px color-mix(in oklab, var(--primary) 55%, transparent)
+    0 0 3px color-mix(in oklab, var(--gain) 55%, transparent)
   );
 }
-.legendLine[data-tone="trend"] {
+/* The raw column's comparison line.  Textured and never toned -- hue is
+   real money, and roughly a third of that line is prices nobody paid. */
+.legendLine[data-tone="assumed"] {
   display: inline-block;
   width: 18px;
   height: 0;
   vertical-align: middle;
   margin-right: 4px;
-  border-top: 2px dashed color-mix(in oklab, var(--foreground) 45%, transparent);
-  opacity: 0.85;
+  background: transparent;
+  border-top: 2px dashed var(--muted-foreground);
+  opacity: 0.7;
 }
 
 /* ---- Table ---- */
@@ -658,13 +652,16 @@
   bottom: 0;
   border-radius: 2px;
 }
+/* The distribution bar is real money, so it takes the money tokens.
+   Same computed colours as before -- --gain resolves to --primary and
+   --loss to --destructive -- so nothing shifts visually or in contrast. */
 .distFillWin {
-  background: color-mix(in oklab, var(--primary) 80%, transparent);
-  box-shadow: 0 0 8px color-mix(in oklab, var(--primary) 30%, transparent);
+  background: color-mix(in oklab, var(--gain) 80%, transparent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--gain) 30%, transparent);
 }
 .distFillLoss {
-  background: color-mix(in oklab, var(--destructive) 80%, transparent);
-  box-shadow: 0 0 8px color-mix(in oklab, var(--destructive) 30%, transparent);
+  background: color-mix(in oklab, var(--loss) 80%, transparent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--loss) 30%, transparent);
 }
 
 .empty {
@@ -678,7 +675,7 @@
 /* ---- Responsive ---- */
 @media (max-width: 980px) {
   .shell { padding: 18px 16px 48px; }
-  .tiles { grid-template-columns: repeat(2, 1fr); }
+  .tiles { grid-template-columns: 1fr; }
   .tileBig { font-size: 22px; }
   .theadRow,
   .row {
@@ -692,67 +689,13 @@
   }
 }
 
-/* =============================================================
-   T4.16: Calendar heatmap
-   ============================================================= */
-.heatmapWrap {
-  display: grid;
-  grid-template-columns: 24px 1fr;
-  gap: 8px;
-  margin-top: 4px;
-}
-.heatmapDayLabels {
-  display: grid;
-  grid-template-rows: repeat(7, 1fr);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--muted-foreground);
-  letter-spacing: 0.04em;
-  align-items: center;
-  justify-items: center;
-  gap: 3px;
-}
-.heatmapGrid {
-  display: flex;
-  gap: 3px;
-  align-items: stretch;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-.heatmapRow {
-  display: grid;
-  grid-template-rows: repeat(7, 1fr);
-  gap: 3px;
-}
-.heatCell {
-  display: block;
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
-}
-.heatmapLegend {
-  grid-column: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  color: var(--muted-foreground);
-  letter-spacing: 0.05em;
-}
-.heatLegendBar {
-  width: 80px;
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(
-    to right,
-    color-mix(in oklab, var(--destructive) 70%, transparent) 0%,
-    color-mix(in oklab, var(--muted-foreground) 18%, transparent) 50%,
-    color-mix(in oklab, var(--primary) 70%, transparent) 100%
-  );
-}
+/* 2026-07-28: the calendar-heatmap block was deleted with
+   CalendarHeatmap / HeatCell.  116 values across ~18 week-rows of
+   12px cells, with magnitude carried only by a color-mix alpha the
+   eye cannot rank -- the fourth rendering of the same daily series.
+   Its title also still read "green = up, red = down" while the cells
+   rendered --primary and --destructive, describing a palette the
+   operator explicitly rejected. */
 
 /* =============================================================
    T4.17: Win-rate by zone chart
@@ -767,7 +710,7 @@
   display: grid;
   grid-template-columns: minmax(140px, 1fr) minmax(200px, 2fr) 64px 78px;
   align-items: center;
-  gap: 12px;
+  gap: 6px 12px;
 }
 .zoneLabel {
   display: flex;
@@ -802,8 +745,8 @@
   border-radius: 4px;
   transition: width 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.zoneAbove { background: var(--primary); }
-.zoneBelow { background: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground)); }
+.zoneAbove { background: var(--gain); }
+.zoneBelow { background: color-mix(in oklab, var(--loss) 70%, var(--muted-foreground)); }
 .zoneBreakEven {
   position: absolute;
   top: -4px;
@@ -825,71 +768,63 @@
   font-weight: 500;
   text-align: right;
 }
+/* Names the population the row's rate, units and tick all share.  The
+   old row printed a hit rate over ALL graded bets next to a P&L over
+   only the priced ones -- two populations on one line. */
+.zoneSub {
+  grid-column: 1 / -1;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);   /* 7.36 dark / 6.33 light on --card */
+  max-width: 68ch;
+}
 .zoneFoot {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed var(--border);
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--muted-foreground);
   letter-spacing: 0.01em;
+  max-width: 68ch;
 }
 
-/* =============================================================
-   T4.23: Calibration plot
-   ============================================================= */
-.calibPlot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.calibDiag {
-  fill: none;
-  stroke: color-mix(in oklab, var(--foreground) 30%, transparent);
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-}
-.calibStemAbove {
-  stroke: var(--primary);
-  stroke-width: 1.5;
-  opacity: 0.5;
-}
-.calibStemBelow {
-  stroke: var(--destructive);
-  stroke-width: 1.5;
-  opacity: 0.5;
-}
-.calibPointAbove {
-  fill: var(--primary);
-  stroke: var(--card);
-  stroke-width: 2;
-}
-.calibPointBelow {
-  fill: var(--destructive);
-  stroke: var(--card);
-  stroke-width: 2;
-}
-.calibLabel {
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  fill: var(--foreground);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-.calibAxisTitle {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  fill: var(--muted-foreground);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.calibFoot {
+/* Footnote under the daily ledger table. */
+.tableFoot {
   margin-top: 4px;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  color: var(--muted-foreground);
-  letter-spacing: 0.01em;
+  padding-top: 10px;
   border-top: 1px dashed var(--border);
-  padding-top: 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  max-width: 68ch;
+}
+
+/* 2026-07-28: the calibration-plot block was deleted with
+   CalibrationPlot.  That chart hardcoded predicted probabilities
+   (STRONG NRFI 0.65, LEAN 0.54, STRONG YRFI 0.65) -- invented
+   constants in a codebase whose rule is never to invent a number,
+   and wrong ones (the measured means are 0.629 and 0.615).  It also
+   collapsed four zones onto two x-positions, so it could only ever
+   draw a vertical pair of dots.  Replaced by the reliability curve
+   on the main page, which bins the model's own probabilities. */
+
+/* CHART 2 (underwater plot) and CHART 3 (replay-vs-ledger divergence)
+   are styled by InsightCharts.module.css, next to the components that
+   render them.  Nothing for them lives here -- both mount as their own
+   complete cards. */
+
+/* ---- the raw / assumed comparison line on the equity curve ----
+   Kept so the older, higher number does not appear to vanish, but
+   textured and never toned: hue is real money, and roughly a third of
+   this line is prices nobody ever paid. */
+.equityAssumedLine {
+  fill: none;
+  stroke: var(--muted-foreground);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
 }

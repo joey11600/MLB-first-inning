@@ -9,6 +9,7 @@ import { OpsHealthCard } from "./OpsHealthCard";
 import { DemotionsBanner } from "./DemotionsBanner";
 import { RoiPanel, resolveRecordDay } from "./RoiPanel";
 import { DayReconcile } from "./DayReconcile";
+import { ReliabilityCurve } from "./InsightCharts";
 import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
 import { Ticker } from "./Ticker";
@@ -20,8 +21,17 @@ import { SettingsDropdown } from "./SettingsDropdown";
 import styles from "./DashboardShell.module.css";
 
 // 2026-07-28 redesign -- SURFACES REMOVED FROM THIS SHELL.
-// The component files still exist and are unchanged, so any of these can
-// be re-mounted by restoring one import + one line of JSX.
+//
+// SummaryStrip is UNMOUNTED HERE but the file is still live: OpsHealthCard
+// and TonightsActionCard both import it.  Do not delete it.
+//
+// StatusLine, ShadowPnlCard and SlateProjections were DELETED outright on
+// 2026-07-28 -- files and stylesheets, 427 lines of TSX.  They had zero
+// import sites anywhere in the app; the only thing that referenced them
+// was this comment block, which used to claim they were "restorable by one
+// import" and so made them read as live code to anyone grepping for where
+// a number comes from.  They are not restorable by one import any more.
+// Recover them from git history if they are ever wanted back.
 //
 //   SummaryStrip  -- "Games today" now reads off the ticker's
 //                    `games shown/total`; the Avg-λ tile (mean AND its
@@ -40,14 +50,17 @@ import styles from "./DashboardShell.module.css";
 //                    ticker; SIDE / STRENGTH / SORT are the ControlPanel
 //                    buttons themselves.  Its three NRFI/PASS/YRFI colour
 //                    swatches are gone deliberately: colour no longer
-//                    encodes side, so the legend would be wrong.
-//   ShadowPnlCard -- folded into DemotionsBanner as its expanded body,
-//                    next to the demotion it describes.
+//                    encodes side, so the legend would be wrong.  FILE
+//                    DELETED 2026-07-28.
+//   ShadowPnlCard -- was supposed to fold into DemotionsBanner as its
+//                    expanded body.  That never happened, and the file sat
+//                    unmounted for three months.  FILE DELETED 2026-07-28;
+//                    the shadow-P&L question is answered by
+//                    tools/cluster_shadow_pnl.py on the command line.
+//   SlateProjections -- unmounted and unreferenced.  FILE DELETED
+//                    2026-07-28.
 //
-// Their imports are removed as well as their mounts, so none of the three
-// ships in the JavaScript bundle any more.  To restore one:
-//   import { SummaryStrip } from "./SummaryStrip";   // file is untouched
-//   <SummaryStrip rows={data.rows} />                // in the JSX below
+// None of these ships in the JavaScript bundle any more.
 
 // T-V21-LOCKIN-2026-05-06: removed ModelToggle (V2/V3 pill) and
 // ShadowDeltaCard (V2-vs-V2.1 daily delta tile).  V2.1 is now the
@@ -507,7 +520,22 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           STRONG pick that is deliberately carrying no bet (he has to
           understand that BEFORE he reads the P&L or the P&L looks
           broken), then the plumbing. */}
-      <div className={styles.alerts}>
+      {/* FIX 3, second half -- RESERVE THE ROW SO NOTHING JUMPS.
+          `opsNeedsAttention` is false during server rendering (the health
+          fetch has not resolved yet), so the ops card was not in the SSR
+          HTML at all.  It then appeared ~800ms after load and pushed
+          everything below it -- including the money numbers -- down the
+          page, mid-read.  Reserving the collapsed card's height while the
+          health check is still in flight makes that shift 0px; once it
+          resolves, either the card fills the reserved row or the row
+          releases and the reservation is dropped.
+          The inline style is deliberate: DashboardShell.module.css is
+          owned by another change in flight, and this is one declaration
+          that has to land with the collapse behaviour it belongs to. */}
+      <div
+        className={styles.alerts}
+        style={ops === null ? { minHeight: 39 } : undefined}
+      >
         <ChangeBanner changes={data.pickChanges} />
 
         {/* 2026-05-11: surfaces active cluster demotions so an
@@ -568,13 +596,27 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         <div className="zoneHead">
           <span className="eyebrow">Why the system did that</span>
         </div>
-        <DayReconcile
-          day={recordDay.day}
-          tonight={night}
-          selectedDate={data.date}
-          sideFrom={recordDay.side?.from}
-          sideTo={recordDay.side?.to}
-        />
+        {/* The inner stack owns the spacing between the two surfaces.
+            `.zoneWhy` sets the rule and the padding above it but declares
+            no gap, so without this the calibration card would sit flush
+            against the reconciliation table. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* CALIBRATION -- does the model's probability mean what it
+              says?  This is the most literal possible answer to "why did
+              the system do that", and it is the only chart on either page
+              that can move a threshold, so it leads the zone.  It fetches
+              its own data and renders nothing until that resolves, so it
+              costs zero pixels on first paint and cannot delay the board
+              above it. */}
+          <ReliabilityCurve />
+          <DayReconcile
+            day={recordDay.day}
+            tonight={night}
+            selectedDate={data.date}
+            sideFrom={recordDay.side?.from}
+            sideTo={recordDay.side?.to}
+          />
+        </div>
       </div>
 
       {/* No footer.  The page ends on the reconciliation table -- the
