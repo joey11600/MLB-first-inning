@@ -7,8 +7,8 @@ import { aggregateTodayRoi } from "@/lib/roi-today";
 import type { RecFile, RecSide } from "@/lib/season-record";
 import { isNum, replayWindow } from "@/lib/season-record";
 import type { NightCounts } from "@/lib/reconcile";
-import { nightFromRecord, nightFromBoard, fmtU } from "@/lib/reconcile";
-import { DayReconcile } from "./DayReconcile";
+import type { TonightSystem } from "@/lib/reconcile";
+import { nightFromRecord, nightFromBoard, tonightFromBoard, fmtU } from "@/lib/reconcile";
 import styles from "./RoiPanel.module.css";
 
 /* ============================================================
@@ -82,6 +82,21 @@ interface RoiPanelProps {
   night?: NightCounts | null;
 }
 
+/** Resolve a date against the record: REAL first (real captured prices),
+ *  then PROJECTED, because REAL only starts 2026-05-07 and the 36 April
+ *  dates exist only in the projected replay. Exported so DashboardShell
+ *  can mount DayReconcile below the board with the same resolution. */
+export function resolveRecordDay(rec: RecFile | null, date: string) {
+  const realSide = rec?.real ?? null;
+  const projSide = rec?.projected ?? null;
+  const realDay  = realSide?.days.find((d) => d.date === date) ?? null;
+  const projDay  = projSide?.days.find((d) => d.date === date) ?? null;
+  return {
+    day:  realDay ?? projDay,
+    side: realDay ? realSide : projDay ? projSide : (realSide ?? projSide),
+  };
+}
+
 export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nightProp }: RoiPanelProps) {
   const [window, setWindow]   = useState<RoiWindow>("today");
   const [data, setData]       = useState<RoiResponse | null>(null);
@@ -123,10 +138,12 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
   // through rather than showing an empty day for the first month.
   const realSide = seasonRecord?.real ?? null;
   const projSide = seasonRecord?.projected ?? null;
-  const realDay  = realSide?.days.find((d) => d.date === initialDate) ?? null;
-  const projDay  = projSide?.days.find((d) => d.date === initialDate) ?? null;
-  const recDay   = realDay ?? projDay;
-  const recSide  = realDay ? realSide : projDay ? projSide : (realSide ?? projSide);
+  const recDay   = resolveRecordDay(seasonRecord, initialDate).day;
+  // Tonight is not in the nightly export yet, so read it off the board.
+  const tonightLive = useMemo(
+    () => tonightFromBoard(rows, details),
+    [rows, details],
+  );
   const fromRec  = nightFromRecord(recDay);
   const tonight  = useMemo(
     () => nightFromBoard(rows, details, initialDate),
@@ -208,6 +225,7 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
           startDate={view?.startDate}
           endDate={view?.endDate}
           window={window}
+          tonight={tonightLive}
         />
 
         {/* The old flat-1u ledger. Real money that really moved, so it is
@@ -243,23 +261,12 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
           </p>
         )}
 
-        {/* ── ZONE 3 · WHY ──────────────────────────────────────────
-            A visible boundary, on the page background with no card. It
-            tells the operator he has left the money and entered the
-            reference material -- which is the visual form of "these
-            counts are ALLOWED to differ". */}
-        <div className={`zoneWhy ${styles.whyZone}`}>
-          <div className="zoneHead">
-            <span className="eyebrow">Why the system did that</span>
-          </div>
-          <DayReconcile
-            day={recDay}
-            tonight={night}
-            selectedDate={initialDate}
-            sideFrom={recSide?.from}
-            sideTo={recSide?.to}
-          />
-        </div>
+        {/* ZONE 3 ("why the system did that") used to render here. The
+            operator asked for the record at the TOP of the page, so this
+            panel moved above the board -- and a long reconciliation table
+            above the board would bury the slate. DayReconcile is now
+            mounted by DashboardShell BELOW the board, where reference
+            material belongs. Nothing was removed. */}
       </div>
     </section>
   );
@@ -283,10 +290,14 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
  *  measurable"), the reconciler sentence, and the whole model replay
  *  inside a collapsed disclosure. */
 function SystemCard({
-  rec, side, bankUnits, startDate, endDate, window: win,
+  rec, side, bankUnits, startDate, endDate, window: win, tonight,
 }: {
   rec: RecFile | null;
   side: RecSide | null;
+  /** Tonight straight off the board. The nightly export only covers fully
+   *  graded days, so on the live slate the record card had nothing to show
+   *  even after tonight's pick graded. */
+  tonight: TonightSystem | null;
   /** The operator's ACTUAL bankroll (100u). Every unit figure on this
    *  card is rebased to it. The raw simulation compounds to ~1200u by
    *  late July, so its own units describe a bankroll nobody has. */
@@ -299,6 +310,50 @@ function SystemCard({
   const label = win === "season" ? "Season to date"
     : win === "today" ? "Tonight"
     : win === "7d" ? "Last 7 days" : "Last 30 days";
+
+  // TONIGHT comes from the board, not the record. Everything else comes
+  // from the replay.
+  if (win === "today") {
+    const t = tonight;
+    const tone: "win" | "loss" | "neutral" =
+      !t || (t.wins + t.losses) === 0 ? "neutral"
+      : t.pnl > 0.05 ? "win" : t.pnl < -0.05 ? "loss" : "neutral";
+    const settled = t ? t.wins + t.losses : 0;
+    return (
+      <div className={styles.moneyCard} data-tone={tone}>
+        <div className={styles.totalLeft}>
+          <span className="eyebrow">The system · ¼-Kelly · Tonight</span>
+          <span className="figHero">
+            {!t ? "—" : settled === 0 ? `${t.staked.toFixed(2)}u` : fmtU(t.pnl)}
+          </span>
+          <span className="meta">
+            {!t
+              ? "No STRONG picks on tonight's slate."
+              : settled === 0
+                ? `sized across ${t.bets} STRONG ${t.bets === 1 ? "pick" : "picks"} · none graded yet`
+                : `${t.wins}-${t.losses} settled · ${t.staked.toFixed(2)}u sized across ` +
+                  `${t.bets} STRONG ${t.bets === 1 ? "pick" : "picks"}` +
+                  (t.pending > 0 ? ` · ${t.pending} still running` : "")}
+          </span>
+          {t && t.committed < t.bets && (
+            <span className={styles.provNote}>
+              <span className={styles.provDot} data-attn="1" aria-hidden />
+              {`${t.bets - t.committed} of ${t.bets} sized ${t.bets - t.committed === 1 ? "pick was" : "picks were"} `}
+              {`never committed to the ledger — a STRONG pick stays pending until its `}
+              {`lock window opens, and these graded before that happened. The figure `}
+              {`above is what the system sized; the ledger below booked nothing for them.`}
+            </span>
+          )}
+        </div>
+        <div className={styles.totalRight}>
+          <Stat label="Record" value={t ? `${t.wins}-${t.losses}` : "0-0"} />
+          <Stat label="Hit rate"
+            value={settled > 0 ? `${(100 * (t?.wins ?? 0) / settled).toFixed(1)}%` : "—"} />
+          <Stat label="Committed" value={t ? `${t.committed}/${t.bets}` : "—"} />
+        </div>
+      </div>
+    );
+  }
 
   const y = w?.yrfi ?? null;
   const tone: "win" | "loss" | "neutral" =
@@ -368,25 +423,13 @@ function SystemCard({
         />
       </div>
 
-      {/* The closing-line-value explanation, kept word for word. The tile
-          it used to live in only ever printed "Not measurable", which is
-          a disclaimer, not a statistic. */}
-      <p className={styles.clvFootnote}>
-        Closing-line value is not measurable here — we bet the first price
-        we see and lock it, so there is no closing price to compare
-        against. Per-game moves, when they happen, still show in the odds
-        chip on the board.
-      </p>
-
-      {/* Nothing on this page said this before, and it is the whole answer
-          to "why does it say 43-38 up there and 112 bets 58-54 down
-          here". */}
-      <p className={styles.reconciler}>
-        <b>Above:</b> YRFI bets inside the window you picked. <b>Inside
-        &ldquo;How this number was computed&rdquo;:</b> the same replay over
-        its whole run, both sides. Different populations, so the bet counts
-        differ.
-      </p>
+      {/* 2026-07-28: the CLV disclaimer and the two-populations
+          reconciler paragraph were removed on operator request to simplify
+          this section. Neither was a statistic -- one printed "not
+          measurable" as prose, the other explained why two bet counts
+          differ. The counts they reconciled are now only shown in one
+          place (the collapsed "how this number was computed"), so the
+          explanation is no longer load-bearing. */}
 
       {rec && <HowComputed rec={rec} />}
     </div>

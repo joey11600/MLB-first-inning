@@ -7,7 +7,8 @@ import { todayEtIso } from "@/lib/date";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { OpsHealthCard } from "./OpsHealthCard";
 import { DemotionsBanner } from "./DemotionsBanner";
-import { RoiPanel } from "./RoiPanel";
+import { RoiPanel, resolveRecordDay } from "./RoiPanel";
+import { DayReconcile } from "./DayReconcile";
 import { BoardTable } from "./BoardTable";
 import { ChangeBanner } from "./ChangeBanner";
 import { Ticker } from "./Ticker";
@@ -361,6 +362,12 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
   }, []);
 
   // What the CURRENT model would stake on the slate being viewed.
+  // Same resolution RoiPanel used to do internally.
+  const recordDay = useMemo(
+    () => resolveRecordDay(seasonRecord, data?.date ?? ""),
+    [seasonRecord, data?.date],
+  );
+
   const replayStakes = useMemo(
     () => replayStakesFor(seasonRecord, data?.date ?? ""),
     [seasonRecord, data?.date],
@@ -513,6 +520,17 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         {opsNeedsAttention && <OpsHealthCard />}
       </div>
 
+      {/* ZONE 2 -- how am I doing. Moved ABOVE the board on operator
+          request: the record is the second thing he wants to see, after
+          what to bet tonight. */}
+      <RoiPanel
+        initialDate={data.date}
+        rows={data.rows}
+        details={data.details}
+        seasonRecord={seasonRecord}
+        night={night}
+      />
+
       {/* ZONE 1 -- the board's own controls, touching the board. */}
       <ControlPanel
         dates={data.availableDates}
@@ -542,13 +560,22 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           Both live inside RoiPanel; `night` comes from the D1 hoist so
           the reconciliation table cannot describe a different night from
           the ticker and the hero. */}
-      <RoiPanel
-        initialDate={data.date}
-        rows={data.rows}
-        details={data.details}
-        seasonRecord={seasonRecord}
-        night={night}
-      />
+      {/* Operator asked to see the record at the TOP. The reconciliation
+          table that used to live inside this panel now sits below the
+          board -- a long reference table above the slate would bury the
+          thing he is actually here to read. */}
+      <div className="zoneWhy">
+        <div className="zoneHead">
+          <span className="eyebrow">Why the system did that</span>
+        </div>
+        <DayReconcile
+          day={recordDay.day}
+          tonight={night}
+          selectedDate={data.date}
+          sideFrom={recordDay.side?.from}
+          sideTo={recordDay.side?.to}
+        />
+      </div>
 
       {/* No footer.  The page ends on the reconciliation table -- the
           reference material -- rather than on a text restatement of the

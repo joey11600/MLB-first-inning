@@ -150,3 +150,59 @@ export function replayText(n: NightCounts | null): string {
   // to prevent.
   return `MODEL REPLAY ${n.replay} ${fmtU(n.replaySimPL ?? n.replayPL)}`;
 }
+
+
+/** Tonight's STRONG picks, straight off the board.
+ *
+ *  WHY (2026-07-28): the system card reads season_record.json, which the
+ *  nightly export only writes for FULLY GRADED days. So on the live slate
+ *  it rendered "No bets settled in this window yet" even after tonight's
+ *  STRONG pick had already graded -- the operator watched a 9.56u sized
+ *  bet lose and the card show nothing. Tonight has to come from the board.
+ *
+ *  This reports what THE SYSTEM did: every STRONG pick and the stake it
+ *  was sized at. Whether the ledger committed it (bet_placed) is the
+ *  older-ledger line's business, not this card's -- a pick that was sized
+ *  and graded is part of the system's record either way.
+ */
+export interface TonightSystem {
+  bets: number; wins: number; losses: number; pending: number;
+  staked: number;      // units the system sized across those picks
+  pnl: number;         // realised, at the sized stake
+  committed: number;   // how many the ledger actually placed
+}
+
+export function tonightFromBoard(
+  rows: BoardRow[],
+  details: Record<string, GameDetail>,
+): TonightSystem | null {
+  let bets = 0, wins = 0, losses = 0, pending = 0;
+  let staked = 0, pnl = 0, committed = 0;
+  for (const r of rows) {
+    if (r.pickStrength !== "STRONG") continue;
+    if (r.pickSide !== "NRFI" && r.pickSide !== "YRFI") continue;
+    const d = lookupDetail(r, details);
+    if (!d) continue;
+    bets += 1;
+    const u = typeof d.unitsRisked === "number" ? d.unitsRisked : 0;
+    staked += u;
+    if (d.betPlaced === "Y") committed += 1;
+    const g = (d.gradedResult || "").toUpperCase();
+    if (g === "WIN") {
+      wins += 1;
+      // Payout at the captured price on the picked side.
+      const raw = r.pickSide === "NRFI" ? d.marketNrfiOdds : d.marketYrfiOdds;
+      const n = Number.parseFloat((raw ?? "").trim());
+      const b = Number.isFinite(n) && n !== 0
+        ? (n > 0 ? n / 100 : 100 / Math.abs(n))
+        : 100 / 110;
+      pnl += u * b;
+    } else if (g === "LOSS") {
+      losses += 1;
+      pnl -= u;
+    } else {
+      pending += 1;
+    }
+  }
+  return bets === 0 ? null : { bets, wins, losses, pending, staked, pnl, committed };
+}
