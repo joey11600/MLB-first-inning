@@ -92,8 +92,20 @@ def _matches(row: dict, dem: dict) -> bool:
             return False
 
     p   = _safe_float(row.get("nrfi_prob"))
-    lam = _safe_float(row.get("combined_lambda"))
     park = _safe_float(row.get("park_factor"))
+    # 2026-07-28 AUDIT FIX. This banded on `combined_lambda`, which is the
+    # LEGACY V2 Poisson lambda -- NOT the quantity the production
+    # classifier uses. The two barely agree: Pearson r = 0.43, 36% of
+    # pairs rank-invert, mean 0.989 vs 0.752. Banding a demotion on it
+    # would set bet_placed='N' on a different population than the
+    # evidence that justified the demotion ever covered.
+    #
+    # `lambda_lr_total` is the model's own expected first-inning runs
+    # (-ln of the raw NRFI product) and is what classify_pick_lr gates on.
+    # Prefer it; fall back to the legacy column only for pre-2026-04-27
+    # rows that predate it, and only when the config asks for the legacy
+    # key explicitly.
+    lam = _safe_float(row.get("lambda_lr_total"))
 
     nrfi_band = dem.get("nrfi_prob") or {}
     if nrfi_band.get("min") is not None and (p is None or p < nrfi_band["min"]):
@@ -101,7 +113,16 @@ def _matches(row: dict, dem: dict) -> bool:
     if nrfi_band.get("max") is not None and (p is None or p > nrfi_band["max"]):
         return False
 
-    lam_band = dem.get("combined_lambda") or {}
+    # Config key: prefer `lambda_lr_total`. `combined_lambda` still works
+    # for older configs but bands on the legacy quantity and warns.
+    lam_band = dem.get("lambda_lr_total") or {}
+    if not lam_band and dem.get("combined_lambda"):
+        lam_band = dem["combined_lambda"]
+        lam = _safe_float(row.get("combined_lambda"))
+        print(f"[demotion] WARNING: cluster '{dem.get('id', '?')}' bands on "
+              f"combined_lambda, the LEGACY Poisson lambda (r=0.43 vs the "
+              f"model's lambda_lr_total). Re-derive the range against "
+              f"lambda_lr_total and switch the key.", file=sys.stderr)
     if lam_band.get("min") is not None and (lam is None or lam < lam_band["min"]):
         return False
     if lam_band.get("max") is not None and (lam is None or lam > lam_band["max"]):

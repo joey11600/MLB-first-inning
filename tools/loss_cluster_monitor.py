@@ -116,8 +116,13 @@ def _match_strong_nrfi_marginal(row: dict) -> bool:
     catches a hit early; 5/08 NYY@MIL-style losses live here."""
     if (row.get("pick_side") or "").strip().upper() != "NRFI":
         return False
-    f = _row_floats(row, "nrfi_prob", "combined_lambda")
-    p, lam = f["nrfi_prob"], f["combined_lambda"]
+    # 2026-07-28: dropped a dead read of `combined_lambda` here. The value
+    # was fetched and never used (the lambda + park gates were removed on
+    # 2026-05-14, see the docstring above), and it is the LEGACY Poisson
+    # lambda anyway -- r=0.43 against the model's own lambda_lr_total.
+    # Leaving it in implied this predicate bands on lambda. It does not.
+    f = _row_floats(row, "nrfi_prob")
+    p = f["nrfi_prob"]
     if p is None:
         return False
     return 0.560 <= p <= 0.590

@@ -681,6 +681,15 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "lambda_lr_total":_fmt(g.get("lambda_lr_total"), 4),
             "nrfi_prob":      _fmt(g["nrfi_prob"], 4),
             "yrfi_prob":      _fmt(g["yrfi_prob"], 4),
+            # 2026-07-28 AUDIT FIX: both raw columns are declared in FIELDS
+            # and computed by the predictor, but log_picks never wrote them
+            # -- 0 of 1563 rows had a value. The UNCALIBRATED probability is
+            # the only record of what production actually fed the
+            # calibrator, so every calibrator swap was unauditable after the
+            # fact. Two tools already worked around the gap by recomputing
+            # it from features rather than reading it.
+            "nrfi_prob_raw":  _fmt(g.get("nrfi_prob_raw"), 6),
+            "yrfi_prob_raw":  _fmt(g.get("yrfi_prob_raw"), 6),
             "over_1_5_prob":  _fmt(g["over_1_5_prob"], 4),
             "under_1_5_prob": _fmt(1.0 - g["over_1_5_prob"], 4),
             "pick_side":      side,
@@ -1936,38 +1945,49 @@ def _notify_strong_voided_telegram(row: dict, reason: str) -> None:
     _notify_event_telegram("strong_voided", event_key, body)
 
 
-def _classify_tentative_lean(nrfi_prob, lambda_total):
-    """Mirror of dashboard's classifyTentative + predictor's classify_pick_lr
-    using current production thresholds (STRONG_NRFI_P=0.56, PASS_LO_P=0.44,
-    LAMBDA_YRFI_FLOOR=0.78).  Returns (side, strength) tuple where side is
-    one of "NRFI" / "YRFI" / "PASS".  Lambda gate is only applied when
-    lambda_total is provided (legacy/missing rows just get the no-floor
-    classification).
+def _classify_tentative_lean(row):
+    """What the LIVE model would have leaned, for the lineup-pending ping.
 
-    Used by _notify_lineup_pending_resolved_telegram so the operator
-    can see what the model would have leaned even when the row locked
-    at PASS - LINEUP/STARTER PENDING."""
-    try:
-        p = float(nrfi_prob) if nrfi_prob not in (None, "") else None
-    except (TypeError, ValueError):
-        p = None
+    2026-07-28 AUDIT FIX -- this used to be a hand-copied mirror of
+    classify_pick_lr with the thresholds frozen at 0.56 / 0.44 / 0.78.
+    Live is 1.01 / 0.50 / 0.40 / 0.838, it had no LEAN tier, no weather
+    adjustment, and it was fed `combined_lambda` (the LEGACY V2 Poisson
+    lambda) instead of the model's own lambda_lr_total. Replaying the
+    ledger, it disagreed with the live classifier on 10 of 24 messages and
+    5 were genuinely wrong on the day -- three of them pushed "STRONG
+    YRFI" when the model actually held PASS, the most recent on
+    2026-07-27.
+
+    The lambda substitution was directionally unsafe on its own: of the
+    754 rows straddling the 0.838 floor, 744 have the legacy lambda ABOVE
+    it while the model's lambda is BELOW, so the wrong number made the
+    floor look satisfied when it was not.
+
+    There is now exactly ONE classifier. Call it; never mirror it.
+    Returns (side, strength), or ("PASS", "NO DATA") when unscorable.
+    """
+    def _f(v):
+        try:
+            return float(v) if v not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+
+    p = _f(row.get("nrfi_prob"))
     if p is None:
         return ("PASS", "NO DATA")
+    # lambda_lr_total ONLY -- combined_lambda is a different model's
+    # quantity (r=0.43, 36% pairwise rank inversion).
+    lam = _f(row.get("lambda_lr_total"))
     try:
-        lam = float(lambda_total) if lambda_total not in (None, "") else None
-    except (TypeError, ValueError):
-        lam = None
-    # Mirrors classify_pick_lr.  Both _LR_STRONG_NRFI_P and _LR_LEAN_NRFI_P
-    # are 0.56 in current config so anything >= 0.56 reads as STRONG NRFI.
-    if p >= 0.56:
-        return ("NRFI", "STRONG")
-    if p >= 0.44:
-        return ("PASS", "NO EDGE")
-    if lam is not None and lam < 0.78:
-        return ("PASS", "LOW LAMBDA")
-    # Same equality on the YRFI side: _LR_LEAN_YRFI_P == 0.44, no separate
-    # STRONG threshold below it, so the only YRFI bucket is STRONG.
-    return ("YRFI", "STRONG")
+        import mlb_first_inning_predictor as _P
+        return _P.classify_pick_lr(
+            p, 99, lam,
+            _f(row.get("wx_temp_c")), _f(row.get("wx_wind_kmh")),
+            bool(_f(row.get("wx_is_dome")) or 0),
+        )
+    except Exception as exc:            # never break grading over a ping
+        print(f"[tentative-lean] classify failed: {exc}", file=sys.stderr)
+        return ("PASS", "NO DATA")
 
 
 def _notify_lineup_pending_resolved_telegram(row: dict) -> None:
@@ -1997,9 +2017,7 @@ def _notify_lineup_pending_resolved_telegram(row: dict) -> None:
     if actual not in ("NRFI", "YRFI"):
         return
 
-    nrfi_prob    = row.get("nrfi_prob")
-    lambda_total = row.get("combined_lambda") or row.get("lambda_lr_total")
-    lean_side, lean_strength = _classify_tentative_lean(nrfi_prob, lambda_total)
+    lean_side, lean_strength = _classify_tentative_lean(row)
     if lean_side == "PASS":
         # No lean signal worth reporting -- model would have passed too.
         return

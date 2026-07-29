@@ -70,7 +70,14 @@ from tools.calibrator_bakeoff import (  # noqa: E402
 from tools.kelly_backtest import decimal_b, implied  # noqa: E402
 
 PROD = ROOT / "data" / "calibration_v2.json"
-GATE_NRFI = 0.36     # _LR_STRONG_YRFI_P: STRONG YRFI when p_nrfi < this
+# 2026-07-28 AUDIT FIX: was hardcoded 0.36 while live is 0.40. This value
+# drives money() -- the script's own ship/reject rule -- and the script has
+# a --write mode that overwrites production data/calibration_v2.json. A
+# 0.36 gate selects ~32% fewer bets (86 vs 126 on the same walk-forward),
+# so a future calibrator would be judged on the wrong population.
+import mlb_first_inning_predictor as _P  # noqa: E402
+
+GATE_NRFI = _P._LR_STRONG_YRFI_P   # STRONG YRFI when p_nrfi < this
 
 
 def fnum(v):

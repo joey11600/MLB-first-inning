@@ -67,8 +67,19 @@ PROD_CAL = ROOT / "data" / "calibration_v2.json"
 CAND_DIR = ROOT / "data" / "candidates" / "recalibrate_only"
 PICKS_CSV = ROOT / "data" / "picks_2026.csv"
 
-STRONG_NRFI_P = 0.56
-STRONG_YRFI_P = 0.44
+# 2026-07-28 AUDIT FIX. These were hardcoded at 0.56 / 0.44 -- both stale.
+# Live is _LR_STRONG_YRFI_P = 0.40 and _LR_STRONG_NRFI_P = 1.01 (NRFI
+# betting OFF since 2026-06-07). This script decides whether a freshly
+# fitted calibrator gets copied over data/calibration_v2.json, which every
+# live bet reads, and it was scoring candidates on 12 phantom STRONG NRFI
+# bets the system would never place. Re-running one real candidate on the
+# same holdout with the constants corrected flipped the verdict from
+# "FAIL - do not ship" to "PASS", and holdout P&L from -3.63u to +0.62u.
+# NEVER hardcode a gate here again -- import it.
+import mlb_first_inning_predictor as _P  # noqa: E402
+
+STRONG_NRFI_P = _P._LR_STRONG_NRFI_P
+STRONG_YRFI_P = _P._LR_STRONG_YRFI_P
 
 
 def amer_to_payout(s: str):
