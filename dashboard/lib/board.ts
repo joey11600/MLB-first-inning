@@ -240,7 +240,9 @@ async function loadDetails(iso: string): Promise<Record<string, GameDetail>> {
       marketYrfiOdds: r.market_yrfi_odds ?? "",
       sportsbook:     r.sportsbook ?? "",
       oddsCapturedAt: r.odds_captured_at ?? "",
-      edgeOnPick:     toNumber(r.edge_on_pick),
+      edgeOnPick:     deriveEdge(r.pick_side, toNumber(r.nrfi_prob),
+                                 r.market_nrfi_odds, r.market_yrfi_odds)
+                      ?? toNumber(r.edge_on_pick),
       betPlaced:      ((r.bet_placed ?? "").trim().toUpperCase() === "Y" ? "Y"
                       : (r.bet_placed ?? "").trim().toUpperCase() === "N" ? "N"
                       : "") as "" | "Y" | "N",
@@ -430,4 +432,32 @@ async function loadPickChanges(iso: string): Promise<PickChange[]> {
       newPickLabel:  (r.new_pick_label ?? "").trim(),
     }))
     .sort((a, b) => b.capturedAtUtc.localeCompare(a.capturedAtUtc));
+}
+
+/** Edge on the picked side, DERIVED from the row's own probability and
+ *  the captured price.
+ *
+ *  2026-07-28: the stored `edge_on_pick` column is written by a different
+ *  process than the one that writes `nrfi_prob`, so the two drift apart.
+ *  41 rows disagree with a correct recomputation (mean 1.66pp, worst
+ *  7.75pp) and 2026-06-17 PIT@OAK has the SIGN backwards -- stored +4.8%
+ *  on a bet whose real edge at -150 is -0.6%. Derive it instead; both
+ *  inputs are already on the row and cannot disagree with themselves.
+ *  Returns null when either input is missing -- never 0, which would
+ *  render as a measured "+0.0%". */
+function deriveEdge(
+  pickSide: string | null | undefined,
+  nrfiProb: number | null | undefined,
+  nrfiOdds: string | null | undefined,
+  yrfiOdds: string | null | undefined,
+): number | null {
+  if (typeof nrfiProb !== "number" || !Number.isFinite(nrfiProb)) return null;
+  const side = (pickSide || "").toUpperCase();
+  if (side !== "NRFI" && side !== "YRFI") return null;
+  const raw = (side === "NRFI" ? nrfiOdds : yrfiOdds) ?? "";
+  const n = Number.parseFloat(String(raw).trim());
+  if (!Number.isFinite(n) || n === 0) return null;
+  const implied = n > 0 ? 100 / (n + 100) : Math.abs(n) / (Math.abs(n) + 100);
+  const model = side === "NRFI" ? nrfiProb : 1 - nrfiProb;
+  return model - implied;
 }
