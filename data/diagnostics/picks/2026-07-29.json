@@ -1,7 +1,7 @@
 {
   "date": "2026-07-29",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-29T15:48:54Z",
+  "fitted_at": "2026-07-29T16:22:45Z",
   "n_picks": 16,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1588,12 +1588,12 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2698,
-      "raw_p_run_b1": 0.3042,
-      "raw_p_nrfi": 0.5081,
-      "calibrated_p_nrfi": 0.5061,
+      "raw_p_run_t1": 0.2605,
+      "raw_p_run_b1": 0.3574,
+      "raw_p_nrfi": 0.4752,
+      "calibrated_p_nrfi": 0.4892,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_3-4",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -1666,11 +1666,11 @@
           "outlier": false
         },
         {
-          "name": "away_fip",
-          "value": 3.399,
-          "z": -1.144,
-          "weight": 0.055,
-          "contribution": -0.0629,
+          "name": "away_p_last10_pitcher_nrfi",
+          "value": 0.5,
+          "z": -1.251,
+          "weight": -0.057,
+          "contribution": 0.0713,
           "outlier": false
         },
         {
@@ -1685,12 +1685,12 @@
       "priors_vs_raw": {
         "home_xera_raw": 3.482,
         "home_xera_pooled": 3.4815,
-        "away_xera_raw": 4.66,
-        "away_xera_pooled": 4.6604
+        "away_xera_raw": 4.2,
+        "away_xera_pooled": 4.2
       },
       "pitcher_q": {
         "home_pitcher_q": "live",
-        "away_pitcher_q": "ltd"
+        "away_pitcher_q": "avg"
       },
       "warnings": [
         "T1: feature wx_wind_kmh=29.800 is z=+3.88 sigma from training mean -- contribution +0.082 to logit",
