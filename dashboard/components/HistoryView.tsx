@@ -506,6 +506,16 @@ export function HistoryView({
           figure at the top of this page. <b>You</b> is what actually moved.
           They differ because most of these nights were bet under rules that
           have since changed.
+          {/* EXPORT LAG, disclosed rather than left to mislead.
+              System comes from the nightly season_record.json replay; You
+              reads the live ledger. A game that grades AFTER the export
+              is already in You and not yet in System, so the most recent
+              row can show a gap that is timing, not disagreement --
+              2026-07-29 HOU@LAA (+4.12u) did exactly that. It self-heals
+              on the next grade cron, which re-runs the export. */}
+          {" "}The System column comes from a nightly replay, so a game that
+          grades late can appear under You a cycle before it appears under
+          System — the newest row can lag by a day.
           {money.isReal && (
             <>
               {" "}Both count only bets that had a real captured DraftKings
