@@ -197,11 +197,23 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
             # The comment above ("Supabase is the fresher writer") holds
             # for VALUES but not for TIME: a GHA import writes the CSV
             # directly and Railway's mirror can be minutes behind it.
-            if col in _CAPTURE_TS_COLUMNS:
+            # The two timestamps move in OPPOSITE directions:
+            #   odds_captured_at   = latest price seen  -> high-water mark
+            #   opened_captured_at = first price seen   -> low-water mark
+            # Using one rule for both would lock the wrong direction on
+            # one of them.
+            if col == "odds_captured_at":
                 if tracker.advance_capture_ts(row, col, new_val):
                     row_changed = True
                     ts_advanced += 1
                 elif tracker.capture_ts_regressed(csv_val, new_val):
+                    ts_rejected += 1
+                continue
+            if col == "opened_captured_at":
+                if tracker.retreat_capture_ts(row, col, new_val):
+                    row_changed = True
+                    ts_advanced += 1
+                elif tracker.capture_ts_regressed(new_val, csv_val):
                     ts_rejected += 1
                 continue
             if new_val != csv_val:

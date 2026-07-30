@@ -11,6 +11,58 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29e] — The 112 inverted capture timestamps, healed
+
+Operator authorised repairing history. `tools/heal_capture_ts_inversions.py`.
+
+**Which column was corrupt — measured, not assumed.** Within its own
+slate day, on the inverted rows, `odds_captured_at` sits at the **7th
+percentile** (healthy baseline: 38th) while `opened_captured_at` sits at
+the 29th (healthy: 43rd). A "latest price seen" that early is the
+dragged-back one; `opened_captured_at` is the trustworthy side.
+
+**Recovery was attempted before clamping.** All 94 daily backup
+snapshots (2026-05-02 onward) were searched for a surviving
+pre-corruption value — a capture later than the corrupted one and
+consistent with `opened_captured_at`. **Zero of the 112 rows had one**;
+the drag-back always preceded the daily snapshot. No real value
+survived, so the repair sets `odds_captured_at = opened_captured_at`:
+a real observed timestamp for that row, explicitly a **lower bound**.
+Those rows now mean "the price had been seen by at least this time".
+11 of them have `bet_placed=Y`, so their lock time is a lower bound too.
+
+**Verified surgical.** Money-column fingerprint
+(`market_*_odds`, `bet_placed`, `units_risked`, `profit_loss_units`,
+`graded_result`, `pick_side`, `pick_strength`, `opened_*`) is
+byte-identical before and after. Exactly 112 cell changes, in exactly
+one column, across an unchanged 1579 rows. `pl_calc` reports stored and
+recomputed P&L agreeing at −6.030u with no drift. Re-running the heal
+now finds 0 — idempotent.
+
+### Fixed while healing — the guard had the wrong rule for one column
+
+The two timestamps move in **opposite** directions:
+`odds_captured_at` is "latest seen" (high-water mark),
+`opened_captured_at` is "first seen" (**low**-water mark). The first cut
+of the guard applied `advance_capture_ts` to both, which would have
+locked in the wrong direction and let `opened_*` drift forward — the
+same class of defect, mirrored. New `tracker.retreat_capture_ts` for the
+low-water side. Measured before shipping: `opened_*` had not in fact
+drifted forward (29th vs 43rd percentile), so this closes a latent hole
+rather than an active one.
+
+### Fixed — the heal's own audit trail failed silently
+
+`_record_pick_change` takes a required keyword-only `captured_at` that
+the first version omitted, so all 112 journal calls raised `TypeError`
+into a blanket `except` and the heal completed with an **empty audit
+trail**. Backfilled from the git diff (exact old→new pairs) — 112
+entries now in `pick_changes.csv`. The script now counts successful
+journal writes and warns loudly if the count does not match the rows it
+edited, so a heal can never again report success while its audit trail
+quietly failed.
+
+
 ## [2026-07-29d] — Kelly stakes round to whole units, floored at 0.5u
 
 Operator asked whether stakes should be rounded, since quarter Kelly

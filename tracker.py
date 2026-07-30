@@ -436,12 +436,42 @@ def capture_ts_regressed(old, new) -> bool:
 def advance_capture_ts(row: dict, field: str, new_val) -> bool:
     """Move `row[field]` forward to `new_val`, refusing to go backwards.
 
-    Returns True when the row was modified.  This is the ONLY sanctioned
-    way to write a capture timestamp; see the block comment above.
+    For `odds_captured_at` -- "the LATEST price we have seen" -- which is
+    a HIGH-water mark.  Returns True when the row was modified.
     """
     if not str(new_val or "").strip():
         return False
     if capture_ts_regressed(row.get(field), new_val):
+        return False
+    if row.get(field) == new_val:
+        return False
+    row[field] = new_val
+    return True
+
+
+def retreat_capture_ts(row: dict, field: str, new_val) -> bool:
+    """Move `row[field]` EARLIER to `new_val`, refusing to go forward.
+
+    For `opened_captured_at` -- "the FIRST price we ever saw" -- which is
+    a LOW-water mark and the exact mirror image of the rule above.
+
+    Why this exists (2026-07-29): `_apply_odds_to_row` sets `opened_*`
+    once and never overwrites it, but the Supabase sync had no such rule
+    and would happily push it FORWARD whenever the mirror disagreed.
+    A "first seen" timestamp that can move later is the same class of
+    defect as a "latest seen" one that can move earlier, and applying
+    advance_capture_ts() to both columns -- as the first cut of this fix
+    did -- would have locked in the wrong direction for this one.
+
+    Measured before shipping: on the 112 inverted rows `opened_*` sits at
+    the 29th percentile of its own slate day against a 43rd-percentile
+    healthy baseline, i.e. it had NOT drifted forward in practice.  This
+    closes the hole anyway rather than relying on that staying true.
+    """
+    if not str(new_val or "").strip():
+        return False
+    # Refuse when the incoming value is LATER than what we hold.
+    if capture_ts_regressed(new_val, row.get(field)):
         return False
     if row.get(field) == new_val:
         return False

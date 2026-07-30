@@ -147,9 +147,17 @@ def main() -> int:
         if worst:
             top = sorted(worst.items(), key=lambda kv: -kv[1])[:6]
             print(f"  worst dates: {top}")
-        print("  NOTE: pre-existing rows are NOT repaired by this fix. The"
-              " guard stops new inversions; healing history rewrites the"
-              " ledger and needs operator sign-off (CLAUDE.md data rules).")
+        if bad:
+            print("  NOTE: run tools/heal_capture_ts_inversions.py to repair"
+                  " these. It clamps odds_captured_at to opened_captured_at"
+                  " (a real observed timestamp, treated as a LOWER bound),"
+                  " journals every change, and touches no money column.")
+        else:
+            print("  The 112 historical inversions were healed 2026-07-29"
+                  " (operator authorised); the write-side guard keeps this"
+                  " at zero. A non-zero count here means a NEW writer has"
+                  " started moving the column backwards -- find it rather"
+                  " than re-running the heal.")
 
     print("\n" + ("ALL CHECKS PASSED" if ok else "FAILURES ABOVE"))
     return 0 if ok else 1
