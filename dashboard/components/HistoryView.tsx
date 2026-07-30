@@ -496,15 +496,20 @@ export function HistoryView({
           there is no record -- see the guard in the component. */}
       <WeekAtAGlance side={sysSide} />
 
-      {/* T2.42: Bankroll equity curve.  Pure cumulative line + drawdown
-          shading + peak marker + stats panel.  Reads the real-priced
-          series; the raw column rides along as a labelled dashed line. */}
+      {/* T2.42: Bankroll equity curve.  Bank level + drawdown shading +
+          peak marker + stats panel.  Reads the real-priced series; the
+          raw column rides along as a labelled dashed line. */}
       <section className={styles.chartCard}>
         <div className={styles.chartHead}>
           <div>
             <div className={styles.eyebrow}>Bankroll equity curve</div>
+            {/* RETITLED 2026-07-30 with the unit re-basing. It said
+                "Cumulative units over time", which is now the name of
+                the quantity this chart deliberately stopped plotting --
+                a caption describing the discarded reading is worse than
+                no caption, because the axis looks like it agrees. */}
             <div className={styles.chartTitle}>
-              Cumulative units over time · drawdown vs all-time high
+              Bankroll from a 100u start · drawdown vs all-time high
             </div>
           </div>
           <div className={styles.legend}>
