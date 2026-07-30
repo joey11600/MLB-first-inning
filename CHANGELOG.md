@@ -11,6 +11,101 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30f] — STRONG YRFI gate 0.40 → 0.42
+
+Operator: *"why is there much less games being chosen to be bet on. this
+is an issue."* It was, and by more than anyone intended.
+
+### The cause: two changes in 24 hours, and nobody re-derived the gate
+
+| date | change | intended |
+|---|---|---|
+| 2026-07-27 | gate 0.44 → 0.40 | yes |
+| 2026-07-28 | calibrator swapped to CIR | yes |
+
+**A gate is a cut point on a distribution.** The CIR swap changed the
+distribution — the old calibrator emitted only 41% unique values and
+leaned on flat steps, CIR emits 95% unique — so the same number 0.40
+started selecting far fewer games. Nobody re-derived the cut after the
+shape moved.
+
+Measured: today's model bets **124 games where the live system actually
+bet 308** — 40% of the volume, down every single week, and only about
+half of that reduction was chosen.
+
+### Where the old volume actually came from
+
+The old calibrator had two clamps, and they were doing opposite things:
+
+- **p = 0.4064, 115 games.** Games it could not tell apart, auto-fired
+  under the 0.44 gate. They went **50.9% against a 54.9% break-even.**
+  CIR dissolved this and that volume is gone on purpose.
+- **p = 0.3219, 32 games.** The floor clamp — 26% of all bets and **52%
+  of the season's profit**, 25-7 for a 78.1% hit rate. Checked
+  individually: **all 32 still clear at both 0.40 and 0.42**, because
+  CIR moved them *down* to ~0.287.
+
+So the swap dropped unrankable games and kept the good ones. That part
+is the calibrator working correctly, and it is not recoverable volume.
+
+### The change
+
+`_LR_STRONG_YRFI_P` 0.40 → 0.42. The 2026-07-28 sweep went
+0.36 → 0.40 → 0.44 and skipped the space between, so this is new ground
+rather than a re-tread of the refuted 0.44. (An April 2026 note in the
+same file independently landed on 0.42 as well, on n=5.)
+
+Through the repo's own walk-forward harness, `tools/season_record.py`:
+
+| gate | record | hit% | need% | bets | flat | Kelly bank | maxDD |
+|---|---|---|---|---|---|---|---|
+| 0.40 | 75-38 | 66.4% | 57.4% | 113 | +18.10u | 255.70u | 8.4% |
+| **0.42** | 98-57 | 63.2% | 56.7% | **155** | **+18.07u** | 263.14u | 9.4% |
+
+**+37% more bets for the same flat profit** (0.03u apart), a slightly
+better Kelly bank, 1pp more drawdown. Positive in all four months.
+
+### This is a VOLUME decision, not a proven edge improvement
+
+Stated plainly so nobody later reads it as proof:
+
+- flat walk-forward, 6 rolling cuts: 0.42 best **6 of 6**
+- **Kelly** walk-forward, same 6 cuts: 0.42 best **3 of 6 — a tie**
+- block bootstrap on the difference, resampling whole slate days:
+  flat `[−7.01u, +13.24u]`, Kelly `[−14.61u, +33.22u]` — **both span
+  zero**, 0.42 ahead in ~76% of resamples
+
+Money-neutral, volume-positive. The operator asked for the Kelly view
+specifically, and it is what weakened the walk-forward from unanimous to
+a tie — the flat-only view would have overstated the case.
+
+The Kelly figures are the same edge levered **7.5×** (+3.57u flat reads
+as +26.67u compounded), exactly what `tools/edge_floor` meant by "never
+judge a filter on final Kelly bank". Flat decided this; Kelly says what
+it does to the bank.
+
+### What it does not do
+
+Restore ~24 bets/week. That number was substantially manufactured by the
+0.4064 clamp. Realistic volume is ~7.5/week at 0.42 against ~6.4 at
+0.40. **Do not chase the rest by loosening further** — 0.44 is worse on
+every measure tested (59.3% hit, +16.35u flat, 224.01u bank, 13.4% DD).
+
+Tonight (2026-07-30) this turns 0 bets into 2: SEA@LAD at 0.4116 and
+BOS@OAK at 0.4157.
+
+### Separately found, not fixed here
+
+`tools/season_record.simulate()` adds a fixed unit count to a growing
+bank. Before the 2026-07-30 unit re-basing the stake was `bank * f` and
+so already scaled; now sizing is bankroll-free (`stake = f * 100`), so
+the simulator no longer compounds. The same season reads **+132%
+additive** and **+234% compounded**. The dashboard's equity curve shows
+the additive one. Flagged, not changed — it moves every figure on the
+dashboard and deserves its own decision.
+
+---
+
 ## [2026-07-30e] — The unit conversion is finished, and a guard so it stays finished
 
 **1 unit = 1% of bankroll. The bankroll is always 100 units.** Stakes

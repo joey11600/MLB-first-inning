@@ -1044,7 +1044,68 @@ _LR_LEAN_YRFI_P   = 0.50
 #
 # REVERSAL: set to 0.36 for the tighter/higher-ROI variant, or 0.44 to
 # restore pre-2026-07-27 behaviour.
-_LR_STRONG_YRFI_P = 0.40
+#
+# ============================================================
+# 2026-07-30 UPDATE: 0.40 -> 0.42.  Operator asked why volume had
+# collapsed. It had, by more than anyone intended, and the reason is a
+# two-change interaction nobody re-derived.
+#
+# WHAT HAPPENED.  Two things landed inside 24 hours:
+#   2026-07-27  this gate 0.44 -> 0.40          (deliberate)
+#   2026-07-28  calibrator swapped to CIR       (deliberate)
+# A gate is a cut point on a DISTRIBUTION. The CIR swap changed the
+# distribution -- the old calibrator emitted only 41% unique values and
+# leaned on flat steps; CIR emits 95% unique. Nobody re-derived the cut
+# after the shape moved. Measured: today's model bets 124 games where
+# the live system actually bet 308 -- 40% of the volume, every week,
+# and only about half of that reduction was chosen.
+#
+# WHY 0.41/0.42/0.43 WERE NEVER TESTED BEFORE.  The 2026-07-28 sweep
+# above went 0.36 -> 0.40 -> 0.44 and skipped the space between, so
+# this is new ground rather than a re-tread of the refuted 0.44.
+#
+# EVIDENCE, on probabilities RE-SCORED by the shipped calibrator (the
+# earlier study used stored pick-time probabilities, 97% of which came
+# from the old calibrator -- a different probability scale, so its 0.40
+# is not this 0.40):
+#
+#   gate  staked  /wk   hit%   flat     Kelly bank   maxDD
+#   0.40     108  6.4  66.7%  +18.46u     232.23u   10.2%
+#   0.42     127  7.5  66.1%  +22.03u     240.94u   10.7%
+#   0.44     189 11.2  59.3%  +16.35u     224.01u   13.4%
+#
+# 0.42 is the best gate of six on BOTH Kelly bank measures and on flat.
+# 0.44 remains what the note above says it is -- worse on everything.
+#
+# THE EVIDENCE IS NOT STRONG, AND SHIPPING IT IS A VOLUME DECISION.
+# Say it plainly so nobody later reads this block as proof:
+#   * flat walk-forward, 6 rolling cuts: 0.42 best 6 of 6
+#   * KELLY walk-forward, same 6 cuts:   0.42 best 3 of 6  <- a TIE
+#   * block bootstrap on the difference, resampling whole slate days:
+#     flat  [-7.01u, +13.24u]   Kelly [-14.61u, +33.22u]
+#     both span zero; 0.42 ahead in ~76% of resamples
+# So: money-NEUTRAL, volume-POSITIVE (+18% staked bets). It is not a
+# proven profit improvement and must not be quoted as one.
+#
+# The Kelly figures are the same edge levered 7.5x (a +3.57u flat
+# difference reads as +26.67u compounded), which is exactly what
+# tools/edge_floor concluded in "never judge a filter on final Kelly
+# bank". The flat column decided this; Kelly only says what it does to
+# the bank.
+#
+# WHAT THIS DOES NOT DO: restore the old ~24 bets/week. That volume was
+# substantially manufactured by the old calibrator's flat step at
+# p=0.4064 -- 115 games it could not tell apart, auto-fired under the
+# 0.44 gate, which went 50.9% against a 54.9% break-even. CIR dissolved
+# it and that volume is gone on purpose. Checked the other direction
+# too: the 32 games on the old 0.3219 floor clamp (25-7, 78.1%, half
+# the season's profit) ALL still clear at 0.40 and 0.42 -- CIR moved
+# them down to ~0.287. The swap dropped unrankable games and kept the
+# good ones. Do not try to win the volume back by loosening further.
+#
+# REVERSAL: set back to 0.40. Nothing else depends on this value.
+# ============================================================
+_LR_STRONG_YRFI_P = 0.42
 
 # Lambda floor for STRONG YRFI: minimum expected 1st-inning runs the
 # model must project before we'll fire a STRONG YRFI bet, even when
