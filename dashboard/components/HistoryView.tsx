@@ -128,6 +128,48 @@ export function HistoryView({
     [sysSide, data.startDate, data.endDate],
   );
 
+  /** date -> the SYSTEM's P&L for that day, rebased to the operator's
+   *  real bank, so the daily ledger reconciles to the hero above it.
+   *
+   *  2026-07-29. The hero said +14.54u and the table below it ended at
+   *  -4.41u with nothing saying they were different populations, so the
+   *  table read as though the numbers were broken. (They were not --
+   *  the running total checks out across every row.) The table now
+   *  carries BOTH columns and each one sums to its own headline.
+   *
+   *  TWO TRAPS, both verified numerically against the live record
+   *  rather than assumed:
+   *
+   *  1. `day.simPnl` is NOT usable here. It includes NRFI, which the
+   *     hero excludes because NRFI is not bet. Over the 30-day window
+   *     day.simPnl rebases to +10.42u while the hero shows +14.54u --
+   *     the -4.12u gap is exactly the NRFI side. So the per-day figure
+   *     is summed from the day's GAMES, YRFI only, matching
+   *     replayWindow's own bucketing.
+   *
+   *  2. Rebasing must use ONE divisor -- the bank at window start --
+   *     not each day's own bank. Scaling every day by the same constant
+   *     is what makes the column sum to the hero; scaling each by its
+   *     own bank would not. */
+  const sysDaily = useMemo(() => {
+    const out = new Map<string, number>();
+    if (!sysSide || !sysWindow || !isNum(sysWindow.bankStart) || sysWindow.bankStart <= 0) {
+      return out;
+    }
+    const scale = (sysBank || 100) / sysWindow.bankStart;
+    for (const d of sysSide.days) {
+      if (d.date < data.startDate || d.date > data.endDate) continue;
+      let yrfi = 0;
+      for (const g of d.games) {
+        if (g.record.action !== "BET") continue;
+        if (g.side === "NRFI") continue;      // tracked, never bet
+        yrfi += g.record.pnl ?? 0;
+      }
+      out.set(d.date, yrfi * scale);
+    }
+    return out;
+  }, [sysSide, sysWindow, sysBank, data.startDate, data.endDate]);
+
   // Derive per-day records from the REAL-PRICED cumulative series.
   // Daily = cum[i] - cum[i-1].
   const days = useMemo<DayRecord[]>(() => {
@@ -430,10 +472,17 @@ export function HistoryView({
       <section className={styles.tableCard}>
         <div className={styles.eyebrow}>Daily ledger</div>
         <div className={styles.tableWrap}>
+          {/* "Day P&L" became "You" and gained a "System" column
+              (2026-07-29). The old heading did not say WHOSE P&L, so a
+              table ending at -4.41u sat under a hero reading +14.54u
+              and looked like an arithmetic error. It was not -- the two
+              are different populations, and now each column sums to its
+              own headline. */}
           <div className={styles.theadRow}>
             <div>Date</div>
-            <div className={styles.right}>Day P&L</div>
-            <div className={styles.right}>Cumulative</div>
+            <div className={styles.right}>System</div>
+            <div className={styles.right}>You</div>
+            <div className={styles.right}>Your total</div>
             <div className={styles.barCell}>Distribution</div>
           </div>
           {tableRows.length === 0 ? (
@@ -445,18 +494,25 @@ export function HistoryView({
               <DayRow
                 key={d.date}
                 day={d}
+                sysUnits={sysDaily.get(d.date)}
                 maxAbs={Math.max(Math.abs(bestDay), Math.abs(worstDay), 0.01)}
               />
             ))
           )}
         </div>
-        {money.isReal && (
-          <div className={styles.tableFoot}>
-            Every row counts only bets that had a real captured DraftKings
-            price. A day on which the system bet but no price was ever
-            captured shows as 0.00u here.
-          </div>
-        )}
+        <div className={styles.tableFoot}>
+          <b>System</b> is what today&apos;s rules would have staked that day,
+          simulated, rebased to your {sysBank ?? 100}u bank — it sums to the
+          figure at the top of this page. <b>You</b> is what actually moved.
+          They differ because most of these nights were bet under rules that
+          have since changed.
+          {money.isReal && (
+            <>
+              {" "}Both count only bets that had a real captured DraftKings
+              price; a day on which no price was ever captured shows 0.00u.
+            </>
+          )}
+        </div>
       </section>
     </main>
   );
@@ -934,7 +990,9 @@ function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
 
 /* ------------- table row ------------- */
 
-function DayRow({ day, maxAbs }: { day: DayRecord; maxAbs: number }) {
+function DayRow({
+  day, sysUnits, maxAbs,
+}: { day: DayRecord; sysUnits?: number; maxAbs: number }) {
   const isWin = day.units > 0;
   const isLoss = day.units < 0;
   const fillPct = (Math.abs(day.units) / maxAbs) * 100;
@@ -943,6 +1001,15 @@ function DayRow({ day, maxAbs }: { day: DayRecord; maxAbs: number }) {
     <div className={styles.row}>
       <div className={styles.dateCell}>
         <span className={styles.dateMain}>{formatDate(day.date)}</span>
+      </div>
+      {/* SYSTEM -- simulated, so NEUTRAL ink whatever its sign.
+          globals.css: "SIMULATED FIGURES ARE NEVER TONE-COLOURED."
+          The column beside it is real money and does carry tone; the
+          contrast between them is the point. "—" means the replay has
+          no entry for this date, which is different from a 0.00u day
+          where it looked and chose not to bet. */}
+      <div className={`${styles.right} ${styles.sysCell}`}>
+        {sysUnits == null ? "—" : formatUnits(sysUnits)}
       </div>
       <div className={`${styles.right} ${isWin ? styles.numWin : isLoss ? styles.numLoss : styles.numFlat}`}>
         {formatUnits(day.units)}

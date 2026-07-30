@@ -11,6 +11,52 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29k] — The daily ledger now reconciles to the headline
+
+Operator, on the daily ledger: *"i think these numbers are off"*.
+
+**They were not.** Verified across all 27 rows: the running total is
+internally exact, every `cumulative` equals the previous row's plus the
+day's P&L, and the distribution bars are proportional. Nothing was
+miscalculated.
+
+**But the page was genuinely confusing, and that is on the redesign.**
+The hero at the top now reads **+14.54u** (the system) while the table
+below ends at **−4.41u** (the ledger), and the column was headed only
+"Day P&L" — it never said *whose*. A table ending on a different number
+than the headline above it, with no label distinguishing the two
+populations, reads as an arithmetic error. That is the same failure mode
+as *"i thought we were up 90+ units"*, one layer down.
+
+### Both columns, each summing to its own headline
+
+`Day P&L` → **`System`** and **`You`**. Verified live: the System column
+sums to **+14.54u** (exactly the hero) and You to **−4.42u** (the ledger,
+to rounding). The per-day divergence is now legible — 2026-07-27 the
+system lost 5.35u on a night the operator made 1.29u.
+
+`System` renders in neutral ink at every sign because it is simulated,
+beside a real-money column that carries tone. `—` means the replay has
+no entry for that date, which is different from a 0.00u day where it
+looked and declined.
+
+### Two traps, both checked numerically rather than assumed
+
+1. **`day.simPnl` is unusable for this.** It includes NRFI, which the
+   hero excludes because NRFI is not bet. Over the 30-day window
+   `day.simPnl` rebases to +10.42u against the hero's +14.54u — the
+   −4.12u gap is exactly the NRFI side. The per-day figure is summed
+   from each day's *games*, YRFI only, matching `replayWindow`'s own
+   bucketing.
+2. **Rebasing needs one divisor**, the bank at window start, not each
+   day's own bank. Scaling every day by the same constant is what makes
+   the column sum to the hero.
+
+Five grid tracks now; wraps to two on a phone with header and rows
+sharing the same flow so they stay aligned. Dead `.tiles` / `.tileBig`
+responsive overrides removed with the tile family they styled.
+
+
 ## [2026-07-29j] — /history gets the decision-first hierarchy
 
 Redesign pass 2. The dashboard got hierarchy on 2026-07-29g; /history

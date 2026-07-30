@@ -623,17 +623,30 @@
   display: flex;
   flex-direction: column;
 }
+/* Five tracks since 2026-07-29: date | system | you | your total | bar.
+   The "system" column was added so this table reconciles to the hero at
+   the top of the page instead of ending on a different number with
+   nothing explaining the difference. */
 .theadRow,
 .row {
   display: grid;
-  grid-template-columns: minmax(170px, 1.1fr)
+  grid-template-columns: minmax(150px, 1fr)
+                         minmax(100px, 0.95fr)
+                         minmax(100px, 0.95fr)
                          minmax(110px, 1fr)
-                         minmax(110px, 1fr)
-                         minmax(220px, 2.4fr);
+                         minmax(180px, 2fr);
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   padding: 10px 14px;
   border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+/* The simulated column. Neutral ink at every sign, and slightly dimmer
+   than the real-money column beside it -- a back-test should not draw
+   the eye harder than the money that actually moved. */
+.sysCell {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
 }
 .theadRow {
   font-family: var(--font-sans);
@@ -727,10 +740,15 @@
 /* ---- Responsive ---- */
 @media (max-width: 980px) {
   .shell { padding: 18px 16px 48px; }
-  .tiles { grid-template-columns: 1fr; }
-  .tileBig { font-size: 22px; }
+  /* .tiles / .tileBig overrides removed 2026-07-29 with the tile family
+     they styled -- see the deletion note above .hero. */
   .theadRow,
   .row {
+    /* Five tracks do not fit a phone. Wraps to two columns, so header
+       and row use the SAME 2-col flow and stay positionally aligned:
+         row 1  date | system
+         row 2  you  | your total
+         row 3  distribution (full width) */
     grid-template-columns: 1fr 1fr;
     grid-auto-rows: auto;
     row-gap: 6px;
