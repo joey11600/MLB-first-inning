@@ -2,8 +2,8 @@
 <!--
   NRFI Terminal — 192px PWA icon (Android home-screen / "any" purpose).
   Bloomberg-terminal aesthetic: cyan diamond mark over deep ink,
-  with a thin amber inner inscription matching the dashboard's
-  --primary (#22d3ee) / --secondary (#fbbf24) accents.
+  with a thin violet inner inscription matching the dashboard's
+  --primary (#22d3ee) / --secondary (#a78bfa) accents.
 
   Geometry chosen so the diamond fills ~80% of the canvas with
   generous gutter for OS-specific corner masking.
@@ -28,10 +28,10 @@
         stroke-width="6"
         stroke-linejoin="round"/>
 
-  <!-- Inner amber inscription = the "1st inning" feature -->
+  <!-- Inner violet inscription = the "1st inning" feature -->
   <path d="M96 56 L136 96 L96 136 L56 96 Z"
         fill="none"
-        stroke="#fbbf24"
+        stroke="#a78bfa"
         stroke-width="2.5"
         stroke-linejoin="round"
         opacity="0.85"/>

@@ -11,6 +11,80 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29f] — /history showed the wrong number and a frozen one; amber → violet
+
+Operator: *"fix https://nrfi-terminal.vercel.app/history because it
+doesnt show the real numbers and updates"*. Two independent defects.
+
+### Fixed — the real-priced series was consumed but NEVER PRODUCED
+
+`HistoryView` has read `realPricedCumulativePL` since the 2026-07-28
+audit. **`lib/roi.ts` never produced it.** The consumer shipped without
+the producer, so the fallback fired on every render: the page charted
+the fabricated −110 series and printed *"Reload the page to pick up the
+real-priced figure"* — advice that could never work, because no reload
+could conjure a field nothing wrote.
+
+The gap it hid was not subtle. The season headline read **+21.86u**
+while the zone table directly beneath it summed to **−12.67u**. Opposite
+signs, same bets, one screen. Now **−8.93u**, and it agrees with the
+split line to the cent.
+
+**Why it went unnoticed:** the field was read through an inline cast,
+`data as RoiResponse & { realPricedCumulativePL?: SeriesPoint[] }`. An
+*optional* property on a cast type cannot fail to compile when the
+producer omits it — there was no type error, only a silent `undefined`.
+Both `realPricedCumulativePL` and `stakeEpoch` are now declared on
+`RoiResponse` itself and read directly, so deleting the producer is a
+compile error. Adding them immediately surfaced two more producers that
+had been silently incomplete (`roi-today.ts`, and `loadRoi`'s empty
+fallback) — exactly the point.
+
+### Fixed — the page could only ever be as fresh as the last deploy
+
+`loadRoi` read `picks_<year>.csv` off disk, and `npm run prebuild`
+copies `data/` into the bundle at **build time**. A Vercel deployment's
+filesystem is immutable, so /history showed a frozen snapshot: the
+operator watched HOU@LAA settle +4.117u on the main board while
+/history still showed the night at −2.08u. `dynamic = "force-dynamic"`
+did not help — it re-runs the render, and re-reading a frozen file
+yields the frozen answer.
+
+Now Supabase-first with CSV fallback, mirroring `lib/board.ts` (which
+already did this, which is why the two pages disagreed). **Paginated**,
+because PostgREST caps at 1000 rows and a season is ~2400 — an
+unpaginated read would have silently dropped the oldest 60% of the
+season, the same cap that previously truncated `pl_calc` and the date
+picker. Jul 29 now reads **+2.04u**, matching `pl_calc`.
+
+**Boundary bug caught while wiring it:** Supabase returns native
+Postgres types (`profit_loss_units` as a JS number) while `parseCsv`
+returns strings, and the 250-line aggregator calls `.trim()` throughout.
+Handing it raw rows crashed the page with *"(r.profit_loss_units ??
+'').trim is not a function"*. Rows are now normalised to the CSV string
+shape at the boundary rather than teaching every call site to handle
+both.
+
+### Fixed — "split by side" silently dropped real money
+
+The split line read `betZones` only, which excludes anything whose
+`pick_side` is PASS. But a PASS-labelled row can hold a real bet at a
+real price: a STRONG pick still labelled "LINEUP PENDING" when its lock
+window closed gets `bet_placed=Y` and settles normally (2026-07-27
+NYY@CWS, +0.909u). Season-wide that is **+1.62u over 3 bets**, and
+dropping it left the split summing to −10.55u under a −8.93u headline.
+Same population now; they agree exactly.
+
+### Changed — `--attn` amber → violet
+
+Operator: *"change the amber to violet"*. Amber was the last warm hue on
+screen. Dark `#fbbf24` → `#a78bfa` (7.10 / 6.35 / 5.49), light `#7e5800`
+→ `#6d28d9` (6.36 / 6.97 / 5.74). The three money hues now sit at
+**190 / 255 / 345** — no two within 65°, none warm, and violet's
+luminance lands between gain and loss so they stay ordered in greyscale.
+App icons re-keyed too.
+
+
 ## [2026-07-29e] — The 112 inverted capture timestamps, healed
 
 Operator authorised repairing history. `tools/heal_capture_ts_inversions.py`.

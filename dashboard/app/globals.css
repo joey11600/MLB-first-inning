@@ -23,7 +23,7 @@
    THE MONEY HUES ARE NOW 150 DEGREES APART INSTEAD OF 11.
      --gain  cyan    #22d3ee    real money UP
      --loss  rose    #fb5c78    real money DOWN
-     --attn  amber   #fbbf24    money AT RISK / a decision is waiting
+     --attn  violet  #a78bfa    money AT RISK / a decision is waiting
    The old trio sat inside a 30-degree wedge of orange and the previous
    pass spent real effort teasing them apart by luminance. They are now
    separated by HUE, which survives greyscale printing, dim phone
@@ -41,13 +41,13 @@
    2.95 on --muted).
 
    INHERITED RULE, UNCHANGED -- A HUE MEANS REAL MONEY.
-     --gain  peach  real money UP
-     --loss  rust   real money DOWN
-     --attn  amber  money AT RISK / a decision is waiting on you
    Everything else -- sides, chrome, tags, active tabs, hovers -- is
    INK, not hue.  The old scheme spent peach on NRFI *and* on profit,
    so a peach number meant either "this is an NRFI pick" or "you made
-   money" and the reader could not tell which.
+   money" and the reader could not tell which.  (The three hues this
+   rule governs are listed above; this block used to restate them as
+   peach/rust/amber and went stale the moment the palette moved.
+   ONE list, above.)
 
    COROLLARY: SIMULATED FIGURES ARE NEVER TONE-COLOURED.  Coloured =
    your money.  Neutral = a back-test.  No exception, no carve-out.
@@ -100,15 +100,20 @@
                                          reads at a glance on a phone in a lit
                                          room -- PRODUCT.md's actual scene. */
   --primary-foreground:    #0a0e14;   /* 10.67 knockout */
-  --secondary:             #fbbf24;   /* 11.68 / 10.45 /  9.03
-                                         Amber.  Nearly the same LUMINANCE as
-                                         the cyan (1.10x) -- which no longer
-                                         matters, because they are 150 degrees
-                                         apart in hue.  The previous palette
-                                         had to fight for luminance separation
-                                         precisely because it had no hue to
-                                         spend. */
-  --secondary-foreground:  #0a0e14;   /* 11.68 knockout */
+  --secondary:             #a78bfa;   /*  7.10 /  6.35 /  5.49
+                                         VIOLET.  Was amber #fbbf24 for one
+                                         day; the operator read it as more
+                                         orange ("change the amber to violet",
+                                         2026-07-29) and they were right that
+                                         it was the last warm thing on screen.
+                                         Hue 255, so the three money colours
+                                         now sit at 190 / 255 / 345 -- no two
+                                         within 65 degrees, and no warm hue
+                                         anywhere in the set.  Luminance 0.335
+                                         lands BETWEEN gain (0.528) and loss
+                                         (0.295), so the three are ordered and
+                                         separable in greyscale too. */
+  --secondary-foreground:  #0a0e14;   /*  7.10 knockout */
   --destructive:           #fb5c78;   /*  6.37 /  5.70 /  4.92
                                          Rose, not an alarm red: it is money
                                          DOWN, not an error.  Sits 1.79x below
@@ -225,7 +230,7 @@
    so separation has to come from HUE.  The old brown palette fought
    for this and reached a 24 / 42 / 7 spread -- three narrow gaps
    inside one wedge.  The 2026-07-29 repalette does not have to fight:
-   teal 195 / gold 42 / crimson 345 is a genuine three-way split, and
+   teal 195 / violet 262 / crimson 345 is a genuine three-way split, and
    every ratio clears AA with margin instead of by a hair. */
 .light {
   /* Surfaces -- cool paper, hue ~210 at very low chroma.  Not #fff:
@@ -249,7 +254,7 @@
 
   --primary:               #0b5f77;   /* 6.38 / 6.98 / 5.75   teal, hue 195 */
   --primary-foreground:    #fbfdff;   /* 6.98 knockout */
-  --secondary:             #7e5800;   /* 5.74 / 6.28 / 5.17   gold, hue 42 */
+  --secondary:             #6d28d9;   /* 6.36 / 6.97 / 5.74   violet, hue 262 */
   --secondary-foreground:  #fbfdff;   /* 6.28 knockout */
   --destructive:           #b81a3c;   /* 5.77 / 6.32 / 5.20   crimson, hue 345.
                                          150 degrees from --primary, so a
@@ -289,7 +294,7 @@
 
     --primary:               #0b5f77;
     --primary-foreground:    #fbfdff;
-    --secondary:             #7e5800;
+    --secondary:             #6d28d9;
     --secondary-foreground:  #fbfdff;
     --destructive:           #b81a3c;
     --destructive-foreground:#fbfdff;

@@ -17,7 +17,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCsv } from "./csv";
-import { getServerSupabase } from "./supabase";
+import { getServerSupabase, isSupabaseConfigured } from "./supabase";
 import type { PickSide, PickStrength } from "./types";
 import { readKellyConfig, simulateKelly, type KellySim } from "./kelly-sim";
 
@@ -154,6 +154,24 @@ export interface RoiResponse {
   /** rolling cumulative P&L by date for STRONG bet zones only (LEAN
    *  excluded -- paper-trade does not move the bankroll curve). */
   cumulativePL: { date: string; units: number }[];
+  /** THE MONEY SERIES.  Same accumulator as `cumulativePL` but only over
+   *  bets whose picked side had a captured DraftKings price, so it is
+   *  free of the fabricated -110 settlements that make the raw column
+   *  read ~35u high.  HistoryView charts THIS; `cumulativePL` survives
+   *  as one dashed, explicitly-labelled comparison line.
+   *
+   *  Declared on the interface (2026-07-29) rather than being cast in at
+   *  the call site.  It was consumed via
+   *  `data as RoiResponse & { realPricedCumulativePL?: ... }` for a day,
+   *  and that cast is exactly why nobody noticed the field was never
+   *  produced -- an optional property on a cast type cannot fail to
+   *  compile when it is missing. */
+  realPricedCumulativePL: { date: string; units: number }[];
+  /** First date whose stake left flat 1u, i.e. when Kelly went live.
+   *  Read off the ledger's `units_risked`, not the config constant, so
+   *  it reports what happened rather than what was configured.  Null
+   *  before any variable stake exists. */
+  stakeEpoch: string | null;
   /** Counterfactual "what if we'd staked by Kelly from the start"
    *  bankroll.  Recomputed on read from each row's probability + real
    *  captured price -- the ledger is NEVER rewritten with simulated
@@ -187,6 +205,75 @@ async function safeRead(p: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** Every pick row for `season`, LIVE from Supabase, or null.
+ *
+ *  2026-07-29 -- WHY THIS EXISTS.  /history read `picks_<year>.csv` off
+ *  disk, and on Vercel that file is whatever `npm run prebuild`
+ *  (scripts/copy-data.mjs) copied into the bundle AT BUILD TIME.  A
+ *  deployment's filesystem is immutable, so the page could only ever be
+ *  as fresh as the last deploy: the operator watched HOU@LAA settle
+ *  +4.117u on the main board while /history still showed the night at
+ *  -2.08u, because the board reads Supabase and this did not.
+ *  `export const dynamic = "force-dynamic"` did not help -- it re-runs
+ *  the render, but re-reading a frozen file yields the frozen answer.
+ *
+ *  Mirrors `lib/board.ts`: Supabase first, CSV on any failure, never an
+ *  error.  A Supabase outage downgrades to "as fresh as the last build",
+ *  which is exactly where this page already was.
+ *
+ *  PAGINATED, because PostgREST enforces a server-side 1000-row max and
+ *  a bigger .limit() is silently truncated -- the same cap that
+ *  truncated pl_calc and the date picker.  A season is ~2400 rows, so an
+ *  unpaginated read would quietly drop the oldest ~60% of the season. */
+async function loadRoiRowsFromSupabase(
+  season: number,
+): Promise<Record<string, string>[] | null> {
+  if (!isSupabaseConfigured()) return null;
+  const sb = getServerSupabase();
+  if (!sb) return null;
+  const PAGE = 1000;
+  const out: Record<string, string>[] = [];
+  try {
+    for (let from = 0; from < 20_000; from += PAGE) {
+      const { data, error } = await sb
+        .from(`picks_${season}`)
+        .select("*")
+        .order("date", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        console.warn("[roi] supabase page failed", from, error);
+        return null;              // fall back to CSV rather than serve a partial season
+      }
+      if (!data || data.length === 0) break;
+      // COERCE TO THE CSV SHAPE AT THE BOUNDARY.
+      //
+      // Supabase returns NATIVE Postgres types -- `profit_loss_units`
+      // arrives as a JS number, `wx_is_dome` as a boolean, nulls as
+      // null.  `parseCsv` returns every cell as a string, and the whole
+      // 250-line aggregator below is written against that: it calls
+      // `.trim()` on a dozen columns and `Number.parseFloat` on
+      // strings.  Handing it raw Supabase rows crashed the page with
+      // "(r.profit_loss_units ?? '').trim is not a function".
+      //
+      // Normalising here keeps the aggregator single-shaped rather than
+      // teaching every call site to handle both. null/undefined become
+      // "" so the existing `(x ?? "").trim()` idiom keeps working.
+      for (const row of data as Record<string, unknown>[]) {
+        const norm: Record<string, string> = {};
+        for (const [k, v] of Object.entries(row)) {
+          norm[k] = v === null || v === undefined ? "" : String(v);
+        }
+        out.push(norm);
+      }
+      if (data.length < PAGE) break;
+    }
+  } catch (err) {
+    console.warn("[roi] supabase read threw; falling back to CSV", err);
+    return null;
+  }
+  return out.length > 0 ? out : null;
 }
 
 // MLB slates are organized by ET calendar day.  Using UTC here would skip
@@ -348,20 +435,35 @@ export async function loadRoi(
       hitRate: NaN, paperPL: 0, edgeVsBreakEven: NaN,
     },
     cumulativePL: [],
+    realPricedCumulativePL: [],
+    stakeEpoch: null,
     kelly: simulateKelly([], readKellyConfig(null).cfg, false),
   };
 
   const year = today.slice(0, 4);
-  const csvPath = path.join(dataDir(), `picks_${year}.csv`);
-  const raw = await safeRead(csvPath);
-  if (!raw) return empty;
-
-  const rows = parseCsv(raw);
+  // LIVE FIRST, build-time snapshot second.  See loadRoiRowsFromSupabase
+  // for why: on Vercel the CSV is frozen at deploy time, so /history
+  // could only ever be as fresh as the last build while the main board
+  // -- which already reads Supabase -- showed the current night.
+  let rows = await loadRoiRowsFromSupabase(Number(year));
+  if (!rows) {
+    const csvPath = path.join(dataDir(), `picks_${year}.csv`);
+    const raw = await safeRead(csvPath);
+    if (!raw) return empty;
+    rows = parseCsv(raw);
+  }
 
   // Group buckets keyed by `${side}|${strength}`.
   const buckets = new Map<string, ZoneRoi>();
   // Per-day P&L list (only counts wins/losses on bet zones)
   const dayPL = new Map<string, number>();
+  // Same shape as dayPL but only bets with a captured price -- see the
+  // accumulation site below for why this is the series that matters.
+  const realDayPL = new Map<string, number>();
+  // Earliest date carrying a non-1u stake, i.e. when Kelly went live.
+  // HistoryView marks it on the drawdown chart so a step change in
+  // volatility is attributable rather than mysterious.
+  let stakeEpoch: string | null = null;
   // Per-zone realized P&L (uses actual prices when profit_loss_units column populated)
   const zonePL = new Map<string, number>();
   // Aggregate counters across the whole window (regardless of zone)
@@ -432,6 +534,16 @@ export async function loadRoi(
       // Without one, _calc_pnl settled it against a fabricated -110 --
       // that is 170 of April's 176 bets, and it is why the season total
       // reads ~15u higher than anything that really happened.
+      // First date a stake left flat 1u.  Read off units_risked rather
+      // than the Kelly epoch constant so it reflects what the ledger
+      // actually did, not what config says it should have done.
+      if (strength !== "LEAN") {
+        const ur = Number.parseFloat((r.units_risked ?? "").trim());
+        if (Number.isFinite(ur) && Math.abs(ur - 1) > 0.005) {
+          if (!stakeEpoch || date < stakeEpoch) stakeEpoch = date;
+        }
+      }
+
       if (strength !== "LEAN") {
         const priceCol = side === "NRFI" ? r.market_nrfi_odds : r.market_yrfi_odds;
         const hasRealPrice = Boolean((priceCol ?? "").trim());
@@ -460,6 +572,23 @@ export async function loadRoi(
       if (strength !== "LEAN") {
         const prev = dayPL.get(date) ?? 0;
         dayPL.set(date, prev + pl);
+        // THE REAL-MONEY SERIES (2026-07-29).  Same accumulator, but
+        // only over bets whose picked side had a captured DraftKings
+        // price.  HistoryView has read `realPricedCumulativePL` since
+        // the 2026-07-28 audit -- but NOTHING EVER PRODUCED IT.  The
+        // consumer shipped without the producer, so the page's fallback
+        // fired on every single render, it charted the fabricated -110
+        // series, and it printed "Reload the page to pick up the
+        // real-priced figure" -- advice that could never work.
+        //
+        // The gap it was hiding is not subtle: the season headline read
+        // +21.86u while the zone table directly below it, which DID use
+        // provenance, summed to -12.67u. Opposite signs, same bets, one
+        // screen.
+        const priceColD = side === "NRFI" ? r.market_nrfi_odds : r.market_yrfi_odds;
+        if ((priceColD ?? "").trim()) {
+          realDayPL.set(date, (realDayPL.get(date) ?? 0) + pl);
+        }
       }
     } else if (graded === "POSTPONED" || graded === "SUSPENDED") {
       z.postponed += 1;
@@ -556,6 +685,17 @@ export async function loadRoi(
     cumulativePL.push({ date: d, units: cum });
   }
 
+  // THE REAL-MONEY CURVE.  Runs over the SAME date axis as
+  // cumulativePL -- including days with no real-priced bet, which
+  // contribute a flat 0 -- so the two series can be overlaid on one
+  // chart without their x-axes drifting apart.
+  const realPricedCumulativePL: { date: string; units: number }[] = [];
+  let realCum = 0;
+  for (const d of dates) {
+    realCum += realDayPL.get(d) ?? 0;
+    realPricedCumulativePL.push({ date: d, units: realCum });
+  }
+
   // Kelly counterfactual.  Deliberately fed `rows` (the whole season)
   // rather than the windowed subset: a bankroll compounds, so slicing it
   // to "last 7 days" would restart it at 100u and report a number that
@@ -584,6 +724,8 @@ export async function loadRoi(
     total: totalFinal,
     leanPaperTrade,
     cumulativePL,
+    realPricedCumulativePL,
+    stakeEpoch,
     kelly,
   };
 }

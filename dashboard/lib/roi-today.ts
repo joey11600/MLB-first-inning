@@ -119,6 +119,8 @@ export function aggregateTodayRoi(
   // For today the cumulative-PL chart degenerates to a single point;
   // we still emit it for type-shape parity with the server response.
   let dayPL = 0;
+  // Same figure restricted to bets with a captured DraftKings price.
+  let realDayPL = 0;
 
   for (const r of rows) {
     const label = zoneLabel(r.pickSide, r.pickStrength);
@@ -159,6 +161,12 @@ export function aggregateTodayRoi(
       // Phase 1.3: LEAN paper-trade does NOT move the real bankroll curve.
       if (r.pickStrength !== "LEAN") {
         dayPL += pl;
+        // Real-priced twin (2026-07-29), matching lib/roi.ts so the two
+        // aggregators cannot disagree about what "the money series"
+        // means depending on which window is selected.
+        const priced = (r.pickSide === "NRFI"
+          ? d?.marketNrfiOdds : d?.marketYrfiOdds) ?? "";
+        if (priced.trim()) realDayPL += pl;
       }
     } else if (graded === "POSTPONED" || graded === "SUSPENDED") {
       z.postponed += 1;
@@ -232,6 +240,9 @@ export function aggregateTodayRoi(
   const cumulativePL = totalPicks > 0
     ? [{ date: today, units: dayPL }]
     : [];
+  const realPricedCumulativePL = totalPicks > 0
+    ? [{ date: today, units: realDayPL }]
+    : [];
 
   // Kelly bankroll is a season-long running quantity, and this
   // client-side aggregator only ever sees TODAY's rows -- simulating
@@ -255,6 +266,12 @@ export function aggregateTodayRoi(
     total:        totalFinal,
     leanPaperTrade,
     cumulativePL,
+    realPricedCumulativePL,
+    // Today alone cannot know when stakes first left flat 1u -- that is
+    // a season-long fact and this aggregator only sees one slate. Null,
+    // not a guess: HistoryView draws no epoch marker rather than a
+    // wrong one.
+    stakeEpoch: null,
     kelly,
   };
 }

@@ -43,22 +43,36 @@ type SeriesPoint = { date: string; units: number };
  *  survives as one dashed, explicitly-labelled comparison line on the
  *  equity chart so nothing appears to have silently vanished.
  *
- *  The fallback exists so a stale cached /api/roi payload (one served
- *  before the roi.ts change shipped) degrades to the old behaviour
- *  rather than rendering an empty page. */
+ *  2026-07-29 -- THE PRODUCER NEVER SHIPPED.  For a day this read
+ *  `realPricedCumulativePL` through a cast:
+ *
+ *      data as RoiResponse & { realPricedCumulativePL?: SeriesPoint[] }
+ *
+ *  `lib/roi.ts` never produced that field, so the fallback below fired
+ *  on EVERY render: the page charted the fabricated -110 series, the
+ *  headline read +21.86u while the zone table underneath it summed to
+ *  -12.67u, and the banner told the operator to "reload the page to
+ *  pick up the real-priced figure" -- which could never work.
+ *
+ *  The cast is why it went unnoticed. An OPTIONAL property on an
+ *  inline intersection type cannot fail to compile when the producer
+ *  omits it; there was no type error to catch, only a silent undefined.
+ *  Both fields are now declared on RoiResponse itself and read
+ *  directly, so deleting the producer is a compile error.
+ *
+ *  The fallback is kept for one narrow case only -- a browser holding a
+ *  cached /api/roi payload from before this shipped -- and it now
+ *  degrades honestly instead of promising a reload will fix it. */
 function pickMoneySeries(data: RoiResponse): { points: SeriesPoint[]; isReal: boolean } {
-  const withReal = data as RoiResponse & { realPricedCumulativePL?: SeriesPoint[] };
-  const s = withReal.realPricedCumulativePL;
+  const s = data.realPricedCumulativePL;
   if (Array.isArray(s) && s.length > 0) return { points: s, isReal: true };
   return { points: data.cumulativePL ?? [], isReal: false };
 }
 
 /** First date at which stakes stopped being flat 1u.  Before it a loss is
- *  -1.00u; after it a loss is whatever the stake was.  Undefined on a
- *  payload that predates the roi.ts change. */
+ *  -1.00u; after it a loss is whatever the stake was. */
 function stakeEpochOf(data: RoiResponse): string | null {
-  const withEpoch = data as RoiResponse & { stakeEpoch?: string | null };
-  return withEpoch.stakeEpoch ?? null;
+  return data.stakeEpoch ?? null;
 }
 
 /** Bankroll history for the production V2.1 model.  T-V21-LOCKIN-2026-05-06
@@ -133,20 +147,33 @@ export function HistoryView({
   // operator has been told "the season is down" without ever being told
   // WHICH book is down, and the two sides point opposite ways.
   const composition = useMemo(() => {
-    const parts = (data.betZones ?? [])
-      .filter((z) => z.strength !== "LEAN" && z.provenance.realPricedBets > 0)
-      .map(
-        (z) =>
-          `${z.label} ${unitsText(z.provenance.realPricedPL)} over ` +
-          `${z.provenance.realPricedBets} ` +
-          `${z.provenance.realPricedBets === 1 ? "bet" : "bets"}`,
-      );
+    // 2026-07-29 -- INCLUDE THE PASS ZONES THAT CARRY REAL MONEY.
+    //
+    // This read `betZones` only, which excludes anything whose pick_side
+    // is PASS. But a PASS-labelled row CAN hold a real bet at a real
+    // price: a STRONG pick whose label was still "LINEUP PENDING" when
+    // the lock window closed gets bet_placed=Y and settles normally
+    // (2026-07-27 NYY@CWS, +0.909u, is one).
+    //
+    // Season-wide that is +1.62u over 3 bets, and dropping it made this
+    // line sum to -10.55u under a headline reading -8.93u. Two figures
+    // disagreeing by 1.62u on one screen is the exact defect this page
+    // was being fixed for, so the split now covers the SAME population
+    // the headline does.
+    const withMoney = [...(data.betZones ?? []), ...(data.passZones ?? [])]
+      .filter((z) => z.strength !== "LEAN" && z.provenance.realPricedBets > 0);
+    const parts = withMoney.map(
+      (z) =>
+        `${z.label} ${unitsText(z.provenance.realPricedPL)} over ` +
+        `${z.provenance.realPricedBets} ` +
+        `${z.provenance.realPricedBets === 1 ? "bet" : "bets"}`,
+    );
     if (parts.length === 0) return undefined;
     return (
       "Split by side, counting only bets that had a real captured price: " +
       `${parts.join(" · ")}.`
     );
-  }, [data.betZones]);
+  }, [data.betZones, data.passZones]);
 
   const totalUnits = days.length ? days[days.length - 1].cumulative : 0;
   const totalDays  = days.length;
@@ -215,9 +242,16 @@ export function HistoryView({
                 )}
               </>
             ) : (
+              // Reachable only by a browser holding an /api/roi payload
+              // cached from before 2026-07-29.  It used to say "reload
+              // the page to pick up the real-priced figure" -- but the
+              // producer did not exist, so this branch was permanent and
+              // the advice could never work.  Say what is true instead:
+              // the number is inflated, and by roughly how much.
               <>
-                Includes bets settled against an assumed &minus;110 price. Reload
-                the page to pick up the real-priced figure.
+                Inflated: includes bets settled against an assumed
+                &minus;110 price rather than one you paid. The real-priced
+                figure is materially lower.
               </>
             )}
           </div>
