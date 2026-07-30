@@ -362,6 +362,93 @@ def _fmt(v, decimals: int = 3) -> str:
         return str(v)
 
 
+# ---------------------------------------------------------------------------
+# Capture-timestamp monotonicity (2026-07-29)
+# ---------------------------------------------------------------------------
+#
+# THE DEFECT.  112 of 1129 rows (9.9%) carried an `odds_captured_at`
+# EARLIER than their own `opened_captured_at`.  That is impossible by
+# construction: `_apply_odds_to_row` assigns BOTH from the same
+# `captured_at` on the first import that sees a price, and thereafter
+# only ever moves `odds_captured_at` forward while `opened_*` is frozen.
+#
+# THE MECHANISM.  `tools/sync_csv_from_supabase.py` runs on every predict
+# and grade cron tick and merges the Supabase mirror into the CSV
+# COLUMN BY COLUMN, skipping any column that is blank in Supabase:
+#
+#     for col in _SYNC_COLUMNS:
+#         if not new_val: continue          # <- the column is skipped
+#         row[col] = new_val                # <- but its neighbours are not
+#
+# So a row can be assembled from two DIFFERENT capture moments: a stale
+# `odds_captured_at` from a Railway mirror that has not caught up, beside
+# an `opened_captured_at` the CSV already had from a fresher GHA import.
+# The file's own comment asserts "in every realistic case, Supabase is
+# the fresher writer for these columns" -- that assumption is exactly
+# what fails when a GHA import has just written the CSV.
+#
+# WHY IT MATTERS EVEN THOUGH NO MONEY MOVES.  `bet_placed` and
+# `units_risked` on the affected rows are correct.  But the T2.23 odds
+# lock freezes `odds_captured_at` the moment a bet commits, which makes
+# it the ONLY ledger evidence of WHEN a bet locked -- the audit trail for
+# the T2.58 window.  A timestamp that can run backwards makes that
+# unauditable, and it silently corrupts any open-to-bet CLV measurement.
+#
+# THE FIX.  One rule, enforced at every write site: a capture timestamp
+# is a HIGH-WATER MARK.  It may move forward or stay put; it may never
+# move back.  History is NOT rewritten here -- see docs and the operator
+# note; this stops new inversions only.
+
+def parse_capture_ts(v) -> "datetime | None":
+    """Parse a capture timestamp to an aware UTC datetime, or None.
+
+    Tolerant on purpose: the ledger carries both offset-aware values
+    ("2026-07-30T00:06:48+00:00", the current writer) and older
+    Z-suffixed and naive forms from earlier tools.  A naive value is
+    read as UTC, which is what every writer in this repo emits.
+    Unparseable input returns None and the caller treats the comparison
+    as "unknown" rather than guessing.
+    """
+    s = str(v or "").strip()
+    if not s:
+        return None
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def capture_ts_regressed(old, new) -> bool:
+    """True when `new` is strictly older than `old`.
+
+    Both must parse; an unparseable or blank value on either side is
+    NOT treated as a regression, so this can never block a legitimate
+    first write or a repair of a corrupt cell.
+    """
+    o = parse_capture_ts(old)
+    n = parse_capture_ts(new)
+    return o is not None and n is not None and n < o
+
+
+def advance_capture_ts(row: dict, field: str, new_val) -> bool:
+    """Move `row[field]` forward to `new_val`, refusing to go backwards.
+
+    Returns True when the row was modified.  This is the ONLY sanctioned
+    way to write a capture timestamp; see the block comment above.
+    """
+    if not str(new_val or "").strip():
+        return False
+    if capture_ts_regressed(row.get(field), new_val):
+        return False
+    if row.get(field) == new_val:
+        return False
+    row[field] = new_val
+    return True
+
+
 def _pick_lock_minutes() -> int:
     """T2.58: how many minutes pre-game before we commit a STRONG pick
     (set bet_placed=Y, freeze the verdict, fire the BET LOCKED Telegram).
@@ -3529,7 +3616,11 @@ def _apply_odds_to_row(
     row["market_nrfi_odds"] = nrfi_odds
     row["market_yrfi_odds"] = yrfi_odds
     row["sportsbook"]       = sportsbook
-    row["odds_captured_at"] = captured_at
+    # High-water mark, never a plain assignment (2026-07-29).  A batch
+    # that replays an older scrape -- or a row whose value was dragged
+    # backwards by the Supabase sync before this guard existed -- must
+    # not be able to rewind the lock evidence.
+    advance_capture_ts(row, "odds_captured_at", captured_at)
 
     # T4.28: Capture the FIRST seen odds as the "open" line; never
     # overwrite once set.  market_* keeps tracking the latest scrape;

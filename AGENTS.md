@@ -226,9 +226,18 @@ invalidates their bot config.
 - The user runs production from this branch. **Don't break working
   state.** When in doubt, do less.
 - The user prefers **flat 1u plays, no Kelly sizing** (asked + answered).
-- The user prefers the **warm-brown / peach palette**, NOT terminal
-  green/red. Use existing CSS variables (`--primary`, `--secondary`,
-  `--destructive`).
+- **PALETTE REVERSED 2026-07-29.** The user now wants **bright colours
+  on a cool deep-ink page** and said so plainly: *"i hate the orange
+  colors. it needs to be bright colors that look great."* The
+  warm-brown / peach palette this file used to mandate is RETIRED. Do
+  not restore it. Current tokens: `--primary` cyan `#22d3ee`,
+  `--secondary` amber `#fbbf24`, `--destructive` rose `#fb5c78`, on
+  cool ink surfaces (`--background` `#0a0e14`).
+  **Terminal green/red is still rejected** — that was a separate,
+  earlier decision and the repalette did not reopen it.
+  Always work through the semantic aliases `--gain` / `--loss` /
+  `--attn`, never the raw token names, so the meaning is readable at
+  the call site.
 - The user **does not want odds fabricated** for unmatched games.
 - The user gets frustrated when picks appear to disappear (incident
   history: 4/30 grade reset, 5/01 odds-chip-hidden, 5/01 deploy-overwrite).

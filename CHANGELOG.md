@@ -11,6 +11,100 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29b] — Capture-timestamp guard + the palette reversal
+
+Operator: *"fix the timestamp bug then fix the colors. i hate the
+orange colors. it needs to be bright colors that look great."*
+
+### Fixed — `odds_captured_at` could run backwards
+
+112 of 1129 rows (9.9%) carried an `odds_captured_at` EARLIER than
+their own `opened_captured_at` — impossible by construction, since
+`_apply_odds_to_row` assigns both from the same value on first import
+and only ever moves the former forward.
+
+**Cause:** `tools/sync_csv_from_supabase.py` (runs every predict and
+grade tick) merges the Supabase mirror into the CSV *column by column*
+and skips any column blank in Supabase, so a row could be assembled out
+of two different capture moments — a lagging mirror's
+`odds_captured_at` beside a fresher `opened_captured_at` the CSV
+already had. The file's own comment asserted "Supabase is the fresher
+writer for these columns"; that holds for values, not for time.
+
+**Fix:** capture timestamps are now high-water marks. New
+`tracker.parse_capture_ts` / `capture_ts_regressed` /
+`advance_capture_ts`, wired into both write sites. The sync reports
+`N advanced, N rejected as backwards` each run.
+
+No money was affected — `bet_placed` and `units_risked` on the affected
+rows were correct — but the T2.23 lock freezes `odds_captured_at` when
+a bet commits, making it the only ledger evidence of *when* a bet
+locked, so the T2.58 window was unauditable and CLV was suspect.
+
+New `tools/verify_capture_ts_monotonic.py` (7 + 6 + 5 + 1 assertions,
+all passing) including a replay of the original defect. Historical rows
+are **not** repaired: that rewrites the ledger and needs operator
+sign-off per CLAUDE.md's data rules.
+
+### Changed — the warm palette is retired
+
+This reverses a preference recorded in CLAUDE.md, AGENTS.md and
+PRODUCT.md as "explicitly and repeatedly chosen." All three were
+updated in this commit, because a future agent reading the old note
+would helpfully put the orange back.
+
+Swapping three accent tokens would not have worked: every *surface*
+was hue ~30 too, so the background, cards, borders and body text were
+all brown or tan. "The orange colors" was an accurate description of
+essentially the whole screen.
+
+| | old | new (dark) | new (light) |
+|---|---|---|---|
+| background | `#12100e` | `#0a0e14` | `#eef3f8` |
+| foreground | `#f0e4d3` | `#e9eff6` | `#0f1a24` |
+| `--gain` | peach `#f5a465` | cyan `#22d3ee` | teal `#0b5f77` |
+| `--loss` | tomato `#ec8060` | rose `#fb5c78` | crimson `#b81a3c` |
+| `--attn` | amber `#f0c96e` | amber `#fbbf24` | gold `#7e5800` |
+
+The money hues are now ~150° apart instead of sharing a 30° wedge of
+orange. The previous pass had to fight for luminance separation
+precisely because it had no hue to spend; separation now survives
+greyscale, dim phone screens and red-green colour blindness.
+Terminal green/red remains rejected and absent.
+
+Every ratio was recomputed and verified in the browser against rendered
+surfaces, not asserted. All money hues and both ink tones clear AA on
+all three surfaces in both themes. `--border` now clears 3:1 on all
+three in dark, retiring the old palette's knowing 2.95 concession.
+
+### Fixed — two more side-as-hue violations found during the repalette
+
+Swapping the tokens made these obvious, because they got *louder*:
+
+- **The pick pills painted side as money.** `.nrfiStrong`/`.nrfiLean`
+  were `--primary` (= gain), `.yrfiStrong`/`.yrfiLean` were
+  `--destructive` (= loss), `.passTone` was `--secondary` (= at risk) —
+  on the pill background, dot and label of every row. Every YRFI row
+  rendered in the losing colour whether it won or lost, and PASS rows
+  (usually the largest group) carried the at-risk hue while having no
+  money on them at all. Rewritten to weight: side via the dot's ink
+  (`--side-nrfi` / `--side-yrfi`), strength via label ink and border.
+- **`.resultPass`** used `--attn` on the result chip of a game the model
+  declined. Now neutral. `.resultWin`/`.resultLoss` were already correct
+  and are unchanged.
+
+Warm elements on the rendered page: **52 → 3**, and all three survivors
+are correct uses of `--attn` ("8.05u at risk", the change-banner dot).
+
+### Also
+
+- PWA manifest `theme_color` was `#5dff9a` — phosphor **green**, the
+  palette the operator rejected — sitting on their home screen. All four
+  app icons were green + orange; recoloured. `themeColor` and
+  `msapplication-TileColor` re-keyed to the new `--background`.
+
+---
+
 ## [2026-07-29] — Money-path verification + the last side-hue numerals
 
 Operator asked for three things: confirm Kelly sizing is working, confirm

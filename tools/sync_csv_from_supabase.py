@@ -56,6 +56,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from db.supabase_writer import _get_client, _PRESERVE_ON_BLANK_FIELDS
+import tracker
 from tracker import FIELDS, _csv_path, _read_rows, _write_rows
 
 
@@ -68,6 +69,12 @@ from tracker import FIELDS, _csv_path, _read_rows, _write_rows
 _SYNC_COLUMNS = sorted(_PRESERVE_ON_BLANK_FIELDS) + ["sportsbook"]
 # Strip duplicates if any (sportsbook is already in the preserve set).
 _SYNC_COLUMNS = sorted(set(_SYNC_COLUMNS))
+
+# Columns that record WHEN something was observed.  These are merged
+# through tracker.advance_capture_ts (monotonic) instead of a plain
+# assignment -- see the block comment at the merge loop below, and the
+# "Capture-timestamp monotonicity" section in tracker.py.
+_CAPTURE_TS_COLUMNS = frozenset({"odds_captured_at", "opened_captured_at"})
 
 
 def _et_today() -> str:
@@ -156,6 +163,7 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
           f"{csv_path.name}")
 
     updated = unmatched = unchanged = 0
+    ts_advanced = ts_rejected = 0
     for sb in sb_rows:
         key = (sb.get("date") or "", str(sb.get("game_pk") or ""))
         idx = csv_index.get(key)
@@ -175,6 +183,27 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
             new_val = _coerce_supabase_value(col, sb_val)
             if not new_val:
                 continue
+            # 2026-07-29 -- CAPTURE TIMESTAMPS ARE HIGH-WATER MARKS.
+            #
+            # This loop is where `odds_captured_at` learned to run
+            # backwards on ~10% of rows.  Each column is merged
+            # INDEPENDENTLY and any column blank in Supabase is skipped,
+            # so the merged row can be assembled out of two different
+            # capture moments: a lagging mirror's `odds_captured_at`
+            # landing beside an `opened_captured_at` the CSV already had
+            # from a fresher GHA import.  The result was rows whose
+            # "latest price seen" predated their own "first price seen".
+            #
+            # The comment above ("Supabase is the fresher writer") holds
+            # for VALUES but not for TIME: a GHA import writes the CSV
+            # directly and Railway's mirror can be minutes behind it.
+            if col in _CAPTURE_TS_COLUMNS:
+                if tracker.advance_capture_ts(row, col, new_val):
+                    row_changed = True
+                    ts_advanced += 1
+                elif tracker.capture_ts_regressed(csv_val, new_val):
+                    ts_rejected += 1
+                continue
             if new_val != csv_val:
                 row[col] = new_val
                 row_changed = True
@@ -185,6 +214,9 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
 
     print(f"[sync] {updated} row(s) updated, {unchanged} unchanged, "
           f"{unmatched} Supabase-only (no CSV row)")
+    if ts_advanced or ts_rejected:
+        print(f"[sync] capture timestamps: {ts_advanced} advanced, "
+              f"{ts_rejected} rejected as backwards")
 
     if dry_run:
         print("[sync] --dry-run set; CSV NOT written.")

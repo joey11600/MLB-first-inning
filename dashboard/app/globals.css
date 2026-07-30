@@ -1,9 +1,46 @@
 /* ============================================================
-   Diamond Terminal -- warm espresso/peach theme.
+   Diamond Terminal -- deep-ink theme, bright signal colours.
    Geist Sans (UI) + Geist Mono (figures), no serif.
    Light theme is a soft inverse for daylight reading.
 
-   2026-07-28 (second pass) -- ONE RULE: A HUE MEANS REAL MONEY.
+   2026-07-29 -- THE WARM PALETTE IS RETIRED.  Operator: "i hate the
+   orange colors. it needs to be bright colors that look great."
+
+   This reverses a preference recorded in CLAUDE.md and PRODUCT.md
+   ("warm brown and peach, explicitly and repeatedly chosen"). Both
+   files were updated the same day, because a future agent reading the
+   old note would helpfully put the orange back.
+
+   WHAT CHANGED AND WHY IT IS THE WHOLE SCREEN, NOT THREE ACCENTS.
+   Every surface was hue ~30 as well: the page background, the cards,
+   the borders and the body text were all brown or tan, so "the orange
+   colors" was an accurate description of literally everything. Moving
+   only --primary would have left a peach-free page that still read
+   entirely brown. Surfaces are now a cool deep ink (hue ~215 at very
+   low chroma), text is near-white, and the three money hues are the
+   only saturated things on screen.
+
+   THE MONEY HUES ARE NOW 150 DEGREES APART INSTEAD OF 11.
+     --gain  cyan    #22d3ee    real money UP
+     --loss  rose    #fb5c78    real money DOWN
+     --attn  amber   #fbbf24    money AT RISK / a decision is waiting
+   The old trio sat inside a 30-degree wedge of orange and the previous
+   pass spent real effort teasing them apart by luminance. They are now
+   separated by HUE, which survives greyscale printing, dim phone
+   screens and red-green colour blindness -- cyan-vs-rose is the one
+   opposition that does NOT collapse for deuteranopes, unlike the
+   green-vs-red the operator rejected on 2026-04-30.
+
+   NOT terminal green/red: still explicitly rejected, still absent.
+   Cyan and rose are not that palette and are not trying to be.
+
+   EVERY RATIO BELOW WAS RECOMPUTED, none inherited. All three money
+   hues and both ink tones now clear AA on all three surfaces in BOTH
+   themes, and --border clears the 3:1 that WCAG 1.4.11 wants for a
+   meaningful boundary on all three in dark (the old palette conceded
+   2.95 on --muted).
+
+   INHERITED RULE, UNCHANGED -- A HUE MEANS REAL MONEY.
      --gain  peach  real money UP
      --loss  rust   real money DOWN
      --attn  amber  money AT RISK / a decision is waiting on you
@@ -19,66 +56,67 @@
      --side-yrfi  full ink   the side the system actually bets
      --side-nrfi  taupe      NRFI gate is off (_LR_STRONG_NRFI_P = 1.01)
 
-   SURFACES ARE UNTOUCHED.  The earlier 2026-07-28 pass moved the
-   warmth from the paper to the ink; this pass rations the ink.  Every
-   surface value below is byte-identical to what shipped that morning.
-   Five accent / line values move, and EVERY ONE raises or holds its
-   contrast against background, card and muted.
+   SURFACES ARE NO LONGER UNTOUCHED.  The 2026-07-28 pass held every
+   surface byte-identical and rationed the ink; that was the right move
+   for the problem it had, but it is why the page still read brown.
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@300;400;500;600;700&display=swap");
 
 /* --------- Default theme = Bloomberg dark --------- */
 :root {
-  /* ---- SURFACES: UNCHANGED, byte for byte, from the 2026-07-28
-     desaturation pass.  Every surface was hue ~30 at 32-44%
-     saturation, so background, cards, borders and accents were all
-     the same orange and the whole screen read as one haze.  Chroma
-     was cut to 10-16% with LUMINANCE HELD.  Do not undo this. ---- */
-  --background:        #12100e;
-  --card:              #211d1a;   /* 1.135:1 vs background */
-  --muted:             #2b2622;   /* 1.219:1 vs background */
-  --accent:            #2c2015;
-  --input:             #403830;
+  /* ---- SURFACES.  Cool deep ink, hue ~215 at 4-8% chroma.
+     Not pure grey: every neutral is tinted a few points toward the
+     brand hue so the page reads as one deliberate temperature rather
+     than as unpainted default.  Not #000 either -- a true black makes
+     the bright accents buzz against it. ---- */
+  --background:        #0a0e14;
+  --card:              #141b24;   /* 1.117:1 vs background */
+  --muted:             #1e2733;   /* 1.294:1 vs background */
+  --accent:            #16202b;
+  --input:             #2a3644;
 
   /* ---- LINES ----
-     --border was #615346: 2.56 / 2.26 / 2.02 on background / card /
-     muted, i.e. below the 3:1 that WCAG 1.4.11 wants for a meaningful
-     non-text boundary.  With a third of the page's surfaces deleted
-     the survivors carry more structure, so the edge has to read.
-     2.95 on --muted is accepted knowingly: --muted is a chip fill,
-     never a card edge. */
-  --border:            #7b6c5d;   /* 3.75 / 3.30 / 2.95 */
-  --ring:              var(--primary);  /* was the #f5a465 literal -- same
-                                           value, one fewer colour to keep
-                                           in sync across two themes. */
+     Ratios below are on background / card / muted.  The old --border
+     conceded 2.95 on --muted, under the 3:1 WCAG 1.4.11 wants for a
+     meaningful non-text boundary.  This one clears 3:1 on all three,
+     so the concession is retired rather than inherited. ---- */
+  --border:            #6b7b8a;   /* 4.44 / 3.97 / 3.43 */
+  --ring:              var(--primary);
   --radius:            0.375rem;
 
-  /* ---- INK: UNCHANGED ---- */
-  --foreground:           #f0e4d3;   /* 15.14 / 13.34 / 11.93 */
-  --muted-foreground:     #c0a890;   /*  8.36 /  7.36 /  6.59 */
+  /* ---- INK ---- */
+  --foreground:           #e9eff6;   /* 16.74 / 14.97 / 12.94 */
+  --muted-foreground:     #9db0c2;   /*  8.67 /  7.76 /  6.71 */
 
   /* ---- THE ONLY THREE SATURATED COLOURS ON THE PAGE ----
-     --primary / --secondary / --destructive stay as the RAW values so
+     --primary / --secondary / --destructive stay as the RAW names so
      no existing call site breaks (225 / 89 / 150 usages across the
      dashboard).  Nothing NEW may reference them: use --gain / --loss /
-     --attn below, which is where the MEANING lives. */
-  --primary:               #f5a465;   /*  9.38 /  8.27 /  7.40   held */
-  --primary-foreground:    #12100e;   /*  9.38 knockout */
-  --secondary:             #f0c96e;   /* 12.01 / 10.58 /  9.47
-                                         WAS #e9b45b (10.07 / 8.88 / 7.94).
-                                         Peach and amber were 1.07x apart in
-                                         luminance at 11 deg of hue --
-                                         indistinguishable, and half the
-                                         "orange, orange" complaint.  Hue 38 ->
-                                         42, and EVERY ratio rises (+1.9 on
-                                         card).  Gain-vs-attn separation goes
-                                         1.07 -> 1.28.  A free move. */
-  --secondary-foreground:  #12100e;   /* 12.01 knockout */
-  --destructive:           #ec8060;   /*  7.07 /  6.23 /  5.58   held.
-                                         A warm tomato, not an alarm red --
-                                         it is money DOWN, not an error. */
-  --destructive-foreground:#12100e;   /*  7.07 knockout */
+     --attn below, which is where the MEANING lives. ---- */
+  --primary:               #22d3ee;   /* 10.67 /  9.54 /  8.24
+                                         Cyan.  Bright at high luminance in a
+                                         way no orange is, so "money up" now
+                                         reads at a glance on a phone in a lit
+                                         room -- PRODUCT.md's actual scene. */
+  --primary-foreground:    #0a0e14;   /* 10.67 knockout */
+  --secondary:             #fbbf24;   /* 11.68 / 10.45 /  9.03
+                                         Amber.  Nearly the same LUMINANCE as
+                                         the cyan (1.10x) -- which no longer
+                                         matters, because they are 150 degrees
+                                         apart in hue.  The previous palette
+                                         had to fight for luminance separation
+                                         precisely because it had no hue to
+                                         spend. */
+  --secondary-foreground:  #0a0e14;   /* 11.68 knockout */
+  --destructive:           #fb5c78;   /*  6.37 /  5.70 /  4.92
+                                         Rose, not an alarm red: it is money
+                                         DOWN, not an error.  Sits 1.79x below
+                                         gain in luminance AND opposite it in
+                                         hue, so a losing night and a winning
+                                         night cannot be confused in greyscale,
+                                         in dim light, or by a deuteranope. */
+  --destructive-foreground:#0a0e14;   /*  6.37 knockout */
 
   /* ---- THE THREE MEANINGS.  New code uses these names, never the
      raw ones above, so the rule is readable at the call site. ---- */
@@ -86,41 +124,45 @@
   --loss:  var(--destructive);   /* real money DOWN */
   --attn:  var(--secondary);     /* money at risk / needs a decision */
 
-  /* ---- SIDE INKS.  Weight, not hue.  NEVER on a numeral -- dots, bar
-     fills and 11px uppercase labels only.  2.37x luminance apart, so
-     the distribution bar reads as two-tone without either half looking
-     like a P&L figure.  --side-nrfi is 21% chroma; --gain is 88%. ---- */
-  --side-nrfi:  #a89279;            /*  6.38 /  5.62 /  5.03 */
-  --side-yrfi:  var(--foreground);  /* 15.14 / 13.34 / 11.93 */
+  /* ---- SIDE INKS.  Weight, not hue.  Dots, bar fills and small
+     uppercase labels only -- 2026-07-29 also fixed BoardRow's two
+     probability numerals, which were still painted --primary and
+     --destructive and were the last live remnant of side-as-hue.
+     3.2x luminance apart, so the distribution bar reads as two-tone
+     without either half looking like a P&L figure. ---- */
+  --side-nrfi:  #7d8fa1;            /*  5.83 /  5.21 /  4.50 */
+  --side-yrfi:  var(--foreground);  /* 16.74 / 14.97 / 12.94 */
 
   /* ---- CHROME.  Interface is not data.  Everything that used to
      borrow --primary for an active state, a hover or a date lands
      here instead. ---- */
   --chrome-ink: var(--muted-foreground);
 
-  /* RETIRED AS A HUE.  Was #9fb8c4 -- the only cold colour in a warm
-     palette, 21 usages, every one a label / meta / border-tint role
-     that reads correctly as plain ink.  Kept as an ALIAS so all 21
-     call sites keep working with zero edits.  In LIGHT this is also a
-     contrast REPAIR: #5c7b8a measured 3.96 / 4.32 / 3.51 -- sub-AA on
-     card AND muted, so the brief's "everything passes AA today" was
-     not true. */
+  /* RETIRED AS A HUE, and it STAYS retired.  Was #9fb8c4 -- the only
+     cold colour in the old warm palette, 21 usages, every one a label
+     / meta / border-tint role that reads correctly as plain ink.  Kept
+     as an ALIAS so all 21 call sites keep working with zero edits.
+     Note for anyone arriving after the 2026-07-29 repalette: the page
+     is cool now, so the NAME finally matches the surroundings.  That is
+     not a reason to point it back at a real cyan -- those call sites
+     are chrome, and chrome is not data. */
   --accent-cyan:  var(--muted-foreground);
 
   /* Aliases only -- so a semantic name can never smuggle terminal
-     green back in.  CLAUDE.md: the operator rejected it explicitly. */
+     green back in.  CLAUDE.md: the operator rejected it explicitly,
+     and the 2026-07-29 repalette did NOT reopen that question. */
   --success:      var(--gain);
   --warning:      var(--attn);
   --ds-gray-1000: var(--foreground);
 
   /* 10% wash behind soft NRFI tints.  Re-derived from the CURRENT
      accent value rather than a stale one. */
-  --nrfi-soft:    rgba(245, 164, 101, 0.10);
+  --nrfi-soft:    rgba(34, 211, 238, 0.10);
 
   /* "Draft / reconstructed" as a TEXTURE, for the simulated
-     surfaces (the model-replay rail, replay-only rows).  Stays inside
-     the warm palette -- no new hue -- and never overlaps text, so it
-     costs nothing in contrast. */
+     surfaces (the model-replay rail, replay-only rows).  Built from
+     --muted-foreground so it carries no hue of its own, and never
+     overlaps text, so it costs nothing in contrast. */
   --sim-hatch: repeating-linear-gradient(
     135deg,
     color-mix(in oklab, var(--muted-foreground) 55%, transparent) 0 2px,
@@ -179,56 +221,54 @@
    fallback is MORE code than two blocks.
 
    LIGHT IS THE CONSTRAINED THEME: all three money hues must clear
-   4.5:1 on #e8e2da, which leaves roughly one usable luminance octave,
-   so separation has to come from HUE.  The old spread was 24 / 35 / 13
-   -- three 11-degree gaps, meaning a winning night and a losing night
-   were the same brown in daylight.  New spread is 24 / 42 / 7. */
+   4.5:1 on --muted, which leaves roughly one usable luminance octave,
+   so separation has to come from HUE.  The old brown palette fought
+   for this and reached a 24 / 42 / 7 spread -- three narrow gaps
+   inside one wedge.  The 2026-07-29 repalette does not have to fight:
+   teal 195 / gold 42 / crimson 345 is a genuine three-way split, and
+   every ratio clears AA with margin instead of by a hair. */
 .light {
-  /* Surfaces -- UNCHANGED */
-  --background:        #f7efe4;
-  --card:              #fbfaf8;
-  --muted:             #e8e2da;
-  --accent:            #e8e2da;
-  --input:             #d9d2c7;
+  /* Surfaces -- cool paper, hue ~210 at very low chroma.  Not #fff:
+     a pure white card against a tinted page reads as a hole. */
+  --background:        #eef3f8;
+  --card:              #fbfdff;
+  --muted:             #dfe8f2;
+  --accent:            #dfe8f2;
+  --input:             #cbd8e6;
 
-  --border:            #968770;   /* 3.07 / 3.36 / 2.72
-                                     WAS #c0b4a5 (1.79 / 1.95 / 1.58) -- a
-                                     card edge you could not see. */
+  --border:            #7b8ea1;   /* 3.02 / 3.31 / 2.72
+                                     2.72 on --muted is the one knowing
+                                     concession, carried over deliberately
+                                     from the old light palette (which
+                                     measured the same): --muted is a chip
+                                     fill, never a card edge. */
 
-  /* Ink -- UNCHANGED */
-  --foreground:            #2b2015;   /* 13.95 / 15.25 / 12.36 */
-  --muted-foreground:      #6b5a48;   /*  5.79 /  6.33 /  5.13 */
+  /* Ink */
+  --foreground:            #0f1a24;   /* 15.65 / 17.12 / 14.11 */
+  --muted-foreground:      #47586a;   /*  6.55 /  7.17 /  5.91 */
 
-  --primary:               #9a4f1c;   /* 5.25 / 5.74 / 4.65   held, hue 24 */
-  --primary-foreground:    #fbfaf8;   /* 5.74 knockout */
-  --secondary:             #7d5a06;   /* 5.52 / 6.03 / 4.89
-                                         WAS #8a5407 (5.50 / 6.01 / 4.87).
-                                         Hue 35 -> 42.  Ratios hold to within
-                                         +0.02 while moving 7 degrees of hue --
-                                         a free hue move that widens
-                                         gain-vs-attn from 11 to 18 degrees. */
-  --secondary-foreground:  #fbfaf8;   /* 6.03 knockout */
-  --destructive:           #a02c1c;   /* 6.41 / 7.01 / 5.68
-                                         WAS #9c4228 (5.71 / 6.25 / 5.06).
-                                         Hue 13 -> 7.  Gain and loss were 11
-                                         degrees of hue and 1.09x of luminance
-                                         apart -- the same brown.  Now 17
-                                         degrees / 1.22x, and EVERY ratio
-                                         rises (+0.70 / +0.76 / +0.62). */
-  --destructive-foreground:#fbfaf8;   /* 7.01 knockout */
+  --primary:               #0b5f77;   /* 6.38 / 6.98 / 5.75   teal, hue 195 */
+  --primary-foreground:    #fbfdff;   /* 6.98 knockout */
+  --secondary:             #7e5800;   /* 5.74 / 6.28 / 5.17   gold, hue 42 */
+  --secondary-foreground:  #fbfdff;   /* 6.28 knockout */
+  --destructive:           #b81a3c;   /* 5.77 / 6.32 / 5.20   crimson, hue 345.
+                                         150 degrees from --primary, so a
+                                         winning night and a losing night are
+                                         never the same colour in daylight --
+                                         the specific failure the old brown
+                                         palette kept sliding back into. */
+  --destructive-foreground:#fbfdff;   /* 6.32 knockout */
 
-  --side-nrfi:  #6e5a41;   /* 5.75 / 6.29 / 5.10 -- 2.43x from --foreground,
-                              matching dark's 2.37x so the distribution bar
-                              reads identically in both themes. */
+  --side-nrfi:  #4d6274;   /* 5.68 / 6.21 / 5.12 -- sits the same distance
+                              below --foreground as dark's does, so the
+                              distribution bar reads identically in both
+                              themes. */
 
-  --nrfi-soft:  rgba(154, 79, 28, 0.10);   /* re-derived from the CURRENT
-                                              #9a4f1c; the shipped value was
-                                              still keyed to the long-replaced
-                                              #b05f28. */
+  --nrfi-soft:  rgba(11, 95, 119, 0.10);   /* keyed to the CURRENT --primary */
 
-  --shadow-1: 0 1px 2px rgba(43, 32, 21, 0.06), 0 1px 1px rgba(43, 32, 21, 0.04);
-  --shadow-2: 0 4px 14px rgba(43, 32, 21, 0.08), 0 1px 3px rgba(43, 32, 21, 0.05);
-  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(43, 32, 21, 0.04);
+  --shadow-1: 0 1px 2px rgba(15, 26, 36, 0.06), 0 1px 1px rgba(15, 26, 36, 0.04);
+  --shadow-2: 0 4px 14px rgba(15, 26, 36, 0.08), 0 1px 3px rgba(15, 26, 36, 0.05);
+  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(15, 26, 36, 0.04);
 }
 
 /* SECOND HALF OF THE LIGHT PALETTE -- applies only when the user never
@@ -236,31 +276,31 @@
    byte-identical to `.light` above.  See the note there. */
 @media (prefers-color-scheme: light) {
   :root:not(.dark) {
-    --background:        #f7efe4;
-    --card:              #fbfaf8;
-    --muted:             #e8e2da;
-    --accent:            #e8e2da;
-    --input:             #d9d2c7;
+    --background:        #eef3f8;
+    --card:              #fbfdff;
+    --muted:             #dfe8f2;
+    --accent:            #dfe8f2;
+    --input:             #cbd8e6;
 
-    --border:            #968770;
+    --border:            #7b8ea1;
 
-    --foreground:            #2b2015;
-    --muted-foreground:      #6b5a48;
+    --foreground:            #0f1a24;
+    --muted-foreground:      #47586a;
 
-    --primary:               #9a4f1c;
-    --primary-foreground:    #fbfaf8;
-    --secondary:             #7d5a06;
-    --secondary-foreground:  #fbfaf8;
-    --destructive:           #a02c1c;
-    --destructive-foreground:#fbfaf8;
+    --primary:               #0b5f77;
+    --primary-foreground:    #fbfdff;
+    --secondary:             #7e5800;
+    --secondary-foreground:  #fbfdff;
+    --destructive:           #b81a3c;
+    --destructive-foreground:#fbfdff;
 
-    --side-nrfi:  #6e5a41;
+    --side-nrfi:  #4d6274;
 
-    --nrfi-soft:  rgba(154, 79, 28, 0.10);
+    --nrfi-soft:  rgba(11, 95, 119, 0.10);
 
-    --shadow-1: 0 1px 2px rgba(43, 32, 21, 0.06), 0 1px 1px rgba(43, 32, 21, 0.04);
-    --shadow-2: 0 4px 14px rgba(43, 32, 21, 0.08), 0 1px 3px rgba(43, 32, 21, 0.05);
-    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(43, 32, 21, 0.04);
+    --shadow-1: 0 1px 2px rgba(15, 26, 36, 0.06), 0 1px 1px rgba(15, 26, 36, 0.04);
+    --shadow-2: 0 4px 14px rgba(15, 26, 36, 0.08), 0 1px 3px rgba(15, 26, 36, 0.05);
+    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(15, 26, 36, 0.04);
   }
 }
 
@@ -305,20 +345,24 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  /* Re-keyed 2026-07-29 to the new --gain / --loss.  These were the
+     literal peach #f5a465 and tomato #ec8060 -- the ambient layer is
+     the reason a repalette that only touches tokens still leaves an
+     orange page, because this wash sits over every surface. */
   background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(245, 164, 101, 0.04), transparent 60%),
-    radial-gradient(900px 500px at 95% 0%, rgba(236, 128, 96, 0.030), transparent 65%);
+    radial-gradient(1200px 600px at 12% -10%, rgba(34, 211, 238, 0.045), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(251, 92, 120, 0.030), transparent 65%);
 }
 .light body::before {
   background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(154, 79, 28, 0.05), transparent 60%),
-    radial-gradient(900px 500px at 95% 0%, rgba(160, 44, 28, 0.030), transparent 65%);
+    radial-gradient(1200px 600px at 12% -10%, rgba(11, 95, 119, 0.05), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(184, 26, 60, 0.030), transparent 65%);
 }
 @media (prefers-color-scheme: light) {
   :root:not(.dark) body::before {
     background:
-      radial-gradient(1200px 600px at 12% -10%, rgba(154, 79, 28, 0.05), transparent 60%),
-      radial-gradient(900px 500px at 95% 0%, rgba(160, 44, 28, 0.030), transparent 65%);
+      radial-gradient(1200px 600px at 12% -10%, rgba(11, 95, 119, 0.05), transparent 60%),
+      radial-gradient(900px 500px at 95% 0%, rgba(184, 26, 60, 0.030), transparent 65%);
   }
 }
 

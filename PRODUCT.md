@@ -68,12 +68,26 @@ losses. Numbers carry the message.
 
 ## Brand / palette
 
-**Warm brown and peach.** Explicitly and repeatedly chosen by the
-operator over terminal green-and-red. Existing tokens: `--primary`,
-`--secondary`, `--destructive`.
+**Bright signal colours on cool deep ink.** Reversed 2026-07-29 —
+operator: *"i hate the orange colors. it needs to be bright colors that
+look great."* The warm brown and peach recorded here previously is
+retired; do not restore it.
+
+| token | dark | light | meaning |
+|---|---|---|---|
+| `--gain` (`--primary`) | cyan `#22d3ee` | teal `#0b5f77` | real money UP |
+| `--loss` (`--destructive`) | rose `#fb5c78` | crimson `#b81a3c` | real money DOWN |
+| `--attn` (`--secondary`) | amber `#fbbf24` | gold `#7e5800` | money at risk / decision waiting |
+
+Surfaces are cool ink (`#0a0e14` dark, `#eef3f8` light) at very low
+chroma. These three are the only saturated colours on the page.
 
 Win/loss must remain readable without relying on a red/green axis —
-partly the stated preference, partly colorblind safety.
+partly the stated preference, partly colorblind safety. The current
+gain/loss pair is cyan-vs-rose, roughly 150° apart, which is the one
+opposition that does *not* collapse for red-green colour blindness.
+**Terminal green-and-red is still rejected** (see anti-references); the
+repalette did not reopen that question.
 
 ## Anti-references
 

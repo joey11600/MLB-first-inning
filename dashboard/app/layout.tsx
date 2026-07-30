@@ -33,19 +33,27 @@ export const metadata: Metadata = {
   },
   // Help WebShare, link previews, etc. render with the right brand.
   other: {
-    "msapplication-TileColor": "#171009",
+    // 2026-07-29: was the warm #171009; now --background (dark).
+    "msapplication-TileColor": "#0a0e14",
   },
 };
 
 // T2.34 Phase 6: explicit Viewport export (Next.js 14 separates this
-// from `metadata`).  Pinning theme-color matches the manifest so the
-// Android system bar tints to phosphor-green when the PWA is active.
+// from `metadata`).  Pinning theme-color makes the phone's system bar
+// match the page instead of framing it in a stale colour.
 // `viewport-fit: cover` lets the dashboard use the iPhone notch area
 // once installed.
+//
+// 2026-07-29 -- re-keyed to the new palette.  These were the warm
+// #f7efe4 / #171009 and would have left an orange system bar wrapped
+// around a cool page on the operator's phone, which is the ONE surface
+// PRODUCT.md says actually matters.  Values are --background from each
+// theme in globals.css; keep them in sync by hand (a meta tag cannot
+// read a CSS custom property).
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7efe4" },
-    { media: "(prefers-color-scheme: dark)",  color: "#171009" },
+    { media: "(prefers-color-scheme: light)", color: "#eef3f8" },
+    { media: "(prefers-color-scheme: dark)",  color: "#0a0e14" },
   ],
   width:        "device-width",
   initialScale: 1,

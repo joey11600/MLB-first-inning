@@ -116,11 +116,18 @@
   pointer-events: none;
   transition: background 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.nrfiStrong { --status-tone: var(--primary); }
-.nrfiLean   { --status-tone: color-mix(in oklab, var(--primary) 70%, transparent); }
-.passTone   { --status-tone: var(--secondary); }
-.yrfiLean   { --status-tone: color-mix(in oklab, var(--destructive) 70%, transparent); }
-.yrfiStrong { --status-tone: var(--destructive); }
+/* The row's 7% edge wash.  Re-keyed 2026-07-29 off the money hues and
+   onto plain ink for the same reason the pills were (see the pick-pill
+   block below): this wash tinted every YRFI row with the LOSS colour
+   and every PASS row with the AT-RISK colour, across the full width of
+   the board.  A wash is emphasis, not data -- ink is the correct
+   material for it.  PASS gets none at all: there is nothing to
+   emphasise on a game the model declined. */
+.nrfiStrong { --status-tone: var(--foreground); }
+.nrfiLean   { --status-tone: color-mix(in oklab, var(--foreground) 55%, transparent); }
+.passTone   { --status-tone: transparent; }
+.yrfiLean   { --status-tone: color-mix(in oklab, var(--foreground) 55%, transparent); }
+.yrfiStrong { --status-tone: var(--foreground); }
 
 /* ============================================================
    Actionable / recede -- visual hierarchy across the slate.
@@ -498,12 +505,18 @@
   color: var(--destructive-foreground);
   background: var(--destructive);
 }
+/* 2026-07-29 -- OFF THE MONEY HUE.  This was --secondary (= --attn,
+   "money AT RISK / a decision is waiting on you") on the result chip
+   for a game the model PASSED.  Nothing is at risk on a passed game
+   and nothing is waiting on the operator; it is the one outcome that
+   involves no money at all.  Its siblings are correct and unchanged:
+   .resultWin is --gain and .resultLoss is --loss, because those DID
+   move money.  Neutral ink here also stops a 12-row board of passed
+   games from carrying the loudest colour on the screen. */
 .resultPass {
-  /* Use --secondary directly: the chip background is only 18% amber
-     so we need an amber-toned text, not the near-black amber-foreground. */
-  color: var(--secondary);
-  background: color-mix(in oklab, var(--secondary) 18%, transparent);
-  border: 1px solid color-mix(in oklab, var(--secondary) 40%, var(--border));
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--muted-foreground) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
 }
 .resultPP {
   color: var(--muted-foreground);
@@ -563,50 +576,70 @@
   white-space: nowrap;
 }
 
-.nrfiStrong .pickPill {
-  background: color-mix(in oklab, var(--primary) 14%, transparent);
-  border-color: color-mix(in oklab, var(--primary) 38%, var(--border));
-}
-.nrfiStrong .pickDot   { background: var(--primary); box-shadow: 0 0 8px color-mix(in oklab, var(--primary) 60%, transparent); }
-.nrfiStrong .pickLabel { color: var(--primary); }
+/* ── PICK PILLS: WEIGHT, NOT MONEY HUE ──────────────────────────────
+   REWRITTEN 2026-07-29, and this was the largest surviving violation
+   of the page's own colour law.
 
-.nrfiLean .pickPill {
-  background: color-mix(in oklab, var(--primary) 8%, transparent);
-  border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
-}
-.nrfiLean .pickDot   { background: color-mix(in oklab, var(--primary) 80%, var(--muted-foreground)); }
-.nrfiLean .pickLabel { color: color-mix(in oklab, var(--primary) 90%, var(--muted-foreground)); }
+   What these rules used to say:
+     .nrfiStrong / .nrfiLean  ->  --primary      (= --gain,  money UP)
+     .yrfiStrong / .yrfiLean  ->  --destructive  (= --loss,  money DOWN)
+     .passTone                ->  --secondary    (= --attn,  at risk)
 
-.passTone .pickPill {
-  background: color-mix(in oklab, var(--secondary) 15%, transparent);
-  border-color: color-mix(in oklab, var(--secondary) 35%, var(--border));
-}
-.passTone .pickDot   { background: var(--secondary); }
-.passTone .pickLabel { color: var(--secondary); font-style: normal; }
+   So the board painted EVERY YRFI row in the losing colour and every
+   NRFI row in the winning colour, on the pill background, the dot and
+   the label. A YRFI bet that won still rendered rose. A PASS -- a game
+   with no money on it at all -- rendered in the "money at risk" hue,
+   and PASS is usually the largest group on the slate, which is why the
+   board still read warm after the tokens were swapped.
 
-.yrfiLean .pickPill {
-  background: color-mix(in oklab, var(--destructive) 8%, transparent);
-  border-color: color-mix(in oklab, var(--destructive) 28%, var(--border));
-}
-.yrfiLean .pickDot   { background: color-mix(in oklab, var(--destructive) 80%, var(--muted-foreground)); }
-.yrfiLean .pickLabel { color: color-mix(in oklab, var(--destructive) 90%, var(--muted-foreground)); }
+   globals.css is unambiguous: sides carry WEIGHT, not hue, because
+   "a peach dot used to mean either 'NRFI' or 'profit' and nothing on
+   screen said which." The side inks exist precisely for this:
+     --side-yrfi  full ink   the side the system actually bets
+     --side-nrfi  dimmed     the NRFI gate is off
 
+   Now: SIDE is carried by the dot's ink weight, STRENGTH by the label's
+   ink and the pill's border presence. No money hue appears on a pick
+   pill at all, so the only saturated things left on a row are the edge
+   figure and the stake -- which are money, and are supposed to be. */
+
+/* STRONG -- the rows that carry a bet. Full-strength label, visible
+   pill, side-weighted dot. */
+.nrfiStrong .pickPill,
 .yrfiStrong .pickPill {
-  background: color-mix(in oklab, var(--destructive) 14%, transparent);
-  border-color: color-mix(in oklab, var(--destructive) 40%, var(--border));
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 24%, var(--border));
 }
-.yrfiStrong .pickDot   { background: var(--destructive); box-shadow: 0 0 8px color-mix(in oklab, var(--destructive) 60%, transparent); }
-/* Contrast repair (2026-07-28).  Plain var(--destructive) ink on this pill
-   (14% destructive over --card, i.e. #3b2216 in dark) measures 4.43:1 at
-   12px/600 -- below WCAG AA, and the STRONG YRFI label is the single string
-   on the board the operator acts on.  Its NRFI twin already passes at
-   6.69:1, so the two sides of the board were not visually equal-weight.
-   Mixing 30% --foreground into the ink lifts this pair to 5.96:1 on the same
-   pill.  Do NOT darken the --destructive token instead: 274 references and
-   344 color-mix() surfaces would shift toward salmon to fix one pair. */
-.yrfiStrong .pickLabel {
-  color: color-mix(in oklab, var(--destructive) 70%, var(--foreground));
+.nrfiStrong .pickLabel,
+.yrfiStrong .pickLabel { color: var(--foreground); }
+.nrfiStrong .pickDot { background: var(--side-nrfi); }
+.yrfiStrong .pickDot { background: var(--side-yrfi); }
+
+/* LEAN -- tracked, never bet (tier is track-only). Quieter on every
+   axis so it cannot be mistaken for an actionable row. */
+.nrfiLean .pickPill,
+.yrfiLean .pickPill {
+  background: color-mix(in oklab, var(--foreground) 3%, transparent);
+  border-color: color-mix(in oklab, var(--border) 70%, transparent);
 }
+.nrfiLean .pickLabel,
+.yrfiLean .pickLabel { color: var(--muted-foreground); }
+.nrfiLean .pickDot {
+  background: color-mix(in oklab, var(--side-nrfi) 70%, transparent);
+}
+.yrfiLean .pickDot {
+  background: color-mix(in oklab, var(--side-yrfi) 55%, transparent);
+}
+
+/* PASS -- the model declined. No money, no bet, no decision waiting on
+   anybody. The quietest thing on the board, and emphatically not a
+   money hue. */
+.passTone .pickPill {
+  background: transparent;
+  border-color: color-mix(in oklab, var(--border) 45%, transparent);
+}
+.passTone .pickDot   { background: var(--chrome-ink); opacity: 0.55; }
+.passTone .pickLabel { color: var(--muted-foreground); font-style: normal; }
 
 /* "Starter pending" / "Lineup pending" -- dashed muted treatment.
    Reads as data-quality halt, not model decision.
