@@ -24,6 +24,8 @@ import {
   returnAsUnits, bankReturn, MINUS, EM_DASH,
 } from "@/lib/units";
 import { WeekAtAGlance } from "./WeekAtAGlance";
+import { TopPickCard } from "./TopPickCard";
+import type { TopPickReport } from "@/lib/top-pick";
 import styles from "./HistoryView.module.css";
 
 const WINDOWS: { key: RoiWindow; label: string }[] = [
@@ -160,6 +162,7 @@ export function HistoryView({
   initial,
   seasonRecord,
   divergence,
+  topPick,
 }: {
   initial: RoiResponse;
   /** data/season_record.json, read server-side by app/history/page.tsx.
@@ -170,6 +173,9 @@ export function HistoryView({
    *  supplied the divergence card is simply not mounted, so this page
    *  keeps rendering on its own. */
   divergence?: DivergenceSummary | null;
+  /** The #1 pick's REAL ledger record, read server-side. Optional: a
+   *  null simply omits the card. */
+  topPick?: TopPickReport | null;
 }) {
   const [data, setData]     = useState<RoiResponse>(initial);
   const [window, setWindow] = useState<RoiWindow>(initial.window);
@@ -495,6 +501,14 @@ export function HistoryView({
           cannot describe different books. Renders nothing at all when
           there is no record -- see the guard in the component. */}
       <WeekAtAGlance side={sysSide} />
+
+      {/* THE #1 PICK, REAL MONEY -- directly under the simulated week
+          card on purpose. One is the replay and renders dim, the other
+          is the ledger and keeps its money hues; side by side they
+          teach the convention that PRODUCT.md says must be readable
+          without a legend. It is also the answer to "how is the top
+          play actually doing", which the replay cards cannot give. */}
+      <TopPickCard report={topPick ?? null} />
 
       {/* T2.42: Bankroll equity curve.  Bank level + drawdown shading +
           peak marker + stats panel.  Reads the real-priced series; the

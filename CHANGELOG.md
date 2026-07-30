@@ -11,6 +11,75 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30g] — "#1 pick" tracker on /history, from the REAL ledger
+
+Operator: *"i want to see what the #1 pick record and profit would be"*
+— then, on being shown replay figures: *"i want you to get the real
+numbers."*
+
+### Real, not replayed
+
+This card reads `picks_2026.csv` / Supabase: bets actually **placed**, at
+prices actually **captured**, graded on real results, using the units
+actually **staked**. It touches `season_record.json` nowhere. Every other
+performance surface on that page is the replay — today's model re-scoring
+history — which is a different and more flattering question.
+
+**How much more flattering:** the replay says the #1 pick beat its price
+with confidence (69.4%, CI excluding break-even). The real ledger says
+**64.8% against 57.5% needed, and the interval still straddles it.**
+
+| window | record | hit | needs | staked | return | 95% range |
+|---|---|---|---|---|---|---|
+| Season | 57–31 | 64.8% | 57.5% | 101.53u | **+6.1%** | 54–74% |
+| Last 30 days | 19–7 | 73.1% | 58.9% | 39.53u | +1.7% | 54–86% |
+| Last 14 days | 7–6 | 53.8% | 59.9% | 26.53u | −26.4% | 29–77% |
+| Last 7 days | 2–4 | 33.3% | 57.1% | 19.53u | −40.0% | 10–70% |
+
+Every figure reproduced by an independent Python pass over the CSV.
+
+### Two defects found while building it, both fixed
+
+**The #1 pick was not deterministic.** The retired calibrator emitted
+flat steps — 115 games on `p = 0.4064` alone — so **18% of nights have
+two or more bets sharing the top probability exactly**. With a plain
+`min()` the winner is whichever row the loader returned first, and this
+card reads Supabase live with a CSV fallback whose order differs. The
+same season read **58–30 from one source and 56–32 from the other**.
+Tie-break is now confidence → **better price** → game name: a real
+decision rule (when the model can't separate two games, the one paying
+more is the higher-edge bet) rather than an arbitrary stabiliser.
+
+**A population mismatch in the first draft.** The record covered every
+STRONG pick (115 nights) while the money covered only the ones actually
+bet (88) — two figures, two populations, one table. Every column now
+comes from the identical set, and nights with no captured price are
+excluded *and counted* on the card's face.
+
+### Also
+
+- `lib/roi.loadLedgerRows()` extracted and exported. The "Supabase, then
+  CSV, then give up" sequence was inline in `loadRoi`; a second copy is
+  how two surfaces start disagreeing about which night they describe.
+- The money figure is **returned ÷ staked**, never a unit total — units
+  from different dates are different money (`lib/units.ts`).
+- The 95% range is **on the card, not in a footnote**. One bet a night
+  makes short windows uninformative: the 7-day row is six bets and its
+  interval runs sixty points wide. Printing "33.3%" beside "73.1%" with
+  nothing else invites "the model broke this week".
+- Renders **bright** with money hues, directly under the dim simulated
+  week card. That contrast is the real-vs-simulated convention teaching
+  itself, which PRODUCT.md asks to be readable without a legend.
+
+### Verified
+
+Production build, 375px and 1280px: zero overflowing elements on
+`/history`. On mobile the seven columns fold to three rows with inline
+labels — nothing is dropped, which was the mistake in the first draft of
+the responsive rules.
+
+---
+
 ## [2026-07-30f] — STRONG YRFI gate 0.40 → 0.42
 
 Operator: *"why is there much less games being chosen to be bet on. this

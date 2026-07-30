@@ -391,6 +391,29 @@ function zoneLabel(side: PickSide, strength: PickStrength): string {
 // Public: load + compute
 // ---------------------------------------------------------------------------
 
+/**
+ * Every ledger row for `season`, from the one place that decides where
+ * ledger rows come from.
+ *
+ * LIVE FIRST, build-time snapshot second. On Vercel the CSV is frozen at
+ * deploy time, so a page reading it could only ever be as fresh as the
+ * last build while the main board -- which already reads Supabase --
+ * showed the current night.
+ *
+ * EXPORTED 2026-07-30 so the #1-pick tracker reads exactly these rows.
+ * It was inline in loadRoi(); a second copy of "Supabase, then CSV,
+ * then give up" is how two surfaces start disagreeing about which
+ * night they are describing.
+ */
+export async function loadLedgerRows(
+  season: number,
+): Promise<Record<string, string>[] | null> {
+  const live = await loadRoiRowsFromSupabase(season);
+  if (live) return live;
+  const raw = await safeRead(path.join(dataDir(), `picks_${season}.csv`));
+  return raw ? parseCsv(raw) : null;
+}
+
 export async function loadRoi(
   window: RoiWindow,
   refDateIso?: string,
@@ -441,17 +464,8 @@ export async function loadRoi(
   };
 
   const year = today.slice(0, 4);
-  // LIVE FIRST, build-time snapshot second.  See loadRoiRowsFromSupabase
-  // for why: on Vercel the CSV is frozen at deploy time, so /history
-  // could only ever be as fresh as the last build while the main board
-  // -- which already reads Supabase -- showed the current night.
-  let rows = await loadRoiRowsFromSupabase(Number(year));
-  if (!rows) {
-    const csvPath = path.join(dataDir(), `picks_${year}.csv`);
-    const raw = await safeRead(csvPath);
-    if (!raw) return empty;
-    rows = parseCsv(raw);
-  }
+  const rows = await loadLedgerRows(Number(year));
+  if (!rows) return empty;
 
   // Group buckets keyed by `${side}|${strength}`.
   const buckets = new Map<string, ZoneRoi>();

@@ -3,6 +3,7 @@ import path from "node:path";
 import { loadRoi } from "@/lib/roi";
 import type { RecFile } from "@/lib/season-record";
 import { HistoryView } from "@/components/HistoryView";
+import { loadTopPickReport } from "@/lib/top-pick";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,20 @@ async function loadSeasonRecord(): Promise<RecFile | null> {
 
 export default async function HistoryPage() {
   // Pull the season window directly so the page renders SSR-fresh.
-  const [seasonRoi, seasonRecord] = await Promise.all([
+  /* The #1-pick report reads the LEDGER (real bets, real prices, real
+     stakes) while seasonRecord is the REPLAY. Loaded side by side on
+     purpose: the card that shows them apart is only honest if they come
+     from genuinely different sources. Soft-fails to null. */
+  const [seasonRoi, seasonRecord, topPick] = await Promise.all([
     loadRoi("season"),
     loadSeasonRecord(),
+    loadTopPickReport(new Date().getUTCFullYear()).catch(() => null),
   ]);
-  return <HistoryView initial={seasonRoi} seasonRecord={seasonRecord} />;
+  return (
+    <HistoryView
+      initial={seasonRoi}
+      seasonRecord={seasonRecord}
+      topPick={topPick}
+    />
+  );
 }

@@ -1,0 +1,275 @@
+/* ============================================================
+   THE #1 PICK CARD — real money, so it is the BRIGHT one.
+
+   Same `.chartCard` shell as the rest of /history. The deliberate
+   difference from WeekAtAGlance sitting above it: that card is a replay
+   and is dim throughout, this one is the ledger and keeps `--gain` /
+   `--loss` on its money figures. Under the matrix palette brightness is
+   the only remaining separator between real and simulated, so the two
+   cards on one page teach the convention by contrast.
+
+   Signs and words still carry direction everywhere, because green/red
+   is the pair that collapses under red-green colour blindness.
+   ============================================================ */
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.sub {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  max-width: 56ch;
+}
+
+.headFig { text-align: right; }
+
+.figBig {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--foreground);
+}
+
+.figSub {
+  margin-top: 4px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* ---- table ---- */
+
+.tableWrap {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.theadRow,
+.row {
+  display: grid;
+  grid-template-columns:
+    minmax(132px, 1.1fr)   /* window + span */
+    58px                   /* record */
+    56px                   /* hit */
+    58px                   /* needs */
+    64px                   /* staked */
+    68px                   /* return */
+    minmax(190px, 1.4fr);  /* CI bar + verdict */
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+}
+
+.theadRow {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+.row { border-bottom: 1px solid var(--border); }
+.row:last-child { border-bottom: 0; }
+
+.right { text-align: right; }
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+/* Reference figures, not results: the price's demand and the size of
+   the position. Dimmed so the eye lands on record and return. */
+.dim { color: var(--muted-foreground); font-weight: 400; }
+
+.windowCell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.windowName {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--foreground);
+}
+
+.windowSpan {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* ---- the confidence bar ----
+   The whole point of this card. A 0-100% track, the shaded span is the
+   range the record is consistent with, the tick is the break-even the
+   prices demand. Overlap = the window cannot answer the question, and
+   that reads instantly in a way a number never does. */
+
+.verdictCell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.ciBar {
+  position: relative;
+  display: block;
+  height: 8px;
+  width: 100%;
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.ciRange {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+}
+
+/* The break-even tick. --attn: this is the number that has to be
+   cleared, which is the closest thing on this card to "a decision". */
+.ciMark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--attn);
+}
+
+.ciText {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+
+/* ---- recent run ---- */
+
+.streak {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.streakLabel {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-right: 4px;
+}
+
+/* A LETTER, not just a colour. W/L is legible to a red-green colour
+   blind reader and to anyone glancing at it; the hue is reinforcement. */
+.pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--loss);
+  background: color-mix(in oklab, var(--loss) 10%, transparent);
+  cursor: default;
+}
+.pip[data-win="1"] {
+  color: var(--gain);
+  background: color-mix(in oklab, var(--gain) 12%, transparent);
+}
+
+.foot {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+  max-width: 78ch;
+}
+
+/* 375px: seven columns cannot fit a phone at any type size, so the row
+   becomes a two-line block. Same reasoning as the zone table -- shrink
+   the type and it is still 500px of irreducible width. */
+@media (max-width: 860px) {
+  .card { padding: 18px 16px; }
+  .figBig { font-size: 30px; }
+
+  /* The header row goes, but its LABELS do not -- each cell grows its
+     own inline label from data-label below. Seven columns cannot fit a
+     375px card at any type size (same arithmetic as the zone table),
+     and dropping three of them would be the silent truncation this
+     dashboard keeps getting caught by. Nothing disappears; it wraps. */
+  .theadRow { display: none; }
+
+  .row {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      "win    rec     ret"
+      "hit    needs   staked"
+      "ci     ci      ci";
+    gap: 6px 10px;
+    padding: 12px 0;
+  }
+  .windowCell  { grid-area: win; }
+  .verdictCell { grid-area: ci; margin-top: 2px; }
+  .row > [data-cell="record"] { grid-area: rec; }
+  .row > [data-cell="return"] { grid-area: ret; }
+  .row > [data-cell="hit"]    { grid-area: hit;    text-align: left; }
+  .row > [data-cell="needs"]  { grid-area: needs;  text-align: center; }
+  .row > [data-cell="staked"] { grid-area: staked; text-align: right; }
+
+  .row > [data-label]::before {
+    content: attr(data-label) " ";
+    font-family: var(--font-sans);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+}
