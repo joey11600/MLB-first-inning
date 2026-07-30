@@ -226,18 +226,18 @@ invalidates their bot config.
 - The user runs production from this branch. **Don't break working
   state.** When in doubt, do less.
 - The user prefers **flat 1u plays, no Kelly sizing** (asked + answered).
-- **PALETTE REVERSED 2026-07-29.** The user now wants **bright colours
-  on a cool deep-ink page** and said so plainly: *"i hate the orange
-  colors. it needs to be bright colors that look great."* The
-  warm-brown / peach palette this file used to mandate is RETIRED. Do
-  not restore it. Current tokens: `--primary` cyan `#22d3ee`,
-  `--secondary` amber `#fbbf24`, `--destructive` rose `#fb5c78`, on
-  cool ink surfaces (`--background` `#0a0e14`).
-  **Terminal green/red is still rejected** — that was a separate,
-  earlier decision and the repalette did not reopen it.
-  Always work through the semantic aliases `--gain` / `--loss` /
-  `--attn`, never the raw token names, so the meaning is readable at
-  the call site.
+- **PALETTE = MATRIX TERMINAL as of 2026-07-30.** Black `#000000`,
+  phosphor green `#00FF41`, alarm red `#FF0000`, VT323, square corners.
+  Operator supplied the spec verbatim and it is the current product.
+  **This REVERSED the long-standing "terminal green/red is rejected"
+  rule** (2026-04-30, reaffirmed twice) — do not restore that rule or
+  the cyan/rose palette that preceded it. Tokens: `--primary` /
+  `--gain` `#00FF41`, `--destructive` / `--loss` `#FF0000`,
+  `--attn` `#008F11` (NOT `--secondary` `#003B00`, which is 1.63:1 and
+  invisible as text). Still work through `--gain` / `--loss` / `--attn`,
+  never the raw names. Known trade-off: green/red is the colour-blind-
+  unsafe pair, so no figure may rely on hue alone — signs and words
+  carry the meaning.
 - The user **does not want odds fabricated** for unmatched games.
 - The user gets frustrated when picks appear to disappear (incident
   history: 4/30 grade reset, 5/01 odds-chip-hidden, 5/01 deploy-overwrite).

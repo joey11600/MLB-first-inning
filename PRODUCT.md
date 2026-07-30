@@ -68,26 +68,25 @@ losses. Numbers carry the message.
 
 ## Brand / palette
 
-**Bright signal colours on cool deep ink.** Reversed 2026-07-29 —
-operator: *"i hate the orange colors. it needs to be bright colors that
-look great."* The warm brown and peach recorded here previously is
-retired; do not restore it.
+**Matrix terminal.** Black `#000000`, phosphor green `#00FF41`, alarm
+red `#FF0000`, VT323, square corners. Operator spec, 2026-07-30.
 
-| token | dark | light | meaning |
-|---|---|---|---|
-| `--gain` (`--primary`) | cyan `#22d3ee` | teal `#0b5f77` | real money UP |
-| `--loss` (`--destructive`) | rose `#fb5c78` | crimson `#b81a3c` | real money DOWN |
-| `--attn` (`--secondary`) | amber `#fbbf24` | gold `#7e5800` | money at risk / decision waiting |
+| token | value | meaning |
+|---|---|---|
+| `--gain` (`--primary`) | `#00FF41` | real money UP |
+| `--loss` (`--destructive`) | `#FF0000` | real money DOWN |
+| `--attn` | `#008F11` | money at risk / decision waiting |
 
-Surfaces are cool ink (`#0a0e14` dark, `#eef3f8` light) at very low
-chroma. These three are the only saturated colours on the page.
+This reversed the earlier rejection of terminal green-and-red, which had
+stood since 2026-04-30. It is the current product; do not restore the
+cyan/rose or warm palettes.
 
-Win/loss must remain readable without relying on a red/green axis —
-partly the stated preference, partly colorblind safety. The current
-gain/loss pair is cyan-vs-rose, roughly 150° apart, which is the one
-opposition that does *not* collapse for red-green colour blindness.
-**Terminal green-and-red is still rejected** (see anti-references); the
-repalette did not reopen that question.
+**Consequence to design around:** green-and-red is the pair that
+collapses for red-green colour blindness, so **no figure may depend on
+hue alone** — every money number carries a sign, and where it matters, a
+word. And because the whole page is green, hue can no longer mark "real
+money" by itself: simulated figures are held apart by being DIM
+(`--muted-foreground`) against bright real ones.
 
 ## Anti-references
 
