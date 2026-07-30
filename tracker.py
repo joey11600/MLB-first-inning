@@ -3451,11 +3451,40 @@ def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
     if f is None:
         return None
     f = min(f * KELLY_FRACTION, KELLY_MAX_STAKE_FRAC)
-    bank = current_bankroll_units(season)
-    stake = bank * f
+
+    # ---- 1 UNIT = 1% OF BANKROLL (2026-07-30, operator's decision) ----
+    #
+    # The stake IS the Kelly percentage. This used to be `bank * f`,
+    # which compounded the unit COUNT: as the bank grew the same bet
+    # printed a bigger number of units. The operator:
+    #
+    #   "when compounding in betting, you shouldn't be compounding the
+    #    units themselves. you should be changing the unit size for 1
+    #    single unit ... but its still 1 unit no matter what."
+    #
+    # WHY IT MATTERS BEYOND TASTE: the operator is selling these picks.
+    # A published stake must not depend on THEIR bankroll or a $25k
+    # follower and a $1k follower get different numbers for the same
+    # bet. Kelly's fraction is already bankroll-independent --
+    # f* = (p*b - q)/b uses only the probability and the price -- so
+    # publishing the percentage as the unit count is identical for
+    # everyone, and each person's unit is their own dollar amount.
+    #
+    # It also collapses a defect that produced a 3x discrepancy: on
+    # 2026-07-29 HOU@LAA the ledger recorded 5.97u (88.36u bank) while
+    # the replay recorded 17.00u (257.16u bank) for THE SAME BET at
+    # 6.76% vs 6.61%. Under this rule both are ~6.7u.
+    #
+    # The bankroll is 100 units BY DEFINITION, so sizing no longer reads
+    # current_bankroll_units() at all. Compounding now lives outside the
+    # system, in the dollar value assigned to a unit. The bank series is
+    # still tracked for REPORTING (equity curve) -- never for sizing.
+    stake = f * 100.0
 
     if game_date:
-        room = bank * KELLY_MAX_DAILY_FRAC - _committed_on(game_date, season)
+        # The caps are now FIXED UNIT NUMBERS, which is what makes them
+        # publishable: "never more than 10u on one bet, 15u in a day".
+        room = (KELLY_MAX_DAILY_FRAC * 100.0) - _committed_on(game_date, season)
         stake = min(stake, max(room, 0.0))
 
     # THE NO-BET GATE, AND IT MUST STAY ABOVE THE ROUNDING BLOCK.
@@ -3501,11 +3530,12 @@ def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
         # awkward number is strictly better than quietly exceeding a
         # limit the operator set.  Rounding is a convenience and never
         # outranks a risk control.
-        ceiling = bank * KELLY_MAX_STAKE_FRAC
+        # Caps in UNITS now (1u = 1% of bank), matching the sizing above.
+        ceiling = KELLY_MAX_STAKE_FRAC * 100.0
         if game_date:
             ceiling = min(
                 ceiling,
-                bank * KELLY_MAX_DAILY_FRAC - _committed_on(game_date, season),
+                (KELLY_MAX_DAILY_FRAC * 100.0) - _committed_on(game_date, season),
             )
         if rounded > ceiling:
             rounded = stake

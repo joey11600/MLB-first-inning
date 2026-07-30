@@ -94,7 +94,9 @@ def main():
         bp = decimal_b(b["odds"])
         f = max((b["p_claimed"] * bp - (1 - b["p_claimed"])) / bp, 0.0)
         f = min(f * tracker.KELLY_FRACTION, tracker.KELLY_MAX_STAKE_FRAC)
-        ref = bank * f
+        # 1 UNIT = 1% OF BANK (2026-07-30): the stake IS the Kelly
+        # percentage, so the reference no longer multiplies by the bank.
+        ref = f * 100.0
         if ref < tracker.KELLY_MIN_STAKE_UNITS:
             ref = 0.0
         else:
@@ -113,10 +115,9 @@ def main():
                      * tracker.KELLY_STAKE_ROUNDING)
                 if r < tracker.KELLY_ROUNDED_FLOOR:
                     r = tracker.KELLY_ROUNDED_FLOOR
-                # Rounding may not push past the per-bet ceiling.  No
-                # game_date is passed above, so the daily budget does
-                # not apply in this comparison.
-                if r > bank * tracker.KELLY_MAX_STAKE_FRAC:
+                # Rounding may not push past the per-bet ceiling, which
+                # is now a fixed unit number.
+                if r > tracker.KELLY_MAX_STAKE_FRAC * 100.0:
                     r = ref
                 ref = round(r, 2)
         worst = max(worst, abs((shipped or 0.0) - ref))
@@ -230,18 +231,43 @@ def main():
     ok &= expect("small positive stake floors to 0.5u rather than vanishing",
                  small, tracker.KELLY_ROUNDED_FLOOR)
 
-    # Rounding UP must not defeat the per-bet ceiling.  On an 88.36u
-    # bank the ceiling is 8.836u; an 8.60u stake would round to 9.00u
-    # and breach it, so the exact figure has to survive instead.
+    # Rounding UP must not defeat the per-bet ceiling. Under 1u = 1% of
+    # bank (2026-07-30) that ceiling is a FIXED 10 units, not a fraction
+    # of whatever the bank happens to be -- which is the whole point: a
+    # published cap has to mean the same thing to every subscriber.
     tracker._bankroll_cache = 88.36
     tracker._daily_committed.clear()
     capped = tracker.kelly_stake_units(0.6947, "+100")
-    ceiling = 88.36 * tracker.KELLY_MAX_STAKE_FRAC
+    ceiling = tracker.KELLY_MAX_STAKE_FRAC * 100.0
     good = capped is not None and capped <= ceiling + 1e-9
     print(f"  [{'PASS' if good else 'FAIL'}] rounding never breaches the per-bet "
           f"ceiling: stake {capped}u vs ceiling {ceiling:.2f}u")
     ok &= good
 
+    tracker._bankroll_cache = None
+    tracker._daily_committed.clear()
+
+    # ---- 6. THE PROPERTY THE PICKS SERVICE RESTS ON ------------------
+    print("")
+    print("=== CHECK 6: the stake does NOT depend on the bankroll ===")
+    print("  1 unit = 1% of bank, so a published stake must be identical for")
+    print("  a $1k follower and a $100k follower. Kelly's fraction is already")
+    print("  bankroll-independent -- f* = (p*b - q)/b uses only the model")
+    print("  probability and the price -- and this asserts the CODE is too.")
+    print("  A regression here silently mis-sizes every subscriber instead")
+    print("  of failing loudly, which is why it is a test and not a comment.")
+    for p_, o_ in [(0.7021, "-145"), (0.6052, "-130"), (0.66, "+105"), (0.58, "-110")]:
+        seen = []
+        for bank_probe in (25.0, 88.36, 100.0, 257.16, 100000.0):
+            tracker._bankroll_cache = bank_probe
+            tracker._daily_committed.clear()
+            seen.append(tracker.kelly_stake_units(p_, o_))
+        same = len(set(seen)) == 1
+        if not same:
+            ok = False
+        print("  [%s] p=%s @ %5s -> %su on every bank from 25u to 100000u%s" % (
+            "PASS" if same else "FAIL", p_, o_, seen[0],
+            "" if same else "   GOT %s" % (seen,)))
     tracker._bankroll_cache = None
     tracker._daily_committed.clear()
 
