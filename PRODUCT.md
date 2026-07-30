@@ -90,8 +90,10 @@ money" by itself: simulated figures are held apart by being DIM
 
 ## Anti-references
 
-- **Terminal green-on-black trading UI.** Explicitly rejected. The
-  current design still leans this way and reads as dated.
+- ~~Terminal green-on-black trading UI.~~ **NO LONGER an anti-reference
+  as of 2026-07-30** — the operator chose exactly this and supplied the
+  spec. Kept struck through rather than deleted so nobody re-adds it
+  from an old copy of this file.
 - **The hero-metric dashboard.** Giant number, small label, gradient
   accent, supporting stat row. Every betting-analytics product looks
   like this.
