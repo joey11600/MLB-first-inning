@@ -69,7 +69,16 @@ const PAD_T = 14;
 const PAD_B = 18;
 const PAD_X = 6;
 
-export function WeekAtAGlance({ side }: { side: RecSide | null | undefined }) {
+export function WeekAtAGlance({
+  side,
+  stamp,
+}: {
+  side: RecSide | null | undefined;
+  /** Provenance line from HistoryView -- the gate and build time this
+   *  replay came from. Passed in rather than rebuilt so every replay
+   *  card on the page is guaranteed to describe the same build. */
+  stamp?: React.ReactNode;
+}) {
   const win = useMemo(() => rebaseLastDays(side, DAYS), [side]);
   const [hover, setHover] = useState<number | null>(null);
 
@@ -257,6 +266,8 @@ export function WeekAtAGlance({ side }: { side: RecSide | null | undefined }) {
           <span>{shortDate(win.to)}</span>
         </div>
       </div>
+
+      {stamp}
 
       <p className={styles.foot}>
         A unit is 1% of your bankroll, so these are the same numbers for

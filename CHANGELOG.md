@@ -11,6 +11,70 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30h] — Provenance stamp on every replay-driven figure
+
+Operator: *"why did the profit change again from yesterday?"*
+
+Nothing was wrong. But **three different sets of numbers appeared on
+`/history` in one day** and nothing on screen said why:
+
+1. the unit re-basing changed what a "u" means in the Day column
+   (2026-07-28 went from −10.00u to −4.61u — same money, new ruler)
+2. the STRONG gate moved 0.40 → 0.42
+3. the nightly replay rebuild will re-simulate the **whole season** under
+   the new gate, moving every historical row
+
+(3) is the surprising one, and it is inherent rather than a bug: these
+charts answer *"what would today's system have done all season"*, so
+changing today's system rewrites the history by design. **A chart that
+silently self-rewrites is indistinguishable from a broken one.**
+
+### Added — `ReplayStamp`
+
+Every replay-driven card now carries the gate and build time that
+produced it:
+
+> `Replay · gate 0.40 · built 30 Jul 06:07 UTC`
+
+Mounted on four: the hero, the week card, the equity curve, and the
+daily ledger. Built once in `HistoryView` and passed down, so the four
+copies cannot drift into describing different builds — which would be a
+worse version of the problem it solves.
+
+**Not on the #1 pick card, deliberately.** That reads the ledger, so it
+can only move when a real bet settles. Stamping it would imply a
+volatility it does not have.
+
+### The staleness line is the part that earns its keep
+
+`thresholds.json` holds the **live** gate; `season_record.json` holds the
+one its replay was **built** at. When they disagree the figures on screen
+are already known to be superseded, and the operator can be told *before*
+the rebuild instead of discovering it afterwards. That is exactly the
+state this shipped in — live 0.42, replay built at 0.40:
+
+> The live gate is now 0.42. These figures were replayed at 0.40, so
+> every row will move at the next nightly rebuild — no real bet changes,
+> the simulation just re-runs under the new rule.
+
+Verified self-clearing rather than a permanent banner: stale now
+(0.40 vs 0.42), **not** stale after the rebuild (0.42 vs 0.42), stale
+again if the gate moves later (0.42 vs 0.45).
+
+What the next rebuild will actually do, measured in advance: 104 bets →
+**123**, final bank 209.89u → **218.61u**, and eight of the last nine
+rows move (2026-07-25 goes from no-bet to −4.00u).
+
+### Verified
+
+Production build. Four stamps on the four replay cards, none on the #1
+pick card, staleness firing on all four. 375px and 1280px: zero
+overflowing elements on `/history`, no console errors. `--attn` on the
+warning, 10px `--muted-foreground` on the stamp line — chrome, never
+competing with the figure it describes.
+
+---
+
 ## [2026-07-30g] — "#1 pick" tracker on /history, from the REAL ledger
 
 Operator: *"i want to see what the #1 pick record and profit would be"*

@@ -4,6 +4,7 @@ import { loadRoi } from "@/lib/roi";
 import type { RecFile } from "@/lib/season-record";
 import { HistoryView } from "@/components/HistoryView";
 import { loadTopPickReport } from "@/lib/top-pick";
+import { loadThresholds } from "@/lib/thresholds";
 
 export const dynamic = "force-dynamic";
 
@@ -38,16 +39,22 @@ export default async function HistoryPage() {
      stakes) while seasonRecord is the REPLAY. Loaded side by side on
      purpose: the card that shows them apart is only honest if they come
      from genuinely different sources. Soft-fails to null. */
-  const [seasonRoi, seasonRecord, topPick] = await Promise.all([
+  const [seasonRoi, seasonRecord, topPick, thresholds] = await Promise.all([
     loadRoi("season"),
     loadSeasonRecord(),
     loadTopPickReport(new Date().getUTCFullYear()).catch(() => null),
+    /* The LIVE gate, so the replay cards can say when they are behind
+       it. thresholds.json is written by the predictor; season_record
+       carries the gate its replay was actually run at. When the two
+       disagree the figures on screen are already superseded. */
+    loadThresholds().catch(() => null),
   ]);
   return (
     <HistoryView
       initial={seasonRoi}
       seasonRecord={seasonRecord}
       topPick={topPick}
+      liveGate={thresholds?.strongYrfiP ?? null}
     />
   );
 }

@@ -1,0 +1,52 @@
+/* ============================================================
+   Provenance stamp. Deliberately the quietest thing on its card.
+
+   This is chrome, not data: it says where a figure came from, so it
+   must never compete with the figure. 10px, --muted-foreground, no
+   money hue anywhere. The one exception is the staleness line, which
+   takes --attn because it is asking the operator to expect a change --
+   and "a decision or a change is waiting on you" is precisely what
+   --attn means in globals.css.
+   ============================================================ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.line {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.stale {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--attn);
+  max-width: 74ch;
+}
+
+/* A dot, not a colour-only signal: the sentence next to it says the
+   same thing in words, so nothing here depends on hue. */
+.dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--attn);
+}
+
+@media (max-width: 720px) {
+  .line  { font-size: 9.5px; }
+  .stale { font-size: 10.5px; }
+}

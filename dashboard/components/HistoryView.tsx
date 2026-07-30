@@ -26,6 +26,7 @@ import {
 import { WeekAtAGlance } from "./WeekAtAGlance";
 import { TopPickCard } from "./TopPickCard";
 import type { TopPickReport } from "@/lib/top-pick";
+import { ReplayStamp } from "./ReplayStamp";
 import styles from "./HistoryView.module.css";
 
 const WINDOWS: { key: RoiWindow; label: string }[] = [
@@ -163,6 +164,7 @@ export function HistoryView({
   seasonRecord,
   divergence,
   topPick,
+  liveGate,
 }: {
   initial: RoiResponse;
   /** data/season_record.json, read server-side by app/history/page.tsx.
@@ -176,6 +178,9 @@ export function HistoryView({
   /** The #1 pick's REAL ledger record, read server-side. Optional: a
    *  null simply omits the card. */
   topPick?: TopPickReport | null;
+  /** `strongYrfiP` from thresholds.json -- the gate the predictor runs
+   *  NOW, so the replay cards can flag when they were built at another. */
+  liveGate?: number | null;
 }) {
   const [data, setData]     = useState<RoiResponse>(initial);
   const [window, setWindow] = useState<RoiWindow>(initial.window);
@@ -209,6 +214,17 @@ export function HistoryView({
     return { ...pickMoneySeries(data), isReplay: false };
   }, [seasonRecord, data]);
   const stakeEpoch = stakeEpochOf(data);
+
+  /* ONE STAMP, RENDERED ON EVERY REPLAY-DRIVEN CARD. Built once so the
+     four copies cannot drift into describing different builds -- which
+     would be a worse version of the problem it exists to solve. */
+  const stamp = (
+    <ReplayStamp
+      recordGate={seasonRecord?.gates?.yrfi ?? null}
+      generatedUtc={seasonRecord?.generatedUtc ?? null}
+      liveGate={liveGate ?? null}
+    />
+  );
 
   // REAL prices first, matching RoiPanel's SystemCard. `projected` fills
   // a third of its book at an assumed -125; leading with it here would
@@ -476,6 +492,7 @@ export function HistoryView({
             </div>
           </>
         )}
+        {stamp}
 
         {/* THE "WHAT ACTUALLY HAPPENED" LINE WAS REMOVED 2026-07-30
             with the rest of the old-ledger surfacing. Operator: "i
@@ -500,7 +517,7 @@ export function HistoryView({
           `sysSide` is the same side object the hero reads, so the two
           cannot describe different books. Renders nothing at all when
           there is no record -- see the guard in the component. */}
-      <WeekAtAGlance side={sysSide} />
+      <WeekAtAGlance side={sysSide} stamp={stamp} />
 
       {/* THE #1 PICK, REAL MONEY -- directly under the simulated week
           card on purpose. One is the replay and renders dim, the other
@@ -556,6 +573,7 @@ export function HistoryView({
           days={days}
           rawSeries={money.isReal ? data.cumulativePL : []}
         />
+        {stamp}
       </section>
 
       {/* CHART 2 -- underwater / drawdown depth.  Depth AND age, on a fixed
@@ -672,6 +690,7 @@ export function HistoryView({
             </>
           )}
         </div>
+        {stamp}
       </section>
     </main>
   );
