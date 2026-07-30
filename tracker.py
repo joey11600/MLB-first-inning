@@ -3213,6 +3213,17 @@ KELLY_BANKROLL_UNITS = float(os.getenv("NRFI_KELLY_BANKROLL", "100") or 100)
 KELLY_MAX_STAKE_FRAC = float(os.getenv("NRFI_KELLY_MAX_STAKE", "0.10") or 0.10)
 # Never stake less than this; below it the bet is not worth placing.
 KELLY_MIN_STAKE_UNITS = 0.10
+# Stake rounding (2026-07-29, operator's call).  Quarter Kelly produces
+# figures like 5.97u / 2.08u that have to be typed into DraftKings by
+# hand.  1.0 = round to whole units; set NRFI_KELLY_ROUNDING=0 to stake
+# the exact figure.  Measured free: every granularity tested landed
+# within noise of exact over 348 graded real-priced bets.
+KELLY_STAKE_ROUNDING = float(os.getenv("NRFI_KELLY_ROUNDING", "1.0") or 1.0)
+# ...but a stake under half a unit would round to ZERO, and zero is a
+# NO BET.  Plain whole-unit rounding silently dropped 16 of 301 bets in
+# the replay.  Those are floored here instead of being discarded, which
+# recovers 15 of them.  See the rounding block in kelly_stake_units.
+KELLY_ROUNDED_FLOOR = float(os.getenv("NRFI_KELLY_ROUNDED_FLOOR", "0.5") or 0.5)
 # Date from which realized P&L is allowed to compound the bankroll.
 #
 # WHY THIS EXISTS.  Without an epoch, current_bankroll_units() sums the
@@ -3417,9 +3428,59 @@ def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
         room = bank * KELLY_MAX_DAILY_FRAC - _committed_on(game_date, season)
         stake = min(stake, max(room, 0.0))
 
+    # THE NO-BET GATE, AND IT MUST STAY ABOVE THE ROUNDING BLOCK.
+    # A 0 here means one of two things and BOTH are deliberate refusals:
+    #   * kelly_fraction_of_bankroll returned 0 -- the model does not beat
+    #     the market's implied probability, so Kelly forbids a stake;
+    #   * the daily risk cap left no room.
+    # Neither may ever be rounded UP into a bet.  Rounding runs only on
+    # stakes that have already earned the right to exist.
     if stake < KELLY_MIN_STAKE_UNITS:
         return 0.0
     stake = round(stake, 2)
+
+    # ---- STAKE ROUNDING (2026-07-29, operator's call) -----------------
+    # Quarter Kelly produces figures like 5.97u and 2.08u, which the
+    # operator has to type into DraftKings by hand.  Rounding to whole
+    # units is free: measured over all 348 graded real-priced STRONG
+    # bets, every granularity lands within noise of exact sizing and max
+    # drawdown moves by 0.4pp at most.
+    #
+    # THE TRAP, and why KELLY_ROUNDED_FLOOR exists.  Plain rounding to
+    # whole units turns any stake under 0.5u into 0 -- which is a NO BET.
+    # In the replay that silently dropped 16 of 301 bets: a hidden bet
+    # gate arriving through a display-convenience change, which is
+    # exactly the class of surprise CLAUDE.md's money rules exist to
+    # prevent.  The operator's fix: floor those at 0.5u instead of
+    # dropping them.  That recovers 15 of the 16 (300 bets placed) at
+    # +83.83u vs exact's +81.20u -- a difference that is noise, not an
+    # edge.  Do not quote it as an improvement.
+    #
+    # Set NRFI_KELLY_ROUNDING=0 to disable and stake exact figures.
+    if KELLY_STAKE_ROUNDING > 0:
+        rounded = round(stake / KELLY_STAKE_ROUNDING) * KELLY_STAKE_ROUNDING
+        if rounded < KELLY_ROUNDED_FLOOR:
+            rounded = KELLY_ROUNDED_FLOOR
+        # ROUNDING UP MUST NEVER BREACH A CAP.  Both caps are live here:
+        #   * the per-bet ceiling (10% of bank) -- a 8.60u stake on an
+        #     88.36u bank rounds to 9.00u, which is over the 8.84u
+        #     ceiling.  The guard rail would have been defeated by a
+        #     convenience feature.
+        #   * the daily risk budget (15% of bank), same arithmetic.
+        # When the rounded figure does not fit, keep the EXACT stake: an
+        # awkward number is strictly better than quietly exceeding a
+        # limit the operator set.  Rounding is a convenience and never
+        # outranks a risk control.
+        ceiling = bank * KELLY_MAX_STAKE_FRAC
+        if game_date:
+            ceiling = min(
+                ceiling,
+                bank * KELLY_MAX_DAILY_FRAC - _committed_on(game_date, season),
+            )
+        if rounded > ceiling:
+            rounded = stake
+        stake = round(rounded, 2)
+
     if game_date:
         _daily_committed[game_date] = _committed_on(game_date, season) + stake
     return stake

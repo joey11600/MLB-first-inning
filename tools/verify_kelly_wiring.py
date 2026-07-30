@@ -97,7 +97,29 @@ def main():
         ref = bank * f
         if ref < tracker.KELLY_MIN_STAKE_UNITS:
             ref = 0.0
-        worst = max(worst, abs((shipped or 0.0) - round(ref, 2)))
+        else:
+            ref = round(ref, 2)
+            # 2026-07-29: the reference now models STAKE ROUNDING too.
+            # This is NOT the test being loosened to accommodate a
+            # change -- the tolerance below is still 0.011u, and the
+            # reference still computes the Kelly fraction independently
+            # from first principles.  What is being asserted is the
+            # full shipped contract: formula, then rounding, then floor,
+            # then caps.  Written as an independent reimplementation on
+            # purpose; importing the shipped rounding would make the
+            # check tautological.
+            if tracker.KELLY_STAKE_ROUNDING > 0:
+                r = (round(ref / tracker.KELLY_STAKE_ROUNDING)
+                     * tracker.KELLY_STAKE_ROUNDING)
+                if r < tracker.KELLY_ROUNDED_FLOOR:
+                    r = tracker.KELLY_ROUNDED_FLOOR
+                # Rounding may not push past the per-bet ceiling.  No
+                # game_date is passed above, so the daily budget does
+                # not apply in this comparison.
+                if r > bank * tracker.KELLY_MAX_STAKE_FRAC:
+                    r = ref
+                ref = round(r, 2)
+        worst = max(worst, abs((shipped or 0.0) - ref))
     print(f"  largest disagreement across {len(bets)} bets: {worst:.4f}u")
     if worst > 0.011:
         print("  [FAIL] shipped helper disagrees with the reference formula")
@@ -173,6 +195,55 @@ def main():
         ok = False
     else:
         print("  [PASS] returns None; caller falls back to flat sizing")
+
+    # ---- 5. stake rounding (2026-07-29) ------------------------------
+    print("\n=== CHECK 5: stake rounding, floor, and cap interaction ===")
+    print(f"  KELLY_STAKE_ROUNDING = {tracker.KELLY_STAKE_ROUNDING}  "
+          f"KELLY_ROUNDED_FLOOR = {tracker.KELLY_ROUNDED_FLOOR}")
+
+    def expect(label, got, want, tol=0.005):
+        good = got is not None and abs(got - want) <= tol
+        print(f"  [{'PASS' if good else 'FAIL'}] {label}: got {got}, want {want}")
+        return good
+
+    tracker._bankroll_cache = 100.0
+    # A healthy stake lands on a whole unit.
+    tracker._daily_committed.clear()
+    ok &= expect("ordinary stake rounds to a whole unit",
+                 tracker.kelly_stake_units(0.68, "-135"),
+                 round(tracker.kelly_stake_units(0.68, "-135") or 0))
+
+    # THE ONE THAT MATTERS MOST.  A no-edge bet must stay 0 and must NOT
+    # be lifted to the 0.5u floor -- flooring it would place money on a
+    # game Kelly explicitly refuses.  The floor exists only to rescue
+    # stakes that were already positive.
+    tracker._bankroll_cache = 100.0
+    ok &= expect("NO-EDGE bet stays 0, is NOT floored to 0.5u",
+                 tracker.kelly_stake_units(0.50, "-150"), 0.0)
+    ok &= expect("clearly -EV bet stays 0",
+                 tracker.kelly_stake_units(0.40, "-200"), 0.0)
+
+    # A small POSITIVE stake (0.25u at these inputs) would round to 0,
+    # i.e. silently become a no-bet.  It floors instead.
+    tracker._bankroll_cache = 100.0
+    small = tracker.kelly_stake_units(0.505, "+100")
+    ok &= expect("small positive stake floors to 0.5u rather than vanishing",
+                 small, tracker.KELLY_ROUNDED_FLOOR)
+
+    # Rounding UP must not defeat the per-bet ceiling.  On an 88.36u
+    # bank the ceiling is 8.836u; an 8.60u stake would round to 9.00u
+    # and breach it, so the exact figure has to survive instead.
+    tracker._bankroll_cache = 88.36
+    tracker._daily_committed.clear()
+    capped = tracker.kelly_stake_units(0.6947, "+100")
+    ceiling = 88.36 * tracker.KELLY_MAX_STAKE_FRAC
+    good = capped is not None and capped <= ceiling + 1e-9
+    print(f"  [{'PASS' if good else 'FAIL'}] rounding never breaches the per-bet "
+          f"ceiling: stake {capped}u vs ceiling {ceiling:.2f}u")
+    ok &= good
+
+    tracker._bankroll_cache = None
+    tracker._daily_committed.clear()
 
     print("\n" + ("ALL CHECKS PASSED" if ok else "*** SOME CHECKS FAILED ***"))
     return 0 if ok else 1

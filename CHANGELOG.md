@@ -11,6 +11,56 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29d] — Kelly stakes round to whole units, floored at 0.5u
+
+Operator asked whether stakes should be rounded, since quarter Kelly
+produces figures like `5.97u` and `2.08u` that have to be typed into
+DraftKings by hand. Then chose the variant: *"round to whole units, but
+any bets that might round to 0 should just round to 0.5 units."*
+
+Measured first, over all 348 graded real-priced STRONG bets:
+
+| sizing | profit | bets placed | max DD |
+|---|---|---|---|
+| exact (was shipped) | +81.20u | 301 | 39.6% |
+| whole units, small → no bet | +92.79u | **285** | 40.0% |
+| **whole units, floor 0.5u (shipped)** | +83.83u | **300** | 39.7% |
+
+**Plain whole-unit rounding silently drops 16 of 301 bets** — anything
+under 0.5u rounds to zero, and zero is a no-bet. That is a hidden bet
+gate arriving through a convenience change, the exact class of surprise
+CLAUDE.md's money rules exist to prevent. The floor recovers 15 of them.
+
+The +2.63u over exact sizing is **noise, not an edge** — same bets,
+slightly different sizes, landing favourably by chance. Do not quote it
+as an improvement. The case for rounding is convenience at no cost.
+
+`NRFI_KELLY_ROUNDING` (default `1.0`, set `0` to disable) and
+`NRFI_KELLY_ROUNDED_FLOOR` (default `0.5`).
+
+### Two safety properties, both tested
+
+- **A no-edge bet is never floored into a real bet.** Kelly returns 0
+  for two reasons — the model does not beat the market's implied
+  probability, or the daily cap left no room — and both are deliberate
+  refusals. The rounding block sits *below* the no-bet gate, so it only
+  ever operates on stakes that already earned the right to exist.
+- **Rounding up cannot breach a cap.** Found while wiring this: on an
+  88.36u bank the per-bet ceiling is 8.836u, and an 8.60u stake rounds
+  to 9.00u — over it. A convenience feature would have defeated a risk
+  guard rail. When the rounded figure does not fit under the per-bet
+  ceiling *or* the daily budget, the exact stake is kept instead.
+
+`tools/verify_kelly_wiring.py` gains CHECK 5 covering both, plus the
+floor and ordinary rounding. CHECK 2 now models rounding in its
+independent reference implementation rather than being loosened — the
+tolerance is still 0.011u and it reports 0.0000u disagreement.
+
+Tonight's two bets are unaffected: T2.23 freezes `units_risked` once
+`bet_placed=Y`, so they stay at the 5.97u and 2.08u they were placed at.
+
+---
+
 ## [2026-07-29c] — Units lead the headline; the replay stops wearing the money hue
 
 Operator: *"why are the 'last X days' filters showing percentages and
