@@ -11,6 +11,49 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29c] — Units lead the headline; the replay stops wearing the money hue
+
+Operator: *"why are the 'last X days' filters showing percentages and
+not units? im so confused?"*
+
+### Changed — the performance headline is units, not a percentage
+
+The card's docstring justified the percentage: the raw replay compounds
+100u → ~1200u by late July, so its own units describe a bankroll nobody
+has. True, but the fix for that is the **rebasing**, which the card
+already does via `bankUnits`. With both in place the headline read
+`+16.3%` above a sub-line reading `+16.33u on your 100u bankroll` —
+**the same number twice**, since at a 100u bank a unit *is* a percent.
+The operator stakes in units and was shown their result in the one unit
+they don't think in. Units now lead; the percentage moves to the
+sub-line (kept, not deleted — the two separate again if the bankroll
+ever moves off 100u).
+
+### Fixed — a backtest was rendering as realized P&L
+
+Swapping the headline to units exposed this, and made it worse: SEASON
+showed a 32px **`+822.19u` in `--gain` cyan**, visually identical to
+TONIGHT's real `−2.08u`.
+
+Quarter-Kelly went live 2026-07-28; every bet before that was flat 1u.
+The card's own code says it: *"TONIGHT comes from the board, not the
+record. Everything else comes from the replay."* So every window except
+TODAY is a simulation of a staking scheme that was not in use, and all
+four were toned from `y.pnl` as though they were money.
+
+globals.css, verbatim: *"SIMULATED FIGURES ARE NEVER TONE-COLOURED.
+Coloured = your money. Neutral = a back-test. No exception, no
+carve-out."* This was the exception. PRODUCT.md lists it as the
+product's central design problem (four kinds of number at
+near-identical visual weight) and as an explicit anti-reference.
+
+Replay windows now render in plain `--foreground` and carry a
+`Simulated` tag in the eyebrow. TODAY keeps its tone — it is the only
+real-money figure on the card. Verified in-browser: TODAY `rgb(251, 92,
+120)`, the other three `rgb(233, 239, 246)`.
+
+---
+
 ## [2026-07-29b] — Capture-timestamp guard + the palette reversal
 
 Operator: *"fix the timestamp bug then fix the colors. i hate the

@@ -305,12 +305,24 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
 
 /** THE SYSTEM -- current model, quarter-Kelly, for the selected window.
  *
- *  HEADLINE IS A PERCENTAGE, deliberately. The run compounds from 100u in
- *  April, so by late July the bank is ~316u and an ordinary losing week
- *  prints as "-58.85u" -- which against a real 100u bankroll is about
- *  -16u. A unit figure is meaningless without the bank it was staked
- *  from; the percentage is the same number wherever the run has got to.
- *  Units are still shown, next to the bank they belong to.
+ *  HEADLINE IS UNITS (changed 2026-07-29; it was a percentage).
+ *
+ *  The old rationale, kept because it explains what NOT to undo: the raw
+ *  replay compounds from 100u in April to ~1200u by late July, so ITS
+ *  units describe a bankroll nobody has, and quoting them raw would
+ *  print "-58.85u" for a week that cost the operator about 16u.
+ *
+ *  The fix for that is the REBASING, not the percentage -- and the
+ *  rebasing is already here, via `bankUnits`. With both in place the
+ *  headline read "+16.3%" over a sub-line reading "+16.33u on your 100u
+ *  bankroll": the same number twice, since at a 100u bank a unit and a
+ *  percent are numerically identical. The percentage was costing the
+ *  operator a translation step to reach the only unit they actually
+ *  stake in.
+ *
+ *  KEEP the rebasing. If the operator ever moves off a 100u bank the two
+ *  figures separate again, which is why the percentage stays on the
+ *  sub-line rather than being deleted.
  *
  *  NRFI is reported SEPARATELY and never folded into the headline:
  *  _LR_STRONG_NRFI_P is 1.01, so the live system does not place it, and
@@ -387,24 +399,56 @@ function SystemCard({
   }
 
   const y = w?.yrfi ?? null;
-  const tone: "win" | "loss" | "neutral" =
-    !y ? "neutral" : y.pnl > 0.05 ? "win" : y.pnl < -0.05 ? "loss" : "neutral";
+  // NEUTRAL, ALWAYS -- this branch is the REPLAY (see the comment above
+  // the `today` early-return: "Everything else comes from the replay").
+  //
+  // 2026-07-29.  This used to compute win/loss from y.pnl and tone the
+  // headline accordingly, which put a 32px money-coloured "+822.19u" on
+  // the SEASON tab.  Quarter-Kelly went live 2026-07-28; every bet
+  // before that was flat 1u.  So that figure is a backtest of a staking
+  // scheme the operator was not using, rendered identically to TONIGHT's
+  // real −2.08u -- same size, same position, same hue.
+  //
+  // globals.css, verbatim: "SIMULATED FIGURES ARE NEVER TONE-COLOURED.
+  // Coloured = your money.  Neutral = a back-test.  No exception, no
+  // carve-out."  This was the exception.  PRODUCT.md names it as the
+  // product's central design problem -- four kinds of number at
+  // near-identical visual weight -- and as an anti-reference: "anything
+  // that makes a simulated or paper number look like realized P&L."
+  //
+  // The real money for these windows is the flat-1u ledger block below.
+  const tone = "neutral" as const;
   const pct = w && y && isNum(w.bankStart) && w.bankStart > 0 ? y.pnl / w.bankStart : null;
 
   return (
     <div className={styles.moneyCard} data-tone={tone}>
       <div className={styles.totalLeft}>
-        <span className="eyebrow">The system · ¼-Kelly · {label}</span>
+        <span className="eyebrow">
+          The system · ¼-Kelly · {label} <span className="tag">Simulated</span>
+        </span>
         {w && y ? (
           <>
+            {/* UNITS LEAD, percentage follows (2026-07-29).
+                This was the other way round, and the docstring above
+                explains why: a raw simulation that compounds to ~316u
+                makes a unit figure meaningless without naming its bank.
+                That reasoning is now obsolete -- the card ALREADY
+                rebases every figure to the operator's real bank via
+                `bankUnits`. Which made the headline "+16.3%" and the
+                sub-line "+16.33u on your 100u bankroll": the SAME
+                NUMBER twice, because the bank is 100u so a unit IS a
+                percent. The operator stakes in units, is told to bet
+                5.97u, and was then shown their result in the one unit
+                they don't think in. Operator: "why are the last X days
+                filters showing percentages and not units? im so
+                confused". */}
             <span className="figHero">
-              {pct == null ? fmtU(y.pnl)
-                : `${pct >= 0 ? "+" : "−"}${Math.abs(100 * pct).toFixed(1)}%`}
+              {pct == null ? fmtU(y.pnl) : fmtU(pct * bankUnits)}
             </span>
             <span className="meta">
               {pct == null
                 ? `${y.bets} ${y.bets === 1 ? "bet" : "bets"}`
-                : `${fmtU(pct * bankUnits)} on your ${bankUnits.toFixed(0)}u bankroll`}
+                : `${pct >= 0 ? "+" : "−"}${Math.abs(100 * pct).toFixed(1)}% on your ${bankUnits.toFixed(0)}u bankroll`}
               {` · ${y.bets} ${y.bets === 1 ? "bet" : "bets"} · ${y.wins}-${y.bets - y.wins} · YRFI · ${w.from} → ${w.to}`}
             </span>
             {w.assumed > 0 && (
