@@ -11,6 +11,50 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29j] — /history gets the decision-first hierarchy
+
+Redesign pass 2. The dashboard got hierarchy on 2026-07-29g; /history
+was deferred and still opened with **two identically-weighted bordered
+tiles stacked on each other** — the system's figure and the ledger's.
+
+That is the exact pattern PRODUCT.md names as the reason this page is
+not scannable ("a stack of same-weight cards"), and it did something
+worse than look flat: two equal cards for two numbers that answer
+*different* questions read as a contradiction. It is the same confusion
+that produced *"i thought we were up 90+ units"*.
+
+### One hero, one subordinate line
+
+- **The system leads at 40px** — that is what the page is for.
+- **The unlevered twin sits directly beneath it.** Over 30 days those
+  read +14.54u and +0.89u: the same bets, one multiplied ~16× by
+  compounding. Adjacent, that is obvious; apart, invisible.
+- **"What actually happened" is a line, not a rival card.**
+
+The colour law produces a deliberate inversion here: the **big** figure
+is neutral ink because it is a replay, and the **small** one carries
+`--loss` rose because it is real money. Hue marks what is *real*, not
+what is loud.
+
+### Dead code removed
+
+`tileTone()` and the whole `.tile` family (`.tiles .tile .tileBig
+.tileLabel .tileSub .tileProv .tileTonePos .tileToneNeg`) — 77 lines of
+CSS, verified at 0 usages after the collapse. `.tileTonePos` /
+`.tileToneNeg` also carried `inset 3px 0 0` side stripes, the
+coloured-edge-as-hierarchy pattern removed everywhere else that day.
+
+Caught while wiring it: `tileTone()` was briefly hung on the inline
+`.actualFig` span. It returns a CARD-level class that colours a
+descendant `.tileBig` and paints that inset stripe — so on a span it
+coloured nothing and drew a stray bar. Replaced with
+`.actualFig[data-tone]`.
+
+Verified at 375px and 1270px: no horizontal overflow, hero above the
+fold on a phone, all four downstream sections (equity, drawdown, zones,
+daily ledger) intact, clean console on a fresh tab.
+
+
 ## [2026-07-29i] — Every date filter now answers "what would the new system have done"
 
 Operator: *"update the entire dashboard so i can see what our new record

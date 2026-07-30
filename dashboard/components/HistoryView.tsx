@@ -247,70 +247,99 @@ export function HistoryView({
           happened". Both are true, they are different questions, and
           they are now labelled as such instead of being left to look
           like a contradiction. */}
-      {sysWindow && (
-        <section className={styles.tiles}>
-          <div className={styles.tile}>
-            <div className={styles.tileLabel}>
+      {/* ONE HERO, NOT TWO PEERS (2026-07-29 redesign pass 2).
+          These were two identically-weighted bordered tiles stacked on
+          top of each other -- the system's figure and the ledger's --
+          which is precisely the "stack of same-weight cards" PRODUCT.md
+          names as the reason nothing on this page is scannable, and it
+          also made two numbers that answer DIFFERENT questions look like
+          a contradiction.
+
+          Now: the system leads at full size because that is what this
+          page is for, and what actually happened sits beneath it as a
+          subordinate line rather than a rival card. The date filter
+          drives both. */}
+      <section className={styles.hero}>
+        {sysWindow ? (
+          <>
+            <div className={styles.heroLabel}>
               The system · ¼-Kelly <span className="tag">Simulated</span>
             </div>
-            <div className={styles.tileBig}>
-              {formatUnits(sysWindow.pct != null && isNum(sysBank)
-                ? sysWindow.yrfi.pnl / (sysWindow.bankStart || 1) * (sysBank || 100)
-                : sysWindow.yrfi.pnl)}
+            <div className={styles.heroFig}>
+              {formatUnits(
+                isNum(sysWindow.bankStart) && sysWindow.bankStart > 0
+                  ? (sysWindow.yrfi.pnl / sysWindow.bankStart) * (sysBank || 100)
+                  : sysWindow.yrfi.pnl,
+              )}
             </div>
-            <div className={styles.tileSub}>
+            <div className={styles.heroSub}>
               {sysWindow.yrfi.wins}-{sysWindow.yrfi.bets - sysWindow.yrfi.wins} over{" "}
               {sysWindow.yrfi.bets} {sysWindow.yrfi.bets === 1 ? "bet" : "bets"} ·{" "}
               {sysWindow.from} → {sysWindow.to}
             </div>
-            <div className={styles.tileProv}>
-              What today&apos;s rules would have returned on a {sysBank ?? 100}u bank,
-              real captured prices only. Unlevered, the same bets return{" "}
-              {formatUnits(sysWindow.flatPnl)} at a flat 1u.
+            {/* The unlevered twin, right under the levered one. Over 30
+                days these read +14.54u and +0.89u: same bets, one of
+                them multiplied by compounding. Kept adjacent so the
+                difference is impossible to miss. */}
+            <div className={styles.heroFlat}>
+              <span className={styles.heroFlatFig}>
+                {formatUnits(sysWindow.flatPnl)}
+              </span>
+              <span>unlevered, at a flat 1u on the same bets</span>
             </div>
-          </div>
-        </section>
-      )}
+          </>
+        ) : (
+          <>
+            <div className={styles.heroLabel}>The system · ¼-Kelly</div>
+            <div className={styles.heroFig}>—</div>
+            <div className={styles.heroSub}>
+              No replayed bets in this window.
+            </div>
+          </>
+        )}
 
-      {/* One tile, not four.  "Day record 61/52/3" counted calendar days by
-          sign rather than bets and flattered a losing ledger; "Best day"
-          and "Worst day" were single observations of a heavy-tailed series
-          already visible as the first row of the table below. */}
-      <section className={styles.tiles}>
-        <div className={`${styles.tile} ${tileTone(totalUnits)}`}>
-          <div className={styles.tileLabel}>Net units</div>
-          <div className={styles.tileBig}>{formatUnits(totalUnits)}</div>
-          <div className={styles.tileSub}>
-            across {totalDays} {totalDays === 1 ? "day" : "days"}
-          </div>
-          <div className={styles.tileProv}>
+        {/* WHAT ACTUALLY HAPPENED -- subordinate by design. Real money,
+            so it keeps its tone colour while the simulated hero above
+            stays neutral ink, per the colour law. */}
+        <div className={styles.actual}>
+          <span className={styles.actualLabel}>What actually happened</span>
+          {/* data-tone, NOT tileTone(): that helper returns a CARD-level
+              class which colours a descendant `.tileBig` and paints an
+              inset side stripe. Hung on an inline <span> it coloured
+              nothing and drew a stray 3px bar. */}
+          <span
+            className={styles.actualFig}
+            data-tone={totalUnits > 0.005 ? "win" : totalUnits < -0.005 ? "loss" : "flat"}
+          >
+            {formatUnits(totalUnits)}
+          </span>
+          <span className={styles.actualSub}>
+            across {totalDays} {totalDays === 1 ? "day" : "days"} ·{" "}
             {money.isReal ? (
               <>
-                Counts only the {priceSplit.real} graded{" "}
-                {priceSplit.real === 1 ? "bet" : "bets"} that had a real captured
-                DraftKings price.
+                {priceSplit.real} graded{" "}
+                {priceSplit.real === 1 ? "bet" : "bets"} at a real captured
+                DraftKings price
                 {priceSplit.assumed > 0 && (
                   <>
-                    {" "}
-                    {priceSplit.assumed} more settled against an assumed &minus;110
-                    and are left out.
+                    {"; "}
+                    {priceSplit.assumed} more settled against an assumed
+                    &minus;110 and are left out
                   </>
                 )}
               </>
             ) : (
               // Reachable only by a browser holding an /api/roi payload
-              // cached from before 2026-07-29.  It used to say "reload
-              // the page to pick up the real-priced figure" -- but the
+              // cached from before 2026-07-29. It used to say "reload the
+              // page to pick up the real-priced figure" -- but the
               // producer did not exist, so this branch was permanent and
-              // the advice could never work.  Say what is true instead:
-              // the number is inflated, and by roughly how much.
+              // the advice could never work.
               <>
-                Inflated: includes bets settled against an assumed
-                &minus;110 price rather than one you paid. The real-priced
-                figure is materially lower.
+                inflated: includes bets settled against an assumed
+                &minus;110 rather than a price you paid
               </>
             )}
-          </div>
+          </span>
         </div>
       </section>
 
@@ -973,8 +1002,8 @@ function unitsText(n: number): string {
   return n > 0 ? `+${n.toFixed(2)}u` : `−${Math.abs(n).toFixed(2)}u`;
 }
 
-function tileTone(units: number): string {
-  if (units > 0) return styles.tileTonePos;
-  if (units < 0) return styles.tileToneNeg;
-  return "";
-}
+// tileTone() deleted 2026-07-29: its only caller was the pair of
+// same-weight summary tiles the hero replaced. It returned a
+// CARD-level class that coloured a descendant and painted an inset
+// side stripe, so it was also the wrong tool for an inline figure.
+// The hero uses .actualFig[data-tone] instead.

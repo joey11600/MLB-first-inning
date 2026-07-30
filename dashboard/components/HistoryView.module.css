@@ -228,41 +228,29 @@
    "Worst day" were single observations of a heavy-tailed series that
    the daily ledger already shows.  One tile, carrying its own
    provenance split, is the whole summary now. */
-.tiles {
-  display: grid;
-  grid-template-columns: minmax(0, 420px);
-  gap: 14px;
-}
-.tile {
-  position: relative;
-  padding: 16px 20px;
+/* ══ THE HERO ═══════════════════════════════════════════════════════
+   2026-07-29 redesign pass 2.  Replaces two identically-weighted .tile
+   boxes stacked on each other -- the system's figure and the ledger's.
+   Two equal cards for two numbers that answer DIFFERENT questions is
+   what made them read as a contradiction, and a stack of same-weight
+   cards is the specific thing PRODUCT.md names as the reason this page
+   is not scannable.
+
+   Hierarchy now, in one surface: the system leads at 40px because that
+   is what the page is for; the unlevered twin sits directly under it;
+   what actually happened is a subordinate line, not a rival card. */
+.hero {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--card);
+  padding: 20px 22px 16px;
+  max-width: 560px;
+}
+
+.heroLabel {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow: hidden;
-}
-.tile::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-/* --gain / --loss, not --primary / --destructive: globals.css:63-66 puts
-   the MEANING in the money tokens.  Same computed colour, so no contrast
-   change -- --gain is 8.27:1 dark / 5.74:1 light on --card, --loss is
-   6.23:1 / 7.01:1.  Both clear AA. */
-.tileTonePos {
-  border-left: 1px solid color-mix(in oklab, var(--gain) 60%, var(--border));
-  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--gain) 80%, transparent);
-}
-.tileToneNeg {
-  border-left: 1px solid color-mix(in oklab, var(--loss) 60%, var(--border));
-  box-shadow: inset 3px 0 0 0 color-mix(in oklab, var(--loss) 80%, transparent);
-}
-.tileLabel {
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-sans);
   font-size: 10.5px;
   font-weight: 600;
@@ -270,40 +258,104 @@
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
-.tileBig {
+
+/* NEUTRAL INK, never a money hue: this figure is a replay.
+   globals.css -- "SIMULATED FIGURES ARE NEVER TONE-COLOURED." */
+.heroFig {
+  margin-top: 6px;
   font-family: var(--font-mono);
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
   color: var(--foreground);
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
 }
-.tileTonePos .tileBig { color: var(--gain); }
-.tileToneNeg .tileBig { color: var(--loss); }
-.tileSub {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: var(--muted-foreground);
-}
-/* The provenance split, on the face of the figure it qualifies.  A
-   number built partly from prices nobody ever saw has to say so where
-   it is read, not in a footnote three sections down. */
-.tileProv {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+
+.heroSub {
+  margin-top: 6px;
   font-family: var(--font-sans);
   font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted-foreground);   /* 7.36 dark / 6.33 light on --card */
+  letter-spacing: 0.03em;
+  color: var(--muted-foreground);
 }
-.numWin   { color: var(--gain); }   /* 8.27 / 5.74 */
-.numLoss  { color: var(--loss); }   /* 6.23 / 7.01 */
-.numFlat  { color: var(--muted-foreground); }
+
+/* The unlevered figure, deliberately adjacent to the levered one.
+   Over 30 days these read +14.54u and +0.89u -- the same bets, one of
+   them multiplied ~16x by compounding. Side by side, that is obvious;
+   apart, it is invisible. */
+.heroFlat {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.heroFlatFig {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* WHAT ACTUALLY HAPPENED -- real money, so it KEEPS its tone colour
+   while the simulated hero above stays neutral. That inversion (small
+   figure coloured, big figure not) is the colour law doing its job:
+   the hue marks what is real, not what is loud. */
+.actual {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+.actualLabel {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.actualFig {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+/* Real money earns a hue -- this is the one figure in the hero that is
+   not a replay. --gain 9.54:1 dark / 6.98:1 light on --card,
+   --loss 5.70 / 6.34; both clear AA comfortably at 19px/600. */
+.actualFig[data-tone="win"]  { color: var(--gain); }
+.actualFig[data-tone="loss"] { color: var(--loss); }
+.actualFig[data-tone="flat"] { color: var(--muted-foreground); }
+.actualSub {
+  flex-basis: 100%;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 640px) {
+  .hero    { padding: 18px 16px 14px; }
+  .heroFig { font-size: 34px; }
+}
+
+/* THE .tile FAMILY WAS DELETED HERE 2026-07-29 (redesign pass 2).
+   .tiles .tile .tileBig .tileLabel .tileSub .tileProv .tileTonePos
+   .tileToneNeg -- verified at 0 usages in HistoryView.tsx after the
+   two same-weight summary tiles collapsed into .hero above.
+   .tileTonePos/.tileToneNeg also carried `inset 3px 0 0` side stripes,
+   the coloured-edge-as-hierarchy pattern removed everywhere else on
+   2026-07-29. Recover from git history if a tile grid ever returns. */
 
 /* ---- Chart card ---- */
 .chartCard,
