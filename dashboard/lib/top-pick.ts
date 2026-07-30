@@ -31,6 +31,7 @@
  * figure a follower on any bankroll would have experienced.
  */
 import { loadLedgerRows } from "./roi";
+import { compareForTopPick } from "./top-pick-rank";
 
 export interface TopPickBet {
   date: string;
@@ -113,35 +114,18 @@ function isoMinus(iso: string, days: number): string {
   return new Date(t - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** Confidence in the direction actually bet: smaller = stronger play. */
-function rank(b: { side: string; modelP: number }): number {
-  return b.side === "NRFI" ? 1 - b.modelP : b.modelP;
-}
+/* The ranking rule lives in lib/top-pick-rank.ts -- pure arithmetic,
+   no imports -- because BoardTable is a CLIENT component and importing
+   it from here would drag this file's `node:fs` dependency into the
+   browser bundle. Re-exported so existing importers keep working. */
+export type { RankableBet } from "./top-pick-rank";
+export { compareForTopPick } from "./top-pick-rank";
 
-/**
- * Pick the better of two candidates for the #1 slot, deterministically.
- *
- * WHY A TIE-BREAK IS NOT OPTIONAL. The retired calibrator emitted flat
- * steps -- 115 games landed on p = 0.4064 alone -- so **18% of nights
- * have two or more bets sharing the top probability exactly**. With a
- * plain `min()` the winner is whichever row the loader happened to
- * return first, and this card reads Supabase live with a CSV fallback
- * whose row order differs. That made the season record 58-30 from one
- * source and 56-32 from the other: the same question, two answers,
- * decided by storage order.
- *
- * THE RULE: model confidence first, then the BETTER PRICE. When the
- * model genuinely cannot separate two games, the one paying more is the
- * higher-edge bet, which is the choice a bettor would actually make --
- * so the tie-break is a real decision rule rather than an arbitrary
- * stabiliser. Game name settles the remainder so the result is fully
- * determined even when price ties too.
- */
+/** The night's #1, with the game name settling a full tie so the result
+ *  is fully determined even when confidence AND price both match. */
 function better(a: TopPickBet, b: TopPickBet): TopPickBet {
-  const ra = rank(a), rb = rank(b);
-  if (Math.abs(ra - rb) > 1e-9) return ra < rb ? a : b;
-  const ia = implied(a.odds), ib = implied(b.odds);
-  if (Math.abs(ia - ib) > 1e-9) return ia < ib ? a : b;
+  const c = compareForTopPick(a, b);
+  if (c !== 0) return c < 0 ? a : b;
   return a.game <= b.game ? a : b;
 }
 

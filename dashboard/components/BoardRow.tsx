@@ -299,6 +299,7 @@ export function BoardRowItem({
   thresholds,
   slateDate,
   replayStakes,
+  isTopPick,
 }: {
   row: BoardRow;
   detail: GameDetail | undefined;
@@ -311,6 +312,11 @@ export function BoardRowItem({
    *  keyed by replayKey(). Absent for a slate the replay has not
    *  covered yet (tonight). */
   replayStakes?: Map<string, ReplayStake>;
+  /** This row is the slate's highest-confidence STRONG bet. Decided in
+   *  BoardTable with the SAME comparator lib/top-pick uses for the
+   *  historical record, so the badge and that card can never disagree
+   *  about which game was #1. */
+  isTopPick?: boolean;
 }) {
 
   // T3.22: compute tentative lean once at the row level.  Only meaningful
@@ -399,6 +405,27 @@ export function BoardRowItem({
         </span>
 
         <span className={styles.pickCell}>
+          {/* THE TOP BET OF THE NIGHT.
+              Leads the pick cell rather than trailing it: the operator
+              reads this board left to right in about thirty seconds,
+              and a marker that arrives after the pill and two chips is
+              a marker they find second. "#1" then "STRONG YRFI" also
+              reads as a sentence.
+              A LABEL, NOT A COLOUR -- the /history card it points at is
+              the one number on that page that never rewrites itself, so
+              this needs to survive a greyscale phone screenshot. */}
+          {isTopPick && (
+            <span
+              className={styles.topPick}
+              title={
+                "Top bet on tonight's board -- the model's highest-confidence " +
+                "STRONG play. Its running record is the #1 pick card on the " +
+                "history page."
+              }
+            >
+              #1
+            </span>
+          )}
           <PickPill
             row={row}
             detail={detail}

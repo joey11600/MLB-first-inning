@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { compareForTopPick } from "@/lib/top-pick-rank";
 import type { BoardRow, GameDetail, PickThresholds } from "@/lib/types";
 import type { ReplayStake } from "@/lib/season-record";
 import { BoardRowItem } from "./BoardRow";
@@ -50,6 +51,57 @@ export function BoardTable({
       details[`${r.away}@${r.home}`]
     );
   }
+
+  /* THE SLATE'S #1 BET.
+   *
+   * Operator, 2026-07-30: "i would like to be able to tell which bet is
+   * the top bet." The /history card tracks the #1 pick's record, but the
+   * board never said which of tonight's plays IS it -- so the number was
+   * only ever readable after the fact.
+   *
+   * Ranked with `compareForTopPick`, the SAME comparator lib/top-pick
+   * uses for the historical record. Sharing it is the point: two
+   * surfaces answering "which was #1" with their own private rule is
+   * precisely how this dashboard has produced contradictions before.
+   *
+   * STRONG ONLY. LEAN is tracked and never wagered, so a "top bet" that
+   * is not a bet would be an instruction to risk money the system does
+   * not intend to risk -- the same rule the stake chip enforces.
+   *
+   * Computed over `rows`, not `sortedRows`: the #1 pick is a property of
+   * the slate, so re-sorting the table by edge or result must not change
+   * which game holds the badge.
+   */
+  const topPickKey = useMemo(() => {
+    let best: BoardRow | null = null;
+    for (const r of rows) {
+      if (r.pickStrength !== "STRONG") continue;
+      if (r.pickSide !== "YRFI" && r.pickSide !== "NRFI") continue;
+      const d = lookupDetail(r);
+      const oddsStr = r.pickSide === "YRFI" ? d?.marketYrfiOdds : d?.marketNrfiOdds;
+      const odds = oddsStr ? Number.parseFloat(String(oddsStr)) : NaN;
+      const cand = {
+        side: r.pickSide,
+        modelP: r.nrfiPct / 100,
+        odds: Number.isFinite(odds) && odds !== 0 ? odds : null,
+      };
+      if (!best) { best = r; continue; }
+      const bd = lookupDetail(best);
+      const bOddsStr = best.pickSide === "YRFI" ? bd?.marketYrfiOdds : bd?.marketNrfiOdds;
+      const bOdds = bOddsStr ? Number.parseFloat(String(bOddsStr)) : NaN;
+      const cur = {
+        side: best.pickSide,
+        modelP: best.nrfiPct / 100,
+        odds: Number.isFinite(bOdds) && bOdds !== 0 ? bOdds : null,
+      };
+      const c = compareForTopPick(cand, cur);
+      // Game name settles a full tie, matching lib/top-pick's final key.
+      if (c < 0 || (c === 0 && `${r.away}@${r.home}` < `${best.away}@${best.home}`)) {
+        best = r;
+      }
+    }
+    return best ? (best.gamePk || `${best.away}@${best.home}#${best.rank}`) : null;
+  }, [rows, details]);
 
   // Memoized sort: avoid recomputing on every keystroke / unrelated re-render.
   const sortedRows = useMemo(() => {
@@ -165,6 +217,7 @@ export function BoardTable({
             <BoardRowItem
               key={key}
               row={row}
+              isTopPick={topPickKey != null && key === topPickKey}
               detail={detail}
               live={live}
               expanded={expanded.has(key)}

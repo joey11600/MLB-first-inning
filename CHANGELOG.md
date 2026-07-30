@@ -11,6 +11,71 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30i] — "#1" badge on the board's top bet
+
+Operator: *"i would like to be able to tell which bet is the top bet."*
+
+The /history card has tracked the #1 pick's record since 2026-07-30g, but
+the board never said which of tonight's plays **is** it — so the figure
+was only ever readable after the fact.
+
+### Added — a `#1` badge, leading the pick cell
+
+Leads rather than trails: the operator reads this board left to right in
+about thirty seconds, and a marker arriving after the pill and two chips
+is a marker they find second. "#1 STRONG YRFI" also reads as a sentence.
+
+Outlined, `--attn`, never filled and never a money hue — a filled chip in
+`--gain` would read as *"this one won"* on a game that has not started.
+The badge is an identifier, and identifiers on this board are outlines.
+The `#1` glyph carries the meaning, so nothing depends on the colour.
+
+**STRONG only.** LEAN is tracked and never wagered, so a "top bet" that
+is not a bet would be an instruction to risk money the system does not
+intend to risk — the same rule the stake chip enforces.
+
+### One definition of "#1", shared
+
+`lib/top-pick-rank.ts` is new: the comparator, and nothing else. Both the
+server-side history card and the client-side board badge import it, so
+the two cannot disagree about which game was #1 — which is exactly how
+this dashboard has produced contradictions before.
+
+It is a **separate file** because the rule started inside `lib/top-pick.ts`,
+which reads the ledger and therefore imports `node:fs`. `BoardTable` is a
+client component, so importing from there dragged the filesystem into the
+browser bundle and webpack refused to build:
+
+> `UnhandledSchemeError: Reading from "node:fs" is not handled`
+
+A useful failure — it says the rule and the loader are different concerns.
+
+### Verified against the tie dates, which are the hard case
+
+18% of nights have two or more bets sharing the top probability exactly
+(the retired calibrator's flat steps). Confirmed the board and the
+history card resolve them identically:
+
+| date | tied | board badges | history card picks |
+|---|---|---|---|
+| 2026-06-13 | 3 at 59.4% | **LAD@CWS** (−110) | **LAD@CWS** |
+| 2026-07-12 | 5 at 59.4% | **OAK@CWS** (−110) | **OAK@CWS** |
+
+Both are the best-priced of the tied set, then alphabetical — the rule
+as written.
+
+Also confirmed the badge is computed over `rows` and not `sortedRows`, so
+re-sorting the table by edge or result does not move it: it is a property
+of the slate, not of the display order.
+
+### Verified
+
+Production build. Tonight: 1 STRONG, 1 badge, on WSH@ATL — the most
+confident play on the board. 375px and 1280px: zero overflowing elements,
+pick cell does not overflow with the badge added.
+
+---
+
 ## [2026-07-30h] — Provenance stamp on every replay-driven figure
 
 Operator: *"why did the profit change again from yesterday?"*

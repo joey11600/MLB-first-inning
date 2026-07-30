@@ -1204,3 +1204,42 @@
   font-weight: 500;
   color: var(--muted-foreground);
 }
+
+/* ============================================================
+   THE #1 BADGE -- the slate's highest-confidence STRONG bet.
+
+   Added 2026-07-30. Operator: "i would like to be able to tell which
+   bet is the top bet." The /history card has tracked the #1 pick's
+   record for a while, but the board never said which of tonight's
+   plays IS it, so the figure was only readable after the fact.
+
+   OUTLINED, NOT FILLED, and no money hue. A filled chip in --gain
+   would read as a result -- "this one won" -- on a row whose game has
+   not started. The badge is an IDENTIFIER, and identifiers on this
+   board are outlines (see .tag in globals.css, same reasoning).
+
+   --attn is correct here and nowhere near a numeral: this is the one
+   row on the board asking for the operator's attention first, which is
+   exactly what that token means. The "#1" glyph carries the meaning on
+   its own, so nothing depends on the colour.
+   ============================================================ */
+.topPick {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--attn);
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--attn) 55%, var(--border));
+  border-radius: var(--radius);
+  cursor: help;
+}
+
+@media (max-width: 1120px) {
+  .topPick { font-size: 10px; padding: 2px 5px; }
+}
