@@ -483,6 +483,22 @@ function SystemCard({
                 {`season's simulated bank falls by roughly a third.`}
               </span>
             )}
+            {/* WHY THE WINDOW IS SHORTER THAN THE ONE YOU PICKED.
+                The header above says the season starts 2026-04-01, but
+                this card reports from 2026-05-07, and nothing said why.
+                `real` only covers dates where DraftKings prices were
+                actually captured -- April has none, so it is not that
+                the model sat out, it is that those nights cannot be
+                scored against a price anyone paid. Stated rather than
+                left as an unexplained date mismatch. */}
+            {startDate && w.from > startDate && (
+              <span className={styles.provNote}>
+                <span className={styles.provDot} aria-hidden />
+                {`Starts ${w.from}, not ${startDate}: no DraftKings prices were `}
+                {`captured before then, so those nights cannot be scored at a `}
+                {`price you would have paid.`}
+              </span>
+            )}
             {w.nrfi.bets > 0 && (
               <span className={styles.provNote}>
                 <span className={styles.provDot} aria-hidden />
@@ -508,13 +524,24 @@ function SystemCard({
           value={w && y ? `${y.wins}-${y.bets - y.wins}` : "0-0"} />
         <Stat label="Hit rate"
           value={y && y.bets > 0 ? `${(100 * y.wins / y.bets).toFixed(1)}%` : "—"} />
-        {/* Replaces the closing-line-value tile. This is the number that
-            governs whether the headline above is real money or a priced
-            guess, and it was nowhere on the panel before. */}
+        {/* WAS "Priced: N of N" (2026-07-29).  That tile counted bets
+            with a captured DraftKings price, which mattered while the
+            headline came from `projected` and a third of its book was
+            filled at an assumed -125. The headline now comes from
+            `real`, which by construction contains ZERO assumed prices,
+            so the tile could only ever print "43 of 43" -- a stat with
+            no variance is not a stat.
+
+            The slot goes to the number that actually explains the
+            headline: the SAME selection at a flat 1 unit a bet, before
+            Kelly compounding. Season is +9.33u flat against ~+145u
+            levered. If the operator is going to read one supporting
+            figure, it should be the one that separates "the model is
+            finding edge" from "and we are levering it 13x". */}
         <Stat
-          label="Priced"
-          value={w ? `${w.bets - w.assumed} of ${w.bets}` : "—"}
-          caption="at a captured DraftKings price"
+          label="Flat 1u"
+          value={w ? fmtU(w.flatPnl) : "—"}
+          caption="the same bets, unlevered"
           muted
         />
       </div>

@@ -198,6 +198,19 @@ export interface ReplayWindow {
   /** Split by side, because only one of them is actually bet. */
   yrfi: { bets: number; wins: number; pnl: number };
   nrfi: { bets: number; wins: number; pnl: number };
+  /** THE EDGE, UNLEVERED -- what this window returns at a flat 1 unit a
+   *  bet, before Kelly compounding multiplies it.
+   *
+   *  Added 2026-07-29 because the operator kept reading the levered
+   *  figure as the system's performance. Over the season the two are
+   *  +9.33u flat against ~+145u Kelly: the SAME selection, one of them
+   *  multiplied about 13x by compounding. Showing them side by side is
+   *  the difference between "the model is finding edge" and "the model
+   *  is finding edge AND we are levering it hard", which are separate
+   *  questions with separate risks. season_record.py's own footer says
+   *  it: "Flat 1u is the edge. The Kelly line is that same edge levered,
+   *  and it is real only while the hit rate holds." */
+  flatPnl: number;
   /** Bets priced at the -125 stand-in because no DK price was ever
    *  captured. Load-bearing: change that assumption to -155 and the
    *  season's simulated bank falls from ~967u to ~641u. A figure built
@@ -228,7 +241,7 @@ export function replayWindow(
   if (!side || !startIso || !endIso) return null;
   const days = side.days.filter((d) => d.date >= startIso && d.date <= endIso);
   if (days.length === 0) return null;
-  let bets = 0, wins = 0, pnl = 0, assumed = 0;
+  let bets = 0, wins = 0, pnl = 0, assumed = 0, flatPnl = 0;
   const y = { bets: 0, wins: 0, pnl: 0 };
   const n = { bets: 0, wins: 0, pnl: 0 };
   for (const d of days) {
@@ -241,6 +254,9 @@ export function replayWindow(
       const bucket = g.side === "NRFI" ? n : y;
       bucket.bets += 1; if (w) bucket.wins += 1; bucket.pnl += p;
     }
+    // Flat is a DAY-level figure in the export (one flat unit per bet,
+    // summed), so it accumulates per day rather than per game.
+    if (isNum(d.flatPnl)) flatPnl += d.flatPnl;
   }
   if (bets === 0) return null;
   const first = days[0], last = days[days.length - 1];
@@ -252,6 +268,6 @@ export function replayWindow(
     pct: isNum(bankStart) && bankStart > 0 ? pnl / bankStart : null,
     bankStart,
     bankEnd: isNum(last.simBankAfter) ? last.simBankAfter : null,
-    yrfi: y, nrfi: n, assumed,
+    yrfi: y, nrfi: n, assumed, flatPnl,
   };
 }

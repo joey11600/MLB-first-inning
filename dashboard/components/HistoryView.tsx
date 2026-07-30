@@ -11,6 +11,8 @@ import {
   DivergenceBar,
   type DivergenceSummary,
 } from "./InsightCharts";
+import type { RecFile } from "@/lib/season-record";
+import { replayWindow, isNum } from "@/lib/season-record";
 import styles from "./HistoryView.module.css";
 
 const WINDOWS: { key: RoiWindow; label: string }[] = [
@@ -79,9 +81,13 @@ function stakeEpochOf(data: RoiResponse): string | null {
  *  removed the v2/v3 split (V3 was Variant K shadow, no longer surfaced). */
 export function HistoryView({
   initial,
+  seasonRecord,
   divergence,
 }: {
   initial: RoiResponse;
+  /** data/season_record.json, read server-side by app/history/page.tsx.
+   *  Optional: null simply omits the system card, never breaks the page. */
+  seasonRecord?: RecFile | null;
   /** Replay-vs-ledger census, read server-side from season_record.json
    *  and passed down by app/history/page.tsx.  Optional: when it is not
    *  supplied the divergence card is simply not mounted, so this page
@@ -110,6 +116,17 @@ export function HistoryView({
 
   const money = useMemo(() => pickMoneySeries(data), [data]);
   const stakeEpoch = stakeEpochOf(data);
+
+  // REAL prices first, matching RoiPanel's SystemCard. `projected` fills
+  // a third of its book at an assumed -125; leading with it here would
+  // reintroduce on this page the exact figure that was removed from the
+  // dashboard headline.
+  const sysSide = seasonRecord?.real ?? seasonRecord?.projected ?? null;
+  const sysBank = seasonRecord?.startBank ?? 100;
+  const sysWindow = useMemo(
+    () => replayWindow(sysSide, data.startDate, data.endDate),
+    [sysSide, data.startDate, data.endDate],
+  );
 
   // Derive per-day records from the REAL-PRICED cumulative series.
   // Daily = cum[i] - cum[i-1].
@@ -215,6 +232,45 @@ export function HistoryView({
           </div>
         </div>
       </header>
+
+      {/* THE SYSTEM, for the SAME window the filters above select.
+          Added 2026-07-29: this page had the identical 7d/30d/season
+          filters as the main dashboard but answered a different
+          question with them -- it only ever showed the realised ledger,
+          which is mostly bets placed under RULES THAT NO LONGER APPLY
+          (NRFI was live then and is switched off now; the YRFI gate has
+          tightened). So the operator could pick "Last 30 days" on two
+          pages and get two unrelated numbers with nothing saying why.
+
+          This card answers "what would today's system have done over
+          this window". The ledger below answers "what actually
+          happened". Both are true, they are different questions, and
+          they are now labelled as such instead of being left to look
+          like a contradiction. */}
+      {sysWindow && (
+        <section className={styles.tiles}>
+          <div className={styles.tile}>
+            <div className={styles.tileLabel}>
+              The system · ¼-Kelly <span className="tag">Simulated</span>
+            </div>
+            <div className={styles.tileBig}>
+              {formatUnits(sysWindow.pct != null && isNum(sysBank)
+                ? sysWindow.yrfi.pnl / (sysWindow.bankStart || 1) * (sysBank || 100)
+                : sysWindow.yrfi.pnl)}
+            </div>
+            <div className={styles.tileSub}>
+              {sysWindow.yrfi.wins}-{sysWindow.yrfi.bets - sysWindow.yrfi.wins} over{" "}
+              {sysWindow.yrfi.bets} {sysWindow.yrfi.bets === 1 ? "bet" : "bets"} ·{" "}
+              {sysWindow.from} → {sysWindow.to}
+            </div>
+            <div className={styles.tileProv}>
+              What today&apos;s rules would have returned on a {sysBank ?? 100}u bank,
+              real captured prices only. Unlevered, the same bets return{" "}
+              {formatUnits(sysWindow.flatPnl)} at a flat 1u.
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* One tile, not four.  "Day record 61/52/3" counted calendar days by
           sign rather than bets and flattered a losing ledger; "Best day"

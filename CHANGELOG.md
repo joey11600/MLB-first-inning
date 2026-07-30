@@ -11,6 +11,64 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29i] — Every date filter now answers "what would the new system have done"
+
+Operator: *"update the entire dashboard so i can see what our new record
+and profit would be when i choose the date filters"*.
+
+### /history had the same filters and answered a different question
+
+The main dashboard and /history both offer 7d / 30d / season. The
+dashboard showed the **replay** (today's rules), /history showed the
+**realised ledger** — which is mostly bets placed under rules that no
+longer apply: NRFI was live then and is switched off now, and the YRFI
+gate has since tightened. So the same filter on two pages gave two
+unrelated numbers with nothing saying why.
+
+/history now leads with a windowed system card, `real` side, matching
+the dashboard figure exactly:
+
+| window | the system (¼-Kelly) | the actual ledger |
+|---|---|---|
+| Last 7 days | −16.03u (0-4) | −11.15u |
+| Last 30 days | +14.54u (21-13) | −4.41u |
+| Season | +144.85u (67-38) | −8.93u |
+
+Both are true and they answer different questions; they are now labelled
+as such instead of looking like a contradiction. The record is read
+server-side so the card renders on first paint, and soft-fails to null —
+a missing record costs one card, never the page.
+
+### "Priced: N of N" → "Flat 1u"
+
+That tile counted bets with a captured DraftKings price, which mattered
+while the headline came from `projected` and a third of its book was
+filled at an assumed −125. The headline now comes from `real`, which by
+construction has **zero** assumed prices — so the tile could only print
+"43 of 43". A stat with no variance is not a stat.
+
+The slot goes to the figure that actually explains the headline: **the
+same bets, unlevered, at a flat 1 unit.**
+
+| window | ¼-Kelly | flat 1u |
+|---|---|---|
+| Last 7 days | −16.03u | −6.00u |
+| Last 30 days | +14.54u | **+0.89u** |
+| Season | +144.85u | **+9.29u** |
+
+Last 30 days is the one to read twice: **+14.54u levered off +0.89u of
+edge.** That is almost entirely compounding, not model performance —
+precisely the distinction the operator had been missing, now visible
+without asking for it.
+
+### The truncated window says why
+
+The header said the season starts 2026-04-01 while the card reported
+from 2026-05-07, unexplained. `real` only covers dates where prices were
+actually captured; April has none. Stated inline now, rather than left
+as a date mismatch the reader has to rationalise.
+
+
 ## [2026-07-29h] — The system record drops the invented prices
 
 Operator, after being told the season was down: *"i thought we were up
