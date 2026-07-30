@@ -1,0 +1,264 @@
+/* ============================================================
+   WEEK AT A GLANCE.
+
+   Written to match HistoryView.module.css's `.chartCard` shell exactly
+   -- same border, radius, background, padding -- so it reads as a
+   member of the page rather than a widget bolted on.  It is a separate
+   module because it owns a chart nothing else draws, and because the
+   component is self-contained enough to move.
+
+   COLOUR BUDGET: --muted-foreground, --foreground, --border, --card,
+   --sim-hatch.  NO --gain, NO --loss, NO literal hex.  Every figure in
+   this card is a replay, and globals.css is unambiguous: a simulated
+   figure is never tone-coloured.  That rule does more work than usual
+   under the matrix palette, where --foreground and --gain are the same
+   #00FF41 -- hue cannot mark real money when the page is one hue, so
+   BRIGHTNESS is the whole distinction and this card sits on the dim
+   side of it.
+   ============================================================ */
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
+/* THE ONE LARGE FIGURE, and it is DIM.  4.94:1 on --card, which clears
+   AA for large text with room to spare (3:1) and would clear it as body
+   text too.  Dim is not a legibility compromise here, it is the only
+   remaining signal that says "this did not happen to your money". */
+.fig {
+  margin-top: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--muted-foreground);
+}
+
+/* THE WORD IS LOAD-BEARING, not decoration.  Green-and-red is the pair
+   that collapses under red-green colour blindness, and PRODUCT.md's
+   standing rule is that no figure may depend on hue alone.  Here
+   nothing depends on hue at all -- the card is monochrome by design --
+   so the sign and this word are the only carriers of direction. */
+.figWord {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.sub {
+  margin-top: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--muted-foreground);
+}
+
+/* ---- chart ---- */
+
+.chartWrap {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.baseline {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* HATCHED, NOT WASHED.  --sim-hatch is this dashboard's existing
+   "reconstructed / not realised" texture, and the fill under a
+   simulated curve is exactly what it is for -- the surface says
+   back-test on its own, without spending a colour on saying it.
+
+   It cannot be used directly: --sim-hatch is a repeating-linear-
+   gradient, i.e. a CSS *image*, and SVG `fill` takes a paint server,
+   not an image.  So the same 135deg / 2px-on / 3px-off rhythm is
+   rebuilt as an SVG <pattern> in the component and referenced by id.
+   The pattern's strokes read var(--muted-foreground), so it still
+   tracks the theme rather than freezing a colour.
+
+   `fill-opacity` rather than a lighter stroke colour: it keeps the
+   hatch from competing with the line, and it degrades to an even wash
+   if a renderer drops the pattern. */
+.area {
+  fill: url(#weekGlanceHatch);
+  fill-opacity: 0.55;
+  stroke: none;
+}
+.hatchLine {
+  stroke: var(--muted-foreground);
+  stroke-width: 1;
+}
+
+.line {
+  fill: none;
+  stroke: var(--muted-foreground);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.dot {
+  fill: var(--card);
+  stroke: var(--muted-foreground);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  transition: r 120ms ease;
+}
+.dot[data-active="1"] {
+  fill: var(--muted-foreground);
+}
+
+.crosshair {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Transparent hit bands.  `pointer-events: all` is required: a shape
+   with `fill: none` is invisible to the pointer without it, which is
+   the classic reason an SVG tooltip silently never fires. */
+.hit {
+  fill: none;
+  pointer-events: all;
+  cursor: crosshair;
+  outline: none;
+}
+.hit:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* ---- tooltip ---- */
+
+.tip {
+  position: absolute;
+  top: 0;
+  z-index: 4;
+  pointer-events: none;
+  min-width: 152px;
+  padding: 8px 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+}
+
+.tipDate {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-bottom: 5px;
+}
+
+.tipRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.tipKey {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+/* --foreground, not --muted-foreground, and this is the one place the
+   card goes bright.  It is 11px inside a transient popover, where 4.94:1
+   is legal but tiring; the card's "this is simulated" reading is already
+   carried by the 40px headline and the SIMULATED tag, both of which stay
+   dim.  Nothing here is a money hue either way. */
+.tipVal {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.foot {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+  max-width: 74ch;
+}
+
+/* 375px is the design target -- PRODUCT.md's scene is a phone in hand.
+   The headline drops a step so it cannot collide with the tag, and the
+   chart gets taller in relative terms because a 5.5:1 viewBox scaled to
+   343px leaves only 65px of curve. */
+@media (max-width: 720px) {
+  .card { padding: 18px 16px; }
+  .fig { font-size: 30px; }
+  .sub { font-size: 11.5px; }
+  /* The tooltip cannot be allowed to grow past the card on a 343px
+     board -- it is absolutely positioned against the chart, so an
+     over-wide tip would sit under the viewport clip and lose its right
+     edge silently. Narrower box, tighter gap, and the key/value pair
+     stacks if it still cannot fit. */
+  .tip { min-width: 0; max-width: 168px; padding: 7px 9px; }
+  .tipRow { gap: 10px; }
+}

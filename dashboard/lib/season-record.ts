@@ -231,6 +231,156 @@ export interface ReplayWindow {
   assumed: number;
 }
 
+/* ============================================================
+   RE-BASED UNITS.  1 unit = 1% of bankroll, and the bankroll is
+   always 100 units.  Operator decision, 2026-07-30.
+
+   WHY ANY OF THIS EXISTS.  The replay in season_record.json compounds
+   the unit COUNT: it opens a 100u bank in April and stakes a fixed
+   FRACTION of whatever the bank has become, so by late July a routine
+   bet is 10.00u because the bank is 217u.  Under the operator's model
+   that same bet is 4.61u for everyone, because a unit is 1% of your
+   own bank whatever your bank is.  The replay's raw figures describe a
+   bankroll exactly one person could ever have had.
+
+   THE CONSEQUENCE THAT BITES.  Raw per-day figures are NOT ADDABLE.
+   Summing simPnl over the last seven days gives -13.17u; the bank
+   actually moved 223.07 -> 209.89, which is -5.91%, i.e. -5.91u on a
+   100u bank.  The naive sum is 2.2x the truth and it is the number
+   every "just add the column" instinct produces.
+
+   THE FIX, and it is one line of arithmetic: divide each day's P&L by
+   the bank it OPENED with.  That ratio is bankroll-free -- it is what
+   a $1k follower and a $25k follower both experienced -- and the
+   ratios compound to exactly the bank ratio, so a chart drawn from
+   them ends where the headline says it ends.  Verified: compounding
+   the five daily returns gives -5.90u against the bank ratio's
+   -5.91u, the gap being float rounding.
+
+   WHICH SIDE.  `simBankAfter` stakes YRFI ONLY, as of the 2026-07-30
+   exporter fix, because _LR_STRONG_NRFI_P = 1.01 has had NRFI
+   switched off since 2026-06-07.  But `day.games` still CONTAINS
+   NRFI rows -- 24 of them in the real-price window -- so anything
+   that counts bets by walking games and anything that reads the bank
+   are describing different populations unless the walk filters.  This
+   is not hypothetical: `ReplayWindow.pct` folds NRFI into a figure it
+   divides by a YRFI-only bank and lands on -7.7% where the bank says
+   -5.91%.  Everything below reports YRFI and counts the off-side
+   separately, so the two can never drift apart silently.
+   ============================================================ */
+
+/** One day, with its P&L expressed as a share of the bank it opened. */
+export interface RebasedDay {
+  date: string;
+  /** P&L as a fraction of the opening bank. Bankroll-free. */
+  ret: number;
+  /** `ret` on a 100-unit bank -- the publishable per-night figure. */
+  units: number;
+  /** Bank indexed to 100 at window open, after this day settles. */
+  indexed: number;
+  /** The replay's own compounded figure. Kept for provenance only;
+   *  never render it beside a re-based one without saying so. */
+  rawPnl: number;
+  bankBefore: number;
+  bankAfter: number;
+}
+
+export interface RebasedWindow {
+  from: string;
+  to: string;
+  days: RebasedDay[];
+  /** The replay's compounded bank at each end of the window. */
+  bankStart: number;
+  bankEnd: number;
+  /** THE HEADLINE: window return on a 100-unit bank. Derived from the
+   *  bank ratio, never from a sum, so it cannot disagree with `days`. */
+  units: number;
+  /** The same figure as a fraction. */
+  pct: number;
+  /** YRFI only -- the side the bank actually stakes. */
+  bets: number;
+  wins: number;
+  losses: number;
+  /** Bets the record holds on a side the bank does NOT stake. Surfaced
+   *  rather than dropped: a non-zero value means the record and the
+   *  bank are describing different books and the reader should be told. */
+  offSideBets: number;
+  /** Of `bets`, how many were priced at the -125 stand-in. */
+  assumed: number;
+}
+
+/**
+ * The last `count` calendar days of a side's record, re-based.
+ *
+ * CALENDAR days, not the last N ENTRIES. `side.days` only holds dates
+ * that had games, so "the last 7 entries" silently reaches back 9 or 10
+ * days on a sparse stretch while the label still says a week. The
+ * returned `from`/`to` are the real span so a caption can state it.
+ */
+export function rebaseLastDays(
+  side: RecSide | null | undefined,
+  count: number,
+): RebasedWindow | null {
+  if (!side || side.days.length === 0 || count < 1) return null;
+
+  // A null simBankAfter means nothing settled that day; it carries no
+  // bank observation, so it cannot be a point on a bank curve.
+  const withBank = side.days.filter((d) => isNum(d.simBankAfter) && isNum(d.simPnl));
+  if (withBank.length === 0) return null;
+
+  const last = withBank[withBank.length - 1];
+  const endMs = Date.parse(`${last.date}T00:00:00Z`);
+  if (!Number.isFinite(endMs)) return null;
+  const startMs = endMs - (count - 1) * 86_400_000;
+  const startIso = new Date(startMs).toISOString().slice(0, 10);
+
+  const win = withBank.filter((d) => d.date >= startIso);
+  if (win.length === 0) return null;
+
+  const days: RebasedDay[] = [];
+  let indexed = 100;
+  for (const d of win) {
+    const bankAfter = d.simBankAfter as number;
+    const rawPnl = d.simPnl;
+    const bankBefore = bankAfter - rawPnl;
+    // A non-positive opening bank makes the ratio meaningless (and the
+    // replay is ruined anyway); treat the day as flat rather than
+    // emitting an Infinity that would blow up the chart's scale.
+    const ret = bankBefore > 0 ? rawPnl / bankBefore : 0;
+    indexed *= 1 + ret;
+    days.push({
+      date: d.date, ret, units: ret * 100,
+      indexed, rawPnl, bankBefore, bankAfter,
+    });
+  }
+
+  const bankStart = days[0].bankBefore;
+  const bankEnd = days[days.length - 1].bankAfter;
+  // FROM THE RATIO, NOT FROM A SUM. This is the whole point of the
+  // module: `units` and the `indexed` series are two readings of one
+  // quantity, so the curve's last point IS the headline.
+  const pct = bankStart > 0 ? bankEnd / bankStart - 1 : 0;
+
+  let bets = 0, wins = 0, offSideBets = 0, assumed = 0;
+  for (const d of win) {
+    for (const g of d.games) {
+      if (g.record.action !== "BET") continue;
+      if (g.side === "NRFI") { offSideBets += 1; continue; }
+      bets += 1;
+      if (g.record.win === true) wins += 1;
+      if (g.record.assumed) assumed += 1;
+    }
+  }
+
+  return {
+    from: days[0].date, to: days[days.length - 1].date,
+    days, bankStart, bankEnd,
+    units: pct * 100, pct,
+    bets, wins, losses: bets - wins, offSideBets, assumed,
+  };
+}
+
+
 /**
  * What the system did between two dates.
  *

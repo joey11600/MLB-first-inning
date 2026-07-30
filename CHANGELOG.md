@@ -11,6 +11,110 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30d] — "Week at a glance" card on /history
+
+Operator found an analytics card online (a "BudgetCard": big figure,
+smooth sparkline, hover tooltip) and asked for the same visual idea
+**built natively, not pasted in.**
+
+### Why pasting it was never on
+
+Both reasons were checked, not assumed:
+
+- **No Tailwind, no shadcn in this project.** It is 16 CSS Modules files
+  plus custom properties. Every utility class in that component would
+  have rendered as *nothing* — not a broken style, an absent one, which
+  looks like a layout bug and gets debugged as one.
+- **It ships hardcoded fake data** — a `$30.739` balance, an invented
+  week, indigo `#5B52E5` lines. This dashboard has spent days removing
+  invented numbers; a fabricated balance in the most prominent card
+  would be the single most believable wrong number on the page.
+
+### Added — `WeekAtAGlance.tsx` + `.module.css`
+
+CSS Modules matching `.chartCard`'s shell exactly. Tokens only
+(`--muted-foreground`, `--foreground`, `--border`, `--card`); **no new
+hex, no `--gain`/`--loss`**. Real data from `season_record.json`
+`real.days[]`, the same object the hero above it reads. Mounted on
+`/history` above the equity curve. No npm dependency added.
+
+Fixed at 7 days and deliberately does **not** follow the page's
+window toggle: a card captioned "last 7 days" that silently becomes 30
+is the two-figures-one-label trap this page has been cleared of twice.
+
+### The headline is not the obvious number, and that is the point
+
+The obvious headline is "sum the last seven days". That is exactly what
+the unit model forbids — the replay compounds the unit *count*, so a
+10.00u loss on a 217u bank and a 2.00u loss on a 223u bank are not the
+same quantity:
+
+| | |
+|---|---|
+| naive sum of `simPnl` | **−13.17u** ← wrong, and 2.2× the truth |
+| what the bank actually did | 223.07 → 209.89 |
+| honest figure | **−5.91u** (−5.91% of bank) |
+
+The curve plots the bank **indexed to 100 at window open**, so its last
+point and the headline are one quantity read two ways and cannot
+disagree. Verified: compounding the five daily returns gives −5.90u
+against the bank ratio's −5.91u, the gap being float rounding.
+
+### Added — `rebaseLastDays()` in `lib/season-record.ts`
+
+Divides each day's P&L by the bank it *opened* with. That ratio is
+bankroll-free — it is what a $1k follower and a $25k follower both
+experienced — and the ratios compound to exactly the bank ratio.
+
+It also reports `offSideBets` separately rather than dropping them.
+`simBankAfter` stakes **YRFI only** (exporter fix, 2026-07-30) but
+`day.games` still *contains* NRFI rows — 24 of them in the real-price
+window, 1 in the last 7 days. Counting bets by walking games while
+reading a YRFI-only bank puts two populations in one sentence. The card
+names the excluded NRFI bet on its own face.
+
+**Latent trap found, not yet fixed:** `ReplayWindow.pct` divides an
+all-sides `pnl` by a YRFI-only `bankStart` and lands on −7.7% where the
+bank says −5.91%. Nothing renders it today — `RoiPanel` computes its own
+from `yrfi.pnl` — so it is a loaded gun rather than a live defect.
+
+### Simulated, held apart by brightness
+
+Every figure here is a replay, so nothing is tone-coloured no matter
+which way the week went; the sign plus the word "up"/"down" carries
+direction. Under the matrix palette this rule does more work than usual
+because `--foreground` and `--gain` are both `#00FF41` — hue cannot mark
+real money when the page is one hue, so brightness is the whole
+distinction and this card sits on the dim side of it. The area fill uses
+the existing `--sim-hatch` rhythm, rebuilt as an SVG `<pattern>` because
+`fill` takes a paint server and not a CSS image.
+
+### Verified
+
+Production build. Every rendered figure reproduced against an
+independent Python calculation over `season_record.json`:
+
+| day | day P&L | week to date |
+|---|---|---|
+| Jul 24 | −0.90u | −0.90u |
+| Jul 26 | 0.00u | −0.90u |
+| Jul 27 | −1.81u | −2.69u |
+| Jul 28 | −4.61u | −7.17u |
+| Jul 29 | +1.37u | −5.90u |
+
+Headline −5.91u / −5.91% of bank / 1–4 over 5 bets / Jul 24 → Jul 29.
+375px: card 343px wide, **zero internal overflow**, `/history` still at
+its pre-existing 18 offenders with none from this card. Pointer
+hit-testing confirmed routing to all five bands.
+
+**Not verified in-browser:** real mouse-hover and keyboard-focus firing.
+The Browser pane is hidden in this environment, so Chrome dispatches no
+`focus`/`focusin` events at all and React's enter/leave delegation never
+runs. Handlers are confirmed attached and the render path is confirmed
+correct when state is set; the event dispatch itself is untested.
+
+---
+
 ## [2026-07-30c] — VT323 out, JetBrains Mono in
 
 Operator: *"VT323 is too hard to read ... it is a pixel font -- at 11-13px

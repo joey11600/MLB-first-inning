@@ -13,6 +13,7 @@ import {
 } from "./InsightCharts";
 import type { RecFile, RecSide } from "@/lib/season-record";
 import { replayWindow, isNum } from "@/lib/season-record";
+import { WeekAtAGlance } from "./WeekAtAGlance";
 import styles from "./HistoryView.module.css";
 
 const WINDOWS: { key: RoiWindow; label: string }[] = [
@@ -398,6 +399,20 @@ export function HistoryView({
             142 YRFI bets today's gate would reject. Every row is still
             in the CSV and Supabase; tools/pl_calc.py reports it. */}
       </section>
+
+      {/* WEEK AT A GLANCE -- above the equity curve on purpose.
+          The curve answers "how has the season gone"; this answers "how
+          did the last week go", which is the question someone opening
+          this page most often actually has, and it answers it in ONE
+          figure. It is deliberately fixed at 7 days and does NOT follow
+          the window toggle above: a card captioned "last 7 days" that
+          silently becomes 30 is the two-figures-one-label trap this
+          page has been cleared of twice.
+
+          `sysSide` is the same side object the hero reads, so the two
+          cannot describe different books. Renders nothing at all when
+          there is no record -- see the guard in the component. */}
+      <WeekAtAGlance side={sysSide} />
 
       {/* T2.42: Bankroll equity curve.  Pure cumulative line + drawdown
           shading + peak marker + stats panel.  Reads the real-priced
