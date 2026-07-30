@@ -51,14 +51,29 @@ by the fix for it.
 loop that produces `pnl`, and split per side, so the two cannot describe
 different populations. Both call sites read `yrfi.flat`.
 
-### Also found (not fixed — dead weight, no money impact)
+### Also fixed — the phantom-deleted files
 
-`DashboardShell`'s comment claims `ShadowPnlCard`, `SlateProjections`
-and `StatusLine` were "FILE DELETED 2026-07-28". **All three still
-exist.** `ShadowPnlCard` is the sole consumer of `/api/shadow-pnl` and
-is mounted nowhere, so that endpoint is live with no caller.
-`SummaryStrip` is correctly alive (OpsHealthCard and TonightsActionCard
-import it).
+`DashboardShell`'s comment claimed `StatusLine`, `ShadowPnlCard` and
+`SlateProjections` "were DELETED outright on 2026-07-28 — files and
+stylesheets", and that `SummaryStrip` was "still live: OpsHealthCard and
+TonightsActionCard both import it. Do not delete it."
+
+**Both claims were false.** All four `.tsx` files and all four
+stylesheets were still on disk, and the two "imports" of `SummaryStrip`
+were *prose mentions inside comments* — verified by grepping actual
+`from "..."` lines, which returned nothing for any of the four.
+`ShadowPnlCard` was additionally the sole caller of `/api/shadow-pnl`,
+leaving that route live in production with no consumer.
+
+Deleted for real: 8 files plus the orphaned route (now 404). Verified
+against `.next/static/chunks` that none reached the bundle before
+removing, and both pages render with a clean console afterwards.
+
+The comment now records why this matters beyond tidiness: **a comment
+asserting code is gone when it is not is how the
+`realPricedCumulativePL` bug survived** — documentation stating a state
+nobody re-checked. If you claim a deletion there, run the grep in the
+same commit.
 
 
 ## [2026-07-29k] — The daily ledger now reconciles to the headline

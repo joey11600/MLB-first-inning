@@ -22,16 +22,27 @@ import styles from "./DashboardShell.module.css";
 
 // 2026-07-28 redesign -- SURFACES REMOVED FROM THIS SHELL.
 //
-// SummaryStrip is UNMOUNTED HERE but the file is still live: OpsHealthCard
-// and TonightsActionCard both import it.  Do not delete it.
+// 2026-07-30 CORRECTION. This block asserted on 2026-07-28 that
+// StatusLine, ShadowPnlCard and SlateProjections "were DELETED outright
+// -- files and stylesheets", and that SummaryStrip was "still live:
+// OpsHealthCard and TonightsActionCard both import it. Do not delete
+// it."  BOTH CLAIMS WERE FALSE.
 //
-// StatusLine, ShadowPnlCard and SlateProjections were DELETED outright on
-// 2026-07-28 -- files and stylesheets, 427 lines of TSX.  They had zero
-// import sites anywhere in the app; the only thing that referenced them
-// was this comment block, which used to claim they were "restorable by one
-// import" and so made them read as live code to anyone grepping for where
-// a number comes from.  They are not restorable by one import any more.
-// Recover them from git history if they are ever wanted back.
+// All four .tsx files and all four stylesheets were still on disk two
+// days later, and the two "imports" of SummaryStrip were PROSE mentions
+// inside comments, not import statements -- verified by grepping actual
+// `from "..."` lines, which returned nothing for any of the four.
+// ShadowPnlCard was additionally the sole caller of /api/shadow-pnl, so
+// that route was live in production with no consumer.
+//
+// They are deleted NOW, for real: 8 files plus the orphaned route.
+// Recover from git history if ever wanted back.
+//
+// WHY THIS MATTERS BEYOND TIDINESS: a comment that says code is gone
+// when it is not is worse than no comment. It is exactly how the
+// realPricedCumulativePL bug survived -- documentation asserting a
+// state nobody re-checked. If you claim a deletion here, run the grep
+// in the same commit.
 //
 //   SummaryStrip  -- "Games today" now reads off the ticker's
 //                    `games shown/total`; the Avg-λ tile (mean AND its
@@ -50,17 +61,19 @@ import styles from "./DashboardShell.module.css";
 //                    ticker; SIDE / STRENGTH / SORT are the ControlPanel
 //                    buttons themselves.  Its three NRFI/PASS/YRFI colour
 //                    swatches are gone deliberately: colour no longer
-//                    encodes side, so the legend would be wrong.  FILE
-//                    DELETED 2026-07-28.
+//                    encodes side, so the legend would be wrong.
+//                    Deleted for real 2026-07-30.
 //   ShadowPnlCard -- was supposed to fold into DemotionsBanner as its
 //                    expanded body.  That never happened, and the file sat
-//                    unmounted for three months.  FILE DELETED 2026-07-28;
-//                    the shadow-P&L question is answered by
-//                    tools/cluster_shadow_pnl.py on the command line.
-//   SlateProjections -- unmounted and unreferenced.  FILE DELETED
-//                    2026-07-28.
+//                    unmounted for three months.  Deleted for real
+//                    2026-07-30, along with /api/shadow-pnl, which it
+//                    was the only caller of.  The shadow-P&L question
+//                    is answered by tools/cluster_shadow_pnl.py.
+//   SlateProjections -- unmounted and unreferenced.  Deleted for real
+//                    2026-07-30.
 //
-// None of these ships in the JavaScript bundle any more.
+// None of these ships in the JavaScript bundle -- verified against
+// .next/static/chunks before deleting, not assumed.
 
 // T-V21-LOCKIN-2026-05-06: removed ModelToggle (V2/V3 pill) and
 // ShadowDeltaCard (V2-vs-V2.1 daily delta tile).  V2.1 is now the
