@@ -11,6 +11,57 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29h] — The system record drops the invented prices
+
+Operator, after being told the season was down: *"i thought we were up
+90+ units profit on the season with the new system and the kelley
+sizing"* — then, asked what they wanted: *"the real record should be
+based off if we started with 100u bankroll, sizing properly"*.
+
+### The headline was compounding prices that were never observed
+
+`season_record.json` carries two sides. `projected` fills every bet with
+no captured DraftKings price at an assumed **−125** — 62 of its 194
+bets, a third of the book. `real` is the same model, same gate, same
+quarter-Kelly sizing, on the subset whose price was actually observed.
+
+The SystemCard headline read `projected ?? real`. Every other consumer
+in the app already preferred `real` first; this one surface did not, and
+it is the one rendered at 32px.
+
+| | bets | invented prices | flat edge | ¼-Kelly from 100u |
+|---|---|---|---|---|
+| `projected` | 194 | 62 | +32.46u | → 866.08u (**+766u**) |
+| `real` | 127 | 0 | +9.33u | → 227.11u (**+127u**) |
+
+The exporter's own docstring already warned about this: *"a simulated
+100u bank turns a +34u edge into a +880u 'profit' that was never
+earned."* Headline is now `real ?? projected`; SEASON reads **+144.85u**
+(YRFI only, 105 bets) instead of **+822.19u**. `projected` is not
+deleted — it still renders inside "How this number was computed", which
+is the disclosure that exists to state the price assumption.
+
+Also regenerated `season_record.json`, which was stale: it described 191
+bets under an older gate while a fresh replay produces 194.
+
+### The number is still a simulation, and the gap is SELECTION not sizing
+
+Both figures are `Simulated`-tagged and neutral-toned per the colour
+law. The honest reconciliation the operator needed:
+
+- **Real ledger, real prices, what actually happened: −10.55u** over 528
+  graded STRONG bets.
+- **Replay, real prices, quarter-Kelly from 100u: +127u** over 127 bets.
+
+Those differ mainly because **the replay bets a quarter as often** — it
+applies today's tightened gate to the whole season, where the ledger bet
+everything the system flagged STRONG at the looser gates in force at the
+time. Resizing a losing selection does not make it win; the replay wins
+by *not taking* ~400 of those bets. Recorded here because "make the
+simulation real" is an operational change (bet the replay's slate), not
+a reporting one.
+
+
 ## [2026-07-29g] — Decision-first redesign: the card now names the plays
 
 Operator asked for a full UI redesign and chose **decision-first

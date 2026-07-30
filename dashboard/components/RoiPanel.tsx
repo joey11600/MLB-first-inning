@@ -238,7 +238,28 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
             from 7/28 it is live. */}
         <SystemCard
           rec={seasonRecord}
-          side={seasonRecord?.projected ?? seasonRecord?.real ?? null}
+          /* REAL PRICES FIRST (2026-07-29).  Was `projected ?? real`.
+           *
+           * `projected` fills every bet with no captured DraftKings
+           * price at an assumed -125 -- 62 of its 194 bets, a third of
+           * the book. Compounded through quarter Kelly that assumption
+           * is worth an enormous amount: projected simulates 100u ->
+           * 866u (+766u) where the same strategy on REAL prices only
+           * simulates 100u -> 227u (+127u). The operator read the
+           * bigger figure as their season and asked "i thought we were
+           * up 90+ units" -- the honest answer needed three numbers to
+           * untangle, and this was the loudest wrong one.
+           *
+           * `real` is the same model, same gate, same quarter-Kelly
+           * sizing, on the subset of bets whose price was actually
+           * observed. It starts 2026-05-07 because nothing before that
+           * has captured prices. Fewer bets, smaller number, no
+           * invented money.
+           *
+           * `projected` is NOT deleted -- it is still in the record
+           * file and still rendered inside "How this number was
+           * computed", where the price assumption is stated next to it. */
+          side={seasonRecord?.real ?? seasonRecord?.projected ?? null}
           bankUnits={seasonRecord?.startBank ?? 100}
           startDate={view?.startDate}
           endDate={view?.endDate}
@@ -519,9 +540,12 @@ function SystemCard({
  *  compounded bank arrow the operator has been reading as his season is
  *  still here, now with a sentence saying what it actually is.
  *
- *  The side shown is `projected`, which is the SAME object SystemCard
- *  leads with (RoiPanel passes projected ?? real). That is deliberate:
- *  the two can now differ only by date window, never by population. */
+ *  THE BOX SHOWS `projected` ON PURPOSE, and since 2026-07-29 that is
+ *  NOT what the headline above leads with (that is now `real`). This is
+ *  the one place the price-assumption figure belongs: inside the
+ *  disclosure that exists to explain the assumption, stated next to it,
+ *  rather than as a 32px headline the operator reads as their season.
+ *  ReplayBody prints the fill and the assumed-bet count. */
 function HowComputed({ rec }: { rec: RecFile }) {
   const real = rec.real;
   return (

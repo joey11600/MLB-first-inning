@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-07-29T06:14:48Z",
+ "generatedUtc": "2026-07-30T02:59:18Z",
  "headlineMethod": "the model that is live right now -- the shipped calibrator and the current gate -- replayed over every game of the season",
  "floorMethod": "no-hindsight check: at each date the calibrator is refit using only games played before that date",
  "caveat": "the shipped calibrator was fit on 2025+2026 data, so it has already seen these outcomes; the model weights are the fixed 2026-05-26 refit (trained through 2026-05-11), which makes bets on or before 2026-05-11 partially in-sample",
@@ -14,51 +14,51 @@
   "label": "Projected profit",
   "priceFill": -125.0,
   "from": "2026-04-01",
-  "to": "2026-07-28",
-  "bets": 191,
-  "wins": 127,
-  "losses": 64,
-  "hitRate": 0.6649,
-  "breakEvenNeeded": 0.5688,
-  "edgePts": 9.62,
-  "flatProfit": 33.66,
-  "assumedBets": 60,
-  "selectedBets": 226,
-  "droppedZeroStake": 35,
-  "droppedFlatPnl": -1.48,
+  "to": "2026-07-29",
+  "bets": 194,
+  "wins": 128,
+  "losses": 66,
+  "hitRate": 0.6598,
+  "breakEvenNeeded": 0.5686,
+  "edgePts": 9.12,
+  "flatProfit": 32.46,
+  "assumedBets": 62,
+  "selectedBets": 227,
+  "droppedZeroStake": 33,
+  "droppedFlatPnl": -1.28,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 885.95,
-   "profit": 785.95,
-   "maxDrawdownPct": 26.37,
+   "finalBank": 866.08,
+   "profit": 766.08,
+   "maxDrawdownPct": 28.1,
    "kellyFraction": 0.25,
-   "largestStake": 93.69,
-   "medianStake": 22.18
+   "largestStake": 94.0,
+   "medianStake": 22.0
   },
   "floor": {
-   "bets": 140,
-   "wins": 94,
-   "losses": 46,
-   "hitRate": 0.6714,
-   "breakEvenNeeded": 0.5726,
-   "edgePts": 9.89,
-   "flatProfit": 24.45,
-   "assumedBets": 37,
+   "bets": 143,
+   "wins": 96,
+   "losses": 47,
+   "hitRate": 0.6713,
+   "breakEvenNeeded": 0.5723,
+   "edgePts": 9.9,
+   "flatProfit": 25.01,
+   "assumedBets": 39,
    "sim": {
-    "finalBank": 418.59,
-    "profit": 318.59,
-    "maxDrawdownPct": 21.39,
-    "largestStake": 46.51
+    "finalBank": 416.11,
+    "profit": 316.11,
+    "maxDrawdownPct": 21.36,
+    "largestStake": 46.0
    }
   },
   "monthly": [
    {
     "month": "2026-04",
-    "bets": 62,
-    "wins": 46,
-    "losses": 16,
-    "flat": 20.68,
-    "assumedBets": 60
+    "bets": 64,
+    "wins": 47,
+    "losses": 17,
+    "flat": 20.48,
+    "assumedBets": 62
    },
    {
     "month": "2026-05",
@@ -78,10 +78,10 @@
    },
    {
     "month": "2026-07",
-    "bets": 40,
+    "bets": 41,
     "wins": 24,
-    "losses": 16,
-    "flat": 0.74,
+    "losses": 17,
+    "flat": -0.26,
     "assumedBets": 0
    }
   ],
@@ -89,8 +89,8 @@
    {
     "date": "2026-04-01",
     "flatPnl": -0.2,
-    "simPnl": 1.59,
-    "simBankAfter": 101.59,
+    "simPnl": 1.8,
+    "simBankAfter": 101.8,
     "flagged": 6,
     "placed": 0,
     "bet": 2,
@@ -135,10 +135,10 @@
       "modelP": 0.3902,
       "record": {
        "action": "BET",
-       "stake": 3.05,
+       "stake": 3.0,
        "odds": -125,
        "win": false,
-       "pnl": -3.05,
+       "pnl": -3.0,
        "assumed": true
       }
      },
@@ -199,10 +199,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 5.8,
+       "stake": 6.0,
        "odds": -125,
        "win": true,
-       "pnl": 4.64,
+       "pnl": 4.8,
        "assumed": true
       },
       "ledger": {
@@ -218,8 +218,8 @@
    {
     "date": "2026-04-02",
     "flatPnl": 0.8,
-    "simPnl": 7.19,
-    "simBankAfter": 108.78,
+    "simPnl": 7.2,
+    "simBankAfter": 109.0,
     "flagged": 2,
     "placed": 0,
     "bet": 1,
@@ -247,10 +247,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 8.99,
+       "stake": 9.0,
        "odds": -125,
        "win": true,
-       "pnl": 7.19,
+       "pnl": 7.2,
        "assumed": true
       },
       "ledger": {
@@ -265,12 +265,12 @@
    },
    {
     "date": "2026-04-03",
-    "flatPnl": -0.2,
-    "simPnl": -3.86,
-    "simBankAfter": 104.92,
+    "flatPnl": 0.6,
+    "simPnl": -3.12,
+    "simBankAfter": 105.88,
     "flagged": 4,
     "placed": 0,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "SEA@LAA",
@@ -278,10 +278,10 @@
       "modelP": 0.2908,
       "record": {
        "action": "BET",
-       "stake": 9.4,
+       "stake": 9.0,
        "odds": -125,
        "win": false,
-       "pnl": -9.4,
+       "pnl": -9.0,
        "assumed": true
       }
      },
@@ -291,10 +291,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 6.92,
+       "stake": 7.0,
        "odds": -125,
        "win": true,
-       "pnl": 5.54,
+       "pnl": 5.6,
        "assumed": true
       },
       "ledger": {
@@ -327,9 +327,12 @@
       "side": "YRFI",
       "modelP": 0.2946,
       "record": {
-       "action": "SKIP",
-       "code": "daily_cap",
-       "reason": "daily risk cap already used"
+       "action": "BET",
+       "stake": 0.35,
+       "odds": -125,
+       "win": true,
+       "pnl": 0.28,
+       "assumed": true
       },
       "ledger": {
        "strength": "STRONG",
@@ -361,8 +364,8 @@
    {
     "date": "2026-04-04",
     "flatPnl": 1.6,
-    "simPnl": 12.59,
-    "simBankAfter": 117.51,
+    "simPnl": 12.7,
+    "simBankAfter": 118.58,
     "flagged": 7,
     "placed": 0,
     "bet": 2,
@@ -373,10 +376,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 9.28,
+       "stake": 9.0,
        "odds": -125,
        "win": true,
-       "pnl": 7.42,
+       "pnl": 7.2,
        "assumed": true
       },
       "ledger": {
@@ -410,10 +413,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 6.46,
+       "stake": 6.88,
        "odds": -125,
        "win": true,
-       "pnl": 5.17,
+       "pnl": 5.5,
        "assumed": true
       },
       "ledger": {
@@ -497,8 +500,8 @@
    {
     "date": "2026-04-05",
     "flatPnl": -0.2,
-    "simPnl": 1.09,
-    "simBankAfter": 118.6,
+    "simPnl": 0.21,
+    "simBankAfter": 118.79,
     "flagged": 7,
     "placed": 0,
     "bet": 2,
@@ -509,10 +512,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 10.4,
+       "stake": 10.0,
        "odds": -125,
        "win": true,
-       "pnl": 8.32,
+       "pnl": 8.0,
        "assumed": true
       },
       "ledger": {
@@ -529,10 +532,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 7.23,
+       "stake": 7.79,
        "odds": -125,
        "win": false,
-       "pnl": -7.23,
+       "pnl": -7.79,
        "assumed": true
       },
       "ledger": {
@@ -633,8 +636,8 @@
    {
     "date": "2026-04-06",
     "flatPnl": 1.6,
-    "simPnl": 14.23,
-    "simBankAfter": 132.83,
+    "simPnl": 14.26,
+    "simBankAfter": 133.05,
     "flagged": 10,
     "placed": 0,
     "bet": 2,
@@ -645,10 +648,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 10.49,
+       "stake": 11.0,
        "odds": -125,
        "win": true,
-       "pnl": 8.39,
+       "pnl": 8.8,
        "assumed": true
       },
       "ledger": {
@@ -665,10 +668,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 7.3,
+       "stake": 6.82,
        "odds": -125,
        "win": true,
-       "pnl": 5.84,
+       "pnl": 5.46,
        "assumed": true
       },
       "ledger": {
@@ -819,12 +822,12 @@
    },
    {
     "date": "2026-04-07",
-    "flatPnl": -0.2,
-    "simPnl": 0.94,
-    "simBankAfter": 133.77,
+    "flatPnl": -1.2,
+    "simPnl": 1.23,
+    "simBankAfter": 134.28,
     "flagged": 5,
     "placed": 0,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "HOU@COL",
@@ -849,10 +852,10 @@
       "modelP": 0.333,
       "record": {
        "action": "BET",
-       "stake": 8.33,
+       "stake": 8.0,
        "odds": -125,
        "win": false,
-       "pnl": -8.33,
+       "pnl": -8.0,
        "assumed": true
       }
      },
@@ -862,10 +865,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 11.59,
+       "stake": 11.77,
        "odds": -125,
        "win": true,
-       "pnl": 9.27,
+       "pnl": 9.42,
        "assumed": true
       },
       "ledger": {
@@ -898,9 +901,12 @@
       "side": "YRFI",
       "modelP": 0.3622,
       "record": {
-       "action": "SKIP",
-       "code": "daily_cap",
-       "reason": "daily risk cap already used"
+       "action": "BET",
+       "stake": 0.19,
+       "odds": -125,
+       "win": false,
+       "pnl": -0.19,
+       "assumed": true
       },
       "ledger": {
        "strength": "STRONG",
@@ -932,8 +938,8 @@
    {
     "date": "2026-04-08",
     "flatPnl": 0.6,
-    "simPnl": 7.26,
-    "simBankAfter": 141.03,
+    "simPnl": 7.0,
+    "simBankAfter": 141.28,
     "flagged": 10,
     "placed": 0,
     "bet": 3,
@@ -944,10 +950,10 @@
       "modelP": 0.3007,
       "record": {
        "action": "BET",
-       "stake": 10.81,
+       "stake": 11.0,
        "odds": -125,
        "win": true,
-       "pnl": 8.65,
+       "pnl": 8.8,
        "assumed": true
       },
       "ledger": {
@@ -981,10 +987,10 @@
       "modelP": 0.3795,
       "record": {
        "action": "BET",
-       "stake": 4.89,
+       "stake": 5.0,
        "odds": -125,
        "win": false,
-       "pnl": -4.89,
+       "pnl": -5.0,
        "assumed": true
       },
       "ledger": {
@@ -1018,10 +1024,10 @@
       "modelP": 0.3251,
       "record": {
        "action": "BET",
-       "stake": 4.37,
+       "stake": 4.0,
        "odds": -125,
        "win": true,
-       "pnl": 3.5,
+       "pnl": 3.2,
        "assumed": true
       },
       "ledger": {
@@ -1150,8 +1156,8 @@
    {
     "date": "2026-04-10",
     "flatPnl": -0.2,
-    "simPnl": 2.62,
-    "simBankAfter": 143.65,
+    "simPnl": 2.6,
+    "simBankAfter": 143.88,
     "flagged": 7,
     "placed": 0,
     "bet": 2,
@@ -1196,10 +1202,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 12.48,
+       "stake": 12.0,
        "odds": -125,
        "win": true,
-       "pnl": 9.98,
+       "pnl": 9.6,
        "assumed": true
       },
       "ledger": {
@@ -1233,10 +1239,10 @@
       "modelP": 0.6483,
       "record": {
        "action": "BET",
-       "stake": 7.36,
+       "stake": 7.0,
        "odds": -125,
        "win": false,
-       "pnl": -7.36,
+       "pnl": -7.0,
        "assumed": true
       },
       "ledger": {
@@ -1286,8 +1292,8 @@
    {
     "date": "2026-04-11",
     "flatPnl": 1.6,
-    "simPnl": 17.24,
-    "simBankAfter": 160.89,
+    "simPnl": 17.22,
+    "simBankAfter": 161.09,
     "flagged": 9,
     "placed": 0,
     "bet": 2,
@@ -1298,10 +1304,10 @@
       "modelP": 0.2944,
       "record": {
        "action": "BET",
-       "stake": 12.13,
+       "stake": 12.0,
        "odds": -125,
        "win": true,
-       "pnl": 9.7,
+       "pnl": 9.6,
        "assumed": true
       },
       "ledger": {
@@ -1318,10 +1324,10 @@
       "modelP": 0.3269,
       "record": {
        "action": "BET",
-       "stake": 9.42,
+       "stake": 9.52,
        "odds": -125,
        "win": true,
-       "pnl": 7.54,
+       "pnl": 7.62,
        "assumed": true
       },
       "ledger": {
@@ -1456,8 +1462,8 @@
    {
     "date": "2026-04-12",
     "flatPnl": -1.0,
-    "simPnl": -6.54,
-    "simBankAfter": 154.35,
+    "simPnl": -7.0,
+    "simBankAfter": 154.09,
     "flagged": 8,
     "placed": 0,
     "bet": 1,
@@ -1587,10 +1593,10 @@
       "modelP": 0.6278,
       "record": {
        "action": "BET",
-       "stake": 6.54,
+       "stake": 7.0,
        "odds": -125,
        "win": false,
-       "pnl": -6.54,
+       "pnl": -7.0,
        "assumed": true
       },
       "ledger": {
@@ -1606,8 +1612,8 @@
    {
     "date": "2026-04-13",
     "flatPnl": 2.4,
-    "simPnl": 18.52,
-    "simBankAfter": 172.87,
+    "simPnl": 18.4,
+    "simBankAfter": 172.49,
     "flagged": 5,
     "placed": 0,
     "bet": 3,
@@ -1635,10 +1641,10 @@
       "modelP": 0.369,
       "record": {
        "action": "BET",
-       "stake": 6.55,
+       "stake": 7.0,
        "odds": -125,
        "win": true,
-       "pnl": 5.24,
+       "pnl": 5.6,
        "assumed": true
       },
       "ledger": {
@@ -1655,10 +1661,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 13.65,
+       "stake": 14.0,
        "odds": -125,
        "win": true,
-       "pnl": 10.92,
+       "pnl": 11.2,
        "assumed": true
       },
       "ledger": {
@@ -1675,10 +1681,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 2.95,
+       "stake": 2.0,
        "odds": -125,
        "win": true,
-       "pnl": 2.36,
+       "pnl": 1.6,
        "assumed": true
       },
       "ledger": {
@@ -1711,8 +1717,8 @@
    {
     "date": "2026-04-14",
     "flatPnl": 2.4,
-    "simPnl": 20.74,
-    "simBankAfter": 193.62,
+    "simPnl": 20.7,
+    "simBankAfter": 193.19,
     "flagged": 7,
     "placed": 0,
     "bet": 3,
@@ -1757,10 +1763,10 @@
       "modelP": 0.3233,
       "record": {
        "action": "BET",
-       "stake": 11.78,
+       "stake": 12.0,
        "odds": -125,
        "win": true,
-       "pnl": 9.42,
+       "pnl": 9.6,
        "assumed": true
       },
       "ledger": {
@@ -1794,10 +1800,10 @@
       "modelP": 0.3725,
       "record": {
        "action": "BET",
-       "stake": 6.99,
+       "stake": 7.0,
        "odds": -125,
        "win": true,
-       "pnl": 5.59,
+       "pnl": 5.6,
        "assumed": true
       }
      },
@@ -1841,10 +1847,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 7.16,
+       "stake": 6.87,
        "odds": -125,
        "win": true,
-       "pnl": 5.73,
+       "pnl": 5.5,
        "assumed": true
       },
       "ledger": {
@@ -1860,8 +1866,8 @@
    {
     "date": "2026-04-15",
     "flatPnl": 2.4,
-    "simPnl": 23.23,
-    "simBankAfter": 216.85,
+    "simPnl": 23.18,
+    "simBankAfter": 216.37,
     "flagged": 5,
     "placed": 0,
     "bet": 3,
@@ -1872,10 +1878,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 17.13,
+       "stake": 17.0,
        "odds": -125,
        "win": true,
-       "pnl": 13.7,
+       "pnl": 13.6,
        "assumed": true
       },
       "ledger": {
@@ -1892,10 +1898,10 @@
       "modelP": 0.3624,
       "record": {
        "action": "BET",
-       "stake": 8.94,
+       "stake": 9.0,
        "odds": -125,
        "win": true,
-       "pnl": 7.15,
+       "pnl": 7.2,
        "assumed": true
       }
      },
@@ -1905,7 +1911,7 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 2.97,
+       "stake": 2.98,
        "odds": -125,
        "win": true,
        "pnl": 2.38,
@@ -1975,8 +1981,8 @@
    {
     "date": "2026-04-16",
     "flatPnl": -0.4,
-    "simPnl": -20.4,
-    "simBankAfter": 196.45,
+    "simPnl": -19.4,
+    "simBankAfter": 196.97,
     "flagged": 6,
     "placed": 0,
     "bet": 4,
@@ -1987,10 +1993,10 @@
       "modelP": 0.3912,
       "record": {
        "action": "BET",
-       "stake": 6.5,
+       "stake": 6.0,
        "odds": -125,
        "win": true,
-       "pnl": 5.2,
+       "pnl": 4.8,
        "assumed": true
       }
      },
@@ -2017,10 +2023,10 @@
       "modelP": 0.3341,
       "record": {
        "action": "BET",
-       "stake": 13.46,
+       "stake": 13.0,
        "odds": -125,
        "win": false,
-       "pnl": -13.46,
+       "pnl": -13.0,
        "assumed": true
       },
       "ledger": {
@@ -2037,10 +2043,10 @@
       "modelP": 0.3434,
       "record": {
        "action": "BET",
-       "stake": 12.33,
+       "stake": 12.0,
        "odds": -125,
        "win": false,
-       "pnl": -12.33,
+       "pnl": -12.0,
        "assumed": true
       },
       "ledger": {
@@ -2108,10 +2114,10 @@
       "modelP": 0.637,
       "record": {
        "action": "BET",
-       "stake": 0.24,
+       "stake": 1.0,
        "odds": -125,
        "win": true,
-       "pnl": 0.19,
+       "pnl": 0.8,
        "assumed": true
       }
      }
@@ -2120,8 +2126,8 @@
    {
     "date": "2026-04-17",
     "flatPnl": 0.6,
-    "simPnl": 21.88,
-    "simBankAfter": 218.33,
+    "simPnl": 20.85,
+    "simBankAfter": 217.82,
     "flagged": 7,
     "placed": 0,
     "bet": 3,
@@ -2132,10 +2138,10 @@
       "modelP": 0.3435,
       "record": {
        "action": "BET",
-       "stake": 11.15,
+       "stake": 11.0,
        "odds": -125,
        "win": true,
-       "pnl": 8.92,
+       "pnl": 8.8,
        "assumed": true
       },
       "ledger": {
@@ -2186,10 +2192,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 17.38,
+       "stake": 17.0,
        "odds": -125,
        "win": true,
-       "pnl": 13.9,
+       "pnl": 13.6,
        "assumed": true
       },
       "ledger": {
@@ -2206,10 +2212,10 @@
       "modelP": 0.3663,
       "record": {
        "action": "BET",
-       "stake": 0.94,
+       "stake": 1.55,
        "odds": -125,
        "win": false,
-       "pnl": -0.94,
+       "pnl": -1.55,
        "assumed": true
       },
       "ledger": {
@@ -2259,8 +2265,8 @@
    {
     "date": "2026-04-18",
     "flatPnl": 0.6,
-    "simPnl": -6.63,
-    "simBankAfter": 211.7,
+    "simPnl": -6.26,
+    "simBankAfter": 211.56,
     "flagged": 11,
     "placed": 0,
     "bet": 3,
@@ -2271,10 +2277,10 @@
       "modelP": 0.3646,
       "record": {
        "action": "BET",
-       "stake": 9.81,
+       "stake": 10.0,
        "odds": -125,
        "win": true,
-       "pnl": 7.85,
+       "pnl": 8.0,
        "assumed": true
       },
       "ledger": {
@@ -2308,10 +2314,10 @@
       "modelP": 0.2959,
       "record": {
        "action": "BET",
-       "stake": 18.24,
+       "stake": 18.0,
        "odds": -125,
        "win": false,
-       "pnl": -18.24,
+       "pnl": -18.0,
        "assumed": true
       },
       "ledger": {
@@ -2328,10 +2334,10 @@
       "modelP": 0.3685,
       "record": {
        "action": "BET",
-       "stake": 4.7,
+       "stake": 4.67,
        "odds": -125,
        "win": true,
-       "pnl": 3.76,
+       "pnl": 3.74,
        "assumed": true
       },
       "ledger": {
@@ -2466,8 +2472,8 @@
    {
     "date": "2026-04-19",
     "flatPnl": -0.2,
-    "simPnl": -8.31,
-    "simBankAfter": 203.4,
+    "simPnl": -8.82,
+    "simBankAfter": 202.74,
     "flagged": 4,
     "placed": 0,
     "bet": 2,
@@ -2478,10 +2484,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 18.73,
+       "stake": 19.0,
        "odds": -125,
        "win": false,
-       "pnl": -18.73,
+       "pnl": -19.0,
        "assumed": true
       },
       "ledger": {
@@ -2498,10 +2504,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 13.03,
+       "stake": 12.73,
        "odds": -125,
        "win": true,
-       "pnl": 10.42,
+       "pnl": 10.18,
        "assumed": true
       }
      },
@@ -2561,8 +2567,8 @@
    {
     "date": "2026-04-20",
     "flatPnl": 0.8,
-    "simPnl": 14.39,
-    "simBankAfter": 217.79,
+    "simPnl": 14.4,
+    "simBankAfter": 217.14,
     "flagged": 3,
     "placed": 0,
     "bet": 1,
@@ -2573,10 +2579,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 17.99,
+       "stake": 18.0,
        "odds": -125,
        "win": true,
-       "pnl": 14.39,
+       "pnl": 14.4,
        "assumed": true
       },
       "ledger": {
@@ -2626,8 +2632,8 @@
    {
     "date": "2026-04-21",
     "flatPnl": 1.4,
-    "simPnl": 14.35,
-    "simBankAfter": 232.13,
+    "simPnl": 13.46,
+    "simBankAfter": 230.6,
     "flagged": 9,
     "placed": 0,
     "bet": 4,
@@ -2638,10 +2644,10 @@
       "modelP": 0.391,
       "record": {
        "action": "BET",
-       "stake": 6.55,
+       "stake": 7.0,
        "odds": -125,
        "win": false,
-       "pnl": -6.55,
+       "pnl": -7.0,
        "assumed": true
       },
       "ledger": {
@@ -2675,10 +2681,10 @@
       "modelP": 0.3958,
       "record": {
        "action": "BET",
-       "stake": 5.96,
+       "stake": 6.0,
        "odds": -125,
        "win": true,
-       "pnl": 4.77,
+       "pnl": 4.8,
        "assumed": true
       },
       "ledger": {
@@ -2712,10 +2718,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 19.27,
+       "stake": 19.0,
        "odds": -125,
        "win": true,
-       "pnl": 15.42,
+       "pnl": 15.2,
        "assumed": true
       },
       "ledger": {
@@ -2732,10 +2738,10 @@
       "modelP": 0.3102,
       "record": {
        "action": "BET",
-       "stake": 0.89,
+       "stake": 0.57,
        "odds": -125,
        "win": true,
-       "pnl": 0.71,
+       "pnl": 0.46,
        "assumed": true
       }
      },
@@ -2812,8 +2818,8 @@
    {
     "date": "2026-04-22",
     "flatPnl": 1.6,
-    "simPnl": 27.86,
-    "simBankAfter": 259.99,
+    "simPnl": 27.67,
+    "simBankAfter": 258.27,
     "flagged": 7,
     "placed": 0,
     "bet": 2,
@@ -2824,10 +2830,10 @@
       "modelP": 0.3127,
       "record": {
        "action": "BET",
-       "stake": 17.2,
+       "stake": 17.0,
        "odds": -125,
        "win": true,
-       "pnl": 13.76,
+       "pnl": 13.6,
        "assumed": true
       },
       "ledger": {
@@ -2861,10 +2867,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 17.62,
+       "stake": 17.59,
        "odds": -125,
        "win": true,
-       "pnl": 14.1,
+       "pnl": 14.07,
        "assumed": true
       },
       "ledger": {
@@ -2948,8 +2954,8 @@
    {
     "date": "2026-04-23",
     "flatPnl": 1.6,
-    "simPnl": 25.97,
-    "simBankAfter": 285.96,
+    "simPnl": 25.6,
+    "simBankAfter": 283.87,
     "flagged": 3,
     "placed": 0,
     "bet": 2,
@@ -2980,10 +2986,10 @@
       "modelP": 0.3798,
       "record": {
        "action": "BET",
-       "stake": 9.46,
+       "stake": 9.0,
        "odds": -125,
        "win": true,
-       "pnl": 7.57,
+       "pnl": 7.2,
        "assumed": true
       },
       "ledger": {
@@ -3016,8 +3022,8 @@
    {
     "date": "2026-04-24",
     "flatPnl": 0.8,
-    "simPnl": 10.09,
-    "simBankAfter": 296.05,
+    "simPnl": 10.4,
+    "simBankAfter": 294.27,
     "flagged": 4,
     "placed": 0,
     "bet": 1,
@@ -3079,10 +3085,10 @@
       "modelP": 0.6339,
       "record": {
        "action": "BET",
-       "stake": 12.61,
+       "stake": 13.0,
        "odds": -125,
        "win": true,
-       "pnl": 10.09,
+       "pnl": 10.4,
        "assumed": true
       },
       "ledger": {
@@ -3098,8 +3104,8 @@
    {
     "date": "2026-04-25",
     "flatPnl": -0.2,
-    "simPnl": -8.42,
-    "simBankAfter": 287.62,
+    "simPnl": -8.4,
+    "simBankAfter": 285.87,
     "flagged": 5,
     "placed": 0,
     "bet": 2,
@@ -3110,10 +3116,10 @@
       "modelP": 0.3114,
       "record": {
        "action": "BET",
-       "stake": 22.16,
+       "stake": 22.0,
        "odds": -125,
        "win": false,
-       "pnl": -22.16,
+       "pnl": -22.0,
        "assumed": true
       },
       "ledger": {
@@ -3181,10 +3187,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 17.17,
+       "stake": 17.0,
        "odds": -125,
        "win": true,
-       "pnl": 13.74,
+       "pnl": 13.6,
        "assumed": true
       },
       "ledger": {
@@ -3200,8 +3206,8 @@
    {
     "date": "2026-04-26",
     "flatPnl": 0.6,
-    "simPnl": -3.34,
-    "simBankAfter": 284.28,
+    "simPnl": -3.5,
+    "simBankAfter": 282.37,
     "flagged": 6,
     "placed": 0,
     "bet": 3,
@@ -3212,10 +3218,10 @@
       "modelP": 0.3801,
       "record": {
        "action": "BET",
-       "stake": 10.41,
+       "stake": 10.0,
        "odds": -125,
        "win": true,
-       "pnl": 8.33,
+       "pnl": 8.0,
        "assumed": true
       },
       "ledger": {
@@ -3266,10 +3272,10 @@
       "modelP": 0.3145,
       "record": {
        "action": "BET",
-       "stake": 21.03,
+       "stake": 21.0,
        "odds": -125,
        "win": false,
-       "pnl": -21.03,
+       "pnl": -21.0,
        "assumed": true
       },
       "ledger": {
@@ -3303,10 +3309,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 11.7,
+       "stake": 11.88,
        "odds": -125,
        "win": true,
-       "pnl": 9.36,
+       "pnl": 9.5,
        "assumed": true
       },
       "ledger": {
@@ -3322,8 +3328,8 @@
    {
     "date": "2026-04-27",
     "flatPnl": 0.8,
-    "simPnl": 20.12,
-    "simBankAfter": 304.4,
+    "simPnl": 20.0,
+    "simBankAfter": 302.37,
     "flagged": 4,
     "placed": 0,
     "bet": 1,
@@ -3351,10 +3357,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 25.15,
+       "stake": 25.0,
        "odds": -125,
        "win": true,
-       "pnl": 20.12,
+       "pnl": 20.0,
        "assumed": true
       },
       "ledger": {
@@ -3404,8 +3410,8 @@
    {
     "date": "2026-04-28",
     "flatPnl": 0.8,
-    "simPnl": 14.12,
-    "simBankAfter": 318.52,
+    "simPnl": 14.4,
+    "simBankAfter": 316.77,
     "flagged": 0,
     "placed": 0,
     "bet": 1,
@@ -3416,10 +3422,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 17.65,
+       "stake": 18.0,
        "odds": -125,
        "win": true,
-       "pnl": 14.12,
+       "pnl": 14.4,
        "assumed": true
       }
      }
@@ -3428,8 +3434,8 @@
    {
     "date": "2026-04-29",
     "flatPnl": 1.48,
-    "simPnl": 21.38,
-    "simBankAfter": 339.9,
+    "simPnl": 21.48,
+    "simBankAfter": 338.26,
     "flagged": 8,
     "placed": 4,
     "bet": 2,
@@ -3440,10 +3446,10 @@
       "modelP": 0.3762,
       "record": {
        "action": "BET",
-       "stake": 9.22,
+       "stake": 9.0,
        "odds": -135,
        "win": true,
-       "pnl": 6.83,
+       "pnl": 6.67,
        "assumed": false
       },
       "ledger": {
@@ -3477,10 +3483,10 @@
       "modelP": 0.3206,
       "record": {
        "action": "BET",
-       "stake": 19.64,
+       "stake": 20.0,
        "odds": -135,
        "win": true,
-       "pnl": 14.55,
+       "pnl": 14.81,
        "assumed": false
       },
       "ledger": {
@@ -3581,8 +3587,8 @@
    {
     "date": "2026-04-30",
     "flatPnl": -1.0,
-    "simPnl": -11.28,
-    "simBankAfter": 328.62,
+    "simPnl": -11.0,
+    "simBankAfter": 327.26,
     "flagged": 6,
     "placed": 6,
     "bet": 1,
@@ -3644,10 +3650,10 @@
       "modelP": 0.6145,
       "record": {
        "action": "BET",
-       "stake": 11.28,
+       "stake": 11.0,
        "odds": -125,
        "win": false,
-       "pnl": -11.28,
+       "pnl": -11.0,
        "assumed": true
       },
       "ledger": {
@@ -4132,8 +4138,8 @@
    {
     "date": "2026-05-05",
     "flatPnl": 1.98,
-    "simPnl": 51.48,
-    "simBankAfter": 380.1,
+    "simPnl": 50.97,
+    "simBankAfter": 378.23,
     "flagged": 7,
     "placed": 7,
     "bet": 2,
@@ -4161,10 +4167,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 32.86,
+       "stake": 32.73,
        "odds": 115,
        "win": true,
-       "pnl": 37.79,
+       "pnl": 37.64,
        "assumed": false
       },
       "ledger": {
@@ -4181,10 +4187,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 16.43,
+       "stake": 16.0,
        "odds": -120,
        "win": true,
-       "pnl": 13.69,
+       "pnl": 13.33,
        "assumed": false
       },
       "ledger": {
@@ -4364,8 +4370,8 @@
    {
     "date": "2026-05-07",
     "flatPnl": -1.0,
-    "simPnl": -28.17,
-    "simBankAfter": 351.93,
+    "simPnl": -28.0,
+    "simBankAfter": 350.23,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -4376,10 +4382,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 28.17,
+       "stake": 28.0,
        "odds": -145,
        "win": false,
-       "pnl": -28.17,
+       "pnl": -28.0,
        "assumed": false
       },
       "ledger": {
@@ -4463,8 +4469,8 @@
    {
     "date": "2026-05-08",
     "flatPnl": 0.8,
-    "simPnl": 12.62,
-    "simBankAfter": 364.55,
+    "simPnl": 12.8,
+    "simBankAfter": 363.03,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -4526,10 +4532,10 @@
       "modelP": 0.6353,
       "record": {
        "action": "BET",
-       "stake": 15.78,
+       "stake": 16.0,
        "odds": -125,
        "win": true,
-       "pnl": 12.62,
+       "pnl": 12.8,
        "assumed": false
       },
       "ledger": {
@@ -4545,8 +4551,8 @@
    {
     "date": "2026-05-09",
     "flatPnl": 0.74,
-    "simPnl": 21.95,
-    "simBankAfter": 386.5,
+    "simPnl": 22.22,
+    "simBankAfter": 385.25,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -4557,10 +4563,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 29.63,
+       "stake": 30.0,
        "odds": -135,
        "win": true,
-       "pnl": 21.95,
+       "pnl": 22.22,
        "assumed": false
       },
       "ledger": {
@@ -4813,8 +4819,8 @@
    {
     "date": "2026-05-13",
     "flatPnl": 2.08,
-    "simPnl": 29.51,
-    "simBankAfter": 416.01,
+    "simPnl": 28.94,
+    "simBankAfter": 414.2,
     "flagged": 5,
     "placed": 5,
     "bet": 3,
@@ -4842,10 +4848,10 @@
       "modelP": 0.3502,
       "record": {
        "action": "BET",
-       "stake": 22.18,
+       "stake": 22.0,
        "odds": -120,
        "win": true,
-       "pnl": 18.48,
+       "pnl": 18.33,
        "assumed": false
       },
       "ledger": {
@@ -4862,10 +4868,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 9.22,
+       "stake": 9.0,
        "odds": -165,
        "win": true,
-       "pnl": 5.59,
+       "pnl": 5.45,
        "assumed": false
       },
       "ledger": {
@@ -4882,10 +4888,10 @@
       "modelP": 0.6421,
       "record": {
        "action": "BET",
-       "stake": 8.43,
+       "stake": 8.0,
        "odds": -155,
        "win": true,
-       "pnl": 5.44,
+       "pnl": 5.16,
        "assumed": false
       },
       "ledger": {
@@ -4918,8 +4924,8 @@
    {
     "date": "2026-05-14",
     "flatPnl": -0.31,
-    "simPnl": -1.09,
-    "simBankAfter": 414.92,
+    "simPnl": -0.62,
+    "simBankAfter": 413.58,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -4930,10 +4936,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 30.83,
+       "stake": 31.0,
        "odds": -145,
        "win": true,
-       "pnl": 21.26,
+       "pnl": 21.38,
        "assumed": false
       },
       "ledger": {
@@ -4967,10 +4973,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 22.35,
+       "stake": 22.0,
        "odds": -130,
        "win": false,
-       "pnl": -22.35,
+       "pnl": -22.0,
        "assumed": false
       },
       "ledger": {
@@ -5003,8 +5009,8 @@
    {
     "date": "2026-05-15",
     "flatPnl": -1.35,
-    "simPnl": -16.55,
-    "simBankAfter": 398.37,
+    "simPnl": -15.94,
+    "simBankAfter": 397.64,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -5015,10 +5021,10 @@
       "modelP": 0.3132,
       "record": {
        "action": "BET",
-       "stake": 32.27,
+       "stake": 32.0,
        "odds": -120,
        "win": false,
-       "pnl": -32.27,
+       "pnl": -32.0,
        "assumed": false
       },
       "ledger": {
@@ -5035,10 +5041,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 27.77,
+       "stake": 28.0,
        "odds": -155,
        "win": true,
-       "pnl": 17.92,
+       "pnl": 18.06,
        "assumed": false
       },
       "ledger": {
@@ -5055,10 +5061,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 2.2,
+       "stake": 2.0,
        "odds": -125,
        "win": false,
-       "pnl": -2.2,
+       "pnl": -2.0,
        "assumed": false
       },
       "ledger": {
@@ -5074,8 +5080,8 @@
    {
     "date": "2026-05-16",
     "flatPnl": -0.33,
-    "simPnl": 4.76,
-    "simBankAfter": 403.13,
+    "simPnl": 4.67,
+    "simBankAfter": 402.31,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -5086,10 +5092,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 28.09,
+       "stake": 28.0,
        "odds": -150,
        "win": true,
-       "pnl": 18.73,
+       "pnl": 18.67,
        "assumed": false
       },
       "ledger": {
@@ -5123,10 +5129,10 @@
       "modelP": 0.3738,
       "record": {
        "action": "BET",
-       "stake": 13.97,
+       "stake": 14.0,
        "odds": -130,
        "win": false,
-       "pnl": -13.97,
+       "pnl": -14.0,
        "assumed": false
       },
       "ledger": {
@@ -5159,8 +5165,8 @@
    {
     "date": "2026-05-17",
     "flatPnl": 0.53,
-    "simPnl": -19.15,
-    "simBankAfter": 383.97,
+    "simPnl": -19.5,
+    "simBankAfter": 382.81,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -5171,10 +5177,10 @@
       "modelP": 0.3406,
       "record": {
        "action": "BET",
-       "stake": 11.54,
+       "stake": 12.0,
        "odds": -160,
        "win": true,
-       "pnl": 7.21,
+       "pnl": 7.5,
        "assumed": false
       },
       "ledger": {
@@ -5191,10 +5197,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 37.11,
+       "stake": 37.0,
        "odds": -120,
        "win": false,
-       "pnl": -37.11,
+       "pnl": -37.0,
        "assumed": false
       },
       "ledger": {
@@ -5211,10 +5217,10 @@
       "modelP": 0.3653,
       "record": {
        "action": "BET",
-       "stake": 11.82,
+       "stake": 11.0,
        "odds": -110,
        "win": true,
-       "pnl": 10.75,
+       "pnl": 10.0,
        "assumed": false
       },
       "ledger": {
@@ -5275,8 +5281,8 @@
    {
     "date": "2026-05-19",
     "flatPnl": 0.77,
-    "simPnl": 7.84,
-    "simBankAfter": 391.82,
+    "simPnl": 8.0,
+    "simBankAfter": 390.81,
     "flagged": 2,
     "placed": 2,
     "bet": 3,
@@ -5287,10 +5293,10 @@
       "modelP": 0.3886,
       "record": {
        "action": "BET",
-       "stake": 21.39,
+       "stake": 21.0,
        "odds": 100,
        "win": true,
-       "pnl": 21.39,
+       "pnl": 21.0,
        "assumed": false
       },
       "ledger": {
@@ -5307,10 +5313,10 @@
       "modelP": 0.3361,
       "record": {
        "action": "BET",
-       "stake": 23.4,
+       "stake": 23.0,
        "odds": -125,
        "win": false,
-       "pnl": -23.4,
+       "pnl": -23.0,
        "assumed": false
       },
       "ledger": {
@@ -5327,10 +5333,10 @@
       "modelP": 0.3373,
       "record": {
        "action": "BET",
-       "stake": 12.81,
+       "stake": 13.0,
        "odds": -130,
        "win": true,
-       "pnl": 9.85,
+       "pnl": 10.0,
        "assumed": false
       }
      }
@@ -5339,8 +5345,8 @@
    {
     "date": "2026-05-20",
     "flatPnl": 1.64,
-    "simPnl": 47.77,
-    "simBankAfter": 439.59,
+    "simPnl": 47.66,
+    "simBankAfter": 438.47,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -5351,10 +5357,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 33.25,
+       "stake": 33.0,
        "odds": -130,
        "win": true,
-       "pnl": 25.58,
+       "pnl": 25.38,
        "assumed": false
       },
       "ledger": {
@@ -5371,10 +5377,10 @@
       "modelP": 0.3146,
       "record": {
        "action": "BET",
-       "stake": 25.52,
+       "stake": 25.62,
        "odds": -115,
        "win": true,
-       "pnl": 22.19,
+       "pnl": 22.28,
        "assumed": false
       },
       "ledger": {
@@ -5407,8 +5413,8 @@
    {
     "date": "2026-05-21",
     "flatPnl": 0.87,
-    "simPnl": 26.23,
-    "simBankAfter": 465.82,
+    "simPnl": 26.09,
+    "simBankAfter": 464.56,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -5419,10 +5425,10 @@
       "modelP": 0.3374,
       "record": {
        "action": "BET",
-       "stake": 30.17,
+       "stake": 30.0,
        "odds": -115,
        "win": true,
-       "pnl": 26.23,
+       "pnl": 26.09,
        "assumed": false
       },
       "ledger": {
@@ -5658,8 +5664,8 @@
    {
     "date": "2026-05-25",
     "flatPnl": -0.13,
-    "simPnl": 22.1,
-    "simBankAfter": 487.92,
+    "simPnl": 22.43,
+    "simBankAfter": 486.99,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -5670,10 +5676,10 @@
       "modelP": 0.3261,
       "record": {
        "action": "BET",
-       "stake": 34.81,
+       "stake": 35.0,
        "odds": -115,
        "win": true,
-       "pnl": 30.27,
+       "pnl": 30.43,
        "assumed": false
       },
       "ledger": {
@@ -5690,10 +5696,10 @@
       "modelP": 0.3576,
       "record": {
        "action": "BET",
-       "stake": 8.17,
+       "stake": 8.0,
        "odds": -160,
        "win": false,
-       "pnl": -8.17,
+       "pnl": -8.0,
        "assumed": false
       },
       "ledger": {
@@ -5743,8 +5749,8 @@
    {
     "date": "2026-05-26",
     "flatPnl": -1.0,
-    "simPnl": -19.62,
-    "simBankAfter": 468.3,
+    "simPnl": -20.0,
+    "simBankAfter": 466.99,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -5755,10 +5761,10 @@
       "modelP": 0.3357,
       "record": {
        "action": "BET",
-       "stake": 19.62,
+       "stake": 20.0,
        "odds": -150,
        "win": false,
-       "pnl": -19.62,
+       "pnl": -20.0,
        "assumed": false
       }
      },
@@ -5818,8 +5824,8 @@
    {
     "date": "2026-05-27",
     "flatPnl": 0.95,
-    "simPnl": 29.42,
-    "simBankAfter": 497.72,
+    "simPnl": 29.52,
+    "simBankAfter": 496.52,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -5881,10 +5887,10 @@
       "modelP": 0.3591,
       "record": {
        "action": "BET",
-       "stake": 30.89,
+       "stake": 31.0,
        "odds": -105,
        "win": true,
-       "pnl": 29.42,
+       "pnl": 29.52,
        "assumed": false
       }
      },
@@ -5910,8 +5916,8 @@
    {
     "date": "2026-05-28",
     "flatPnl": -1.0,
-    "simPnl": -19.04,
-    "simBankAfter": 478.68,
+    "simPnl": -19.0,
+    "simBankAfter": 477.52,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -5939,10 +5945,10 @@
       "modelP": 0.6396,
       "record": {
        "action": "BET",
-       "stake": 19.04,
+       "stake": 19.0,
        "odds": -135,
        "win": false,
-       "pnl": -19.04,
+       "pnl": -19.0,
        "assumed": false
       },
       "ledger": {
@@ -5958,8 +5964,8 @@
    {
     "date": "2026-05-29",
     "flatPnl": 0.74,
-    "simPnl": 8.99,
-    "simBankAfter": 487.66,
+    "simPnl": 8.89,
+    "simBankAfter": 486.41,
     "flagged": 7,
     "placed": 7,
     "bet": 1,
@@ -6038,10 +6044,10 @@
       "modelP": 0.3824,
       "record": {
        "action": "BET",
-       "stake": 12.13,
+       "stake": 12.0,
        "odds": -135,
        "win": true,
-       "pnl": 8.99,
+       "pnl": 8.89,
        "assumed": false
       },
       "ledger": {
@@ -6091,8 +6097,8 @@
    {
     "date": "2026-05-30",
     "flatPnl": 1.79,
-    "simPnl": 64.61,
-    "simBankAfter": 552.27,
+    "simPnl": 64.55,
+    "simBankAfter": 550.95,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -6103,10 +6109,10 @@
       "modelP": 0.2879,
       "record": {
        "action": "BET",
-       "stake": 39.44,
+       "stake": 39.0,
        "odds": -135,
        "win": true,
-       "pnl": 29.21,
+       "pnl": 28.89,
        "assumed": false
       },
       "ledger": {
@@ -6123,10 +6129,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 33.71,
+       "stake": 33.96,
        "odds": 105,
        "win": true,
-       "pnl": 35.4,
+       "pnl": 35.66,
        "assumed": false
       },
       "ledger": {
@@ -6210,8 +6216,8 @@
    {
     "date": "2026-05-31",
     "flatPnl": 1.27,
-    "simPnl": 27.79,
-    "simBankAfter": 580.07,
+    "simPnl": 28.12,
+    "simBankAfter": 579.07,
     "flagged": 6,
     "placed": 6,
     "bet": 4,
@@ -6222,10 +6228,10 @@
       "modelP": 0.3189,
       "record": {
        "action": "BET",
-       "stake": 45.61,
+       "stake": 46.0,
        "odds": -110,
        "win": true,
-       "pnl": 41.46,
+       "pnl": 41.82,
        "assumed": false
       },
       "ledger": {
@@ -6242,10 +6248,10 @@
       "modelP": 0.3992,
       "record": {
        "action": "BET",
-       "stake": 0.29,
+       "stake": 0.5,
        "odds": -150,
        "win": true,
-       "pnl": 0.19,
+       "pnl": 0.33,
        "assumed": false
       },
       "ledger": {
@@ -6262,10 +6268,10 @@
       "modelP": 0.3615,
       "record": {
        "action": "BET",
-       "stake": 23.28,
+       "stake": 23.0,
        "odds": -130,
        "win": false,
-       "pnl": -23.28,
+       "pnl": -23.0,
        "assumed": false
       },
       "ledger": {
@@ -6316,10 +6322,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 13.66,
+       "stake": 13.0,
        "odds": -145,
        "win": true,
-       "pnl": 9.42,
+       "pnl": 8.97,
        "assumed": false
       },
       "ledger": {
@@ -6335,8 +6341,8 @@
    {
     "date": "2026-06-01",
     "flatPnl": 0.95,
-    "simPnl": 35.23,
-    "simBankAfter": 615.3,
+    "simPnl": 35.24,
+    "simBankAfter": 614.31,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -6364,10 +6370,10 @@
       "modelP": 0.3634,
       "record": {
        "action": "BET",
-       "stake": 36.99,
+       "stake": 37.0,
        "odds": -105,
        "win": true,
-       "pnl": 35.23,
+       "pnl": 35.24,
        "assumed": false
       },
       "ledger": {
@@ -6417,8 +6423,8 @@
    {
     "date": "2026-06-02",
     "flatPnl": -1.26,
-    "simPnl": -48.62,
-    "simBankAfter": 566.68,
+    "simPnl": -48.48,
+    "simBankAfter": 565.83,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -6429,10 +6435,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 61.06,
+       "stake": 61.0,
        "odds": -110,
        "win": false,
-       "pnl": -61.06,
+       "pnl": -61.0,
        "assumed": false
       },
       "ledger": {
@@ -6483,10 +6489,10 @@
       "modelP": 0.3561,
       "record": {
        "action": "BET",
-       "stake": 25.09,
+       "stake": 25.0,
        "odds": -135,
        "win": true,
-       "pnl": 18.59,
+       "pnl": 18.52,
        "assumed": false
       },
       "ledger": {
@@ -6520,10 +6526,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 6.15,
+       "stake": 6.0,
        "odds": -150,
        "win": false,
-       "pnl": -6.15,
+       "pnl": -6.0,
        "assumed": false
       },
       "ledger": {
@@ -6539,8 +6545,8 @@
    {
     "date": "2026-06-03",
     "flatPnl": 0.83,
-    "simPnl": 18.83,
-    "simBankAfter": 585.51,
+    "simPnl": 19.17,
+    "simBankAfter": 584.99,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -6619,10 +6625,10 @@
       "modelP": 0.618,
       "record": {
        "action": "BET",
-       "stake": 22.6,
+       "stake": 23.0,
        "odds": -120,
        "win": true,
-       "pnl": 18.83,
+       "pnl": 19.17,
        "assumed": false
       },
       "ledger": {
@@ -6638,8 +6644,8 @@
    {
     "date": "2026-06-04",
     "flatPnl": -2.0,
-    "simPnl": -51.97,
-    "simBankAfter": 533.54,
+    "simPnl": -52.0,
+    "simBankAfter": 532.99,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -6650,10 +6656,10 @@
       "modelP": 0.3302,
       "record": {
        "action": "BET",
-       "stake": 30.37,
+       "stake": 30.0,
        "odds": -140,
        "win": false,
-       "pnl": -30.37,
+       "pnl": -30.0,
        "assumed": false
       },
       "ledger": {
@@ -6670,10 +6676,10 @@
       "modelP": 0.3788,
       "record": {
        "action": "BET",
-       "stake": 21.6,
+       "stake": 22.0,
        "odds": -125,
        "win": false,
-       "pnl": -21.6,
+       "pnl": -22.0,
        "assumed": false
       },
       "ledger": {
@@ -6706,8 +6712,8 @@
    {
     "date": "2026-06-05",
     "flatPnl": 1.19,
-    "simPnl": 39.33,
-    "simBankAfter": 572.87,
+    "simPnl": 39.47,
+    "simBankAfter": 572.46,
     "flagged": 6,
     "placed": 6,
     "bet": 4,
@@ -6718,10 +6724,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 35.71,
+       "stake": 36.0,
        "odds": -155,
        "win": true,
-       "pnl": 23.04,
+       "pnl": 23.23,
        "assumed": false
       },
       "ledger": {
@@ -6738,10 +6744,10 @@
       "modelP": 0.3869,
       "record": {
        "action": "BET",
-       "stake": 17.27,
+       "stake": 17.0,
        "odds": -125,
        "win": true,
-       "pnl": 13.82,
+       "pnl": 13.6,
        "assumed": false
       },
       "ledger": {
@@ -6775,10 +6781,10 @@
       "modelP": 0.3714,
       "record": {
        "action": "BET",
-       "stake": 16.96,
+       "stake": 17.0,
        "odds": -135,
        "win": true,
-       "pnl": 12.56,
+       "pnl": 12.59,
        "assumed": false
       },
       "ledger": {
@@ -6795,10 +6801,10 @@
       "modelP": 0.3706,
       "record": {
        "action": "BET",
-       "stake": 10.09,
+       "stake": 9.95,
        "odds": -110,
        "win": false,
-       "pnl": -10.09,
+       "pnl": -9.95,
        "assumed": false
       },
       "ledger": {
@@ -6831,8 +6837,8 @@
    {
     "date": "2026-06-06",
     "flatPnl": 1.39,
-    "simPnl": 40.64,
-    "simBankAfter": 613.51,
+    "simPnl": 40.55,
+    "simBankAfter": 613.01,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -6843,10 +6849,10 @@
       "modelP": 0.3481,
       "record": {
        "action": "BET",
-       "stake": 26.06,
+       "stake": 26.0,
        "odds": -135,
        "win": true,
-       "pnl": 19.3,
+       "pnl": 19.26,
        "assumed": false
       },
       "ledger": {
@@ -6897,10 +6903,10 @@
       "modelP": 0.3016,
       "record": {
        "action": "BET",
-       "stake": 33.08,
+       "stake": 33.0,
        "odds": -155,
        "win": true,
-       "pnl": 21.34,
+       "pnl": 21.29,
        "assumed": false
       },
       "ledger": {
@@ -6916,8 +6922,8 @@
    {
     "date": "2026-06-07",
     "flatPnl": -0.29,
-    "simPnl": 8.94,
-    "simBankAfter": 622.45,
+    "simPnl": 9.29,
+    "simBankAfter": 622.3,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -6928,10 +6934,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 47.67,
+       "stake": 48.0,
        "odds": -140,
        "win": true,
-       "pnl": 34.05,
+       "pnl": 34.29,
        "assumed": false
       },
       "ledger": {
@@ -7016,10 +7022,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 25.11,
+       "stake": 25.0,
        "odds": -145,
        "win": false,
-       "pnl": -25.11,
+       "pnl": -25.0,
        "assumed": false
       },
       "ledger": {
@@ -7035,8 +7041,8 @@
    {
     "date": "2026-06-08",
     "flatPnl": -1.0,
-    "simPnl": -55.06,
-    "simBankAfter": 567.39,
+    "simPnl": -55.0,
+    "simBankAfter": 567.3,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -7047,10 +7053,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 55.06,
+       "stake": 55.0,
        "odds": -125,
        "win": false,
-       "pnl": -55.06,
+       "pnl": -55.0,
        "assumed": false
       },
       "ledger": {
@@ -7100,8 +7106,8 @@
    {
     "date": "2026-06-09",
     "flatPnl": 1.31,
-    "simPnl": 33.43,
-    "simBankAfter": 600.82,
+    "simPnl": 33.28,
+    "simBankAfter": 600.58,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -7112,10 +7118,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 25.75,
+       "stake": 26.0,
        "odds": -185,
        "win": true,
-       "pnl": 13.92,
+       "pnl": 14.05,
        "assumed": false
       },
       "ledger": {
@@ -7183,10 +7189,10 @@
       "modelP": 0.3571,
       "record": {
        "action": "BET",
-       "stake": 25.36,
+       "stake": 25.0,
        "odds": -130,
        "win": true,
-       "pnl": 19.51,
+       "pnl": 19.23,
        "assumed": false
       },
       "ledger": {
@@ -7202,8 +7208,8 @@
    {
     "date": "2026-06-10",
     "flatPnl": -0.17,
-    "simPnl": -18.28,
-    "simBankAfter": 582.53,
+    "simPnl": -18.33,
+    "simBankAfter": 582.25,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -7214,10 +7220,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 40.21,
+       "stake": 40.0,
        "odds": -155,
        "win": false,
-       "pnl": -40.21,
+       "pnl": -40.0,
        "assumed": false
       },
       "ledger": {
@@ -7268,10 +7274,10 @@
       "modelP": 0.3749,
       "record": {
        "action": "BET",
-       "stake": 26.31,
+       "stake": 26.0,
        "odds": -120,
        "win": true,
-       "pnl": 21.93,
+       "pnl": 21.67,
        "assumed": false
       },
       "ledger": {
@@ -7321,8 +7327,8 @@
    {
     "date": "2026-06-11",
     "flatPnl": -1.0,
-    "simPnl": -15.48,
-    "simBankAfter": 567.05,
+    "simPnl": -15.0,
+    "simBankAfter": 567.25,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -7333,10 +7339,10 @@
       "modelP": 0.3648,
       "record": {
        "action": "BET",
-       "stake": 15.48,
+       "stake": 15.0,
        "odds": -145,
        "win": false,
-       "pnl": -15.48,
+       "pnl": -15.0,
        "assumed": false
       },
       "ledger": {
@@ -7403,8 +7409,8 @@
    {
     "date": "2026-06-12",
     "flatPnl": -0.13,
-    "simPnl": 0.62,
-    "simBankAfter": 567.67,
+    "simPnl": 1.04,
+    "simBankAfter": 568.29,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -7449,10 +7455,10 @@
       "modelP": 0.3402,
       "record": {
        "action": "BET",
-       "stake": 38.06,
+       "stake": 38.0,
        "odds": -115,
        "win": true,
-       "pnl": 33.1,
+       "pnl": 33.04,
        "assumed": false
       },
       "ledger": {
@@ -7486,10 +7492,10 @@
       "modelP": 0.6414,
       "record": {
        "action": "BET",
-       "stake": 32.48,
+       "stake": 32.0,
        "odds": -115,
        "win": false,
-       "pnl": -32.48,
+       "pnl": -32.0,
        "assumed": false
       },
       "ledger": {
@@ -7506,7 +7512,7 @@
     "date": "2026-06-13",
     "flatPnl": 0,
     "simPnl": 0,
-    "simBankAfter": 567.67,
+    "simBankAfter": 568.29,
     "flagged": 3,
     "placed": 3,
     "bet": 0,
@@ -7567,8 +7573,8 @@
    {
     "date": "2026-06-14",
     "flatPnl": -1.26,
-    "simPnl": -22.8,
-    "simBankAfter": 544.87,
+    "simPnl": -22.3,
+    "simBankAfter": 546.0,
     "flagged": 7,
     "placed": 7,
     "bet": 3,
@@ -7579,10 +7585,10 @@
       "modelP": 0.3305,
       "record": {
        "action": "BET",
-       "stake": 31.68,
+       "stake": 32.0,
        "odds": -135,
        "win": true,
-       "pnl": 23.47,
+       "pnl": 23.7,
        "assumed": false
       },
       "ledger": {
@@ -7616,10 +7622,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 42.07,
+       "stake": 42.0,
        "odds": -145,
        "win": false,
-       "pnl": -42.07,
+       "pnl": -42.0,
        "assumed": false
       },
       "ledger": {
@@ -7687,10 +7693,10 @@
       "modelP": 0.6338,
       "record": {
        "action": "BET",
-       "stake": 4.2,
+       "stake": 4.0,
        "odds": -165,
        "win": false,
-       "pnl": -4.2,
+       "pnl": -4.0,
        "assumed": false
       },
       "ledger": {
@@ -7706,8 +7712,8 @@
    {
     "date": "2026-06-15",
     "flatPnl": -0.17,
-    "simPnl": 10.23,
-    "simBankAfter": 555.09,
+    "simPnl": 10.5,
+    "simBankAfter": 556.5,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -7718,10 +7724,10 @@
       "modelP": 0.3442,
       "record": {
        "action": "BET",
-       "stake": 33.08,
+       "stake": 33.0,
        "odds": -120,
        "win": true,
-       "pnl": 27.57,
+       "pnl": 27.5,
        "assumed": false
       },
       "ledger": {
@@ -7738,10 +7744,10 @@
       "modelP": 0.3422,
       "record": {
        "action": "BET",
-       "stake": 17.34,
+       "stake": 17.0,
        "odds": -155,
        "win": false,
-       "pnl": -17.34,
+       "pnl": -17.0,
        "assumed": false
       },
       "ledger": {
@@ -7853,8 +7859,8 @@
    {
     "date": "2026-06-17",
     "flatPnl": 0.41,
-    "simPnl": -5.66,
-    "simBankAfter": 549.44,
+    "simPnl": -5.45,
+    "simBankAfter": 551.05,
     "flagged": 6,
     "placed": 5,
     "bet": 3,
@@ -7865,10 +7871,10 @@
       "modelP": 0.3342,
       "record": {
        "action": "BET",
-       "stake": 20.51,
+       "stake": 21.0,
        "odds": -155,
        "win": true,
-       "pnl": 13.23,
+       "pnl": 13.55,
        "assumed": false
       },
       "ledger": {
@@ -7885,10 +7891,10 @@
       "modelP": 0.3368,
       "record": {
        "action": "BET",
-       "stake": 28.94,
+       "stake": 29.0,
        "odds": -135,
        "win": false,
-       "pnl": -28.94,
+       "pnl": -29.0,
        "assumed": false
       },
       "ledger": {
@@ -7905,10 +7911,10 @@
       "modelP": 0.3938,
       "record": {
        "action": "BET",
-       "stake": 13.07,
+       "stake": 13.0,
        "odds": -130,
        "win": true,
-       "pnl": 10.05,
+       "pnl": 10.0,
        "assumed": false
       },
       "ledger": {
@@ -7975,8 +7981,8 @@
    {
     "date": "2026-06-18",
     "flatPnl": 0.31,
-    "simPnl": -3.85,
-    "simBankAfter": 545.59,
+    "simPnl": -4.02,
+    "simBankAfter": 547.02,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -8004,10 +8010,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 34.8,
+       "stake": 35.0,
        "odds": -160,
        "win": false,
-       "pnl": -34.8,
+       "pnl": -35.0,
        "assumed": false
       },
       "ledger": {
@@ -8024,10 +8030,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 36.77,
+       "stake": 37.0,
        "odds": -155,
        "win": true,
-       "pnl": 23.72,
+       "pnl": 23.87,
        "assumed": false
       },
       "ledger": {
@@ -8044,10 +8050,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 10.85,
+       "stake": 10.66,
        "odds": -150,
        "win": true,
-       "pnl": 7.23,
+       "pnl": 7.11,
        "assumed": false
       }
      }
@@ -8056,8 +8062,8 @@
    {
     "date": "2026-06-19",
     "flatPnl": -0.2,
-    "simPnl": 5.94,
-    "simBankAfter": 551.53,
+    "simPnl": 5.8,
+    "simBankAfter": 552.82,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -8085,10 +8091,10 @@
       "modelP": 0.3273,
       "record": {
        "action": "BET",
-       "stake": 35.96,
+       "stake": 36.0,
        "odds": -125,
        "win": true,
-       "pnl": 28.77,
+       "pnl": 28.8,
        "assumed": false
       },
       "ledger": {
@@ -8122,10 +8128,10 @@
       "modelP": 0.3785,
       "record": {
        "action": "BET",
-       "stake": 22.83,
+       "stake": 23.0,
        "odds": -120,
        "win": false,
-       "pnl": -22.83,
+       "pnl": -23.0,
        "assumed": false
       },
       "ledger": {
@@ -8176,7 +8182,7 @@
     "date": "2026-06-20",
     "flatPnl": 0.48,
     "simPnl": 58.08,
-    "simBankAfter": 609.61,
+    "simBankAfter": 610.9,
     "flagged": 5,
     "placed": 5,
     "bet": 3,
@@ -8187,10 +8193,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 44.83,
+       "stake": 45.0,
        "odds": -135,
        "win": true,
-       "pnl": 33.21,
+       "pnl": 33.33,
        "assumed": false
       },
       "ledger": {
@@ -8207,10 +8213,10 @@
       "modelP": 0.3143,
       "record": {
        "action": "BET",
-       "stake": 36.06,
+       "stake": 36.0,
        "odds": -135,
        "win": true,
-       "pnl": 26.71,
+       "pnl": 26.67,
        "assumed": false
       },
       "ledger": {
@@ -8261,10 +8267,10 @@
       "modelP": 0.3392,
       "record": {
        "action": "BET",
-       "stake": 1.84,
+       "stake": 1.92,
        "odds": -130,
        "win": false,
-       "pnl": -1.84,
+       "pnl": -1.92,
        "assumed": false
       },
       "ledger": {
@@ -8280,8 +8286,8 @@
    {
     "date": "2026-06-21",
     "flatPnl": -1.0,
-    "simPnl": -38.61,
-    "simBankAfter": 571.0,
+    "simPnl": -39.0,
+    "simBankAfter": 571.9,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -8292,10 +8298,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 38.61,
+       "stake": 39.0,
        "odds": -160,
        "win": false,
-       "pnl": -38.61,
+       "pnl": -39.0,
        "assumed": false
       },
       "ledger": {
@@ -8424,8 +8430,8 @@
    {
     "date": "2026-06-23",
     "flatPnl": 1.62,
-    "simPnl": 48.39,
-    "simBankAfter": 619.39,
+    "simPnl": 48.05,
+    "simBankAfter": 619.96,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -8436,10 +8442,10 @@
       "modelP": 0.3468,
       "record": {
        "action": "BET",
-       "stake": 23.95,
+       "stake": 24.0,
        "odds": -140,
        "win": true,
-       "pnl": 17.11,
+       "pnl": 17.14,
        "assumed": false
       },
       "ledger": {
@@ -8456,10 +8462,10 @@
       "modelP": 0.3614,
       "record": {
        "action": "BET",
-       "stake": 34.41,
+       "stake": 34.0,
        "odds": -110,
        "win": true,
-       "pnl": 31.28,
+       "pnl": 30.91,
        "assumed": false
       },
       "ledger": {
@@ -8543,8 +8549,8 @@
    {
     "date": "2026-06-24",
     "flatPnl": 0.8,
-    "simPnl": 30.98,
-    "simBankAfter": 650.37,
+    "simPnl": 31.2,
+    "simBankAfter": 651.16,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -8572,10 +8578,10 @@
       "modelP": 0.3333,
       "record": {
        "action": "BET",
-       "stake": 38.73,
+       "stake": 39.0,
        "odds": -125,
        "win": true,
-       "pnl": 30.98,
+       "pnl": 31.2,
        "assumed": false
       },
       "ledger": {
@@ -8608,8 +8614,8 @@
    {
     "date": "2026-06-25",
     "flatPnl": 0.83,
-    "simPnl": 49.89,
-    "simBankAfter": 700.27,
+    "simPnl": 50.0,
+    "simBankAfter": 701.16,
     "flagged": 1,
     "placed": 1,
     "bet": 1,
@@ -8620,10 +8626,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 59.87,
+       "stake": 60.0,
        "odds": -120,
        "win": true,
-       "pnl": 49.89,
+       "pnl": 50.0,
        "assumed": false
       },
       "ledger": {
@@ -8639,8 +8645,8 @@
    {
     "date": "2026-06-26",
     "flatPnl": 0.87,
-    "simPnl": 53.01,
-    "simBankAfter": 753.27,
+    "simPnl": 53.04,
+    "simBankAfter": 754.2,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -8651,10 +8657,10 @@
       "modelP": 0.3032,
       "record": {
        "action": "BET",
-       "stake": 60.96,
+       "stake": 61.0,
        "odds": -115,
        "win": true,
-       "pnl": 53.01,
+       "pnl": 53.04,
        "assumed": false
       },
       "ledger": {
@@ -8687,8 +8693,8 @@
    {
     "date": "2026-06-27",
     "flatPnl": -0.17,
-    "simPnl": 13.89,
-    "simBankAfter": 767.16,
+    "simPnl": 13.5,
+    "simBankAfter": 767.7,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -8699,10 +8705,10 @@
       "modelP": 0.3895,
       "record": {
        "action": "BET",
-       "stake": 26.94,
+       "stake": 27.0,
        "odds": -120,
        "win": true,
-       "pnl": 22.45,
+       "pnl": 22.5,
        "assumed": false
       },
       "ledger": {
@@ -8753,10 +8759,10 @@
       "modelP": 0.6182,
       "record": {
        "action": "BET",
-       "stake": 8.56,
+       "stake": 9.0,
        "odds": -150,
        "win": false,
-       "pnl": -8.56,
+       "pnl": -9.0,
        "assumed": false
       }
      }
@@ -8765,8 +8771,8 @@
    {
     "date": "2026-06-28",
     "flatPnl": 1.67,
-    "simPnl": 97.02,
-    "simBankAfter": 864.18,
+    "simPnl": 96.94,
+    "simBankAfter": 864.64,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -8794,10 +8800,10 @@
       "modelP": 0.2923,
       "record": {
        "action": "BET",
-       "stake": 71.25,
+       "stake": 71.0,
        "odds": -115,
        "win": true,
-       "pnl": 61.96,
+       "pnl": 61.74,
        "assumed": false
       },
       "ledger": {
@@ -8882,10 +8888,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 43.82,
+       "stake": 44.0,
        "odds": -125,
        "win": true,
-       "pnl": 35.06,
+       "pnl": 35.2,
        "assumed": false
       }
      }
@@ -8894,8 +8900,8 @@
    {
     "date": "2026-06-29",
     "flatPnl": -2.0,
-    "simPnl": -71.82,
-    "simBankAfter": 792.36,
+    "simPnl": -72.0,
+    "simBankAfter": 792.64,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -8906,10 +8912,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 48.53,
+       "stake": 49.0,
        "odds": -170,
        "win": false,
-       "pnl": -48.53,
+       "pnl": -49.0,
        "assumed": false
       },
       "ledger": {
@@ -8960,10 +8966,10 @@
       "modelP": 0.3304,
       "record": {
        "action": "BET",
-       "stake": 23.29,
+       "stake": 23.0,
        "odds": -170,
        "win": false,
-       "pnl": -23.29,
+       "pnl": -23.0,
        "assumed": false
       },
       "ledger": {
@@ -8996,8 +9002,8 @@
    {
     "date": "2026-06-30",
     "flatPnl": 1.16,
-    "simPnl": 35.82,
-    "simBankAfter": 828.18,
+    "simPnl": 36.22,
+    "simBankAfter": 828.85,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -9008,10 +9014,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 38.81,
+       "stake": 39.0,
        "odds": -180,
        "win": true,
-       "pnl": 21.56,
+       "pnl": 21.67,
        "assumed": false
       },
       "ledger": {
@@ -9028,10 +9034,10 @@
       "modelP": 0.3325,
       "record": {
        "action": "BET",
-       "stake": 23.53,
+       "stake": 24.0,
        "odds": -165,
        "win": true,
-       "pnl": 14.26,
+       "pnl": 14.55,
        "assumed": false
       },
       "ledger": {
@@ -9098,8 +9104,8 @@
    {
     "date": "2026-07-01",
     "flatPnl": -0.29,
-    "simPnl": 3.36,
-    "simBankAfter": 831.54,
+    "simPnl": 4.14,
+    "simBankAfter": 832.99,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -9110,10 +9116,10 @@
       "modelP": 0.327,
       "record": {
        "action": "BET",
-       "stake": 44.53,
+       "stake": 45.0,
        "odds": -140,
        "win": true,
-       "pnl": 31.81,
+       "pnl": 32.14,
        "assumed": false
       },
       "ledger": {
@@ -9130,10 +9136,10 @@
       "modelP": 0.3594,
       "record": {
        "action": "BET",
-       "stake": 28.45,
+       "stake": 28.0,
        "odds": -140,
        "win": false,
-       "pnl": -28.45,
+       "pnl": -28.0,
        "assumed": false
       },
       "ledger": {
@@ -9166,8 +9172,8 @@
    {
     "date": "2026-07-02",
     "flatPnl": 0.15,
-    "simPnl": 14.86,
-    "simBankAfter": 846.4,
+    "simPnl": 15.41,
+    "simBankAfter": 848.4,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -9178,10 +9184,10 @@
       "modelP": 0.3255,
       "record": {
        "action": "BET",
-       "stake": 15.06,
+       "stake": 15.0,
        "odds": -185,
        "win": true,
-       "pnl": 8.14,
+       "pnl": 8.11,
        "assumed": false
       },
       "ledger": {
@@ -9198,10 +9204,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 49.68,
+       "stake": 50.0,
        "odds": -165,
        "win": true,
-       "pnl": 30.11,
+       "pnl": 30.3,
        "assumed": false
       },
       "ledger": {
@@ -9235,10 +9241,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 23.39,
+       "stake": 23.0,
        "odds": -160,
        "win": false,
-       "pnl": -23.39,
+       "pnl": -23.0,
        "assumed": false
       }
      }
@@ -9247,8 +9253,8 @@
    {
     "date": "2026-07-03",
     "flatPnl": 0.71,
-    "simPnl": 40.95,
-    "simBankAfter": 887.35,
+    "simPnl": 40.71,
+    "simBankAfter": 889.12,
     "flagged": 6,
     "placed": 6,
     "bet": 1,
@@ -9259,10 +9265,10 @@
       "modelP": 0.3038,
       "record": {
        "action": "BET",
-       "stake": 57.33,
+       "stake": 57.0,
        "odds": -140,
        "win": true,
-       "pnl": 40.95,
+       "pnl": 40.71,
        "assumed": false
       },
       "ledger": {
@@ -9363,8 +9369,8 @@
    {
     "date": "2026-07-04",
     "flatPnl": -0.39,
-    "simPnl": 26.92,
-    "simBankAfter": 914.26,
+    "simPnl": 27.12,
+    "simBankAfter": 916.24,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -9392,10 +9398,10 @@
       "modelP": 0.3488,
       "record": {
        "action": "BET",
-       "stake": 5.21,
+       "stake": 5.0,
        "odds": -180,
        "win": false,
-       "pnl": -5.21,
+       "pnl": -5.0,
        "assumed": false
       },
       "ledger": {
@@ -9446,10 +9452,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 53.01,
+       "stake": 53.0,
        "odds": -165,
        "win": true,
-       "pnl": 32.13,
+       "pnl": 32.12,
        "assumed": false
       },
       "ledger": {
@@ -9482,8 +9488,8 @@
    {
     "date": "2026-07-05",
     "flatPnl": 0.54,
-    "simPnl": 4.29,
-    "simBankAfter": 918.55,
+    "simPnl": 4.32,
+    "simBankAfter": 920.56,
     "flagged": 6,
     "placed": 6,
     "bet": 1,
@@ -9494,10 +9500,10 @@
       "modelP": 0.3387,
       "record": {
        "action": "BET",
-       "stake": 7.93,
+       "stake": 8.0,
        "odds": -185,
        "win": true,
-       "pnl": 4.29,
+       "pnl": 4.32,
        "assumed": false
       },
       "ledger": {
@@ -9598,8 +9604,8 @@
    {
     "date": "2026-07-06",
     "flatPnl": -0.38,
-    "simPnl": 25.97,
-    "simBankAfter": 944.52,
+    "simPnl": 26.62,
+    "simBankAfter": 947.19,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -9610,10 +9616,10 @@
       "modelP": 0.3772,
       "record": {
        "action": "BET",
-       "stake": 4.45,
+       "stake": 4.0,
        "odds": -160,
        "win": false,
-       "pnl": -4.45,
+       "pnl": -4.0,
        "assumed": false
       },
       "ledger": {
@@ -9630,10 +9636,10 @@
       "modelP": 0.3031,
       "record": {
        "action": "BET",
-       "stake": 48.67,
+       "stake": 49.0,
        "odds": -160,
        "win": true,
-       "pnl": 30.42,
+       "pnl": 30.62,
        "assumed": false
       },
       "ledger": {
@@ -9666,8 +9672,8 @@
    {
     "date": "2026-07-07",
     "flatPnl": 0.58,
-    "simPnl": 29.13,
-    "simBankAfter": 973.64,
+    "simPnl": 29.55,
+    "simBankAfter": 976.74,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -9678,10 +9684,10 @@
       "modelP": 0.3704,
       "record": {
        "action": "BET",
-       "stake": 48.08,
+       "stake": 48.0,
        "odds": -115,
        "win": false,
-       "pnl": -48.08,
+       "pnl": -48.0,
        "assumed": false
       },
       "ledger": {
@@ -9698,10 +9704,10 @@
       "modelP": 0.3691,
       "record": {
        "action": "BET",
-       "stake": 26.95,
+       "stake": 27.0,
        "odds": -140,
        "win": true,
-       "pnl": 19.25,
+       "pnl": 19.29,
        "assumed": false
       },
       "ledger": {
@@ -9735,10 +9741,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 66.65,
+       "stake": 67.0,
        "odds": -115,
        "win": true,
-       "pnl": 57.96,
+       "pnl": 58.26,
        "assumed": false
       },
       "ledger": {
@@ -9754,8 +9760,8 @@
    {
     "date": "2026-07-08",
     "flatPnl": -0.26,
-    "simPnl": -8.29,
-    "simBankAfter": 965.36,
+    "simPnl": -8.99,
+    "simBankAfter": 967.74,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -9766,10 +9772,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 79.14,
+       "stake": 79.0,
        "odds": -135,
        "win": true,
-       "pnl": 58.62,
+       "pnl": 58.52,
        "assumed": false
       },
       "ledger": {
@@ -9786,10 +9792,10 @@
       "modelP": 0.3152,
       "record": {
        "action": "BET",
-       "stake": 66.91,
+       "stake": 67.51,
        "odds": -110,
        "win": false,
-       "pnl": -66.91,
+       "pnl": -67.51,
        "assumed": false
       },
       "ledger": {
@@ -9839,8 +9845,8 @@
    {
     "date": "2026-07-09",
     "flatPnl": 0.0,
-    "simPnl": -8.56,
-    "simBankAfter": 956.8,
+    "simPnl": -9.0,
+    "simBankAfter": 958.74,
     "flagged": 1,
     "placed": 1,
     "bet": 2,
@@ -9851,10 +9857,10 @@
       "modelP": 0.3431,
       "record": {
        "action": "BET",
-       "stake": 67.46,
+       "stake": 68.0,
        "odds": -110,
        "win": false,
-       "pnl": -67.46,
+       "pnl": -68.0,
        "assumed": false
       }
      },
@@ -9864,10 +9870,10 @@
       "modelP": 0.378,
       "record": {
        "action": "BET",
-       "stake": 58.9,
+       "stake": 59.0,
        "odds": 100,
        "win": true,
-       "pnl": 58.9,
+       "pnl": 59.0,
        "assumed": false
       },
       "ledger": {
@@ -9962,8 +9968,8 @@
    {
     "date": "2026-07-11",
     "flatPnl": 0.8,
-    "simPnl": 24.14,
-    "simBankAfter": 980.94,
+    "simPnl": 24.0,
+    "simBankAfter": 982.74,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -9991,10 +9997,10 @@
       "modelP": 0.3884,
       "record": {
        "action": "BET",
-       "stake": 30.18,
+       "stake": 30.0,
        "odds": -125,
        "win": true,
-       "pnl": 24.14,
+       "pnl": 24.0,
        "assumed": false
       },
       "ledger": {
@@ -10044,8 +10050,8 @@
    {
     "date": "2026-07-12",
     "flatPnl": 0.62,
-    "simPnl": 0.88,
-    "simBankAfter": 981.82,
+    "simPnl": 0.62,
+    "simBankAfter": 983.37,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -10141,10 +10147,10 @@
       "modelP": 0.6176,
       "record": {
        "action": "BET",
-       "stake": 1.4,
+       "stake": 1.0,
        "odds": -160,
        "win": true,
-       "pnl": 0.88,
+       "pnl": 0.62,
        "assumed": false
       }
      }
@@ -10181,8 +10187,8 @@
    {
     "date": "2026-07-17",
     "flatPnl": 1.34,
-    "simPnl": 66.35,
-    "simBankAfter": 1048.16,
+    "simPnl": 66.48,
+    "simBankAfter": 1049.85,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -10193,10 +10199,10 @@
       "modelP": 0.2968,
       "record": {
        "action": "BET",
-       "stake": 45.09,
+       "stake": 45.0,
        "odds": -175,
        "win": true,
-       "pnl": 25.77,
+       "pnl": 25.71,
        "assumed": false
       },
       "ledger": {
@@ -10281,10 +10287,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 52.75,
+       "stake": 53.0,
        "odds": -130,
        "win": true,
-       "pnl": 40.58,
+       "pnl": 40.77,
        "assumed": false
       }
      }
@@ -10293,8 +10299,8 @@
    {
     "date": "2026-07-18",
     "flatPnl": 0.84,
-    "simPnl": 8.05,
-    "simBankAfter": 1056.21,
+    "simPnl": 7.11,
+    "simBankAfter": 1056.96,
     "flagged": 4,
     "placed": 4,
     "bet": 4,
@@ -10305,10 +10311,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 43.81,
+       "stake": 44.0,
        "odds": -190,
        "win": true,
-       "pnl": 23.06,
+       "pnl": 23.16,
        "assumed": false
       },
       "ledger": {
@@ -10325,10 +10331,10 @@
       "modelP": 0.3569,
       "record": {
        "action": "BET",
-       "stake": 51.64,
+       "stake": 52.0,
        "odds": -125,
        "win": false,
-       "pnl": -51.64,
+       "pnl": -52.0,
        "assumed": false
       },
       "ledger": {
@@ -10345,10 +10351,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 47.57,
+       "stake": 48.0,
        "odds": -185,
        "win": true,
-       "pnl": 25.71,
+       "pnl": 25.95,
        "assumed": false
       },
       "ledger": {
@@ -10382,10 +10388,10 @@
       "modelP": 0.6216,
       "record": {
        "action": "BET",
-       "stake": 14.2,
+       "stake": 13.0,
        "odds": -130,
        "win": true,
-       "pnl": 10.92,
+       "pnl": 10.0,
        "assumed": false
       }
      }
@@ -10394,8 +10400,8 @@
    {
     "date": "2026-07-19",
     "flatPnl": 2.28,
-    "simPnl": 98.69,
-    "simBankAfter": 1154.9,
+    "simPnl": 99.04,
+    "simBankAfter": 1156.0,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -10406,10 +10412,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 70.69,
+       "stake": 71.0,
        "odds": -155,
        "win": true,
-       "pnl": 45.61,
+       "pnl": 45.81,
        "assumed": false
       },
       "ledger": {
@@ -10494,10 +10500,10 @@
       "modelP": 0.3915,
       "record": {
        "action": "BET",
-       "stake": 36.6,
+       "stake": 37.0,
        "odds": -120,
        "win": true,
-       "pnl": 30.5,
+       "pnl": 30.83,
        "assumed": false
       },
       "ledger": {
@@ -10514,10 +10520,10 @@
       "modelP": 0.6031,
       "record": {
        "action": "BET",
-       "stake": 28.23,
+       "stake": 28.0,
        "odds": -125,
        "win": true,
-       "pnl": 22.58,
+       "pnl": 22.4,
        "assumed": false
       }
      }
@@ -10526,8 +10532,8 @@
    {
     "date": "2026-07-20",
     "flatPnl": -0.35,
-    "simPnl": -2.33,
-    "simBankAfter": 1152.58,
+    "simPnl": -2.32,
+    "simBankAfter": 1153.67,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -10538,10 +10544,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 77.29,
+       "stake": 77.0,
        "odds": -155,
        "win": true,
-       "pnl": 49.86,
+       "pnl": 49.68,
        "assumed": false
       },
       "ledger": {
@@ -10592,10 +10598,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 52.19,
+       "stake": 52.0,
        "odds": -140,
        "win": false,
-       "pnl": -52.19,
+       "pnl": -52.0,
        "assumed": false
       }
      }
@@ -10604,8 +10610,8 @@
    {
     "date": "2026-07-21",
     "flatPnl": 0.83,
-    "simPnl": 50.73,
-    "simBankAfter": 1203.3,
+    "simPnl": 50.83,
+    "simBankAfter": 1204.51,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -10633,10 +10639,10 @@
       "modelP": 0.3585,
       "record": {
        "action": "BET",
-       "stake": 60.87,
+       "stake": 61.0,
        "odds": -120,
        "win": true,
-       "pnl": 50.73,
+       "pnl": 50.83,
        "assumed": false
       },
       "ledger": {
@@ -10652,8 +10658,8 @@
    {
     "date": "2026-07-22",
     "flatPnl": -1.29,
-    "simPnl": -84.02,
-    "simBankAfter": 1119.29,
+    "simPnl": -84.43,
+    "simBankAfter": 1120.08,
     "flagged": 5,
     "placed": 5,
     "bet": 3,
@@ -10664,10 +10670,10 @@
       "modelP": 0.3695,
       "record": {
        "action": "BET",
-       "stake": 61.86,
+       "stake": 62.0,
        "odds": -115,
        "win": false,
-       "pnl": -61.86,
+       "pnl": -62.0,
        "assumed": false
       },
       "ledger": {
@@ -10755,10 +10761,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 54.38,
+       "stake": 54.0,
        "odds": -140,
        "win": true,
-       "pnl": 38.84,
+       "pnl": 38.57,
        "assumed": false
       }
      }
@@ -10767,8 +10773,8 @@
    {
     "date": "2026-07-24",
     "flatPnl": -1.0,
-    "simPnl": -25.13,
-    "simBankAfter": 1094.16,
+    "simPnl": -25.0,
+    "simBankAfter": 1095.08,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -10779,10 +10785,10 @@
       "modelP": 0.3873,
       "record": {
        "action": "BET",
-       "stake": 25.13,
+       "stake": 25.0,
        "odds": -135,
        "win": false,
-       "pnl": -25.13,
+       "pnl": -25.0,
        "assumed": false
       },
       "ledger": {
@@ -10849,8 +10855,8 @@
    {
     "date": "2026-07-25",
     "flatPnl": -1.0,
-    "simPnl": -35.19,
-    "simBankAfter": 1058.97,
+    "simPnl": -35.0,
+    "simBankAfter": 1060.08,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -10929,10 +10935,10 @@
       "modelP": 0.6369,
       "record": {
        "action": "BET",
-       "stake": 35.19,
+       "stake": 35.0,
        "odds": -140,
        "win": false,
-       "pnl": -35.19,
+       "pnl": -35.0,
        "assumed": false
       }
      }
@@ -10941,8 +10947,8 @@
    {
     "date": "2026-07-26",
     "flatPnl": -1.0,
-    "simPnl": -38.82,
-    "simBankAfter": 1020.15,
+    "simPnl": -39.0,
+    "simBankAfter": 1021.08,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -10987,10 +10993,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 38.82,
+       "stake": 39.0,
        "odds": -150,
        "win": false,
-       "pnl": -38.82,
+       "pnl": -39.0,
        "assumed": false
       }
      }
@@ -10999,8 +11005,8 @@
    {
     "date": "2026-07-27",
     "flatPnl": -1.0,
-    "simPnl": -40.51,
-    "simBankAfter": 979.64,
+    "simPnl": -41.0,
+    "simBankAfter": 980.08,
     "flagged": 6,
     "placed": 4,
     "bet": 1,
@@ -11011,10 +11017,10 @@
       "modelP": 0.3505,
       "record": {
        "action": "BET",
-       "stake": 40.51,
+       "stake": 41.0,
        "odds": -140,
        "win": false,
-       "pnl": -40.51,
+       "pnl": -41.0,
        "assumed": false
       },
       "ledger": {
@@ -11115,8 +11121,8 @@
    {
     "date": "2026-07-28",
     "flatPnl": -1.0,
-    "simPnl": -93.69,
-    "simBankAfter": 885.95,
+    "simPnl": -94.0,
+    "simBankAfter": 886.08,
     "flagged": 1,
     "placed": 1,
     "bet": 1,
@@ -11127,10 +11133,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 93.69,
+       "stake": 94.0,
        "odds": -115,
        "win": false,
-       "pnl": -93.69,
+       "pnl": -94.0,
        "assumed": false
       },
       "ledger": {
@@ -11142,6 +11148,37 @@
       }
      }
     ]
+   },
+   {
+    "date": "2026-07-29",
+    "flatPnl": -1.0,
+    "simPnl": -20.0,
+    "simBankAfter": 866.08,
+    "flagged": 1,
+    "placed": 1,
+    "bet": 1,
+    "games": [
+     {
+      "game": "TOR@WSH",
+      "side": "YRFI",
+      "modelP": 0.3957,
+      "record": {
+       "action": "BET",
+       "stake": 20.0,
+       "odds": -130,
+       "win": false,
+       "pnl": -20.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 2.08,
+       "odds": -130,
+       "pnl": -2.08
+      }
+     }
+    ]
    }
   ]
  },
@@ -11149,41 +11186,41 @@
   "label": "Real profit",
   "priceFill": null,
   "from": "2026-05-07",
-  "to": "2026-07-28",
-  "bets": 126,
+  "to": "2026-07-29",
+  "bets": 127,
   "wins": 78,
-  "losses": 48,
-  "hitRate": 0.619,
-  "breakEvenNeeded": 0.5757,
-  "edgePts": 4.33,
-  "flatProfit": 10.33,
+  "losses": 49,
+  "hitRate": 0.6142,
+  "breakEvenNeeded": 0.5756,
+  "edgePts": 3.85,
+  "flatProfit": 9.33,
   "assumedBets": 0,
-  "selectedBets": 140,
+  "selectedBets": 141,
   "droppedZeroStake": 14,
   "droppedFlatPnl": 1.39,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 233.04,
-   "profit": 133.04,
-   "maxDrawdownPct": 26.38,
+   "finalBank": 227.11,
+   "profit": 127.11,
+   "maxDrawdownPct": 27.93,
    "kellyFraction": 0.25,
-   "largestStake": 24.65,
-   "medianStake": 8.05
+   "largestStake": 24.0,
+   "medianStake": 8.0
   },
   "floor": {
-   "bets": 95,
-   "wins": 61,
+   "bets": 96,
+   "wins": 62,
    "losses": 34,
-   "hitRate": 0.6421,
+   "hitRate": 0.6458,
    "breakEvenNeeded": 0.5797,
-   "edgePts": 6.24,
-   "flatProfit": 10.23,
+   "edgePts": 6.62,
+   "flatProfit": 10.97,
    "assumedBets": 0,
    "sim": {
-    "finalBank": 207.16,
-    "profit": 107.16,
-    "maxDrawdownPct": 21.39,
-    "largestStake": 23.02
+    "finalBank": 206.99,
+    "profit": 106.99,
+    "maxDrawdownPct": 21.59,
+    "largestStake": 23.0
    }
   },
   "monthly": [
@@ -11205,10 +11242,10 @@
    },
    {
     "month": "2026-07",
-    "bets": 40,
+    "bets": 41,
     "wins": 24,
-    "losses": 16,
-    "flat": 0.74,
+    "losses": 17,
+    "flat": -0.26,
     "assumedBets": 0
    }
   ],
@@ -11216,8 +11253,8 @@
    {
     "date": "2026-05-07",
     "flatPnl": -1.0,
-    "simPnl": -7.41,
-    "simBankAfter": 92.59,
+    "simPnl": -7.0,
+    "simBankAfter": 93.0,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -11228,10 +11265,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 7.41,
+       "stake": 7.0,
        "odds": -145,
        "win": false,
-       "pnl": -7.41,
+       "pnl": -7.0,
        "assumed": false
       },
       "ledger": {
@@ -11315,8 +11352,8 @@
    {
     "date": "2026-05-08",
     "flatPnl": 0.8,
-    "simPnl": 3.32,
-    "simBankAfter": 95.91,
+    "simPnl": 3.2,
+    "simBankAfter": 96.2,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -11378,10 +11415,10 @@
       "modelP": 0.6353,
       "record": {
        "action": "BET",
-       "stake": 4.15,
+       "stake": 4.0,
        "odds": -125,
        "win": true,
-       "pnl": 3.32,
+       "pnl": 3.2,
        "assumed": false
       },
       "ledger": {
@@ -11397,8 +11434,8 @@
    {
     "date": "2026-05-09",
     "flatPnl": 0.74,
-    "simPnl": 5.78,
-    "simBankAfter": 101.69,
+    "simPnl": 5.93,
+    "simBankAfter": 102.13,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -11409,10 +11446,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 7.8,
+       "stake": 8.0,
        "odds": -135,
        "win": true,
-       "pnl": 5.78,
+       "pnl": 5.93,
        "assumed": false
       },
       "ledger": {
@@ -11665,8 +11702,8 @@
    {
     "date": "2026-05-13",
     "flatPnl": 2.08,
-    "simPnl": 7.77,
-    "simBankAfter": 109.46,
+    "simPnl": 7.5,
+    "simBankAfter": 109.63,
     "flagged": 5,
     "placed": 5,
     "bet": 3,
@@ -11694,10 +11731,10 @@
       "modelP": 0.3502,
       "record": {
        "action": "BET",
-       "stake": 5.84,
+       "stake": 6.0,
        "odds": -120,
        "win": true,
-       "pnl": 4.87,
+       "pnl": 5.0,
        "assumed": false
       },
       "ledger": {
@@ -11714,10 +11751,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 2.43,
+       "stake": 2.0,
        "odds": -165,
        "win": true,
-       "pnl": 1.47,
+       "pnl": 1.21,
        "assumed": false
       },
       "ledger": {
@@ -11734,10 +11771,10 @@
       "modelP": 0.6421,
       "record": {
        "action": "BET",
-       "stake": 2.22,
+       "stake": 2.0,
        "odds": -155,
        "win": true,
-       "pnl": 1.43,
+       "pnl": 1.29,
        "assumed": false
       },
       "ledger": {
@@ -11770,8 +11807,8 @@
    {
     "date": "2026-05-14",
     "flatPnl": -0.31,
-    "simPnl": -0.29,
-    "simBankAfter": 109.17,
+    "simPnl": -0.48,
+    "simBankAfter": 109.15,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -11782,10 +11819,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 8.11,
+       "stake": 8.0,
        "odds": -145,
        "win": true,
-       "pnl": 5.59,
+       "pnl": 5.52,
        "assumed": false
       },
       "ledger": {
@@ -11819,10 +11856,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 5.88,
+       "stake": 6.0,
        "odds": -130,
        "win": false,
-       "pnl": -5.88,
+       "pnl": -6.0,
        "assumed": false
       },
       "ledger": {
@@ -11855,8 +11892,8 @@
    {
     "date": "2026-05-15",
     "flatPnl": -1.35,
-    "simPnl": -4.35,
-    "simBankAfter": 104.82,
+    "simPnl": -4.48,
+    "simBankAfter": 104.66,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -11867,10 +11904,10 @@
       "modelP": 0.3132,
       "record": {
        "action": "BET",
-       "stake": 8.49,
+       "stake": 8.0,
        "odds": -120,
        "win": false,
-       "pnl": -8.49,
+       "pnl": -8.0,
        "assumed": false
       },
       "ledger": {
@@ -11887,10 +11924,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 7.31,
+       "stake": 7.0,
        "odds": -155,
        "win": true,
-       "pnl": 4.72,
+       "pnl": 4.52,
        "assumed": false
       },
       "ledger": {
@@ -11907,10 +11944,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 0.58,
+       "stake": 1.0,
        "odds": -125,
        "win": false,
-       "pnl": -0.58,
+       "pnl": -1.0,
        "assumed": false
       },
       "ledger": {
@@ -11926,8 +11963,8 @@
    {
     "date": "2026-05-16",
     "flatPnl": -0.33,
-    "simPnl": 1.25,
-    "simBankAfter": 106.07,
+    "simPnl": 0.67,
+    "simBankAfter": 105.33,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -11938,10 +11975,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 7.39,
+       "stake": 7.0,
        "odds": -150,
        "win": true,
-       "pnl": 4.93,
+       "pnl": 4.67,
        "assumed": false
       },
       "ledger": {
@@ -11975,10 +12012,10 @@
       "modelP": 0.3738,
       "record": {
        "action": "BET",
-       "stake": 3.68,
+       "stake": 4.0,
        "odds": -130,
        "win": false,
-       "pnl": -3.68,
+       "pnl": -4.0,
        "assumed": false
       },
       "ledger": {
@@ -12011,8 +12048,8 @@
    {
     "date": "2026-05-17",
     "flatPnl": 0.53,
-    "simPnl": -5.03,
-    "simBankAfter": 101.03,
+    "simPnl": -5.57,
+    "simBankAfter": 99.75,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -12023,10 +12060,10 @@
       "modelP": 0.3406,
       "record": {
        "action": "BET",
-       "stake": 3.04,
+       "stake": 3.0,
        "odds": -160,
        "win": true,
-       "pnl": 1.9,
+       "pnl": 1.88,
        "assumed": false
       },
       "ledger": {
@@ -12043,10 +12080,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 9.76,
+       "stake": 10.0,
        "odds": -120,
        "win": false,
-       "pnl": -9.76,
+       "pnl": -10.0,
        "assumed": false
       },
       "ledger": {
@@ -12063,10 +12100,10 @@
       "modelP": 0.3653,
       "record": {
        "action": "BET",
-       "stake": 3.11,
+       "stake": 2.8,
        "odds": -110,
        "win": true,
-       "pnl": 2.83,
+       "pnl": 2.55,
        "assumed": false
       },
       "ledger": {
@@ -12127,8 +12164,8 @@
    {
     "date": "2026-05-19",
     "flatPnl": 0.77,
-    "simPnl": 2.05,
-    "simBankAfter": 103.09,
+    "simPnl": 2.28,
+    "simBankAfter": 102.03,
     "flagged": 2,
     "placed": 2,
     "bet": 3,
@@ -12139,10 +12176,10 @@
       "modelP": 0.3886,
       "record": {
        "action": "BET",
-       "stake": 5.63,
+       "stake": 6.0,
        "odds": 100,
        "win": true,
-       "pnl": 5.63,
+       "pnl": 6.0,
        "assumed": false
       },
       "ledger": {
@@ -12159,10 +12196,10 @@
       "modelP": 0.3361,
       "record": {
        "action": "BET",
-       "stake": 6.16,
+       "stake": 6.0,
        "odds": -125,
        "win": false,
-       "pnl": -6.16,
+       "pnl": -6.0,
        "assumed": false
       },
       "ledger": {
@@ -12179,10 +12216,10 @@
       "modelP": 0.3373,
       "record": {
        "action": "BET",
-       "stake": 3.36,
+       "stake": 2.96,
        "odds": -130,
        "win": true,
-       "pnl": 2.58,
+       "pnl": 2.28,
        "assumed": false
       }
      }
@@ -12191,8 +12228,8 @@
    {
     "date": "2026-05-20",
     "flatPnl": 1.64,
-    "simPnl": 12.56,
-    "simBankAfter": 115.65,
+    "simPnl": 12.14,
+    "simBankAfter": 114.17,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -12203,10 +12240,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 8.75,
+       "stake": 9.0,
        "odds": -130,
        "win": true,
-       "pnl": 6.73,
+       "pnl": 6.92,
        "assumed": false
       },
       "ledger": {
@@ -12223,10 +12260,10 @@
       "modelP": 0.3146,
       "record": {
        "action": "BET",
-       "stake": 6.71,
+       "stake": 6.0,
        "odds": -115,
        "win": true,
-       "pnl": 5.83,
+       "pnl": 5.22,
        "assumed": false
       },
       "ledger": {
@@ -12259,8 +12296,8 @@
    {
     "date": "2026-05-21",
     "flatPnl": 0.87,
-    "simPnl": 6.9,
-    "simBankAfter": 122.56,
+    "simPnl": 6.96,
+    "simBankAfter": 121.12,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -12271,10 +12308,10 @@
       "modelP": 0.3374,
       "record": {
        "action": "BET",
-       "stake": 7.94,
+       "stake": 8.0,
        "odds": -115,
        "win": true,
-       "pnl": 6.9,
+       "pnl": 6.96,
        "assumed": false
       },
       "ledger": {
@@ -12510,8 +12547,8 @@
    {
     "date": "2026-05-25",
     "flatPnl": -0.13,
-    "simPnl": 5.82,
-    "simBankAfter": 128.37,
+    "simPnl": 5.83,
+    "simBankAfter": 126.95,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -12522,10 +12559,10 @@
       "modelP": 0.3261,
       "record": {
        "action": "BET",
-       "stake": 9.16,
+       "stake": 9.0,
        "odds": -115,
        "win": true,
-       "pnl": 7.97,
+       "pnl": 7.83,
        "assumed": false
       },
       "ledger": {
@@ -12542,10 +12579,10 @@
       "modelP": 0.3576,
       "record": {
        "action": "BET",
-       "stake": 2.15,
+       "stake": 2.0,
        "odds": -160,
        "win": false,
-       "pnl": -2.15,
+       "pnl": -2.0,
        "assumed": false
       },
       "ledger": {
@@ -12595,8 +12632,8 @@
    {
     "date": "2026-05-26",
     "flatPnl": -1.0,
-    "simPnl": -5.16,
-    "simBankAfter": 123.21,
+    "simPnl": -5.0,
+    "simBankAfter": 121.95,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -12607,10 +12644,10 @@
       "modelP": 0.3357,
       "record": {
        "action": "BET",
-       "stake": 5.16,
+       "stake": 5.0,
        "odds": -150,
        "win": false,
-       "pnl": -5.16,
+       "pnl": -5.0,
        "assumed": false
       }
      },
@@ -12670,8 +12707,8 @@
    {
     "date": "2026-05-27",
     "flatPnl": 0.95,
-    "simPnl": 7.74,
-    "simBankAfter": 130.96,
+    "simPnl": 7.62,
+    "simBankAfter": 129.57,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -12733,10 +12770,10 @@
       "modelP": 0.3591,
       "record": {
        "action": "BET",
-       "stake": 8.13,
+       "stake": 8.0,
        "odds": -105,
        "win": true,
-       "pnl": 7.74,
+       "pnl": 7.62,
        "assumed": false
       }
      },
@@ -12762,8 +12799,8 @@
    {
     "date": "2026-05-28",
     "flatPnl": -1.0,
-    "simPnl": -5.01,
-    "simBankAfter": 125.95,
+    "simPnl": -5.0,
+    "simBankAfter": 124.57,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -12791,10 +12828,10 @@
       "modelP": 0.6396,
       "record": {
        "action": "BET",
-       "stake": 5.01,
+       "stake": 5.0,
        "odds": -135,
        "win": false,
-       "pnl": -5.01,
+       "pnl": -5.0,
        "assumed": false
       },
       "ledger": {
@@ -12810,8 +12847,8 @@
    {
     "date": "2026-05-29",
     "flatPnl": 0.74,
-    "simPnl": 2.36,
-    "simBankAfter": 128.31,
+    "simPnl": 2.22,
+    "simBankAfter": 126.79,
     "flagged": 7,
     "placed": 7,
     "bet": 1,
@@ -12890,10 +12927,10 @@
       "modelP": 0.3824,
       "record": {
        "action": "BET",
-       "stake": 3.19,
+       "stake": 3.0,
        "odds": -135,
        "win": true,
-       "pnl": 2.36,
+       "pnl": 2.22,
        "assumed": false
       },
       "ledger": {
@@ -12943,8 +12980,8 @@
    {
     "date": "2026-05-30",
     "flatPnl": 1.79,
-    "simPnl": 17.0,
-    "simBankAfter": 145.31,
+    "simPnl": 16.86,
+    "simBankAfter": 143.65,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -12955,10 +12992,10 @@
       "modelP": 0.2879,
       "record": {
        "action": "BET",
-       "stake": 10.38,
+       "stake": 10.0,
        "odds": -135,
        "win": true,
-       "pnl": 7.69,
+       "pnl": 7.41,
        "assumed": false
       },
       "ledger": {
@@ -12975,10 +13012,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 8.87,
+       "stake": 9.0,
        "odds": 105,
        "win": true,
-       "pnl": 9.31,
+       "pnl": 9.45,
        "assumed": false
       },
       "ledger": {
@@ -13062,8 +13099,8 @@
    {
     "date": "2026-05-31",
     "flatPnl": 0.6,
-    "simPnl": 7.31,
-    "simBankAfter": 152.62,
+    "simPnl": 7.36,
+    "simBankAfter": 151.0,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -13111,10 +13148,10 @@
       "modelP": 0.3615,
       "record": {
        "action": "BET",
-       "stake": 6.13,
+       "stake": 6.0,
        "odds": -130,
        "win": false,
-       "pnl": -6.13,
+       "pnl": -6.0,
        "assumed": false
       },
       "ledger": {
@@ -13165,10 +13202,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 3.67,
+       "stake": 3.55,
        "odds": -145,
        "win": true,
-       "pnl": 2.53,
+       "pnl": 2.45,
        "assumed": false
       },
       "ledger": {
@@ -13184,8 +13221,8 @@
    {
     "date": "2026-06-01",
     "flatPnl": 0.95,
-    "simPnl": 9.27,
-    "simBankAfter": 161.89,
+    "simPnl": 9.52,
+    "simBankAfter": 160.53,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -13213,10 +13250,10 @@
       "modelP": 0.3634,
       "record": {
        "action": "BET",
-       "stake": 9.73,
+       "stake": 10.0,
        "odds": -105,
        "win": true,
-       "pnl": 9.27,
+       "pnl": 9.52,
        "assumed": false
       },
       "ledger": {
@@ -13266,8 +13303,8 @@
    {
     "date": "2026-06-02",
     "flatPnl": -1.26,
-    "simPnl": -12.79,
-    "simBankAfter": 149.1,
+    "simPnl": -11.81,
+    "simBankAfter": 148.71,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -13278,10 +13315,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 16.06,
+       "stake": 16.0,
        "odds": -110,
        "win": false,
-       "pnl": -16.06,
+       "pnl": -16.0,
        "assumed": false
       },
       "ledger": {
@@ -13332,10 +13369,10 @@
       "modelP": 0.3561,
       "record": {
        "action": "BET",
-       "stake": 6.6,
+       "stake": 7.0,
        "odds": -135,
        "win": true,
-       "pnl": 4.89,
+       "pnl": 5.19,
        "assumed": false
       },
       "ledger": {
@@ -13369,10 +13406,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 1.62,
+       "stake": 1.0,
        "odds": -150,
        "win": false,
-       "pnl": -1.62,
+       "pnl": -1.0,
        "assumed": false
       },
       "ledger": {
@@ -13388,8 +13425,8 @@
    {
     "date": "2026-06-03",
     "flatPnl": 0.83,
-    "simPnl": 4.96,
-    "simBankAfter": 154.05,
+    "simPnl": 5.0,
+    "simBankAfter": 153.71,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -13468,10 +13505,10 @@
       "modelP": 0.618,
       "record": {
        "action": "BET",
-       "stake": 5.95,
+       "stake": 6.0,
        "odds": -120,
        "win": true,
-       "pnl": 4.96,
+       "pnl": 5.0,
        "assumed": false
       },
       "ledger": {
@@ -13487,8 +13524,8 @@
    {
     "date": "2026-06-04",
     "flatPnl": -2.0,
-    "simPnl": -13.67,
-    "simBankAfter": 140.38,
+    "simPnl": -14.0,
+    "simBankAfter": 139.71,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -13499,10 +13536,10 @@
       "modelP": 0.3302,
       "record": {
        "action": "BET",
-       "stake": 7.99,
+       "stake": 8.0,
        "odds": -140,
        "win": false,
-       "pnl": -7.99,
+       "pnl": -8.0,
        "assumed": false
       },
       "ledger": {
@@ -13519,10 +13556,10 @@
       "modelP": 0.3788,
       "record": {
        "action": "BET",
-       "stake": 5.68,
+       "stake": 6.0,
        "odds": -125,
        "win": false,
-       "pnl": -5.68,
+       "pnl": -6.0,
        "assumed": false
       },
       "ledger": {
@@ -13555,8 +13592,8 @@
    {
     "date": "2026-06-05",
     "flatPnl": 1.19,
-    "simPnl": 10.32,
-    "simBankAfter": 150.71,
+    "simPnl": 9.81,
+    "simBankAfter": 149.52,
     "flagged": 6,
     "placed": 6,
     "bet": 4,
@@ -13567,10 +13604,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 9.39,
+       "stake": 9.0,
        "odds": -155,
        "win": true,
-       "pnl": 6.06,
+       "pnl": 5.81,
        "assumed": false
       },
       "ledger": {
@@ -13587,10 +13624,10 @@
       "modelP": 0.3869,
       "record": {
        "action": "BET",
-       "stake": 4.54,
+       "stake": 5.0,
        "odds": -125,
        "win": true,
-       "pnl": 3.63,
+       "pnl": 4.0,
        "assumed": false
       },
       "ledger": {
@@ -13624,10 +13661,10 @@
       "modelP": 0.3714,
       "record": {
        "action": "BET",
-       "stake": 4.46,
+       "stake": 4.0,
        "odds": -135,
        "win": true,
-       "pnl": 3.3,
+       "pnl": 2.96,
        "assumed": false
       },
       "ledger": {
@@ -13644,10 +13681,10 @@
       "modelP": 0.3706,
       "record": {
        "action": "BET",
-       "stake": 2.67,
+       "stake": 2.96,
        "odds": -110,
        "win": false,
-       "pnl": -2.67,
+       "pnl": -2.96,
        "assumed": false
       },
       "ledger": {
@@ -13680,8 +13717,8 @@
    {
     "date": "2026-06-06",
     "flatPnl": 1.39,
-    "simPnl": 10.69,
-    "simBankAfter": 161.4,
+    "simPnl": 11.0,
+    "simBankAfter": 160.51,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -13692,10 +13729,10 @@
       "modelP": 0.3481,
       "record": {
        "action": "BET",
-       "stake": 6.86,
+       "stake": 7.0,
        "odds": -135,
        "win": true,
-       "pnl": 5.08,
+       "pnl": 5.19,
        "assumed": false
       },
       "ledger": {
@@ -13746,10 +13783,10 @@
       "modelP": 0.3016,
       "record": {
        "action": "BET",
-       "stake": 8.7,
+       "stake": 9.0,
        "odds": -155,
        "win": true,
-       "pnl": 5.61,
+       "pnl": 5.81,
        "assumed": false
       },
       "ledger": {
@@ -13765,8 +13802,8 @@
    {
     "date": "2026-06-07",
     "flatPnl": -0.29,
-    "simPnl": 2.35,
-    "simBankAfter": 163.75,
+    "simPnl": 1.57,
+    "simBankAfter": 162.09,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -13777,10 +13814,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 12.54,
+       "stake": 12.0,
        "odds": -140,
        "win": true,
-       "pnl": 8.96,
+       "pnl": 8.57,
        "assumed": false
       },
       "ledger": {
@@ -13865,10 +13902,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 6.61,
+       "stake": 7.0,
        "odds": -145,
        "win": false,
-       "pnl": -6.61,
+       "pnl": -7.0,
        "assumed": false
       },
       "ledger": {
@@ -13884,8 +13921,8 @@
    {
     "date": "2026-06-08",
     "flatPnl": -1.0,
-    "simPnl": -14.49,
-    "simBankAfter": 149.26,
+    "simPnl": -14.0,
+    "simBankAfter": 148.09,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -13896,10 +13933,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 14.49,
+       "stake": 14.0,
        "odds": -125,
        "win": false,
-       "pnl": -14.49,
+       "pnl": -14.0,
        "assumed": false
       },
       "ledger": {
@@ -13949,8 +13986,8 @@
    {
     "date": "2026-06-09",
     "flatPnl": 1.31,
-    "simPnl": 8.79,
-    "simBankAfter": 158.05,
+    "simPnl": 9.16,
+    "simBankAfter": 157.25,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -13961,10 +13998,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 6.77,
+       "stake": 7.0,
        "odds": -185,
        "win": true,
-       "pnl": 3.66,
+       "pnl": 3.78,
        "assumed": false
       },
       "ledger": {
@@ -14032,10 +14069,10 @@
       "modelP": 0.3571,
       "record": {
        "action": "BET",
-       "stake": 6.67,
+       "stake": 7.0,
        "odds": -130,
        "win": true,
-       "pnl": 5.13,
+       "pnl": 5.38,
        "assumed": false
       },
       "ledger": {
@@ -14051,8 +14088,8 @@
    {
     "date": "2026-06-10",
     "flatPnl": -0.17,
-    "simPnl": -4.81,
-    "simBankAfter": 153.24,
+    "simPnl": -5.17,
+    "simBankAfter": 152.09,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -14063,10 +14100,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 10.58,
+       "stake": 11.0,
        "odds": -155,
        "win": false,
-       "pnl": -10.58,
+       "pnl": -11.0,
        "assumed": false
       },
       "ledger": {
@@ -14117,10 +14154,10 @@
       "modelP": 0.3749,
       "record": {
        "action": "BET",
-       "stake": 6.92,
+       "stake": 7.0,
        "odds": -120,
        "win": true,
-       "pnl": 5.77,
+       "pnl": 5.83,
        "assumed": false
       },
       "ledger": {
@@ -14170,8 +14207,8 @@
    {
     "date": "2026-06-11",
     "flatPnl": -1.0,
-    "simPnl": -4.07,
-    "simBankAfter": 149.17,
+    "simPnl": -4.0,
+    "simBankAfter": 148.09,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -14182,10 +14219,10 @@
       "modelP": 0.3648,
       "record": {
        "action": "BET",
-       "stake": 4.07,
+       "stake": 4.0,
        "odds": -145,
        "win": false,
-       "pnl": -4.07,
+       "pnl": -4.0,
        "assumed": false
       },
       "ledger": {
@@ -14252,8 +14289,8 @@
    {
     "date": "2026-06-12",
     "flatPnl": -0.13,
-    "simPnl": 0.16,
-    "simBankAfter": 149.33,
+    "simPnl": 0.7,
+    "simBankAfter": 148.78,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -14298,7 +14335,7 @@
       "modelP": 0.3402,
       "record": {
        "action": "BET",
-       "stake": 10.01,
+       "stake": 10.0,
        "odds": -115,
        "win": true,
        "pnl": 8.7,
@@ -14335,10 +14372,10 @@
       "modelP": 0.6414,
       "record": {
        "action": "BET",
-       "stake": 8.54,
+       "stake": 8.0,
        "odds": -115,
        "win": false,
-       "pnl": -8.54,
+       "pnl": -8.0,
        "assumed": false
       },
       "ledger": {
@@ -14355,7 +14392,7 @@
     "date": "2026-06-13",
     "flatPnl": 0,
     "simPnl": 0,
-    "simBankAfter": 149.33,
+    "simBankAfter": 148.78,
     "flagged": 3,
     "placed": 3,
     "bet": 0,
@@ -14416,8 +14453,8 @@
    {
     "date": "2026-06-14",
     "flatPnl": -1.26,
-    "simPnl": -6.01,
-    "simBankAfter": 143.32,
+    "simPnl": -6.07,
+    "simBankAfter": 142.71,
     "flagged": 7,
     "placed": 7,
     "bet": 3,
@@ -14428,10 +14465,10 @@
       "modelP": 0.3305,
       "record": {
        "action": "BET",
-       "stake": 8.33,
+       "stake": 8.0,
        "odds": -135,
        "win": true,
-       "pnl": 6.17,
+       "pnl": 5.93,
        "assumed": false
       },
       "ledger": {
@@ -14465,10 +14502,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 11.07,
+       "stake": 11.0,
        "odds": -145,
        "win": false,
-       "pnl": -11.07,
+       "pnl": -11.0,
        "assumed": false
       },
       "ledger": {
@@ -14536,10 +14573,10 @@
       "modelP": 0.6338,
       "record": {
        "action": "BET",
-       "stake": 1.11,
+       "stake": 1.0,
        "odds": -165,
        "win": false,
-       "pnl": -1.11,
+       "pnl": -1.0,
        "assumed": false
       },
       "ledger": {
@@ -14555,8 +14592,8 @@
    {
     "date": "2026-06-15",
     "flatPnl": -0.17,
-    "simPnl": 2.69,
-    "simBankAfter": 146.01,
+    "simPnl": 2.5,
+    "simBankAfter": 145.21,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -14567,10 +14604,10 @@
       "modelP": 0.3442,
       "record": {
        "action": "BET",
-       "stake": 8.7,
+       "stake": 9.0,
        "odds": -120,
        "win": true,
-       "pnl": 7.25,
+       "pnl": 7.5,
        "assumed": false
       },
       "ledger": {
@@ -14587,10 +14624,10 @@
       "modelP": 0.3422,
       "record": {
        "action": "BET",
-       "stake": 4.56,
+       "stake": 5.0,
        "odds": -155,
        "win": false,
-       "pnl": -4.56,
+       "pnl": -5.0,
        "assumed": false
       },
       "ledger": {
@@ -14702,8 +14739,8 @@
    {
     "date": "2026-06-17",
     "flatPnl": 0.41,
-    "simPnl": -1.48,
-    "simBankAfter": 144.53,
+    "simPnl": -2.46,
+    "simBankAfter": 142.74,
     "flagged": 6,
     "placed": 5,
     "bet": 3,
@@ -14714,10 +14751,10 @@
       "modelP": 0.3342,
       "record": {
        "action": "BET",
-       "stake": 5.4,
+       "stake": 5.0,
        "odds": -155,
        "win": true,
-       "pnl": 3.48,
+       "pnl": 3.23,
        "assumed": false
       },
       "ledger": {
@@ -14734,10 +14771,10 @@
       "modelP": 0.3368,
       "record": {
        "action": "BET",
-       "stake": 7.61,
+       "stake": 8.0,
        "odds": -135,
        "win": false,
-       "pnl": -7.61,
+       "pnl": -8.0,
        "assumed": false
       },
       "ledger": {
@@ -14754,10 +14791,10 @@
       "modelP": 0.3938,
       "record": {
        "action": "BET",
-       "stake": 3.44,
+       "stake": 3.0,
        "odds": -130,
        "win": true,
-       "pnl": 2.65,
+       "pnl": 2.31,
        "assumed": false
       },
       "ledger": {
@@ -14824,8 +14861,8 @@
    {
     "date": "2026-06-18",
     "flatPnl": 0.31,
-    "simPnl": -1.0,
-    "simBankAfter": 143.53,
+    "simPnl": -1.22,
+    "simBankAfter": 141.53,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -14853,10 +14890,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 9.15,
+       "stake": 9.0,
        "odds": -160,
        "win": false,
-       "pnl": -9.15,
+       "pnl": -9.0,
        "assumed": false
       },
       "ledger": {
@@ -14873,10 +14910,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 9.67,
+       "stake": 10.0,
        "odds": -155,
        "win": true,
-       "pnl": 6.24,
+       "pnl": 6.45,
        "assumed": false
       },
       "ledger": {
@@ -14893,10 +14930,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 2.86,
+       "stake": 2.0,
        "odds": -150,
        "win": true,
-       "pnl": 1.91,
+       "pnl": 1.33,
        "assumed": false
       }
      }
@@ -14905,8 +14942,8 @@
    {
     "date": "2026-06-19",
     "flatPnl": -0.2,
-    "simPnl": 1.56,
-    "simBankAfter": 145.08,
+    "simPnl": 1.2,
+    "simBankAfter": 142.73,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -14934,10 +14971,10 @@
       "modelP": 0.3273,
       "record": {
        "action": "BET",
-       "stake": 9.46,
+       "stake": 9.0,
        "odds": -125,
        "win": true,
-       "pnl": 7.57,
+       "pnl": 7.2,
        "assumed": false
       },
       "ledger": {
@@ -14971,10 +15008,10 @@
       "modelP": 0.3785,
       "record": {
        "action": "BET",
-       "stake": 6.01,
+       "stake": 6.0,
        "odds": -120,
        "win": false,
-       "pnl": -6.01,
+       "pnl": -6.0,
        "assumed": false
       },
       "ledger": {
@@ -15024,8 +15061,8 @@
    {
     "date": "2026-06-20",
     "flatPnl": 0.48,
-    "simPnl": 15.26,
-    "simBankAfter": 160.35,
+    "simPnl": 15.15,
+    "simBankAfter": 157.87,
     "flagged": 5,
     "placed": 5,
     "bet": 3,
@@ -15036,10 +15073,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 11.79,
+       "stake": 12.0,
        "odds": -135,
        "win": true,
-       "pnl": 8.73,
+       "pnl": 8.89,
        "assumed": false
       },
       "ledger": {
@@ -15056,10 +15093,10 @@
       "modelP": 0.3143,
       "record": {
        "action": "BET",
-       "stake": 9.48,
+       "stake": 9.0,
        "odds": -135,
        "win": true,
-       "pnl": 7.02,
+       "pnl": 6.67,
        "assumed": false
       },
       "ledger": {
@@ -15110,10 +15147,10 @@
       "modelP": 0.3392,
       "record": {
        "action": "BET",
-       "stake": 0.49,
+       "stake": 0.41,
        "odds": -130,
        "win": false,
-       "pnl": -0.49,
+       "pnl": -0.41,
        "assumed": false
       },
       "ledger": {
@@ -15129,8 +15166,8 @@
    {
     "date": "2026-06-21",
     "flatPnl": -1.0,
-    "simPnl": -10.16,
-    "simBankAfter": 150.19,
+    "simPnl": -10.0,
+    "simBankAfter": 147.87,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -15141,10 +15178,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 10.16,
+       "stake": 10.0,
        "odds": -160,
        "win": false,
-       "pnl": -10.16,
+       "pnl": -10.0,
        "assumed": false
       },
       "ledger": {
@@ -15273,8 +15310,8 @@
    {
     "date": "2026-06-23",
     "flatPnl": 1.62,
-    "simPnl": 12.73,
-    "simBankAfter": 162.92,
+    "simPnl": 12.47,
+    "simBankAfter": 160.34,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -15285,10 +15322,10 @@
       "modelP": 0.3468,
       "record": {
        "action": "BET",
-       "stake": 6.3,
+       "stake": 6.0,
        "odds": -140,
        "win": true,
-       "pnl": 4.5,
+       "pnl": 4.29,
        "assumed": false
       },
       "ledger": {
@@ -15305,10 +15342,10 @@
       "modelP": 0.3614,
       "record": {
        "action": "BET",
-       "stake": 9.05,
+       "stake": 9.0,
        "odds": -110,
        "win": true,
-       "pnl": 8.23,
+       "pnl": 8.18,
        "assumed": false
       },
       "ledger": {
@@ -15392,8 +15429,8 @@
    {
     "date": "2026-06-24",
     "flatPnl": 0.8,
-    "simPnl": 8.15,
-    "simBankAfter": 171.07,
+    "simPnl": 8.0,
+    "simBankAfter": 168.34,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -15421,10 +15458,10 @@
       "modelP": 0.3333,
       "record": {
        "action": "BET",
-       "stake": 10.19,
+       "stake": 10.0,
        "odds": -125,
        "win": true,
-       "pnl": 8.15,
+       "pnl": 8.0,
        "assumed": false
       },
       "ledger": {
@@ -15457,8 +15494,8 @@
    {
     "date": "2026-06-25",
     "flatPnl": 0.83,
-    "simPnl": 13.12,
-    "simBankAfter": 184.19,
+    "simPnl": 13.33,
+    "simBankAfter": 181.67,
     "flagged": 1,
     "placed": 1,
     "bet": 1,
@@ -15469,10 +15506,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 15.75,
+       "stake": 16.0,
        "odds": -120,
        "win": true,
-       "pnl": 13.12,
+       "pnl": 13.33,
        "assumed": false
       },
       "ledger": {
@@ -15488,8 +15525,8 @@
    {
     "date": "2026-06-26",
     "flatPnl": 0.87,
-    "simPnl": 13.95,
-    "simBankAfter": 198.14,
+    "simPnl": 13.91,
+    "simBankAfter": 195.59,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -15500,10 +15537,10 @@
       "modelP": 0.3032,
       "record": {
        "action": "BET",
-       "stake": 16.04,
+       "stake": 16.0,
        "odds": -115,
        "win": true,
-       "pnl": 13.95,
+       "pnl": 13.91,
        "assumed": false
       },
       "ledger": {
@@ -15536,8 +15573,8 @@
    {
     "date": "2026-06-27",
     "flatPnl": -0.17,
-    "simPnl": 3.66,
-    "simBankAfter": 201.8,
+    "simPnl": 3.83,
+    "simBankAfter": 199.42,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -15548,10 +15585,10 @@
       "modelP": 0.3895,
       "record": {
        "action": "BET",
-       "stake": 7.09,
+       "stake": 7.0,
        "odds": -120,
        "win": true,
-       "pnl": 5.91,
+       "pnl": 5.83,
        "assumed": false
       },
       "ledger": {
@@ -15602,10 +15639,10 @@
       "modelP": 0.6182,
       "record": {
        "action": "BET",
-       "stake": 2.25,
+       "stake": 2.0,
        "odds": -150,
        "win": false,
-       "pnl": -2.25,
+       "pnl": -2.0,
        "assumed": false
       }
      }
@@ -15614,8 +15651,8 @@
    {
     "date": "2026-06-28",
     "flatPnl": 1.67,
-    "simPnl": 25.52,
-    "simBankAfter": 227.32,
+    "simPnl": 25.25,
+    "simBankAfter": 224.67,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -15643,10 +15680,10 @@
       "modelP": 0.2923,
       "record": {
        "action": "BET",
-       "stake": 18.74,
+       "stake": 19.0,
        "odds": -115,
        "win": true,
-       "pnl": 16.3,
+       "pnl": 16.52,
        "assumed": false
       },
       "ledger": {
@@ -15731,10 +15768,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 11.53,
+       "stake": 10.91,
        "odds": -125,
        "win": true,
-       "pnl": 9.22,
+       "pnl": 8.73,
        "assumed": false
       }
      }
@@ -15743,8 +15780,8 @@
    {
     "date": "2026-06-29",
     "flatPnl": -2.0,
-    "simPnl": -18.89,
-    "simBankAfter": 208.43,
+    "simPnl": -19.0,
+    "simBankAfter": 205.67,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -15755,10 +15792,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 12.76,
+       "stake": 13.0,
        "odds": -170,
        "win": false,
-       "pnl": -12.76,
+       "pnl": -13.0,
        "assumed": false
       },
       "ledger": {
@@ -15809,10 +15846,10 @@
       "modelP": 0.3304,
       "record": {
        "action": "BET",
-       "stake": 6.13,
+       "stake": 6.0,
        "odds": -170,
        "win": false,
-       "pnl": -6.13,
+       "pnl": -6.0,
        "assumed": false
       },
       "ledger": {
@@ -15845,8 +15882,8 @@
    {
     "date": "2026-06-30",
     "flatPnl": 1.16,
-    "simPnl": 9.42,
-    "simBankAfter": 217.85,
+    "simPnl": 9.2,
+    "simBankAfter": 214.86,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -15857,10 +15894,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 10.21,
+       "stake": 10.0,
        "odds": -180,
        "win": true,
-       "pnl": 5.67,
+       "pnl": 5.56,
        "assumed": false
       },
       "ledger": {
@@ -15877,10 +15914,10 @@
       "modelP": 0.3325,
       "record": {
        "action": "BET",
-       "stake": 6.19,
+       "stake": 6.0,
        "odds": -165,
        "win": true,
-       "pnl": 3.75,
+       "pnl": 3.64,
        "assumed": false
       },
       "ledger": {
@@ -15947,8 +15984,8 @@
    {
     "date": "2026-07-01",
     "flatPnl": -0.29,
-    "simPnl": 0.88,
-    "simBankAfter": 218.74,
+    "simPnl": 1.57,
+    "simBankAfter": 216.43,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -15959,10 +15996,10 @@
       "modelP": 0.327,
       "record": {
        "action": "BET",
-       "stake": 11.71,
+       "stake": 12.0,
        "odds": -140,
        "win": true,
-       "pnl": 8.36,
+       "pnl": 8.57,
        "assumed": false
       },
       "ledger": {
@@ -15979,10 +16016,10 @@
       "modelP": 0.3594,
       "record": {
        "action": "BET",
-       "stake": 7.48,
+       "stake": 7.0,
        "odds": -140,
        "win": false,
-       "pnl": -7.48,
+       "pnl": -7.0,
        "assumed": false
       },
       "ledger": {
@@ -16015,8 +16052,8 @@
    {
     "date": "2026-07-02",
     "flatPnl": 0.15,
-    "simPnl": 3.91,
-    "simBankAfter": 222.65,
+    "simPnl": 4.04,
+    "simBankAfter": 220.47,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -16027,10 +16064,10 @@
       "modelP": 0.3255,
       "record": {
        "action": "BET",
-       "stake": 3.96,
+       "stake": 4.0,
        "odds": -185,
        "win": true,
-       "pnl": 2.14,
+       "pnl": 2.16,
        "assumed": false
       },
       "ledger": {
@@ -16047,10 +16084,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 13.07,
+       "stake": 13.0,
        "odds": -165,
        "win": true,
-       "pnl": 7.92,
+       "pnl": 7.88,
        "assumed": false
       },
       "ledger": {
@@ -16084,10 +16121,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 6.15,
+       "stake": 6.0,
        "odds": -160,
        "win": false,
-       "pnl": -6.15,
+       "pnl": -6.0,
        "assumed": false
       }
      }
@@ -16096,8 +16133,8 @@
    {
     "date": "2026-07-03",
     "flatPnl": 0.71,
-    "simPnl": 10.77,
-    "simBankAfter": 233.42,
+    "simPnl": 10.71,
+    "simBankAfter": 231.19,
     "flagged": 6,
     "placed": 6,
     "bet": 1,
@@ -16108,10 +16145,10 @@
       "modelP": 0.3038,
       "record": {
        "action": "BET",
-       "stake": 15.08,
+       "stake": 15.0,
        "odds": -140,
        "win": true,
-       "pnl": 10.77,
+       "pnl": 10.71,
        "assumed": false
       },
       "ledger": {
@@ -16212,8 +16249,8 @@
    {
     "date": "2026-07-04",
     "flatPnl": -0.39,
-    "simPnl": 7.08,
-    "simBankAfter": 240.51,
+    "simPnl": 7.48,
+    "simBankAfter": 238.67,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -16241,10 +16278,10 @@
       "modelP": 0.3488,
       "record": {
        "action": "BET",
-       "stake": 1.37,
+       "stake": 1.0,
        "odds": -180,
        "win": false,
-       "pnl": -1.37,
+       "pnl": -1.0,
        "assumed": false
       },
       "ledger": {
@@ -16295,10 +16332,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 13.95,
+       "stake": 14.0,
        "odds": -165,
        "win": true,
-       "pnl": 8.45,
+       "pnl": 8.48,
        "assumed": false
       },
       "ledger": {
@@ -16331,8 +16368,8 @@
    {
     "date": "2026-07-05",
     "flatPnl": 0.54,
-    "simPnl": 1.13,
-    "simBankAfter": 241.64,
+    "simPnl": 1.08,
+    "simBankAfter": 239.76,
     "flagged": 6,
     "placed": 6,
     "bet": 1,
@@ -16343,10 +16380,10 @@
       "modelP": 0.3387,
       "record": {
        "action": "BET",
-       "stake": 2.09,
+       "stake": 2.0,
        "odds": -185,
        "win": true,
-       "pnl": 1.13,
+       "pnl": 1.08,
        "assumed": false
       },
       "ledger": {
@@ -16447,8 +16484,8 @@
    {
     "date": "2026-07-06",
     "flatPnl": -0.38,
-    "simPnl": 6.83,
-    "simBankAfter": 248.47,
+    "simPnl": 7.12,
+    "simBankAfter": 246.88,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -16459,10 +16496,10 @@
       "modelP": 0.3772,
       "record": {
        "action": "BET",
-       "stake": 1.17,
+       "stake": 1.0,
        "odds": -160,
        "win": false,
-       "pnl": -1.17,
+       "pnl": -1.0,
        "assumed": false
       },
       "ledger": {
@@ -16479,10 +16516,10 @@
       "modelP": 0.3031,
       "record": {
        "action": "BET",
-       "stake": 12.8,
+       "stake": 13.0,
        "odds": -160,
        "win": true,
-       "pnl": 8.0,
+       "pnl": 8.12,
        "assumed": false
       },
       "ledger": {
@@ -16515,8 +16552,8 @@
    {
     "date": "2026-07-07",
     "flatPnl": 0.58,
-    "simPnl": 7.65,
-    "simBankAfter": 256.12,
+    "simPnl": 6.78,
+    "simBankAfter": 253.66,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -16527,10 +16564,10 @@
       "modelP": 0.3704,
       "record": {
        "action": "BET",
-       "stake": 12.65,
+       "stake": 13.0,
        "odds": -115,
        "win": false,
-       "pnl": -12.65,
+       "pnl": -13.0,
        "assumed": false
       },
       "ledger": {
@@ -16547,10 +16584,10 @@
       "modelP": 0.3691,
       "record": {
        "action": "BET",
-       "stake": 7.09,
+       "stake": 7.0,
        "odds": -140,
        "win": true,
-       "pnl": 5.06,
+       "pnl": 5.0,
        "assumed": false
       },
       "ledger": {
@@ -16584,10 +16621,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 17.53,
+       "stake": 17.0,
        "odds": -115,
        "win": true,
-       "pnl": 15.24,
+       "pnl": 14.78,
        "assumed": false
       },
       "ledger": {
@@ -16603,8 +16640,8 @@
    {
     "date": "2026-07-08",
     "flatPnl": -0.26,
-    "simPnl": -2.18,
-    "simBankAfter": 253.95,
+    "simPnl": -1.44,
+    "simBankAfter": 252.22,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -16615,10 +16652,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 20.82,
+       "stake": 21.0,
        "odds": -135,
        "win": true,
-       "pnl": 15.42,
+       "pnl": 15.56,
        "assumed": false
       },
       "ledger": {
@@ -16635,10 +16672,10 @@
       "modelP": 0.3152,
       "record": {
        "action": "BET",
-       "stake": 17.6,
+       "stake": 17.0,
        "odds": -110,
        "win": false,
-       "pnl": -17.6,
+       "pnl": -17.0,
        "assumed": false
       },
       "ledger": {
@@ -16688,8 +16725,8 @@
    {
     "date": "2026-07-09",
     "flatPnl": 0.0,
-    "simPnl": -2.25,
-    "simBankAfter": 251.7,
+    "simPnl": -3.0,
+    "simBankAfter": 249.22,
     "flagged": 1,
     "placed": 1,
     "bet": 2,
@@ -16700,10 +16737,10 @@
       "modelP": 0.3431,
       "record": {
        "action": "BET",
-       "stake": 17.74,
+       "stake": 18.0,
        "odds": -110,
        "win": false,
-       "pnl": -17.74,
+       "pnl": -18.0,
        "assumed": false
       }
      },
@@ -16713,10 +16750,10 @@
       "modelP": 0.378,
       "record": {
        "action": "BET",
-       "stake": 15.49,
+       "stake": 15.0,
        "odds": 100,
        "win": true,
-       "pnl": 15.49,
+       "pnl": 15.0,
        "assumed": false
       },
       "ledger": {
@@ -16811,8 +16848,8 @@
    {
     "date": "2026-07-11",
     "flatPnl": 0.8,
-    "simPnl": 6.35,
-    "simBankAfter": 258.05,
+    "simPnl": 6.4,
+    "simBankAfter": 255.62,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -16840,10 +16877,10 @@
       "modelP": 0.3884,
       "record": {
        "action": "BET",
-       "stake": 7.94,
+       "stake": 8.0,
        "odds": -125,
        "win": true,
-       "pnl": 6.35,
+       "pnl": 6.4,
        "assumed": false
       },
       "ledger": {
@@ -16893,8 +16930,8 @@
    {
     "date": "2026-07-12",
     "flatPnl": 0.62,
-    "simPnl": 0.23,
-    "simBankAfter": 258.28,
+    "simPnl": 0.31,
+    "simBankAfter": 255.93,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -16990,10 +17027,10 @@
       "modelP": 0.6176,
       "record": {
        "action": "BET",
-       "stake": 0.37,
+       "stake": 0.5,
        "odds": -160,
        "win": true,
-       "pnl": 0.23,
+       "pnl": 0.31,
        "assumed": false
       }
      }
@@ -17030,8 +17067,8 @@
    {
     "date": "2026-07-17",
     "flatPnl": 1.34,
-    "simPnl": 17.46,
-    "simBankAfter": 275.73,
+    "simPnl": 17.63,
+    "simBankAfter": 273.56,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -17042,10 +17079,10 @@
       "modelP": 0.2968,
       "record": {
        "action": "BET",
-       "stake": 11.86,
+       "stake": 12.0,
        "odds": -175,
        "win": true,
-       "pnl": 6.78,
+       "pnl": 6.86,
        "assumed": false
       },
       "ledger": {
@@ -17130,10 +17167,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 13.88,
+       "stake": 14.0,
        "odds": -130,
        "win": true,
-       "pnl": 10.68,
+       "pnl": 10.77,
        "assumed": false
       }
      }
@@ -17142,8 +17179,8 @@
    {
     "date": "2026-07-18",
     "flatPnl": 0.84,
-    "simPnl": 2.11,
-    "simBankAfter": 277.85,
+    "simPnl": 3.13,
+    "simBankAfter": 276.68,
     "flagged": 4,
     "placed": 4,
     "bet": 4,
@@ -17154,10 +17191,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 11.52,
+       "stake": 11.0,
        "odds": -190,
        "win": true,
-       "pnl": 6.06,
+       "pnl": 5.79,
        "assumed": false
       },
       "ledger": {
@@ -17174,10 +17211,10 @@
       "modelP": 0.3569,
       "record": {
        "action": "BET",
-       "stake": 13.59,
+       "stake": 13.0,
        "odds": -125,
        "win": false,
-       "pnl": -13.59,
+       "pnl": -13.0,
        "assumed": false
       },
       "ledger": {
@@ -17194,10 +17231,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 12.51,
+       "stake": 12.0,
        "odds": -185,
        "win": true,
-       "pnl": 6.76,
+       "pnl": 6.49,
        "assumed": false
       },
       "ledger": {
@@ -17231,10 +17268,10 @@
       "modelP": 0.6216,
       "record": {
        "action": "BET",
-       "stake": 3.74,
+       "stake": 5.0,
        "odds": -130,
        "win": true,
-       "pnl": 2.88,
+       "pnl": 3.85,
        "assumed": false
       }
      }
@@ -17243,8 +17280,8 @@
    {
     "date": "2026-07-19",
     "flatPnl": 2.28,
-    "simPnl": 25.96,
-    "simBankAfter": 303.81,
+    "simPnl": 26.19,
+    "simBankAfter": 302.87,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -17255,10 +17292,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 18.59,
+       "stake": 19.0,
        "odds": -155,
        "win": true,
-       "pnl": 11.99,
+       "pnl": 12.26,
        "assumed": false
       },
       "ledger": {
@@ -17343,10 +17380,10 @@
       "modelP": 0.3915,
       "record": {
        "action": "BET",
-       "stake": 9.63,
+       "stake": 10.0,
        "odds": -120,
        "win": true,
-       "pnl": 8.03,
+       "pnl": 8.33,
        "assumed": false
       },
       "ledger": {
@@ -17363,10 +17400,10 @@
       "modelP": 0.6031,
       "record": {
        "action": "BET",
-       "stake": 7.43,
+       "stake": 7.0,
        "odds": -125,
        "win": true,
-       "pnl": 5.94,
+       "pnl": 5.6,
        "assumed": false
       }
      }
@@ -17375,8 +17412,8 @@
    {
     "date": "2026-07-20",
     "flatPnl": -0.35,
-    "simPnl": -0.61,
-    "simBankAfter": 303.19,
+    "simPnl": -1.1,
+    "simBankAfter": 301.77,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -17387,10 +17424,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 20.33,
+       "stake": 20.0,
        "odds": -155,
        "win": true,
-       "pnl": 13.12,
+       "pnl": 12.9,
        "assumed": false
       },
       "ledger": {
@@ -17441,10 +17478,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 13.73,
+       "stake": 14.0,
        "odds": -140,
        "win": false,
-       "pnl": -13.73,
+       "pnl": -14.0,
        "assumed": false
       }
      }
@@ -17453,8 +17490,8 @@
    {
     "date": "2026-07-21",
     "flatPnl": 0.83,
-    "simPnl": 13.34,
-    "simBankAfter": 316.54,
+    "simPnl": 13.33,
+    "simBankAfter": 315.11,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -17482,10 +17519,10 @@
       "modelP": 0.3585,
       "record": {
        "action": "BET",
-       "stake": 16.01,
+       "stake": 16.0,
        "odds": -120,
        "win": true,
-       "pnl": 13.34,
+       "pnl": 13.33,
        "assumed": false
       },
       "ledger": {
@@ -17501,8 +17538,8 @@
    {
     "date": "2026-07-22",
     "flatPnl": -1.29,
-    "simPnl": -22.11,
-    "simBankAfter": 294.43,
+    "simPnl": -22.0,
+    "simBankAfter": 293.11,
     "flagged": 5,
     "placed": 5,
     "bet": 3,
@@ -17513,10 +17550,10 @@
       "modelP": 0.3695,
       "record": {
        "action": "BET",
-       "stake": 16.27,
+       "stake": 16.0,
        "odds": -115,
        "win": false,
-       "pnl": -16.27,
+       "pnl": -16.0,
        "assumed": false
       },
       "ledger": {
@@ -17533,10 +17570,10 @@
       "modelP": 0.3392,
       "record": {
        "action": "BET",
-       "stake": 16.05,
+       "stake": 16.0,
        "odds": -135,
        "win": false,
-       "pnl": -16.05,
+       "pnl": -16.0,
        "assumed": false
       },
       "ledger": {
@@ -17604,10 +17641,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 14.3,
+       "stake": 14.0,
        "odds": -140,
        "win": true,
-       "pnl": 10.21,
+       "pnl": 10.0,
        "assumed": false
       }
      }
@@ -17616,8 +17653,8 @@
    {
     "date": "2026-07-24",
     "flatPnl": -1.0,
-    "simPnl": -6.61,
-    "simBankAfter": 287.82,
+    "simPnl": -7.0,
+    "simBankAfter": 286.11,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -17628,10 +17665,10 @@
       "modelP": 0.3873,
       "record": {
        "action": "BET",
-       "stake": 6.61,
+       "stake": 7.0,
        "odds": -135,
        "win": false,
-       "pnl": -6.61,
+       "pnl": -7.0,
        "assumed": false
       },
       "ledger": {
@@ -17698,8 +17735,8 @@
    {
     "date": "2026-07-25",
     "flatPnl": -1.0,
-    "simPnl": -9.26,
-    "simBankAfter": 278.56,
+    "simPnl": -9.0,
+    "simBankAfter": 277.11,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -17778,10 +17815,10 @@
       "modelP": 0.6369,
       "record": {
        "action": "BET",
-       "stake": 9.26,
+       "stake": 9.0,
        "odds": -140,
        "win": false,
-       "pnl": -9.26,
+       "pnl": -9.0,
        "assumed": false
       }
      }
@@ -17790,8 +17827,8 @@
    {
     "date": "2026-07-26",
     "flatPnl": -1.0,
-    "simPnl": -10.21,
-    "simBankAfter": 268.35,
+    "simPnl": -10.0,
+    "simBankAfter": 267.11,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -17836,10 +17873,10 @@
       "modelP": 0.6587,
       "record": {
        "action": "BET",
-       "stake": 10.21,
+       "stake": 10.0,
        "odds": -150,
        "win": false,
-       "pnl": -10.21,
+       "pnl": -10.0,
        "assumed": false
       }
      }
@@ -17848,8 +17885,8 @@
    {
     "date": "2026-07-27",
     "flatPnl": -1.0,
-    "simPnl": -10.66,
-    "simBankAfter": 257.69,
+    "simPnl": -11.0,
+    "simBankAfter": 256.11,
     "flagged": 6,
     "placed": 4,
     "bet": 1,
@@ -17860,10 +17897,10 @@
       "modelP": 0.3505,
       "record": {
        "action": "BET",
-       "stake": 10.66,
+       "stake": 11.0,
        "odds": -140,
        "win": false,
-       "pnl": -10.66,
+       "pnl": -11.0,
        "assumed": false
       },
       "ledger": {
@@ -17964,8 +18001,8 @@
    {
     "date": "2026-07-28",
     "flatPnl": -1.0,
-    "simPnl": -24.65,
-    "simBankAfter": 233.04,
+    "simPnl": -24.0,
+    "simBankAfter": 232.11,
     "flagged": 1,
     "placed": 1,
     "bet": 1,
@@ -17976,10 +18013,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 24.65,
+       "stake": 24.0,
        "odds": -115,
        "win": false,
-       "pnl": -24.65,
+       "pnl": -24.0,
        "assumed": false
       },
       "ledger": {
@@ -17988,6 +18025,37 @@
        "unitsRisked": 9.56,
        "odds": -115,
        "pnl": -9.56
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-07-29",
+    "flatPnl": -1.0,
+    "simPnl": -5.0,
+    "simBankAfter": 227.11,
+    "flagged": 1,
+    "placed": 1,
+    "bet": 1,
+    "games": [
+     {
+      "game": "TOR@WSH",
+      "side": "YRFI",
+      "modelP": 0.3957,
+      "record": {
+       "action": "BET",
+       "stake": 5.0,
+       "odds": -130,
+       "win": false,
+       "pnl": -5.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 2.08,
+       "odds": -130,
+       "pnl": -2.08
       }
      }
     ]
