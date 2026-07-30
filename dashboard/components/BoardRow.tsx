@@ -816,6 +816,18 @@ function StakeChip({
   // clearly-labelled suggestion. Pre-Kelly rows read "1.00u" under this
   // rule, which was the old objection to ledger-first -- but 1.00u is
   // what was bet on those nights, so it is the true answer.
+  // STRONG ONLY. LEAN IS NEVER BET.
+  //
+  // 2026-07-30: this guard used to sit BELOW the stake block, so every
+  // LEAN row rendered a stake chip -- the operator saw "STAKE 2.00u" on
+  // LEAN YRFI picks and asked whether leans were being bet. They are
+  // not: tracker's Phase 1.3 rule makes LEAN track-only, bet_placed='N'
+  // regardless of edge or lock window. Printing a stake beside one is
+  // an instruction to risk money the system never intends to risk, so
+  // the guard runs first now and nothing below it can leak.
+  if (row.pickStrength !== "STRONG") return null;
+  if (row.pickSide !== "NRFI" && row.pickSide !== "YRFI") return null;
+
   // THE NEW SYSTEM'S STAKE (2026-07-30). Computed from the model
   // probability and the price, because 1 unit = 1% of bankroll makes
   // sizing bankroll-free -- so this chip shows the SAME number every
@@ -862,8 +874,6 @@ function StakeChip({
     );
   }
 
-  if (row.pickStrength !== "STRONG") return null;
-  if (row.pickSide !== "NRFI" && row.pickSide !== "YRFI") return null;
   const t = thresholds;
   if (!t || t.kellyEnabled !== true || typeof t.kellyFraction !== "number") return null;
   if (!detail) return null;
