@@ -6,6 +6,7 @@ import type { LiveGameState } from "@/lib/useLiveGameState";
 import { GameDetails } from "./GameDetails";
 import type { ReplayStake } from "@/lib/season-record";
 import { replayKey } from "@/lib/season-record";
+import { computeLockAt, formatLockTime } from "@/lib/lock";
 import styles from "./BoardRow.module.css";
 
 /** Returns true for `durationMs` after `value` changes.  Used by Tier 1.3
@@ -61,51 +62,10 @@ function shouldShowTentative(strength: PickStrength): boolean {
   return strength === "LINEUP PENDING";
 }
 
-/** Parse a row's gameTimeEt + slate date into the lock cutoff (game
- *  start - 60 min) as a Date in UTC.  Returns null when the time
- *  string can't be parsed. */
-function computeLockAt(
-  gameTimeEt: string,
-  slateDate:  string,
-  lockMin:    number = 60,
-): Date | null {
-  if (!gameTimeEt || !slateDate || !gameTimeEt.includes(":")) return null;
-  const cleaned = gameTimeEt.replace(/\s*ET\s*$/, "").trim();
-  const m = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
-  if (!m) return null;
-  let hour = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  const ap = (m[3] || "").toUpperCase();
-  if (ap === "PM" && hour < 12) hour += 12;
-  if (ap === "AM" && hour === 12) hour = 0;
-  const isoLocal = `${slateDate}T${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}:00`;
-  const probe = new Date(`${slateDate}T12:00:00Z`);
-  const offMin = etOffsetMinutes(probe);
-  const gameUtcMs = Date.parse(isoLocal + "Z") + offMin * 60_000;
-  if (!Number.isFinite(gameUtcMs)) return null;
-  return new Date(gameUtcMs - lockMin * 60_000);
-}
-
-function etOffsetMinutes(at: Date): number {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-  });
-  const parts = fmt.formatToParts(at);
-  const get = (t: string) => parts.find(p => p.type === t)?.value ?? "00";
-  const etIso = `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}Z`;
-  const etAsUtcMs = Date.parse(etIso);
-  return (at.getTime() - etAsUtcMs) / 60_000;
-}
-
-function formatLockTime(d: Date): string {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour: "numeric", minute: "2-digit", hour12: true,
-  });
-  return fmt.format(d) + " ET";
-}
+// computeLockAt / formatLockTime / etOffsetMinutes moved to lib/lock.ts
+// (2026-07-29) so the decision card at the top of the page and this row
+// share ONE definition of when a bet closes. Two copies of a deadline is
+// two chances to disagree about it.
 
 /** Human-readable explanation for NO DATA picks.  Pulls the specific
  *  unavailable inputs (rookie pitcher, missing offense, lineup gap)

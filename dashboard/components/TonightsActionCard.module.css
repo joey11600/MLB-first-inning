@@ -362,6 +362,174 @@
   }
 }
 
+/* ══ THE PLAY LIST ══════════════════════════════════════════════════
+   2026-07-29 decision-first redesign.  This card used to open with a
+   count -- "2 FLAGGED STRONG" -- and never name a game.  PRODUCT.md's
+   scene is a phone in one hand in the hour before first pitch, asking
+   "what do I bet tonight, and how much?"; a count is a summary of that
+   answer, not the answer.  These rows ARE the answer, and everything
+   below them is context for it.
+
+   Deliberately NOT cards.  Nested cards are banned, and a bordered box
+   per play would read as three competing surfaces rather than one list
+   to work down.  Hairline separators, generous height, no chrome. */
+.playList {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.play {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "matchup call"
+    "matchup state";
+  align-items: center;
+  gap: 2px 14px;
+  /* 56px minimum: a one-handed tap target with the phone in the other
+     hand, and enough vertical room that three plays never blur into a
+     block of text. */
+  min-height: 56px;
+  padding: 12px 0;
+}
+.play + .play {
+  border-top: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
+}
+
+/* A settled play is history -- it stays visible so the night reconciles,
+   but it stops competing with the ones still open. */
+.play[data-state="graded"] { opacity: 0.62; }
+
+.playMatchup {
+  grid-area: matchup;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.playTeams {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.playAt {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  margin: 0 2px;
+}
+.playTime {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.01em;
+}
+
+.playCall {
+  grid-area: call;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+}
+/* Side by WEIGHT, never hue -- globals.css, and the same rule the board
+   dots follow. */
+.playSide {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--side-nrfi);
+}
+.playSide[data-side="YRFI"] { color: var(--side-yrfi); }
+
+/* THE STAKE.  The second half of the operator's question, so it gets
+   the largest type in the row.  Amber/violet --attn would be wrong:
+   this is not "at risk pending a decision", it is the instruction. */
+.playStake {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+.playPrice {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+}
+
+.playState {
+  grid-area: state;
+  display: flex;
+  justify-content: flex-end;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.playLocked { color: var(--muted-foreground); }
+
+/* The deadline.  --attn is exactly right here by the page's own colour
+   law: "money at risk / a decision is waiting on you".  Under 45
+   minutes it goes solid, because that is inside the window where the
+   operator has to move. */
+.playLocks {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--muted-foreground);
+}
+.playLocks[data-soon] { color: var(--attn); font-weight: 600; }
+.playLocksAt {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  opacity: 0.75;
+}
+
+.playGraded { font-weight: 700; letter-spacing: 0.06em; }
+.playGraded[data-result="WIN"]  { color: var(--gain); }
+.playGraded[data-result="LOSS"] { color: var(--loss); }
+
+/* Total exposure.  One line, under the list it sums. */
+.exposure {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
+}
+.exposureFig {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 600;
+  /* Real money, not yet resolved -> --attn, the one figure on this card
+     that earns a hue. */
+  color: var(--attn);
+}
+.exposureLabel {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 640px) {
+  .playTeams  { font-size: 16px; }
+  .playStake  { font-size: 18px; }
+  .play       { min-height: 60px; }
+}
+
 /* ── The flagged/placed/settled legend ──────────────────────────────
    2026-07-29 distill pass.  Was an always-open four-sentence paragraph
    directly above the board.  It is a DEFINITION -- byte-identical every

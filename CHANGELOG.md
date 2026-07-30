@@ -11,6 +11,61 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29g] — Decision-first redesign: the card now names the plays
+
+Operator asked for a full UI redesign and chose **decision-first
+triage**: the top of the screen answers only "what do I bet tonight and
+how much", everything analytical below.
+
+### The card counted things and never said which games to bet
+
+`TonightsActionCard` opened with "**2** flagged STRONG", a NRFI/YRFI
+split and a passed tally. PRODUCT.md says the scene is a phone in one
+hand in the hour before first pitch, asking *"what do I bet tonight, and
+how much?"* — and answering it required scrolling past a ~400px
+performance panel to a 16-row table and picking the STRONG rows out by
+eye. **A count is a summary of the answer, not the answer.**
+
+The card now leads with the plays themselves — matchup, first pitch,
+side, stake, price, and the lock deadline — one 56px+ row each, sorted
+by **what closes next** rather than board rank, with locked and graded
+plays sinking to the bottom because there is nothing left to do about
+them. Total exposure follows as a single line.
+
+Stake resolution is byte-identical to the board's StakeChip (replay
+first, ledger second); the same quantity in three places must not drift.
+
+### Reordered: analysis moved below the slate
+
+`RoiPanel` sat above the board. **This reverses an earlier explicit
+operator request** ("the record is the second thing he wants to see") and
+is called out in the source rather than quietly changed — on a phone it
+put 400px of analysis between the decision and the slate the decision
+came from. Order is now: plays → board → performance → why. Restoring the
+old position is a one-block move; nothing depends on it.
+
+### `lib/lock.ts` — one definition of the deadline
+
+`computeLockAt` / `formatLockTime` lived inside BoardRow. The decision
+card needs the same deadline, and two copies of a deadline are two
+chances to disagree about it. Extracted with `minutesUntil` and
+`formatCountdown`, and unit-tested: T-60 arithmetic, an EDT and an EST
+slate (DST is derived, never hardcoded), placeholder times returning null
+rather than inventing a deadline, and the countdown wording.
+
+The deadline is the one element that earns `--attn` by the page's own
+colour law ("a decision is waiting on you"), and it goes solid inside 45
+minutes. No pulse — PRODUCT.md names sportsbook urgency as an
+anti-reference.
+
+Verified at 375px and desktop: no horizontal overflow, plays above the
+fold, and the empty state stays calm ("No games flagged tonight. Nothing
+to bet — the model passed on 4 of 5 games") on a no-play slate, which is
+about a third of nights.
+
+/history keeps its current layout for now, per the chosen scope.
+
+
 ## [2026-07-29f] — /history showed the wrong number and a frozen one; amber → violet
 
 Operator: *"fix https://nrfi-terminal.vercel.app/history because it

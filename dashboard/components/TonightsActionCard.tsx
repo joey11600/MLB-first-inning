@@ -46,6 +46,9 @@ import type { NightCounts } from "@/lib/reconcile";
 import { fmtU, nightFromBoard } from "@/lib/reconcile";
 import type { ReplayStake } from "@/lib/season-record";
 import { replayKey } from "@/lib/season-record";
+import {
+  computeLockAt, formatLockTime, minutesUntil, formatCountdown,
+} from "@/lib/lock";
 import styles from "./TonightsActionCard.module.css";
 // .reconLine / .reconSep are defined ONCE, in RoiPanel.module.css, and
 // deliberately shared: the reconcile sentence must look identical here and
@@ -66,6 +69,38 @@ interface TonightsActionCardProps {
    *  stake chips key it.  Passing this is what makes the "at risk" figure
    *  the sum of the chips the operator can actually see. */
   replayStakes?: Map<string, ReplayStake>;
+}
+
+/** ONE PLAY THE OPERATOR HAS TO ACT ON.
+ *
+ *  2026-07-29 decision-first redesign.  This card counted things --
+ *  "2 flagged STRONG", a NRFI/YRFI split, a passed tally -- and never
+ *  once said WHICH GAMES TO BET.  The operator's actual question, per
+ *  PRODUCT.md, is "what do I bet tonight, and how much?", asked with a
+ *  phone in one hand in the hour before first pitch.  Answering it
+ *  required scrolling past the performance panel to a 16-row table and
+ *  picking the STRONG rows out by eye.
+ *
+ *  A count is a summary of the answer, not the answer. */
+interface Play {
+  key:      string;
+  away:     string;
+  home:     string;
+  timeEt:   string;
+  side:     "NRFI" | "YRFI";
+  /** Units to stake.  Locked rows show the ledger's frozen figure; live
+   *  rows show what the model is currently sizing. */
+  units:    number | null;
+  /** American price on the picked side, e.g. "-145". */
+  price:    string;
+  /** Already committed to the ledger (bet_placed=Y). */
+  locked:   boolean;
+  /** Graded terminal state, if the first inning is already over. */
+  graded:   string;
+  /** Minutes until the T2.58 lock window commits this pick.  Null when
+   *  the game time is a placeholder, or the row is already locked. */
+  locksInMin: number | null;
+  locksAtLabel: string;
 }
 
 interface SideBreakdown {
@@ -92,6 +127,75 @@ function lookupDetail(
     details[`${r.away}@${r.home}#${r.gameNumber || 1}`] ||
     details[`${r.away}@${r.home}`]
   );
+}
+
+/** The STRONG picks, as things to act on rather than things to count.
+ *
+ *  Stake resolution is IDENTICAL to summarizeSides below and to
+ *  BoardRow's StakeChip -- replay first, ledger second -- because the
+ *  three are the same quantity shown in three places and any drift
+ *  between them reads as the system contradicting itself.
+ *
+ *  Sorted by lock deadline, soonest first: the ordering the operator
+ *  actually needs is "what closes next", not board rank.  Already-locked
+ *  and graded plays sink to the bottom -- there is nothing left to do
+ *  about them. */
+function extractPlays(
+  rows: BoardRow[],
+  details: Record<string, GameDetail>,
+  slateDate: string,
+  replayStakes?: Map<string, ReplayStake>,
+): Play[] {
+  const now = new Date();
+  const out: Play[] = [];
+
+  for (const r of rows) {
+    if (r.pickStrength !== "STRONG") continue;
+    if (r.pickSide !== "NRFI" && r.pickSide !== "YRFI") continue;
+
+    const d = lookupDetail(r, details);
+    const locked = d?.betPlaced === "Y";
+    const graded = (d?.gradedResult || "").trim();
+
+    const rp = replayStakes && (
+      replayStakes.get(replayKey(r.away, r.home, r.gameNumber, r.pickSide)) ??
+      replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "YRFI")) ??
+      replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "NRFI"))
+    );
+    let units: number | null = null;
+    if (rp?.action === "BET" && typeof rp.stake === "number") units = rp.stake;
+    else if (rp?.action === "SKIP") units = 0;
+    else if (locked && d?.unitsRisked != null) units = d.unitsRisked;
+    else if (d?.unitsRisked != null) units = d.unitsRisked;
+
+    const price = (r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds) || "";
+
+    const lockAt = computeLockAt(r.gameTimeEt, slateDate);
+    const mins = lockAt && !locked && !graded ? minutesUntil(lockAt, now) : null;
+
+    out.push({
+      key: `${r.gamePk || `${r.away}@${r.home}`}#${r.gameNumber || 1}`,
+      away: r.away,
+      home: r.home,
+      timeEt: r.gameTimeEt,
+      side: r.pickSide,
+      units,
+      price,
+      locked,
+      graded,
+      locksInMin: mins,
+      locksAtLabel: lockAt ? formatLockTime(lockAt) : "",
+    });
+  }
+
+  const weight = (p: Play) => (p.graded ? 2 : p.locked ? 1 : 0);
+  return out.sort((a, b) => {
+    const w = weight(a) - weight(b);
+    if (w !== 0) return w;
+    const am = a.locksInMin ?? Number.MAX_SAFE_INTEGER;
+    const bm = b.locksInMin ?? Number.MAX_SAFE_INTEGER;
+    return am - bm;
+  });
 }
 
 /**
@@ -187,6 +291,7 @@ export function TonightsActionCard({
   replayStakes,
 }: TonightsActionCardProps) {
   const s = summarizeSides(rows, details, replayStakes);
+  const plays = extractPlays(rows, details, date ?? "", replayStakes);
   // THE single source for flagged / placed / settled / ledger P&L.  It is
   // resolved once in DashboardShell and handed down; the local fallback
   // only runs if this card is mounted somewhere that does not supply it.
@@ -234,18 +339,67 @@ export function TonightsActionCard({
         </span>
       </div>
 
-      <div className={styles.body}>
-        <div className={styles.heroBlock}>
-          {/* A count, not money: --foreground, never tone-coloured. */}
-          <span className={styles.heroNum}>{night.flagged}</span>
-          <span className={styles.heroUnit}>flagged STRONG</span>
-          {s.unitsTotal > 0 && (
-            <span className={styles.heroStake}>
-              {s.unitsTotal.toFixed(2)}u at risk
-            </span>
-          )}
-        </div>
+      {/* THE ANSWER, FIRST.  Everything below this list is context for
+          it. See the Play interface for why a list replaced a count. */}
+      {plays.length > 0 && (
+        <ul className={styles.playList}>
+          {plays.map((p) => (
+            <li
+              key={p.key}
+              className={styles.play}
+              data-state={p.graded ? "graded" : p.locked ? "locked" : "open"}
+            >
+              <span className={styles.playMatchup}>
+                <span className={styles.playTeams}>
+                  {p.away} <span className={styles.playAt}>at</span> {p.home}
+                </span>
+                <span className={styles.playTime}>{p.timeEt}</span>
+              </span>
 
+              <span className={styles.playCall}>
+                <span className={styles.playSide} data-side={p.side}>{p.side}</span>
+                {p.units != null && p.units > 0 && (
+                  <span className={`num ${styles.playStake}`}>
+                    {p.units.toFixed(p.units % 1 === 0 ? 0 : 2)}u
+                  </span>
+                )}
+                {p.price && <span className={`num ${styles.playPrice}`}>{p.price}</span>}
+              </span>
+
+              <span className={styles.playState}>
+                {p.graded ? (
+                  <span className={styles.playGraded} data-result={p.graded}>
+                    {p.graded}
+                  </span>
+                ) : p.locked ? (
+                  <span className={styles.playLocked}>bet placed</span>
+                ) : p.locksInMin != null ? (
+                  // The deadline. --attn per the colour law: this is the
+                  // one thing on the page waiting on a decision.
+                  <span className={styles.playLocks} data-soon={p.locksInMin <= 45 ? "1" : undefined}>
+                    locks {formatCountdown(p.locksInMin)}
+                    <span className={styles.playLocksAt}>{p.locksAtLabel}</span>
+                  </span>
+                ) : (
+                  <span className={styles.playLocked}>awaiting lineup</span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {s.unitsTotal > 0 && (
+        <p className={styles.exposure}>
+          <span className={styles.exposureFig}>{s.unitsTotal.toFixed(2)}u</span>
+          <span className={styles.exposureLabel}>
+            at risk across {night.flagged}{" "}
+            {night.flagged === 1 ? "play" : "plays"}
+          </span>
+        </p>
+      )}
+
+      <div className={styles.body}>
         <div className={styles.divider} aria-hidden />
 
         <div className={styles.sideStack}>

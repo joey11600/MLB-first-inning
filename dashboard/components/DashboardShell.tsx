@@ -548,16 +548,22 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         {opsNeedsAttention && <OpsHealthCard />}
       </div>
 
-      {/* ZONE 2 -- how am I doing. Moved ABOVE the board on operator
-          request: the record is the second thing he wants to see, after
-          what to bet tonight. */}
-      <RoiPanel
-        initialDate={data.date}
-        rows={data.rows}
-        details={data.details}
-        seasonRecord={seasonRecord}
-        night={night}
-      />
+      {/* RoiPanel USED TO RENDER HERE, above the board.
+          It moved below the board on 2026-07-29 with the decision-first
+          redesign, which the operator chose knowing the preview read
+          "everything else below".
+
+          THIS REVERSES AN EARLIER EXPLICIT REQUEST -- "the record is the
+          second thing he wants to see, after what to bet tonight" -- so
+          it is called out rather than quietly changed. The reasoning: on
+          a phone, in the hour before first pitch, the performance panel
+          is ~400px of analysis sitting between the decision and the
+          slate the decision came from. Tonight's surfaces now sit
+          together (plays, then the board), and everything that answers
+          "how am I doing" follows them.
+
+          To restore the old order, move the <RoiPanel> block back here.
+          Nothing else depends on the position. */}
 
       {/* ZONE 1 -- the board's own controls, touching the board. */}
       <ControlPanel
@@ -584,14 +590,20 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         />
       </section>
 
-      {/* ZONES 2 AND 3 -- how am I doing, then why did it do that.
-          Both live inside RoiPanel; `night` comes from the D1 hoist so
-          the reconciliation table cannot describe a different night from
-          the ticker and the hero. */}
-      {/* Operator asked to see the record at the TOP. The reconciliation
-          table that used to live inside this panel now sits below the
-          board -- a long reference table above the slate would bury the
-          thing he is actually here to read. */}
+      {/* ZONE 2 -- how am I doing.  Below the slate as of the
+          decision-first redesign; see the note where it used to sit.
+          `night` comes from the D1 hoist so this panel cannot describe a
+          different night from the ticker and the decision card. */}
+      <RoiPanel
+        initialDate={data.date}
+        rows={data.rows}
+        details={data.details}
+        seasonRecord={seasonRecord}
+        night={night}
+      />
+
+      {/* ZONE 3 -- why did it do that.  Deepest reference material on
+          the page, so it sits last. */}
       <div className="zoneWhy">
         <div className="zoneHead">
           <span className="eyebrow">Why the system did that</span>
