@@ -64,12 +64,16 @@ function isNum(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n);
 }
 
-/** "+2.91u" / "−17.95u" / "0.00u" / "—" */
-function fmtU(n: number | null | undefined, digits = 2): string {
-  if (!isNum(n)) return EM_DASH;
-  const sign = n > 0.0000001 ? "+" : n < -0.0000001 ? MINUS : "";
-  return `${sign}${Math.abs(n).toFixed(digits)}u`;
-}
+/* fmtU() DELETED 2026-07-30 with the unit re-basing -- its last three
+   callers (the underwater depth readouts and the divergence card) now
+   print percentages, and it had no remaining call site.
+
+   Deleted rather than left for later ON PURPOSE. It is a PRIVATE unit
+   formatter, which is exactly the shape of thing the re-basing guard
+   cannot see: lib/units.ts refuses a figure branded as summed-across-
+   days, and a local `${n.toFixed(2)}u` walks straight past that. A
+   spare one sitting in the file is an invitation to reach for it the
+   next time the compiler objects. Use lib/units. */
 
 /** Magnitude only, already signed by the caller's copy: "18.31u". */
 function fmtUAbs(n: number | null | undefined, digits = 2): string {
