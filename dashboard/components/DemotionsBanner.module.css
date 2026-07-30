@@ -10,10 +10,18 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--primary);
+  /* 2026-07-29.  The 3px `--primary` side stripe here broke the page's
+     own colour law twice over.  --primary IS --gain: a peach edge means
+     REAL MONEY UP.  This banner announces that a cluster of bets has
+     been DEMOTED -- the opposite reading, in the one hue reserved for
+     profit.  And a coloured side stripe is decoration standing in for
+     hierarchy, which nothing else on this page does any more.
+     A full hairline plus the existing wash contains the banner; the
+     wash moves to --attn, which is what this actually is: something
+     that wants a decision from the operator. */
+  border: 1px solid color-mix(in oklab, var(--attn) 40%, var(--border));
   border-radius: var(--radius);
-  background: color-mix(in oklab, var(--primary) 6%, var(--card));
+  background: color-mix(in oklab, var(--attn) 6%, var(--card));
   color: var(--foreground);
   font-family: inherit;
   font-size: 12.5px;

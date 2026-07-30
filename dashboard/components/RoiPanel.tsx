@@ -250,13 +250,28 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
             not deleted -- but it is the PREVIOUS gate at a stake the
             system no longer uses, so it gets one quiet block rather than
             a grid of its own. */}
+        {/* 2026-07-29 distill pass -- COLLAPSED BY DEFAULT.
+            This block reports the SAME nights as the system card above
+            it, under an accounting method the system stopped using on
+            2026-07-28, and its own footnote concedes the figures rest on
+            a placeholder −110 rather than a price that was ever paid.
+            Open on the primary surface, it put a knowingly-wrong number
+            at eye level immediately below the right one, with an apology
+            attached -- the operator read both and trusted neither.
+
+            NOTHING IS DELETED. It is real money that really moved, the
+            rows are byte-identical, and one tap still reaches them. */}
         {ledgerZones.length > 0 && (
-          <div className={styles.ledgerBlock}>
-            <span className="eyebrow">Older ledger · flat 1u · superseded 2026-07-28</span>
+          <details className={styles.ledgerBlock}>
+            <summary className={styles.ledgerSummary}>
+              <span className="eyebrow">
+                Older ledger · flat 1u · superseded 2026-07-28
+              </span>
+            </summary>
             {ledgerZones.map((z) => (
               <LedgerRow key={z.label} zone={z} />
             ))}
-          </div>
+          </details>
         )}
         {view && ledgerZones.length === 0 && (
           <div className={styles.emptyZone}>

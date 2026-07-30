@@ -311,12 +311,24 @@ export function TonightsActionCard({
 
       {/* Plain-English legend.  The three counts are ALLOWED to differ;
           saying so out loud is cheaper than another "my bets vanished"
-          incident. */}
-      <p className="meta">
-        Flagged = the model called it STRONG. Placed = a real bet is in the
-        ledger. Settled = graded and paid. These three counts are allowed to
-        differ; the table below shows every game once.
-      </p>
+          incident.
+
+          2026-07-29 distill pass: the words are unchanged, but they no
+          longer sit open on the page. This is a DEFINITION, not a
+          finding -- it is identical every night, so after the second
+          reading it is furniture the eye has to step over to reach the
+          board. Collapsed, it stays one tap away on the exact surface
+          where the question arises. */}
+      <details className={styles.legend}>
+        <summary className={styles.legendSummary}>
+          What do flagged, placed and settled mean?
+        </summary>
+        <p className="meta">
+          Flagged = the model called it STRONG. Placed = a real bet is in the
+          ledger. Settled = graded and paid. These three counts are allowed to
+          differ; the table below shows every game once.
+        </p>
+      </details>
     </section>
   );
 }

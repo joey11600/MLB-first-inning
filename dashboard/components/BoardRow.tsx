@@ -524,6 +524,22 @@ function PickPill({
         || isPreLock)
       ? styles.pickPillPending
       : "";
+
+  // 2026-07-29.  THE ONE ROW ON THE BOARD WITH A DEADLINE.
+  //
+  // A STRONG pick that has not locked yet is the only thing on this page
+  // that expires: the operator has until `lockTimeStr` to get the bet
+  // down, and the tracker's T-60 window means that is between 30 and 60
+  // minutes from when it first appears.  It was styled identically to
+  // "LINEUP PENDING" -- which needs nothing from anybody and resolves
+  // itself -- so the single actionable state on the slate looked exactly
+  // like the single most ignorable one.
+  //
+  // --attn is the correct token by the page's own colour law: "money AT
+  // RISK / a decision is waiting on you."  This is the clearest case of
+  // that on the whole surface, and it was the one place not using it.
+  const isLocking = isPreLock && row.pickStrength === "STRONG";
+  const lockingClass = isLocking ? styles.pickPillLocking : "";
   const lowLambdaClass = row.pickStrength === "LOW LAMBDA" ? styles.pickPillLowLambda : "";
 
   // Tentative lean is only rendered for LINEUP PENDING with a clear
@@ -564,7 +580,7 @@ function PickPill({
 
   return (
     <span
-      className={`${styles.pickPill} ${pendingClass} ${lowLambdaClass}`}
+      className={`${styles.pickPill} ${pendingClass} ${lockingClass} ${lowLambdaClass}`}
       title={titleText}
     >
       <span className={styles.pickDot} aria-hidden />
@@ -1250,6 +1266,23 @@ function DistBar({ row }: { row: BoardRow }) {
   const yrfi = Math.max(0, Math.min(100, row.yrfiPct));
   const yrfiPos = Math.max(0, Math.min(100, yrfi));
 
+  // ONE numeral, not two (2026-07-29).  The pair always summed to 100:
+  // "29.8  [bar]  70.2" spends two of the row's scarcest slots saying one
+  // thing, and doubles the figures the operator's eye has to sort through
+  // on a 16-row board.  The BAR already shows the split; the numeral only
+  // has to say how far.
+  //
+  // WHICH side it reports is the pick side when there is one, else
+  // whichever side the bar favours -- so the number is never the one the
+  // reader has to subtract from 100 to get the one they wanted.  The tag
+  // makes that explicit rather than leaving it to be inferred from which
+  // end the digits sit at.
+  const side: "NRFI" | "YRFI" =
+    row.pickSide === "NRFI" || row.pickSide === "YRFI"
+      ? row.pickSide
+      : nrfi >= yrfi ? "NRFI" : "YRFI";
+  const shown = side === "NRFI" ? nrfi : yrfi;
+
   return (
     <span
       className={styles.distBar}
@@ -1257,9 +1290,6 @@ function DistBar({ row }: { row: BoardRow }) {
       aria-label={`Probability split: NRFI ${nrfi.toFixed(1)}%, YRFI ${yrfi.toFixed(1)}%`}
       title={lambdaTooltip(row)}
     >
-      <span className={`num ${styles.distLabel} ${styles.distLabelNrfi}`}>
-        {nrfi.toFixed(1)}
-      </span>
       <span className={styles.distTrack}>
         <span
           className={styles.distNrfiFill}
@@ -1278,8 +1308,9 @@ function DistBar({ row }: { row: BoardRow }) {
           aria-hidden
         />
       </span>
-      <span className={`num ${styles.distLabel} ${styles.distLabelYrfi}`}>
-        {yrfi.toFixed(1)}
+      <span className={styles.distLabel}>
+        <span className={styles.distLabelSide} data-side={side}>{side}</span>
+        <span className="num">{shown.toFixed(1)}</span>
       </span>
     </span>
   );

@@ -345,8 +345,12 @@ details[open] > summary.head::after { content: "▴"; }
     flex-wrap: wrap;
     align-items: baseline;
     gap: 4px 10px;
+    /* Side stripe removed 2026-07-29 (shared ban on coloured edge
+       accents).  On this narrow-viewport card stack the row separator
+       is the job, and the bottom hairline already does it; the left
+       edge was pure ornament.  Padding keeps the original indent so
+       the stacked rows still read as a group. */
     padding: 10px 0 10px 10px;
-    border-left: 3px solid var(--border);
     border-bottom: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
   }
   .row > * {

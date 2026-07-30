@@ -650,6 +650,30 @@
   50%      { opacity: 1; }
 }
 
+/* ── STRONG, not locked yet: the only row with a deadline ────────────
+   2026-07-29.  Overrides .pickPillPending, which it always accompanies.
+   Solid edge rather than the dashed "waiting on data" edge, because the
+   thing being waited on here is the OPERATOR, and --attn per the colour
+   law ("money at risk / a decision is waiting on you").
+
+   No pulse: the dot inherits pendingPulse from .pickPillPending and is
+   explicitly stilled.  A blinking deadline is sportsbook urgency
+   theatre, which PRODUCT.md names as an anti-reference. Weight and hue
+   carry it; nothing has to flash. */
+.pickPillLocking {
+  border-style: solid !important;
+  border-color: color-mix(in oklab, var(--attn) 55%, var(--border)) !important;
+  background: color-mix(in oklab, var(--attn) 9%, var(--card)) !important;
+}
+.pickPillLocking .pickDot {
+  background: var(--attn) !important;
+  animation: none !important;
+}
+.pickPillLocking .pickLabel {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
 /* ============================================================
    T3.22: structured pending label parts.
 
@@ -838,7 +862,12 @@
 
 .distBar {
   display: grid;
-  grid-template-columns: minmax(36px, auto) 1fr minmax(36px, auto);
+  /* Two tracks, not three: the leading numeral is gone (see .distLabel).
+     The surviving label keeps a fixed minimum so the figures still form
+     a clean right-aligned column down the board -- losing that column
+     alignment would cost more scannability than the extra numeral ever
+     bought. */
+  grid-template-columns: 1fr minmax(74px, auto);
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -850,7 +879,32 @@
   padding-right: 6px;
 }
 
+/* ── The probability numeral ────────────────────────────────────────
+   2026-07-29.  THIS BLOCK WAS THE LAST PLACE THE RETIRED SIDE-HUE
+   SCHEME WAS STILL LIVE, and it was live on every row of the board.
+
+   `.distLabelNrfi` was --primary and `.distLabelYrfi` was --destructive.
+   globals.css retired exactly that on 2026-07-28 and says why:
+
+     "The old scheme spent peach on NRFI *and* on profit, so a peach
+      number meant either 'this is an NRFI pick' or 'you made money'
+      and the reader could not tell which."
+
+   and, of the replacement side inks: "NEVER on a numeral."  The recolour
+   pass moved the dots and the bar fills over and missed these two, so
+   every board row still printed a peach figure and a rust figure that
+   were not money -- sitting inches from an edge percentage and a stake
+   that were.  That is the single loudest source of "confusing with the
+   data" left on the page.
+
+   A PROBABILITY IS NOT MONEY.  It renders in plain ink.  The side is
+   named in a tag beside it, which is unambiguous in a way a hue never
+   was, and survives greyscale and colour blindness. */
 .distLabel {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
@@ -858,23 +912,26 @@
   letter-spacing: -0.005em;
   white-space: nowrap;
   line-height: 1;
+  color: var(--foreground);
 }
-.distLabelNrfi {
-  text-align: right;
-  color: color-mix(in oklab, var(--primary) 80%, var(--foreground));
-}
-.distLabelYrfi {
-  text-align: left;
-  color: color-mix(in oklab, var(--destructive) 75%, var(--foreground));
-}
-.actionable .distLabelNrfi {
-  color: var(--primary);
+
+/* Weight, not hue -- the same rule the dots and the bar fills follow.
+   YRFI is the side the system actually bets, so it carries full ink;
+   NRFI is taupe because its gate is off. */
+.distLabelSide {
+  font-family: var(--font-sans);
+  /* 10px, matching globals.css's "11px uppercase labels only" guidance
+     for side inks as closely as the row height allows.  PRODUCT.md's
+     scene is a phone at arm's length, so this does not go smaller;
+     --side-nrfi measures 5.62:1 on card, comfortably over AA. */
+  font-size: 10px;
   font-weight: 600;
+  letter-spacing: 0.07em;
+  color: var(--side-nrfi);
 }
-.actionable .distLabelYrfi {
-  color: var(--destructive);
-  font-weight: 600;
-}
+.distLabelSide[data-side="YRFI"] { color: var(--side-yrfi); }
+
+.actionable .distLabel { font-weight: 600; }
 
 .distTrack {
   position: relative;

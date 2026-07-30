@@ -11,6 +11,89 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-29] — Money-path verification + the last side-hue numerals
+
+Operator asked for three things: confirm Kelly sizing is working, confirm
+the right picks are being placed and on time, and critique the design
+because *"i still think its so confusing with the data."*
+
+### Verified (no code change needed)
+
+- **Kelly sizing is correct end to end.** `tools/verify_kelly_wiring.py`
+  passes all four checks. Reproduced both of tonight's live stakes by
+  hand from the shipped helper: TOR@WSH `p=0.6052 @ −130` → 2.08u off a
+  90.44u bank; HOU@LAA `p=0.7021 @ −145` → 5.97u off an 88.36u bank
+  (the bank had compounded down by TOR@WSH's −2.08u). Exact to the cent,
+  which also confirms the 2026-07-28 P0-1 fix holds: the stake did not
+  oscillate across the evening's odds re-imports.
+- **Both of tonight's STRONG picks locked inside the T2.58 window.**
+  TOR@WSH at T−38min, HOU@LAA at T−58min. Season median notice is 57
+  minutes; the Vercel cron cadence (:00/:30 UTC) against a 60-minute lock
+  window bounds operator notice to roughly 30–60 minutes, which the data
+  bears out.
+
+### Fixed
+
+- **The retired side-hue scheme was still live on every board row.**
+  `.distLabelNrfi` was `--primary` and `.distLabelYrfi` was
+  `--destructive` — exactly what the 2026-07-28 colour law abolished
+  ("a peach number meant either 'this is an NRFI pick' or 'you made
+  money' and the reader could not tell which"), and what its side-ink
+  note forbids ("NEVER on a numeral"). The recolour pass moved the dots
+  and bar fills and missed these two, so every row printed a peach and a
+  rust figure that were not money, inches from an edge % and a stake that
+  were. Probabilities now render in plain ink with a weight-coded side
+  tag.
+- **`DemotionsBanner` used `--primary` (= `--gain`) for a demotion.**
+  A peach edge means real money UP; this banner announces bets being
+  demoted. Moved to `--attn`, and the 3px side stripe dropped for a
+  hairline.
+
+### Changed — information architecture
+
+Tonight's P&L was rendered **seven times** on one screen. Now four, each
+with a distinct role (sticky ticker / decision hero / window-scoped
+performance / reconcile-table caption). Nothing was deleted; the cuts
+were restatements and progressive disclosure.
+
+- `DayReconcile` stated the same night three times inside one card
+  (header chain, footer lines, prose paragraph). Footer now carries only
+  the W-L split the chain cannot say; the paragraph is reduced to the one
+  sentence that explains the you-vs-replay difference, and is gated on a
+  replay existing. The duplicate big "You −2.08u" figure is gone.
+- The four-sentence flagged/placed/settled legend is now a collapsed
+  disclosure on `TonightsActionCard`. Same words, one tap away.
+- The superseded **"Older ledger · flat 1u"** block is collapsed by
+  default. It reports the same nights under an accounting method the
+  system stopped using, and its own footnote concedes the figures rest on
+  a placeholder −110 — a knowingly-wrong number at eye level below the
+  right one. Rows unchanged behind the disclosure.
+- Board rows show **one** probability, not a pair summing to 100, tagged
+  with the side it refers to and reported for the pick side (so it is
+  never the number the reader has to subtract from 100).
+- A STRONG pick that has not locked yet is the only row on the board with
+  a deadline, and it was styled identically to "LINEUP PENDING", which
+  needs nothing from anyone. It now carries `--attn` per the colour law.
+  Deliberately no pulse: PRODUCT.md names sportsbook urgency as an
+  anti-reference.
+- Removed 3px `border-left` accents from `DayReconcile`, `RoiPanel` and
+  `DemotionsBanner` (coloured side stripes standing in for hierarchy).
+
+### Open
+
+- **`odds_captured_at` runs backwards on 112 of 1129 rows (9.9%)**, still
+  occurring as of today. It is set to the same value as
+  `opened_captured_at` on first import and only ever moves forward, so an
+  earlier value is impossible. Money is unaffected (`bet_placed` and
+  `units_risked` are correct), but it is the only ledger evidence of when
+  a bet locked, so it makes the T2.58 window unauditable from data and
+  likely corrupts CLV. Prime suspect is
+  `tools/sync_csv_from_supabase.py` writing a lagging mirror value back
+  over the fresher local one. Not fixed here — needs isolation first, and
+  no historical backfill without operator sign-off.
+
+---
+
 ## [2026-07-28] — Dashboard rebuild: one night, one set of numbers
 
 Operator report: *"the dashboard looks like shit visually and its so

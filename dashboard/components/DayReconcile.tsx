@@ -302,9 +302,6 @@ export function DayReconcile({
   const simPnl = day && isNum(day.simPnl) ? day.simPnl : null;
   const simBankAfter = isNum(counts.replayBank) ? counts.replayBank : null;
 
-  /* ── header figures ───────────────────────────────────────────── */
-  const youTone = tone(counts.ledgerPL);
-
   /* ── settled record ───────────────────────────────────────────── */
   let wins = 0, losses = 0, pushes = 0;
   for (const g of day?.games ?? []) {
@@ -315,13 +312,20 @@ export function DayReconcile({
     else pushes += 1;
   }
 
-  /* ── footer line 1: you ───────────────────────────────────────── */
+  /* ── footer line 1: you ───────────────────────────────────────────
+     2026-07-29 distill pass. This line USED to read
+     "N placed · N settled · <W-L> · <P&L>" -- and the head, two inches
+     above it, already says "flagged N · placed N · settled N <P&L>"
+     via chainText(). Same night, same numbers, twice in one card, plus
+     a third time in the prose below. That restatement is what the
+     operator meant by "confusing with the data": every re-reading
+     costs a check for whether it is a NEW fact.
+     What survives here is only what chainText CANNOT say: the win-loss
+     split and pushes. When there is nothing settled there is no extra
+     fact, and the line does not render at all. */
   const youFoot = [
-    `${counts.placed} placed`,
-    `${counts.settled} settled`,
     day && counts.settled > 0 ? `${wins}W-${losses}L` : null,
     pushes > 0 ? `${pushes} ${plural(pushes, "push")}` : null,
-    fmtU(counts.ledgerPL),
   ].filter(Boolean).join(" · ");
 
   /* ── footer line 2: the replay ────────────────────────────────── */
@@ -330,9 +334,12 @@ export function DayReconcile({
   // (NightCounts.replayPL), `compounding` is the quarter-Kelly run that
   // the bank arrow ties out to. Printing either one unlabelled is how
   // you end up with a fourth contradictory number for the night.
-  let replayFoot: string;
+  // null, not "not replayed yet" -- the head's replayText() already says
+  // exactly that, and emptyText says it a third time. An un-run replay
+  // has no detail to add, so this line simply does not render.
+  let replayFoot: string | null;
   if (counts.replay == null) {
-    replayFoot = "not replayed yet";
+    replayFoot = null;
   } else {
     // Quarter-Kelly leads: that is the sizing the operator actually
     // stakes by now, so it is the figure the day should be read in.
@@ -348,57 +355,33 @@ export function DayReconcile({
     replayFoot = parts.join(" · ");
   }
 
-  /* ── the reconciliation paragraph ─────────────────────────────── */
+  /* ── the reconciliation sentence ───────────────────────────────────
+     2026-07-29 distill pass. This was a THREE-sentence paragraph and
+     two of the three sentences were restatements:
+
+       1. "N bets were placed at real prices; N of them has settled, at
+          -2.08u."   -> already the head's chainText(), verbatim numbers.
+       2. "The model replay has not run for this date yet."
+                     -> already the head's replayText(), and again in
+                        emptyText below it.
+       3. "They differ because the replay re-runs today's model with
+          compounding Kelly stakes on an imaginary 100u bank."
+
+     Only (3) says something no other element on the card says, so only
+     (3) survives. It is also gated now: with no replay to compare
+     against there is nothing to reconcile, and an explanation of a
+     difference that is not on screen yet is pure noise.
+
+     The 100u bank is the exporter's fixed startBank. It is not passed
+     down here, and it has not moved since the replay was built. */
   const para: string[] = [];
-  if (counts.placed === 0) {
-    para.push("No real bets were placed on this date.");
-  } else if (counts.settled === counts.placed) {
+  if (counts.replay != null) {
     para.push(
-      `${counts.placed} ${plural(counts.placed, "bet")} ` +
-      `${counts.placed === 1 ? "was" : "were"} placed at real prices and ` +
-      `settled at ${fmtU(counts.ledgerPL)}.`,
-    );
-  } else {
-    para.push(
-      `${counts.placed} ${plural(counts.placed, "bet")} ` +
-      `${counts.placed === 1 ? "was" : "were"} placed at real prices; ` +
-      `${counts.settled} of them ${counts.settled === 1 ? "has" : "have"} ` +
-      `settled, at ${fmtU(counts.ledgerPL)}.`,
+      "They differ because the replay re-runs today's model with " +
+      "compounding Kelly stakes on an imaginary 100u bank — different " +
+      "games, different stake sizes, not money.",
     );
   }
-  if (counts.replay == null) {
-    para.push(
-      "The model replay has not run for this date yet — it fills in " +
-      "after the last first inning finishes.",
-    );
-  } else if (counts.replay === 0) {
-    para.push(
-      `The replay staked none of the ${counts.flagged} flagged ` +
-      `${plural(counts.flagged, "game")}.`,
-    );
-  } else {
-    const staked = (day?.games ?? []).reduce((sum, g) => {
-      const st = g.record?.action === "BET" ? g.record.stake : undefined;
-      return sum + (isNum(st) ? st : 0);
-    }, 0);
-    const outcome = simPnl == null
-      ? ""
-      : simPnl < -0.005 ? " and lost"
-      : simPnl > 0.005 ? " and won"
-      : " and broke even";
-    para.push(
-      `The replay staked ${counts.replay} of the ${counts.flagged} flagged ` +
-      `${plural(counts.flagged, "game")} at a simulated ` +
-      `${staked.toFixed(2)}u${outcome}.`,
-    );
-  }
-  // The 100u bank is the exporter's fixed startBank. It is not passed
-  // down here, and it has not moved since the replay was built.
-  para.push(
-    "They differ because the replay re-runs today's model with " +
-    "compounding Kelly stakes on an imaginary 100u bank — different " +
-    "games, different stake sizes, not money.",
-  );
 
   /* ── empty state (no per-game rows to show) ───────────────────── */
   let emptyText: string | null = null;
@@ -443,12 +426,12 @@ export function DayReconcile({
             6 - 4 - 4 - 1 and concludes bets went missing. */}
         <span className={styles.replayChain}>{replayText(counts)}</span>
       </span>
-      <span className={styles.headTotals}>
-        <span className="eyebrow">You</span>
-        <span className={`figStat ${styles.headFig}`} data-tone={youTone}>
-          {fmtU(counts.ledgerPL)}
-        </span>
-      </span>
+      {/* CUT 2026-07-29 -- the big "You <P&L>" figure.
+          chainText() on the line directly above already ends with the
+          same number, so this printed the night's P&L twice inside one
+          header. TonightsActionCard is the ONE home for tonight's
+          money figure; this card exists to explain the night game by
+          game, not to re-headline it. */}
     </>
   );
 
@@ -496,16 +479,28 @@ export function DayReconcile({
         </p>
       )}
 
-      <div className={styles.foot}>
-        <span className={styles.footLine}>
-          <b>You:</b> {youFoot}
-        </span>
-        <span className={styles.footLine}>
-          <b>Replay:</b> {replayFoot}
-        </span>
-      </div>
+      {/* Each line renders only when it carries a fact the head does not
+          already state. On a night with nothing settled and no replay,
+          the whole footer is correctly absent rather than echoing the
+          header back at the reader. */}
+      {(youFoot || replayFoot) && (
+        <div className={styles.foot}>
+          {youFoot && (
+            <span className={styles.footLine}>
+              <b>You:</b> {youFoot}
+            </span>
+          )}
+          {replayFoot && (
+            <span className={styles.footLine}>
+              <b>Replay:</b> {replayFoot}
+            </span>
+          )}
+        </div>
+      )}
 
-      <p className={`copy ${styles.reconcileNote}`}>{para.join(" ")}</p>
+      {para.length > 0 && (
+        <p className={`copy ${styles.reconcileNote}`}>{para.join(" ")}</p>
+      )}
     </>
   );
 

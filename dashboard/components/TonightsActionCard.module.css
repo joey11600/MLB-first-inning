@@ -362,6 +362,72 @@
   }
 }
 
+/* ── The flagged/placed/settled legend ──────────────────────────────
+   2026-07-29 distill pass.  Was an always-open four-sentence paragraph
+   directly above the board.  It is a DEFINITION -- byte-identical every
+   night -- so once read it is only an obstacle between the operator and
+   the slate.  Progressive disclosure keeps it reachable at the point of
+   confusion without taxing every visit.
+
+   Deliberately NOT a card: this is one line of chrome, and a bordered
+   box here would read as another surface with its own numbers.  Chrome
+   ink, never a money hue -- the legend explains money, it is not money.
+*/
+.legend {
+  margin-top: 10px;
+}
+
+.legendSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* 32px min touch height at the default 11px size: the operator opens
+     this one-handed, standing, on a phone. */
+  min-height: 32px;
+  color: var(--chrome-ink);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.legendSummary::-webkit-details-marker { display: none; }
+
+.legendSummary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 4px solid currentColor;
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  /* Transform, not a layout property -- the shared law on motion. */
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.legend[open] > .legendSummary::before { transform: rotate(90deg); }
+
+.legendSummary:hover { color: var(--foreground); }
+
+.legendSummary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.legend > .meta,
+.legend > p {
+  margin-top: 2px;
+  max-width: 68ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legendSummary,
+  .legendSummary::before { transition: none; }
+}
+
 @media (max-width: 640px) {
   .wrap {
     /* No margin-top -- .shell { gap: 16px } owns inter-section spacing at
