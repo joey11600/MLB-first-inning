@@ -1,7 +1,7 @@
 {
   "date": "2026-07-30",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-30T22:05:25Z",
+  "fitted_at": "2026-07-30T22:34:30Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -9,27 +9,19 @@
       "matchup": "SEA@LAD",
       "game_pk": "823921",
       "pick_side": "YRFI",
-      "pick_strength": "STRONG",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.4187,
+      "raw_p_run_t1": 0.3655,
       "raw_p_run_b1": 0.3165,
-      "raw_p_nrfi": 0.3973,
-      "calibrated_p_nrfi": 0.4275,
+      "raw_p_nrfi": 0.4337,
+      "calibrated_p_nrfi": 0.4588,
       "calibrator_band": {
-        "band": "bin_1-2",
+        "band": "bin_2-3",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
       },
       "top_drivers_t1": [
-        {
-          "name": "away_top3c_slg",
-          "value": 0.3824,
-          "z": -0.898,
-          "weight": -0.3266,
-          "contribution": 0.2931,
-          "outlier": false
-        },
         {
           "name": "home_xera",
           "value": 5.9092,
@@ -47,19 +39,27 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
-          "outlier": false
-        },
-        {
           "name": "era_gap_t1",
           "value": 0.573,
           "z": 0.679,
           "weight": 0.0923,
           "contribution": 0.0627,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_slg",
+          "value": 0.4516,
+          "z": 0.176,
+          "weight": -0.3266,
+          "contribution": -0.0574,
+          "outlier": false
+        },
+        {
+          "name": "fi_park_nrfi_rate",
+          "value": 0.4823,
+          "z": -0.382,
+          "weight": -0.141,
+          "contribution": 0.0538,
           "outlier": false
         }
       ],
@@ -1017,33 +1017,33 @@
       "matchup": "SF@SD",
       "game_pk": "823271",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "STARTER PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2849,
+      "raw_p_run_t1": 0.2395,
       "raw_p_run_b1": 0.2931,
-      "raw_p_nrfi": 0.5055,
-      "calibrated_p_nrfi": 0.5042,
+      "raw_p_nrfi": 0.5376,
+      "calibrated_p_nrfi": 0.5199,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_7-8",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
       },
       "top_drivers_t1": [
         {
+          "name": "away_top3c_iso",
+          "value": 0.1555,
+          "z": -0.469,
+          "weight": 0.3454,
+          "contribution": -0.1619,
+          "outlier": false
+        },
+        {
           "name": "fi_park_nrfi_rate",
           "value": 0.5409,
           "z": 1.056,
           "weight": -0.141,
           "contribution": -0.149,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_slg",
-          "value": 0.4158,
-          "z": -0.38,
-          "weight": -0.3266,
-          "contribution": 0.1239,
           "outlier": false
         },
         {
@@ -1055,19 +1055,19 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
-          "outlier": false
-        },
-        {
           "name": "away_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.562,
           "weight": 0.0856,
           "contribution": -0.0481,
+          "outlier": false
+        },
+        {
+          "name": "home_p_last10_pitcher_nrfi",
+          "value": 0.6,
+          "z": -0.688,
+          "weight": 0.0661,
+          "contribution": -0.0455,
           "outlier": false
         }
       ],
