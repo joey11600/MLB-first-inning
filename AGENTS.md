@@ -227,7 +227,10 @@ invalidates their bot config.
   state.** When in doubt, do less.
 - The user prefers **flat 1u plays, no Kelly sizing** (asked + answered).
 - **PALETTE = MATRIX TERMINAL as of 2026-07-30.** Black `#000000`,
-  phosphor green `#00FF41`, alarm red `#FF0000`, VT323, square corners.
+  phosphor green `#00FF41`, alarm red `#FF0000`, square corners.
+  **Type is JetBrains Mono as of 2026-07-30c** -- VT323 was the
+  operator's original spec and they retired it as unreadable at
+  11-13px on a phone. Colour was NOT touched by that change.
   Operator supplied the spec verbatim and it is the current product.
   **This REVERSED the long-standing "terminal green/red is rejected"
   rule** (2026-04-30, reaffirmed twice) — do not restore that rule or

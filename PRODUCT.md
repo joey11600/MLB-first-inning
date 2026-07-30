@@ -69,7 +69,13 @@ losses. Numbers carry the message.
 ## Brand / palette
 
 **Matrix terminal.** Black `#000000`, phosphor green `#00FF41`, alarm
-red `#FF0000`, VT323, square corners. Operator spec, 2026-07-30.
+red `#FF0000`, square corners. Operator spec, 2026-07-30.
+
+**Type: JetBrains Mono**, replacing VT323 on 2026-07-30. The operator
+chose VT323 with the palette and then retired it: a pixel font measures
+0.40em of x-height against JetBrains Mono's 0.55em, so at the 11-13px
+this interface actually uses it was drawing a third smaller than its
+declared size -- which fails the usage scene above. Colour is unchanged.
 
 | token | value | meaning |
 |---|---|---|

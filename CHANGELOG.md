@@ -11,6 +11,85 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30c] — VT323 out, JetBrains Mono in
+
+Operator: *"VT323 is too hard to read ... it is a pixel font -- at 11-13px
+on a phone it is genuinely hard to read."* Correct, and it conflicts with
+the usage scene PRODUCT.md actually describes: phone in hand, legible at
+arm's length, thirty seconds of attention.
+
+**Palette untouched.** Matrix black / phosphor green / alarm red is
+unchanged; every measured contrast ratio is identical because no colour
+token moved. This is a typeface change only.
+
+### Why JetBrains Mono over IBM Plex Mono
+
+Both were live options. The deciding number is x-height, measured on the
+running page with canvas `actualBoundingBoxAscent` rather than taken from
+a specimen:
+
+| metric | VT323 | JetBrains Mono | delta |
+|---|---|---|---|
+| x-height | 0.40em | **0.55em** | +37% |
+| cap-height | 0.56em | 0.73em | +30% |
+| advance | 0.40em | 0.60em | **+50%** |
+
+`font-size` sets a box; x-height decides how much ink is in it. Every
+11-13px label on this dashboard was drawing more than a third smaller
+than its declared size implied. JetBrains Mono spends its em on lowercase
+rather than ascender clearance, and its digits keep open counters at
+small sizes — which matters on a board whose job is telling `+4.17u` from
+`+4.77u`. Plex Mono is the more conventionally proportioned face and
+would have bought less.
+
+Four weights are now loaded (400/500/600/700). The type scale has
+declared four since it was written; VT323 ships one, so every weight
+distinction in it had been a no-op or a synthesised smear.
+
+### Fixed — four clipped elements, all fixed px widths tuned to 0.40em
+
+The advance row is the cost of the swap and it is the larger number: text
+is half again as wide at the same size.
+
+| element | was | now | what was lost |
+|---|---|---|---|
+| board TIME column | 74px | **88px** | **every 10/11/12 o'clock start time** — 8 chars needs 84.3px, 7 needs 73.8px, so late games lost their last character and every other game fit exactly |
+| ticker summary strip | — | λ̄ + games hidden ≤820px | content went 280px → 420px in a 271px masked box; the two figures stopped rendering *silently* |
+| Tonight's Action side label | 50px | **56px** | trailing letter of `PENDING` |
+| date select min-width | 158px | **146px** | trailing nav button border |
+
+The ticker items hidden on mobile are the two this component's own header
+calls "slate context that is NOT a bet count", and `.rightCap` was already
+hidden at that breakpoint on the same reasoning. Both figures remain on
+the page below. This converts an accidental omission into a deliberate one.
+
+Deleted `font-feature-settings: "ss01" 1, "cv11" 1, "ss03" 1` from
+`html, body` — Inter/Geist stylistic sets left behind by a font this
+dashboard stopped using two palettes ago. Inert under VT323; under a face
+that defines ss01/ss03 they are live instructions to substitute glyphs
+nobody chose.
+
+### Fixed — pre-existing, found while verifying at 375px
+
+Browsing to any past date puts a "jump to today" badge beside the date
+cluster. `.dateRow` never wrapped, so the badge *squeezed* the cluster
+(215px of content into 169px) and `overflow: hidden` ate the trailing nav
+button — the operator lost "next date" precisely when browsing history.
+Now wraps instead of shrinking.
+
+### Verified
+
+Production build, not dev. Both pages at 375px and 1280px: **zero
+overflowing elements on `/`**, zero clipped start times, ticker fits
+exactly (271px in 271px), no console errors.
+
+`/history` retains 18 overflowing elements at 375px — measured byte-for-byte
+identical under both fonts (fixed px grid minimums of 482px in the zone
+chart, and a diverging bar whose halves are drawn at full width instead of
+half). Pre-existing, font-independent, not addressed here.
+
+---
+
 ## [2026-07-30b] — The replay stops staking NRFI; /history charts the system
 
 Operator: *"i wanted to remove the flat unit tracking ... and all the

@@ -1,8 +1,35 @@
 /* ============================================================
    MATRIX TERMINAL -- black, phosphor green, alarm red.
-   VT323 throughout. Square corners (--radius 0).
+   JetBrains Mono throughout. Square corners (--radius 0).
 
    2026-07-30, operator spec, supplied verbatim.
+
+   FONT CHANGED 2026-07-30 (second pass): VT323 -> JetBrains Mono.
+   The palette is untouched; this is a legibility fix only. VT323 is a
+   1-bit pixel font reconstructing the DEC VT320 terminal, and it fails
+   the scene PRODUCT.md actually describes -- "phone in hand, legible at
+   arm's length, thirty seconds of attention."
+
+   MEASURED on the running page with canvas actualBoundingBoxAscent,
+   not taken from a specimen sheet:
+
+       metric        VT323    JetBrains Mono    delta
+       x-height      0.40em       0.55em        +37%
+       cap-height    0.56em       0.73em        +30%
+       advance       0.40em       0.60em        +50%
+
+   The x-height row is the swap: font-size sets a box, x-height decides
+   how much ink is in it, so every 11-13px label on this dashboard was
+   drawing more than a third smaller than its declared size implied.
+
+   THE ADVANCE ROW IS THE COST, and it is the bigger number. Text is
+   half again as wide at the same size. Three fixed pixel widths on this
+   page were tuned against 0.40em and broke: the ticker summary strip
+   (Ticker.module.css), the side-count label in Tonight's Action, and
+   the date select in the control panel. Each is fixed and commented at
+   its own site. If a future change adds a fixed px width around text,
+   it is being measured against 0.60em now. See the note at --font-sans
+   for why this face and not IBM Plex Mono.
 
    THIS REVERSES A LONG-STANDING REJECTION, and that is the operator's
    call to make. CLAUDE.md, AGENTS.md, PRODUCT.md and the palette memory
@@ -33,7 +60,11 @@
    --attn does NOT use --secondary. See the note at the token.
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+/* Four weights, because the type scale below declares four (400 prose /
+   500 figures / 600 eyebrows / 700 tag) and VT323 shipped exactly one.
+   Every weight distinction in that scale has been a no-op -- or a
+   synthesised smear -- for as long as VT323 has been the family. */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
 /* --------- Default theme = Bloomberg dark --------- */
 :root {
@@ -111,10 +142,36 @@
     color-mix(in oklab, var(--muted-foreground) 55%, transparent) 0 2px,
     transparent 2px 5px);
 
-  /* Type -- Geist throughout, no serif */
-  --font-display: "VT323", "Courier New", monospace;
-  --font-sans:    "VT323", "Courier New", monospace;
-  --font-mono:    "VT323", monospace;
+  /* ---- TYPE.  One family in all three slots, which is the terminal
+     conceit: a real terminal has no proportional face to switch to.
+     That was already true under VT323; the point of naming three
+     tokens is that a future change can split them without touching
+     every call site.
+
+     WHY JETBRAINS MONO AND NOT IBM PLEX MONO -- both were on the
+     table and both are honest choices.  The deciding number is
+     x-height, because that is what actually governs whether an 11px
+     label survives being read at arm's length: the em size is a box,
+     the x-height is how much ink is in it.  JetBrains Mono was drawn
+     for long code sessions and spends its em on lowercase rather than
+     on ascender clearance; Plex Mono is the more conventionally
+     proportioned face.  Measured, not assumed -- see the header note.
+
+     Second reason, specific to this dashboard: it is almost entirely
+     NUMBERS, and JetBrains Mono's digits are unusually open at small
+     sizes -- 6/8/9 keep distinct counters where a tighter face closes
+     them up.  On a board whose whole job is "+4.17u" vs "+4.77u" that
+     is the difference between reading and guessing.
+
+     The fallback chain ends at the OS monospace rather than at
+     "Courier New" specifically, so a failed webfont load degrades to
+     whatever the device actually has. ---- */
+  --font-display: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+                  "Courier New", monospace;
+  --font-sans:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+                  "Courier New", monospace;
+  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+                  monospace;
 
   /* Shadows for depth on dark */
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.2);
@@ -230,7 +287,15 @@ html, body {
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.5;
-  font-feature-settings: "ss01" 1, "cv11" 1, "ss03" 1;
+  /* `font-feature-settings: "ss01" 1, "cv11" 1, "ss03" 1` was DELETED
+     here 2026-07-30 with the JetBrains Mono swap.  Those three are
+     Inter / Geist stylistic sets (cv11 is Inter's single-storey `a`)
+     left behind by a font this dashboard stopped using two palettes
+     ago.  Under VT323 they were inert.  Under a face that DOES define
+     ss01 and ss03 they are live instructions to substitute glyphs
+     nobody chose -- a silent restyling of the alphabet, applied
+     globally, with no line of code saying so.  A feature flag is only
+     safe while it names a font that is still installed. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

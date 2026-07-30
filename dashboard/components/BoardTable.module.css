@@ -16,7 +16,10 @@
 .headRow {
   display: grid;
   grid-template-columns:
-    74px                    /* TIME */
+    /* Kept in sync with .clickable in BoardRow.module.css, which is
+       where the 74px -> 88px reasoning is written down. If these two
+       drift the header stops sitting over its own column. */
+    88px                    /* TIME */
     minmax(108px, 0.42fr)   /* MATCHUP */
     80px                    /* STATE */
     minmax(348px, 1.25fr)   /* PICK -- pill + inline odds chip */

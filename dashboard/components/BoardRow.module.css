@@ -181,7 +181,17 @@
   display: grid;
   width: 100%;
   grid-template-columns:
-    74px                    /* TIME -- wall-clock or placeholder chip */
+    /* 74px -> 88px, 2026-07-30 with the JetBrains Mono swap, and this
+       one was clipping a load-bearing figure rather than a decoration.
+       Start times are seven characters at single-digit hours ("9:40
+       PM") and EIGHT at double-digit ones ("10:10 PM", "12:10 PM").
+       At 17px with 0.02em tracking that is 73.8px and 84.3px; the
+       track was 74px, so every 10/11/12 o'clock game lost its last
+       character while every other game fit exactly. VT323 needed 57px
+       for the same string, which is why 74px looked generous.
+       The operator's whole scene is the hour before first pitch, and
+       the games this silently truncated are the late ones. */
+    88px                    /* TIME -- wall-clock or placeholder chip */
     minmax(108px, 0.42fr)   /* MATCHUP -- away at home + DH/DQ tags */
     80px                    /* STATE -- live badge or graded result */
     minmax(348px, 1.25fr)   /* PICK -- pill + inline odds chip (fits STRONG YRFI + DK -135 +6.3% with slack) */

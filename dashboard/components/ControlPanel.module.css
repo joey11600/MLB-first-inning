@@ -169,7 +169,14 @@
 .dateCluster .select {
   border: 0;
   border-radius: 0;
-  min-width: 158px;
+  /* 158px -> 146px, 2026-07-30 with the JetBrains Mono swap.  This is a
+     REDUCTION even though the font got wider, because 158px was never
+     derived from the content -- the cluster is prev-button + select +
+     next-button + four borders, and at 158px that totals 229px inside a
+     224px row, so the trailing button's border was clipped at 375px.
+     "2026-07-30" is ten characters at 14px: 84px of glyph plus 48px of
+     padding is 132px, so 146px still leaves 14px of slack. */
+  min-width: 146px;
   background-color: transparent;
 }
 
@@ -371,4 +378,23 @@
   .row { gap: 14px; }
   .runWrap { margin-left: 0; width: 100%; }
   .loadingWrap { margin-left: 0; width: 100%; }
+
+  /* PRE-EXISTING, found while checking the JetBrains Mono swap at 375px
+     and fixed here because the phone is the scene that matters.
+
+     Browse to any past date and a "jump to today" badge appears beside
+     the date cluster.  `.dateRow` is an inline-flex that never wrapped,
+     so the badge did not push the cluster down -- it SQUEEZED it, from
+     215px of content into 169px of box.  `.dateCluster` sets
+     overflow: hidden, so the squeeze silently ate the trailing nav
+     button.  The operator lost "next date" precisely when browsing
+     history, which is the only time the badge is on screen at all.
+
+     Not caused by the font (a flex item's default shrink did this at
+     any advance width) and not cured by it either: the swap took the
+     overflow from 58px to 46px because the select's min-width came
+     down 12px in the same pass.  Wrap instead of shrink, and forbid
+     the cluster from being compressed below its contents. */
+  .dateRow { flex-wrap: wrap; }
+  .dateCluster { flex: 0 0 auto; }
 }
