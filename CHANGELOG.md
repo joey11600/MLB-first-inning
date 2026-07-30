@@ -103,6 +103,25 @@ are correct uses of `--attn` ("8.05u at risk", the change-banner dot).
   app icons were green + orange; recoloured. `themeColor` and
   `msapplication-TileColor` re-keyed to the new `--background`.
 
+### Follow-up — four survivors a hex grep structurally could not find
+
+The first sweep matched `#rrggbb`. These four were live orange in other
+notations and were caught only by re-sweeping for `rgb()`/`rgba()`
+triples and URL-encoded `%23` forms:
+
+- **The browser-tab favicon** (`layout.tsx`) — inline data-URI SVG with
+  `fill='%23f5a465'`. URL-encoded, so the `#` anchor missed it.
+- **`::selection`** (`globals.css`) — highlighting any text on the page
+  handed back a band of the retired peach. Written as `rgba()`.
+- **The brand mark's glow** (`DashboardShell`) — `rgba(245,164,101)` at
+  the top-left of every screen, the most persistent orange left.
+- **`LambdaMeter`'s drop shadow** — a warm near-black, now cool.
+
+Lesson recorded in the source: a colour audit must sweep `rgb()`,
+`rgba()` and `%23` forms, not just hex literals. Final verification
+scans computed `boxShadow` and `backgroundImage` as well as text and
+background colours: **3 warm elements page-wide, all correct `--attn`.**
+
 ---
 
 ## [2026-07-29] — Money-path verification + the last side-hue numerals

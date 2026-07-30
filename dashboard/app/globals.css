@@ -539,20 +539,26 @@ button {
 
 /* --------- Selection / scrollbar ---------- */
 /* Same divergence, same repair: the OS-light path had no ::selection
-   override, so an OS-light user got the dark theme's peach highlight.
-   The light value is also re-derived from the current #9a4f1c (it was
-   still keyed to the long-replaced #b05f28). */
+   override, so an OS-light user got the other theme's highlight.
+
+   2026-07-29 -- re-keyed to --gain.  These were peach rgba(245,164,101)
+   and rgba(154,79,28), and they OUTLIVED the repalette sweep because
+   they are rgba() triples rather than hex, so no "#rrggbb" grep could
+   see them.  Highlighting any text on the page still handed back a
+   band of the retired orange.  Same lesson as the data-URI favicon:
+   a colour audit has to sweep rgb()/rgba() and URL-encoded forms too,
+   not just hex literals. */
 ::selection {
-  background: rgba(245, 164, 101, 0.28);
+  background: rgba(34, 211, 238, 0.28);
   color: var(--foreground);
 }
 .light ::selection {
-  background: rgba(154, 79, 28, 0.22);
+  background: rgba(11, 95, 119, 0.22);
   color: var(--foreground);
 }
 @media (prefers-color-scheme: light) {
   :root:not(.dark) ::selection {
-    background: rgba(154, 79, 28, 0.22);
+    background: rgba(11, 95, 119, 0.22);
     color: var(--foreground);
   }
 }

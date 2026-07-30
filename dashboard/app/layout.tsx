@@ -25,7 +25,15 @@ export const metadata: Metadata = {
       // Fallback inline data-URI for ancient browsers / iOS bookmarks
       // that can't fetch SVG icons -- renders an OK-ish version of
       // the diamond mark.
-      { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23f5a465' d='M12 2 22 12 12 22 2 12Z'/%3E%3C/svg%3E", type: "image/svg+xml" },
+      //
+      // 2026-07-29: the fill was the peach %23f5a465 and it SURVIVED the
+      // repalette sweep, because the hex is URL-encoded here (%23, not
+      // #) and every grep for the old palette was anchored on the "#".
+      // It is now --gain cyan. Worth remembering: a colour audit that
+      // greps for "#rrggbb" silently misses data-URI icons, and the
+      // favicon is the one piece of the palette the operator stares at
+      // in a browser tab all day.
+      { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2322d3ee' d='M12 2 22 12 12 22 2 12Z'/%3E%3C/svg%3E", type: "image/svg+xml" },
     ],
     apple: [
       { url: "/apple-touch-icon.svg", sizes: "180x180" },

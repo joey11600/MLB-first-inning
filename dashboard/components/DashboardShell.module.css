@@ -47,9 +47,14 @@
   background:
     linear-gradient(135deg, var(--primary) 0%, var(--accent-cyan) 55%, var(--destructive) 100%);
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  /* 2026-07-29 -- the brand mark's own glow, re-keyed to --gain.
+     These were peach rgba(245,164,101) and survived the repalette
+     because they are rgba() triples, not hex. The mark sits in the
+     top-left corner of every screen, so it was the most persistent
+     orange left on the page. */
   box-shadow:
-    0 0 0 1px rgba(245, 164, 101, 0.25),
-    0 0 24px rgba(245, 164, 101, 0.20);
+    0 0 0 1px rgba(34, 211, 238, 0.25),
+    0 0 24px rgba(34, 211, 238, 0.20);
 }
 .mark::after {
   content: "";
@@ -60,8 +65,8 @@
 }
 .light .mark {
   box-shadow:
-    0 0 0 1px rgba(176, 95, 40, 0.30),
-    0 0 18px rgba(176, 95, 40, 0.18);
+    0 0 0 1px rgba(11, 95, 119, 0.30),
+    0 0 18px rgba(11, 95, 119, 0.18);
 }
 
 .brandText {
