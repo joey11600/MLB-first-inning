@@ -207,9 +207,36 @@ def make_record(rows, probs_dep, probs_wf, ledger, *, label, price_fill,
     def run(probs, fill):
         d_y = disposition(rows, probs, side="YRFI", gate=P._LR_STRONG_YRFI_P, fill=fill)
         d_n = disposition(rows, probs, side="NRFI", gate=NRFI_GATE, fill=fill)
-        bets = build_bets(d_y, "YRFI", date_from) + build_bets(d_n, "NRFI", date_from)
+        y_bets = build_bets(d_y, "YRFI", date_from)
+        n_bets = build_bets(d_n, "NRFI", date_from)
+
+        # 2026-07-30 -- THE BANK IS YRFI-ONLY, because the system is.
+        #
+        # This used to be `simulate(y_bets + n_bets)`, i.e. the replay
+        # staked NRFI as though it were live. It is not:
+        # `_LR_STRONG_NRFI_P` has been 1.01 ("off") since 2026-06-07 and
+        # the last real NRFI bet was 2026-06-14. So the headline bank
+        # curve described a system nobody runs -- 100u -> 227.11u where
+        # the YRFI side alone made +144.85u and the NRFI side lost
+        # 17.71u of it.
+        #
+        # Every consumer was already compensating: the dashboard
+        # headline read `yrfi.pnl` rather than the sim's own profit, and
+        # the daily ledger and flat figures each had to re-exclude NRFI
+        # by hand. Three separate hand-corrections for one wrong input.
+        # Fixed at the source instead.
+        bank, mdd, curve, staked = simulate(y_bets)
+
+        # NRFI stays TRACKED, never staked by the system. Simulated on
+        # its OWN independent bank purely so the per-game detail can
+        # still answer "what would NRFI have done" -- its result never
+        # touches `bank`, `curve`, `staked`, the monthly table or the
+        # headline. simulate() writes b["stake"] in place, which is what
+        # the day-detail builder below reads.
+        simulate(n_bets)
+
+        bets = y_bets + n_bets
         bets.sort(key=lambda b: b["date"])
-        bank, mdd, curve, staked = simulate(bets)
         return d_y, d_n, bets, bank, mdd, curve, staked
 
     d_y, d_n, bets, bank, mdd, curve, staked = run(probs_dep, price_fill)
@@ -306,11 +333,19 @@ def make_record(rows, probs_dep, probs_wf, ledger, *, label, price_fill,
     for d in sorted(byd):
         g = byd[d]
         day_bets = [e for e in g if e["record"]["action"] == "BET"]
+        # STAKED = what the SYSTEM actually bets, i.e. YRFI only. NRFI
+        # entries stay in `games` (tracked, with their own hypothetical
+        # stake) but must not enter the day totals, or `simPnl` ends up
+        # describing a different population from `simBankAfter` sitting
+        # beside it -- which it did until 2026-07-30: the bank was
+        # YRFI-only at 262.88u while the day P&L summed to +147.88u,
+        # i.e. YRFI +162.92u with NRFI's -15.04u folded in.
+        staked_bets = [e for e in day_bets if e["side"] != "NRFI"]
         days.append({
             "date": d,
             "flatPnl": round(sum(payout(e["record"]["odds"]) if e["record"]["win"]
-                                 else -1.0 for e in day_bets), 2),
-            "simPnl": round(sum(e["record"]["pnl"] for e in day_bets), 2),
+                                 else -1.0 for e in staked_bets), 2),
+            "simPnl": round(sum(e["record"]["pnl"] for e in staked_bets), 2),
             "simBankAfter": (round(bank_after[d], 2) if d in bank_after else None),
             "flagged": sum(1 for e in g if "ledger" in e),
             "placed": sum(1 for e in g if e.get("ledger", {}).get("placed")),

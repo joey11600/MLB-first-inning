@@ -11,6 +11,66 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30b] — The replay stops staking NRFI; /history charts the system
+
+Operator: *"i wanted to remove the flat unit tracking ... and all the
+charts should reflect the kelly sizing with the new system going back to
+the start of the season, what our system would have picked and our
+profit."*
+
+### The replay was staking a side the system does not bet
+
+`export_season_record.py` ran `simulate(y_bets + n_bets)` — it staked
+**NRFI**. `_LR_STRONG_NRFI_P` has been 1.01 ("off") since 2026-06-07 and
+the last real NRFI bet was 2026-06-14, so the headline bank curve
+described a system nobody runs.
+
+| | before | after |
+|---|---|---|
+| bets staked | 127 | **106** |
+| bank | 100u → 227.11u | **100u → 262.88u** |
+| max drawdown | 27.9% | **23.7%** |
+
+Every consumer was already compensating by hand: the dashboard headline
+read `yrfi.pnl` instead of the sim's own profit, and the daily and flat
+figures each re-excluded NRFI separately. **Three hand-corrections for
+one wrong input.** Fixed at the source. NRFI is still tracked — 24
+would-be bets, −15.04u — simulated on its own independent bank so the
+detail survives without touching the money path.
+
+`day.simPnl` / `day.flatPnl` had the same split: the bank was YRFI-only
+while the day totals beside it still folded NRFI in (+147.88u vs
++162.92u). Now both read the staked side only.
+
+### /history charts the system, not the retired ledger
+
+One series feeds the equity curve, drawdown, days-under-water and the
+daily table, so switching it rewires the page at once. It now reads the
+replay's compounding bank.
+
+Removed with it: the **flat-1u** line and stat (operator's request — the
+system stakes quarter-Kelly, so a flat figure describes a scheme nobody
+runs), the **"what actually happened"** ledger line, and the
+System/You column split, which existed only to reconcile a replay
+headline against a ledger table that is no longer on the page.
+
+### Two bugs caught while wiring it
+
+1. **The oldest visible row reported the whole season as one day.** Day
+   P&L was derived by differencing the cumulative with `prev` seeded at
+   0, so on any window not starting at the opener the first row showed
+   its entire season-to-date total — "Last 30 days" had a +150u day. Now
+   read from the record's stored `simPnl`; no edge case, exact.
+2. **The hero and its own table were in different units.** The headline
+   rebased to a 100u base while the table is absolute, so 30d read
+   +13.23u above a column summing to +30.7u. The headline is now raw
+   window profit and the bank it was earned on is named in the sub-line.
+
+Verified per window — hero equals its Day P&L column exactly:
+season +162.92u (100u bank), 30d +30.71u (232u bank), 7d −40.28u (303u
+bank).
+
+
 ## [2026-07-30] — Old ledger removed; the "Flat 1u" stat was measuring the wrong bets
 
 Operator: *"remove the old ledger entirely ... still keep the data

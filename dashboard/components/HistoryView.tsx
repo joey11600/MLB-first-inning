@@ -11,7 +11,7 @@ import {
   DivergenceBar,
   type DivergenceSummary,
 } from "./InsightCharts";
-import type { RecFile } from "@/lib/season-record";
+import type { RecFile, RecSide } from "@/lib/season-record";
 import { replayWindow, isNum } from "@/lib/season-record";
 import styles from "./HistoryView.module.css";
 
@@ -71,6 +71,44 @@ function pickMoneySeries(data: RoiResponse): { points: SeriesPoint[]; isReal: bo
   return { points: data.cumulativePL ?? [], isReal: false };
 }
 
+/** THE SERIES EVERY CHART ON THIS PAGE READS (2026-07-30).
+ *
+ *  Operator: "all the charts should reflect the kelly sizing with the
+ *  new system going back to the start of the season -- what our system
+ *  would have picked and our profit."
+ *
+ *  So the page stops charting the realised ledger and charts the
+ *  REPLAY: today's rules, quarter-Kelly, compounding from a 100u bank,
+ *  real captured prices only. The ledger it used to chart is mostly
+ *  bets placed under rules that no longer exist -- NRFI was live then
+ *  and is off now, and the YRFI gate has since tightened -- which is
+ *  exactly why the operator stopped caring about it.
+ *
+ *  Everything downstream (equity curve, drawdown, days-under-water,
+ *  daily table) derives from this one array, so switching it here
+ *  rewires the whole page rather than four charts one at a time.
+ *
+ *  `simBankAfter` is the compounding bank at each day's close; the
+ *  chart wants profit-from-start, hence the subtraction. As of the
+ *  2026-07-30 exporter fix that bank is YRFI-only, matching the system
+ *  that is actually run -- before it, this would have charted a bank
+ *  that staked NRFI. */
+function replaySeries(
+  side: RecSide | null,
+  startBank: number,
+  startIso: string | undefined,
+  endIso: string | undefined,
+): SeriesPoint[] {
+  if (!side || !startIso || !endIso) return [];
+  const out: SeriesPoint[] = [];
+  for (const d of side.days) {
+    if (d.date < startIso || d.date > endIso) continue;
+    if (!isNum(d.simBankAfter)) continue;
+    out.push({ date: d.date, units: d.simBankAfter - startBank });
+  }
+  return out;
+}
+
 /** First date at which stakes stopped being flat 1u.  Before it a loss is
  *  -1.00u; after it a loss is whatever the stake was. */
 function stakeEpochOf(data: RoiResponse): string | null {
@@ -114,7 +152,17 @@ export function HistoryView({
   const eyebrowText = "Performance · daily breakdown";
   const titleText   = "Bankroll history";
 
-  const money = useMemo(() => pickMoneySeries(data), [data]);
+  // THE PAGE'S SERIES. Replay first (see replaySeries); the realised
+  // ledger survives only as a fallback for a payload with no record.
+  const money = useMemo(() => {
+    const replay = replaySeries(
+      seasonRecord?.real ?? seasonRecord?.projected ?? null,
+      seasonRecord?.startBank ?? 100,
+      data.startDate, data.endDate,
+    );
+    if (replay.length > 0) return { points: replay, isReal: true, isReplay: true };
+    return { ...pickMoneySeries(data), isReplay: false };
+  }, [seasonRecord, data]);
   const stakeEpoch = stakeEpochOf(data);
 
   // REAL prices first, matching RoiPanel's SystemCard. `projected` fills
@@ -128,63 +176,49 @@ export function HistoryView({
     [sysSide, data.startDate, data.endDate],
   );
 
-  /** date -> the SYSTEM's P&L for that day, rebased to the operator's
-   *  real bank, so the daily ledger reconciles to the hero above it.
-   *
-   *  2026-07-29. The hero said +14.54u and the table below it ended at
-   *  -4.41u with nothing saying they were different populations, so the
-   *  table read as though the numbers were broken. (They were not --
-   *  the running total checks out across every row.) The table now
-   *  carries BOTH columns and each one sums to its own headline.
-   *
-   *  TWO TRAPS, both verified numerically against the live record
-   *  rather than assumed:
-   *
-   *  1. `day.simPnl` is NOT usable here. It includes NRFI, which the
-   *     hero excludes because NRFI is not bet. Over the 30-day window
-   *     day.simPnl rebases to +10.42u while the hero shows +14.54u --
-   *     the -4.12u gap is exactly the NRFI side. So the per-day figure
-   *     is summed from the day's GAMES, YRFI only, matching
-   *     replayWindow's own bucketing.
-   *
-   *  2. Rebasing must use ONE divisor -- the bank at window start --
-   *     not each day's own bank. Scaling every day by the same constant
-   *     is what makes the column sum to the hero; scaling each by its
-   *     own bank would not. */
-  const sysDaily = useMemo(() => {
-    const out = new Map<string, number>();
-    if (!sysSide || !sysWindow || !isNum(sysWindow.bankStart) || sysWindow.bankStart <= 0) {
+  // sysDaily() was deleted 2026-07-30 with the System column it fed.
+  // The whole page charts the replay now, so every row IS the system
+  // and a separate per-day system figure is the same number twice.
+
+  // Per-day records.
+  //
+  // The daily figure is READ from the record (`simPnl`), not derived by
+  // differencing the cumulative. Differencing seeds `prev` at 0, so on
+  // any window that does not start at the season opener the OLDEST
+  // visible row reported its entire season-to-date cumulative as that
+  // single day's P&L -- "Last 30 days" showed a +150u day. Reading the
+  // stored per-day figure has no such edge case and is exact.
+  //
+  // `cumulative` stays absolute (bank minus the 100u start), i.e.
+  // profit since the season opener, which is meaningful in every window.
+  // It is deliberately NOT window-relative: the operator asked for the
+  // curve "going back to the start of the season".
+  const days = useMemo<DayRecord[]>(() => {
+    const side = seasonRecord?.real ?? seasonRecord?.projected ?? null;
+    const bank0 = seasonRecord?.startBank ?? 100;
+    if (side && money.isReplay) {
+      const out: DayRecord[] = [];
+      for (const d of side.days) {
+        if (d.date < data.startDate || d.date > data.endDate) continue;
+        if (!isNum(d.simBankAfter)) continue;
+        out.push({
+          date: d.date,
+          units: isNum(d.simPnl) ? d.simPnl : 0,
+          cumulative: d.simBankAfter - bank0,
+        });
+      }
       return out;
     }
-    const scale = (sysBank || 100) / sysWindow.bankStart;
-    for (const d of sysSide.days) {
-      if (d.date < data.startDate || d.date > data.endDate) continue;
-      let yrfi = 0;
-      for (const g of d.games) {
-        if (g.record.action !== "BET") continue;
-        if (g.side === "NRFI") continue;      // tracked, never bet
-        yrfi += g.record.pnl ?? 0;
-      }
-      out.set(d.date, yrfi * scale);
-    }
-    return out;
-  }, [sysSide, sysWindow, sysBank, data.startDate, data.endDate]);
-
-  // Derive per-day records from the REAL-PRICED cumulative series.
-  // Daily = cum[i] - cum[i-1].
-  const days = useMemo<DayRecord[]>(() => {
+    // Ledger fallback (no record): differencing is fine here because the
+    // roi series is already windowed and starts at 0.
     const out: DayRecord[] = [];
     let prev = 0;
     for (const row of money.points) {
-      out.push({
-        date:       row.date,
-        units:      row.units - prev,
-        cumulative: row.units,
-      });
+      out.push({ date: row.date, units: row.units - prev, cumulative: row.units });
       prev = row.units;
     }
     return out;
-  }, [money.points]);
+  }, [money.points, money.isReplay, seasonRecord, data.startDate, data.endDate]);
 
   // How many of the graded bets behind this page carry a real captured
   // price, and how many settled against the fabricated -110.  Summed over
@@ -307,28 +341,34 @@ export function HistoryView({
             <div className={styles.heroLabel}>
               The system · ¼-Kelly <span className="tag">Simulated</span>
             </div>
+            {/* RAW window profit, NOT rebased to a 100u base (2026-07-30).
+                The rebased form scaled by the bank at window start, so
+                "Last 30 days" read +13.23u while its own Day P&L column
+                summed to +30.7u -- two numbers on one screen measuring
+                the same window in different units, which is the exact
+                trap this page has been cleared of twice already. The
+                bank the profit was earned on is named in the sub-line
+                below, which is the honest way to give it context. */}
             <div className={styles.heroFig}>
-              {formatUnits(
-                isNum(sysWindow.bankStart) && sysWindow.bankStart > 0
-                  ? (sysWindow.yrfi.pnl / sysWindow.bankStart) * (sysBank || 100)
-                  : sysWindow.yrfi.pnl,
-              )}
+              {formatUnits(sysWindow.yrfi.pnl)}
             </div>
             <div className={styles.heroSub}>
               {sysWindow.yrfi.wins}-{sysWindow.yrfi.bets - sysWindow.yrfi.wins} over{" "}
               {sysWindow.yrfi.bets} {sysWindow.yrfi.bets === 1 ? "bet" : "bets"} ·{" "}
               {sysWindow.from} → {sysWindow.to}
+              {isNum(sysWindow.bankStart) && (
+                <> · on a {sysWindow.bankStart.toFixed(0)}u bank</>
+              )}
             </div>
-            {/* The unlevered twin, right under the levered one. Over 30
-                days these read +14.54u and +0.89u: same bets, one of
-                them multiplied by compounding. Kept adjacent so the
-                difference is impossible to miss. */}
-            <div className={styles.heroFlat}>
-              <span className={styles.heroFlatFig}>
-                {formatUnits(sysWindow.yrfi.flat)}
-              </span>
-              <span>unlevered, at a flat 1u on the same bets</span>
-            </div>
+            {/* THE UNLEVERED ("flat 1u") LINE WAS REMOVED 2026-07-30.
+                Operator: "i wanted to remove the flat unit tracking in
+                the dashboard". The system stakes quarter-Kelly; a flat
+                figure describes a staking scheme nobody runs, and
+                carrying it invited exactly the levered-vs-unlevered
+                confusion it was added to resolve. The data still
+                exists -- season_record.json keeps `flatProfit` per side
+                and per month -- so the question is one command away via
+                tools/kelly_season_backfill.py. */}
           </>
         ) : (
           <>
@@ -340,49 +380,15 @@ export function HistoryView({
           </>
         )}
 
-        {/* WHAT ACTUALLY HAPPENED -- subordinate by design. Real money,
-            so it keeps its tone colour while the simulated hero above
-            stays neutral ink, per the colour law. */}
-        <div className={styles.actual}>
-          <span className={styles.actualLabel}>What actually happened</span>
-          {/* data-tone, NOT tileTone(): that helper returns a CARD-level
-              class which colours a descendant `.tileBig` and paints an
-              inset side stripe. Hung on an inline <span> it coloured
-              nothing and drew a stray 3px bar. */}
-          <span
-            className={styles.actualFig}
-            data-tone={totalUnits > 0.005 ? "win" : totalUnits < -0.005 ? "loss" : "flat"}
-          >
-            {formatUnits(totalUnits)}
-          </span>
-          <span className={styles.actualSub}>
-            across {totalDays} {totalDays === 1 ? "day" : "days"} ·{" "}
-            {money.isReal ? (
-              <>
-                {priceSplit.real} graded{" "}
-                {priceSplit.real === 1 ? "bet" : "bets"} at a real captured
-                DraftKings price
-                {priceSplit.assumed > 0 && (
-                  <>
-                    {"; "}
-                    {priceSplit.assumed} more settled against an assumed
-                    &minus;110 and are left out
-                  </>
-                )}
-              </>
-            ) : (
-              // Reachable only by a browser holding an /api/roi payload
-              // cached from before 2026-07-29. It used to say "reload the
-              // page to pick up the real-priced figure" -- but the
-              // producer did not exist, so this branch was permanent and
-              // the advice could never work.
-              <>
-                inflated: includes bets settled against an assumed
-                &minus;110 rather than a price you paid
-              </>
-            )}
-          </span>
-        </div>
+        {/* THE "WHAT ACTUALLY HAPPENED" LINE WAS REMOVED 2026-07-30
+            with the rest of the old-ledger surfacing. Operator: "i
+            dont care about my old bets ... all i care about is the new
+            system, the new kelly sizing, and the new total profit."
+            That figure was the realised ledger, which is dominated by
+            bets placed under rules that no longer exist -- 49 NRFI bets
+            worth -11.29u from a side switched off on 2026-06-07, plus
+            142 YRFI bets today's gate would reject. Every row is still
+            in the CSV and Supabase; tools/pl_calc.py reports it. */}
       </section>
 
       {/* T2.42: Bankroll equity curve.  Pure cumulative line + drawdown
@@ -478,11 +484,15 @@ export function HistoryView({
               and looked like an arithmetic error. It was not -- the two
               are different populations, and now each column sums to its
               own headline. */}
+          {/* Four tracks again (2026-07-30). The System/You split existed
+              to reconcile a replay headline against a ledger table; the
+              whole page is the replay now, so there is nothing to
+              reconcile and the second pair was two columns of the same
+              retired ledger. */}
           <div className={styles.theadRow}>
             <div>Date</div>
-            <div className={styles.right}>System</div>
-            <div className={styles.right}>You</div>
-            <div className={styles.right}>Your total</div>
+            <div className={styles.right}>Day P&L</div>
+            <div className={styles.right}>Cumulative</div>
             <div className={styles.barCell}>Distribution</div>
           </div>
           {tableRows.length === 0 ? (
@@ -494,7 +504,6 @@ export function HistoryView({
               <DayRow
                 key={d.date}
                 day={d}
-                sysUnits={sysDaily.get(d.date)}
                 maxAbs={Math.max(Math.abs(bestDay), Math.abs(worstDay), 0.01)}
               />
             ))
@@ -1000,9 +1009,7 @@ function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
 
 /* ------------- table row ------------- */
 
-function DayRow({
-  day, sysUnits, maxAbs,
-}: { day: DayRecord; sysUnits?: number; maxAbs: number }) {
+function DayRow({ day, maxAbs }: { day: DayRecord; maxAbs: number }) {
   const isWin = day.units > 0;
   const isLoss = day.units < 0;
   const fillPct = (Math.abs(day.units) / maxAbs) * 100;
@@ -1011,15 +1018,6 @@ function DayRow({
     <div className={styles.row}>
       <div className={styles.dateCell}>
         <span className={styles.dateMain}>{formatDate(day.date)}</span>
-      </div>
-      {/* SYSTEM -- simulated, so NEUTRAL ink whatever its sign.
-          globals.css: "SIMULATED FIGURES ARE NEVER TONE-COLOURED."
-          The column beside it is real money and does carry tone; the
-          contrast between them is the point. "—" means the replay has
-          no entry for this date, which is different from a 0.00u day
-          where it looked and chose not to bet. */}
-      <div className={`${styles.right} ${styles.sysCell}`}>
-        {sysUnits == null ? "—" : formatUnits(sysUnits)}
       </div>
       <div className={`${styles.right} ${isWin ? styles.numWin : isLoss ? styles.numLoss : styles.numFlat}`}>
         {formatUnits(day.units)}

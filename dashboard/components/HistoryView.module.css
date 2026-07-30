@@ -623,18 +623,17 @@
   display: flex;
   flex-direction: column;
 }
-/* Five tracks since 2026-07-29: date | system | you | your total | bar.
-   The "system" column was added so this table reconciles to the hero at
-   the top of the page instead of ending on a different number with
-   nothing explaining the difference. */
+/* Four tracks: date | day P&L | cumulative | bar. Briefly five on
+   2026-07-29 (a System/You split) to reconcile a replay headline
+   against a ledger table; the whole page is the replay as of
+   2026-07-30, so there is nothing left to reconcile. */
 .theadRow,
 .row {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr)
-                         minmax(100px, 0.95fr)
-                         minmax(100px, 0.95fr)
+  grid-template-columns: minmax(170px, 1.1fr)
                          minmax(110px, 1fr)
-                         minmax(180px, 2fr);
+                         minmax(110px, 1fr)
+                         minmax(220px, 2.4fr);
   align-items: center;
   gap: 14px;
   padding: 10px 14px;

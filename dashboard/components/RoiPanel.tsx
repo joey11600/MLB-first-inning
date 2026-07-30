@@ -511,30 +511,18 @@ function SystemCard({
           value={w && y ? `${y.wins}-${y.bets - y.wins}` : "0-0"} />
         <Stat label="Hit rate"
           value={y && y.bets > 0 ? `${(100 * y.wins / y.bets).toFixed(1)}%` : "—"} />
-        {/* WAS "Priced: N of N" (2026-07-29).  That tile counted bets
-            with a captured DraftKings price, which mattered while the
-            headline came from `projected` and a third of its book was
-            filled at an assumed -125. The headline now comes from
-            `real`, which by construction contains ZERO assumed prices,
-            so the tile could only ever print "43 of 43" -- a stat with
-            no variance is not a stat.
-
-            The slot goes to the number that actually explains the
-            headline: the SAME selection at a flat 1 unit a bet, before
-            Kelly compounding. Season is +9.33u flat against ~+145u
-            levered. If the operator is going to read one supporting
-            figure, it should be the one that separates "the model is
-            finding edge" from "and we are levering it 13x". */}
-        <Stat
-          label="Flat 1u"
-          /* yrfi.flat, NOT flatPnl: the headline above is YRFI-only
-             (NRFI is tracked, never bet), so its unlevered twin must
-             cover the same bets. flatPnl includes NRFI and printed
-             +9.29u against a true +12.30u. */
-          value={w ? fmtU(w.yrfi.flat) : "—"}
-          caption="the same bets, unlevered"
-          muted
-        />
+        {/* THE "FLAT 1U" TILE WAS REMOVED 2026-07-30.
+            Operator: "i wanted to remove the flat unit tracking in the
+            dashboard". The system stakes quarter-Kelly; a flat figure
+            describes a staking scheme nobody runs. It also spent a day
+            silently measuring a DIFFERENT set of bets than the headline
+            beside it (it summed day-level totals, which include NRFI,
+            against a YRFI-only headline). The slot before it held
+            "Priced: N of N", which went degenerate when the headline
+            moved to real prices only.
+            Two stats is the honest count here: the record and the hit
+            rate. `flatProfit` is still in season_record.json per side
+            and per month if the question ever comes back. */}
       </div>
 
       {/* 2026-07-28: the CLV disclaimer and the two-populations
