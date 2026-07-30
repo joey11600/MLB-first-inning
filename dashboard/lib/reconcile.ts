@@ -28,6 +28,7 @@
  */
 
 import type { BoardRow, GameDetail } from "./types";
+import { stakeUnitsFor } from "./kelly-sim";
 import type { RecDay } from "./season-record";
 
 export interface NightCounts {
@@ -184,17 +185,32 @@ export function tonightFromBoard(
     const d = lookupDetail(r, details);
     if (!d) continue;
     bets += 1;
-    const u = typeof d.unitsRisked === "number" ? d.unitsRisked : 0;
+    // THE NEW SYSTEM, COMPUTED LIVE (2026-07-30).
+    //
+    // This read `d.unitsRisked` -- the stake the LEDGER recorded, which
+    // for anything placed before 2026-07-30 was sized the old way
+    // (bankroll x Kelly%). That made the Today tab disagree with every
+    // other surface: 2026-07-29 showed +2.04u here and +2.83u on
+    // /history, for the same two games.
+    //
+    // Because 1 unit = 1% of bankroll, the stake depends only on the
+    // model probability and the price -- so tonight can be sized under
+    // the new rule without waiting for the nightly replay export, which
+    // has no entry for a live slate. stakeUnitsFor() is the same rule
+    // as tracker.kelly_stake_units and the same one /history reads.
+    const raw = r.pickSide === "NRFI" ? d.marketNrfiOdds : d.marketYrfiOdds;
+    const american = Number.parseFloat((raw ?? "").trim());
+    const modelP = (r.pickSide === "NRFI" ? r.nrfiPct : r.yrfiPct) / 100;
+    const u = Number.isFinite(american) && american !== 0
+      ? stakeUnitsFor(modelP, american)
+      : 0;
     staked += u;
     if (d.betPlaced === "Y") committed += 1;
     const g = (d.gradedResult || "").toUpperCase();
     if (g === "WIN") {
       wins += 1;
-      // Payout at the captured price on the picked side.
-      const raw = r.pickSide === "NRFI" ? d.marketNrfiOdds : d.marketYrfiOdds;
-      const n = Number.parseFloat((raw ?? "").trim());
-      const b = Number.isFinite(n) && n !== 0
-        ? (n > 0 ? n / 100 : 100 / Math.abs(n))
+      const b = Number.isFinite(american) && american !== 0
+        ? (american > 0 ? american / 100 : 100 / Math.abs(american))
         : 100 / 110;
       pnl += u * b;
     } else if (g === "LOSS") {

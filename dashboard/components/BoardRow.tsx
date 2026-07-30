@@ -7,6 +7,7 @@ import { GameDetails } from "./GameDetails";
 import type { ReplayStake } from "@/lib/season-record";
 import { replayKey } from "@/lib/season-record";
 import { computeLockAt, formatLockTime } from "@/lib/lock";
+import { stakeUnitsFor } from "@/lib/kelly-sim";
 import styles from "./BoardRow.module.css";
 
 /** Returns true for `durationMs` after `value` changes.  Used by Tier 1.3
@@ -815,15 +816,29 @@ function StakeChip({
   // clearly-labelled suggestion. Pre-Kelly rows read "1.00u" under this
   // rule, which was the old objection to ledger-first -- but 1.00u is
   // what was bet on those nights, so it is the true answer.
-  const placedReal = detail?.betPlaced === "Y";
-  const riskedReal = detail?.unitsRisked;
-  if (placedReal && typeof riskedReal === "number" && riskedReal > 0) {
-    return (
-      <span className={styles.stakeChip}>
-        <span className={styles.stakeLabel}>staked</span>
-        <span className={styles.stakeValue}>{riskedReal.toFixed(2)}u</span>
-      </span>
-    );
+  // THE NEW SYSTEM'S STAKE (2026-07-30). Computed from the model
+  // probability and the price, because 1 unit = 1% of bankroll makes
+  // sizing bankroll-free -- so this chip shows the SAME number every
+  // other surface shows, and the same number a subscriber would bet.
+  //
+  // It deliberately no longer prints detail.unitsRisked. That is what
+  // the ledger RECORDED, and anything placed before today was sized the
+  // old way (bankroll x Kelly%), which is why 2026-07-29 read 5.97u here
+  // and 7u on /history for one bet.
+  const stakePriceRaw = (row.pickSide === "NRFI"
+    ? detail?.marketNrfiOdds : detail?.marketYrfiOdds) || "";
+  const stakeAmerican = Number.parseFloat(stakePriceRaw.trim());
+  const stakeModelP = (row.pickSide === "NRFI" ? row.nrfiPct : row.yrfiPct) / 100;
+  if (Number.isFinite(stakeAmerican) && stakeAmerican !== 0) {
+    const u = stakeUnitsFor(stakeModelP, stakeAmerican);
+    if (u > 0) {
+      return (
+        <span className={styles.stakeChip}>
+          <span className={styles.stakeLabel}>stake</span>
+          <span className={styles.stakeValue}>{u.toFixed(2)}u</span>
+        </span>
+      );
+    }
   }
 
   // No real bet on this row. The replay's figure may still be worth

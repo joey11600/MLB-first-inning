@@ -229,3 +229,55 @@ export function simulateKelly(
   out.flatProfit = Math.round(out.flatProfit * 100) / 100;
   return out;
 }
+
+/** THE SHIPPED STAKE RULE, in units. Mirrors tracker.kelly_stake_units.
+ *
+ *  1 UNIT = 1% OF BANKROLL (2026-07-30), so the stake IS the quarter-
+ *  Kelly percentage and the bankroll never enters it. That is what lets
+ *  the same number be published to every subscriber -- see
+ *  tracker.kelly_stake_units for the full reasoning.
+ *
+ *  Exists so TONIGHT can be shown under the new system too. The nightly
+ *  replay export has no entry for the live slate, so before this the
+ *  dashboard's Today tab fell back to the ledger's recorded stake and
+ *  disagreed with /history: 2026-07-29 read +2.04u on one page and
+ *  +2.83u on the other. Because sizing is now bankroll-free, the live
+ *  figure can be computed from the probability and the price alone.
+ *
+ *  Kept deliberately in lockstep with the Python: quarter Kelly, 10-unit
+ *  per-bet cap, whole-unit rounding with a 0.5u floor, 0 on no edge.
+ *  If tracker.py's constants move, move these.
+ */
+export const UNIT_RULE = {
+  fraction: 0.25,
+  maxStakeUnits: 10,     // KELLY_MAX_STAKE_FRAC 0.10 x 100
+  minStakeUnits: 0.10,   // KELLY_MIN_STAKE_UNITS
+  rounding: 1.0,         // KELLY_STAKE_ROUNDING
+  roundedFloor: 0.5,     // KELLY_ROUNDED_FLOOR
+};
+
+/** Units to stake, or 0 when the model has no edge at that price. */
+export function stakeUnitsFor(p: number, american: number): number {
+  if (!Number.isFinite(p) || p <= 0 || p >= 1) return 0;
+  const f = Math.min(
+    kellyFraction(p, american) * UNIT_RULE.fraction,
+    UNIT_RULE.maxStakeUnits / 100,
+  );
+  let stake = f * 100;
+  if (stake < UNIT_RULE.minStakeUnits) return 0;   // no edge -> no bet
+  if (UNIT_RULE.rounding > 0) {
+    let r = Math.round(stake / UNIT_RULE.rounding) * UNIT_RULE.rounding;
+    if (r < UNIT_RULE.roundedFloor) r = UNIT_RULE.roundedFloor;
+    // Rounding up must never breach the per-bet cap.
+    if (r > UNIT_RULE.maxStakeUnits) r = stake;
+    stake = r;
+  }
+  return Math.round(stake * 100) / 100;
+}
+
+/** P&L in units for a settled bet under the same rule. */
+export function pnlUnitsFor(p: number, american: number, won: boolean): number {
+  const s = stakeUnitsFor(p, american);
+  if (s <= 0) return 0;
+  return won ? s * payoutPerUnit(american) : -s;
+}

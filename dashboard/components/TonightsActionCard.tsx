@@ -48,6 +48,7 @@ import type { NightCounts } from "@/lib/reconcile";
 import { fmtU, nightFromBoard } from "@/lib/reconcile";
 import type { ReplayStake } from "@/lib/season-record";
 import { replayKey } from "@/lib/season-record";
+import { stakeUnitsFor } from "@/lib/kelly-sim";
 import {
   computeLockAt, formatLockTime, minutesUntil, formatCountdown,
 } from "@/lib/lock";
@@ -164,15 +165,21 @@ function extractPlays(
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "YRFI")) ??
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "NRFI"))
     );
-    // YOUR STAKE WINS -- see BoardRow's StakeChip for the full note.
-    // The replay compounds from 100u to ~257u; the real bank is ~88u,
-    // so replay-first showed 17.00u on a bet placed at 5.97u.
-    let units: number | null = null;
-    if (d?.unitsRisked != null && d.unitsRisked > 0) units = d.unitsRisked;
-    else if (rp?.action === "BET" && typeof rp.stake === "number") units = rp.stake;
-    else if (rp?.action === "SKIP") units = 0;
-
+    // THE NEW SYSTEM'S STAKE (2026-07-30), computed from the model
+    // probability and the price. 1 unit = 1% of bankroll, so this is
+    // the same number for every subscriber and the same number
+    // /history shows. Reading d.unitsRisked here would show the OLD
+    // ledger sizing on anything placed before today.
     const price = (r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds) || "";
+    const american = Number.parseFloat(price.trim());
+    const modelP = (r.pickSide === "NRFI" ? r.nrfiPct : r.yrfiPct) / 100;
+    let units: number | null =
+      Number.isFinite(american) && american !== 0
+        ? stakeUnitsFor(modelP, american)
+        : null;
+    if (units == null && rp?.action === "BET" && typeof rp.stake === "number") {
+      units = rp.stake;
+    }
 
     const lockAt = computeLockAt(r.gameTimeEt, slateDate);
     const mins = lockAt && !locked && !graded ? minutesUntil(lockAt, now) : null;
@@ -258,9 +265,13 @@ function summarizeSides(
     // Same precedence as the play list and the board chip: the stake
     // the operator actually has on the game, then the replay. This
     // total is captioned "at risk", so it must be the real exposure.
+    // Same rule as the play list above and the board chip.
     let stakeU = 0;
-    if (placed === "Y" && d?.unitsRisked != null && d.unitsRisked > 0) {
-      stakeU = d.unitsRisked;
+    const priceRaw = (r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds) || "";
+    const am = Number.parseFloat(priceRaw.trim());
+    const mp = (r.pickSide === "NRFI" ? r.nrfiPct : r.yrfiPct) / 100;
+    if (Number.isFinite(am) && am !== 0) {
+      stakeU = stakeUnitsFor(mp, am);
     } else if (rp?.action === "BET" && typeof rp.stake === "number") {
       stakeU = rp.stake;
     } else if (rp?.action === "SKIP") {
