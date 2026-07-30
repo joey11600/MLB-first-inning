@@ -133,9 +133,32 @@ quoting numbers.
 
 ## Money rules
 
-- **Flat 1u plays only.** User explicitly rejected Kelly / fractional /
-  bankroll-aware sizing (T4.25-27 skipped per user preference). Don't
-  introduce per-bet sizing variation without checking with the user.
+- **1 UNIT = 1% OF BANKROLL. The bankroll is ALWAYS 100 units.**
+  Operator decision 2026-07-30, and it is the constraint that decides
+  the money path, because the operator is SELLING these picks: a
+  published stake cannot depend on the operator's own bankroll or a
+  $25k follower and a $1k follower get different numbers for the same
+  bet. Growth changes the DOLLAR VALUE of a unit, never the number of
+  units bet. Quarter-Kelly is already bankroll-free, so "6.8u" means
+  6.8% of your own bank for everyone. Caps are fixed unit numbers:
+  10u per bet, 15u per day.
+  - **NEVER SUM UNITS ACROSS DAYS.** A 1u win when a unit was $100 is
+    not the same money as a 1u win when it was $150. Report **bank
+    growth (100 → X)** or a **percentage return**. Per-bet, per-night
+    and same-day-exposure figures in units are fine and should stay.
+  - This is enforced, not just documented: `dashboard/lib/units.ts`
+    brands every across-time sum as `CumulativeUnits` and
+    `formatUnits()` refuses it at COMPILE time, so `next build` fails.
+    `dashboard/scripts/check-units-guard.mjs` runs in `prebuild` and
+    fails the deploy if that protection is ever weakened. If the
+    compiler stops you here, `asCumulative()` is not an escape hatch --
+    it is the label you put ON the thing you must not print.
+  - Full reasoning: the memory `units_are_one_percent_of_bank`.
+- **Flat 1u plays only** — SUPERSEDED. Quarter-Kelly went live
+  2026-07-27 and stakes now run ~3.9u to 10u. The original rejection of
+  Kelly (T4.25-27) is history, not current policy; see the memory
+  `kelly_staking`. Don't reintroduce per-bet sizing variation BEYOND
+  quarter-Kelly without checking with the user.
 - **Min edge threshold is 2% — applies to LEAN ONLY.** STRONG picks
   auto-Y regardless of edge (T2.24). User's policy: "if the model
   commits STRONG, we bet at whatever odds DK has." Don't add an edge

@@ -11,6 +11,134 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30e] — The unit conversion is finished, and a guard so it stays finished
+
+**1 unit = 1% of bankroll. The bankroll is always 100 units.** Stakes
+were already converted; the ledger's *reporting* was not. Every place
+the dashboard added units across time has been changed to report **bank
+growth (100 → X)** or a **percentage return**.
+
+### Why a sum is not money
+
+Growth changes the DOLLAR VALUE of a unit, never the number of units
+bet. So a 1-unit win when a unit was $100 and a 1-unit win when it was
+$150 are amounts in different currencies, and adding them produces a
+figure that means nothing. Over the last 7 replay days:
+
+| | |
+|---|---|
+| naive sum of daily P&L | **−13.17u** |
+| what the bank did | 223.07 → 209.89 |
+| honest figure | **−5.91u** |
+
+The sum is 2.2× the truth. In a winning stretch it errs the other way,
+which is the direction that misleads a paying subscriber.
+
+### Added — `lib/units.ts`, and the guard that fails the build
+
+`CumulativeUnits` is a branded number. Every across-time sum is typed as
+one, and `formatUnits()` **refuses the brand at compile time** — so
+`next build` fails and Vercel never deploys it. `ReplayWindow.pnl`,
+`.yrfi.pnl`, `.nrfi.pnl`, `.flat` and `.flatPnl` all carry it now.
+
+Two right answers replace it: `formatBankGrowth(100, 209.89)` and
+`formatReturn()`. Plus `returnAsUnits()` — legitimate only because the
+bank is 100 units by definition, so a percentage and a unit count are
+the same number. It takes a **fraction**, so it cannot be called with a
+naive sum by mistake.
+
+`scripts/check-units-guard.mjs` guards the guard, and runs in
+`prebuild` on every deploy. It compiles a probe of 6 forbidden and 5
+legitimate forms and fails if any lands the wrong way — because the
+whole protection is one function signature, and widening it to `number`
+to silence an error would disable everything and change nothing
+visible. Negative-tested: weakening `formatUnits` makes the script exit
+1 with all six violations named.
+
+### Changed — every cumulative surface
+
+| surface | was | now |
+|---|---|---|
+| `/history` hero | `+109.89u` summed | return on a 100u bank + `bank 100.00u → 209.89u` |
+| daily ledger col 3 | `Cumulative` units | **`Bank`** — a level, untoned |
+| daily ledger col 2 | raw `simPnl` | **re-based** to the bank that night opened with |
+| equity curve axis | `+NNNu` cumulative | bank levels, unsigned, anchored at 100u not 0 |
+| "Window P&L" tile | cumulative units | **`Bank now`** 209.89u |
+| "All-time high" tile | cumulative units | **`Peak bank`** 233.07u |
+| "Max drawdown" tile | `−NN.NNu` | **−11.2%** of the peak it fell from |
+| underwater chart | depth in units | depth as **% of peak**; input is now bank levels |
+| zone hit-rate table | season unit totals | **return per unit staked** |
+| RoiPanel season/floor | `fmtU(sim.profit)` | bank growth + return |
+| divergence card | segment unit totals | return per unit staked |
+
+### Two disagreements found and closed
+
+- **The ledger table contradicted the new week card.** 2026-07-28 read
+  −10.00u in the table and −4.61u in the card — same night, same
+  system, both on screen. The table's figure was raw compounded units;
+  it is re-based now and both read −4.61u.
+- **`/` and `/history` disagreed about the season by 0.06u** (+109.95u
+  vs +109.89u). RoiPanel divided a sum of per-game P&L by the opening
+  bank; `/history` divided the bank endpoints. The exporter rounds the
+  two separately. Both now divide the same two bank levels, so they
+  agree by construction rather than by luck.
+
+### Fixed — two pre-existing `/history` breaks at 375px
+
+Neither was caused by the font swap (measured byte-identical under
+VT323 and JetBrains Mono; both come from fixed pixel geometry).
+
+- **The distribution bar was drawn at full magnitude in a half-width
+  wing.** A diverging bar centred at 50% gives each side 50% to grow
+  into; the fill used the whole magnitude, so the biggest day ran from
+  50% to 150% and `overflow: hidden` clipped it. Not cosmetic — every
+  large day capped at the same visible length, so the worst night of the
+  season and a night 40% smaller drew identical bars, in the column that
+  exists to compare magnitudes. Ten rows were overflowing, the worst by
+  133px of a 265px track.
+- **The zone table could not fit a phone at any type size.** Its
+  `minmax()` minimums total 518px of irreducible width inside a 343px
+  card, and `html { overflow-x: clip }` meant it did not scroll either —
+  the rate, the P&L and the right edge of every bar were simply cut off.
+  Two-row grid under 720px.
+
+**`/history` at 375px goes from 18 overflowing elements to 0.**
+
+### Verified
+
+Production build. Every figure reproduced against an independent Python
+pass over `season_record.json`, and the three surfaces cross-checked:
+
+| | `/` RoiPanel | `/history` hero | week card |
+|---|---|---|---|
+| Season | +109.89u | +109.89u | — |
+| Last 7d | −5.91u · 1-4 · 5 bets | — | −5.91u · 1–4 · 5 bets |
+
+Ledger rows Jul 27/28/29 render −1.81u / −4.61u / +1.37u against banks
+217.07 / 207.07 / 209.89 — all matching. Peak bank 233.07u, max
+drawdown −11.2%, and the underwater card's "deepest" now reads the same
+−11.2% instead of a units figure that measured something else.
+
+`tools/pl_calc.py --window 7d` reports the LEDGER at **−12.773u**, no
+drift. That is a different population from the replay's −5.91% and is
+unchanged by this work.
+
+### Not converted, deliberately
+
+The ledger's stored `profit_loss_units` is still in old compounded units
+for Kelly-era rows — 2026-07-28 NYY@CWS is stored as `9.56` units
+risked. Correcting that is a data migration through `tracker.py`, not a
+display change, and it rewrites history in `picks_2026.csv`. The zone
+table's "per unit staked" divides by the bet count, i.e. assumes one
+unit a bet, which is exact for every row before 2026-07-28 and
+progressively wrong after; the card says so on its face.
+
+`ReplayWindow.pct` is left in place but documented as never-render: it
+divides an all-sides `pnl` by a YRFI-only `bankStart` and lands on
+−7.7% where the bank says −5.91%. Nothing reads it.
+
+---
+
 ## [2026-07-30d] — "Week at a glance" card on /history
 
 Operator found an analytics card online (a "BudgetCard": big figure,

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/copy-data.mjs",
+    "prebuild": "node scripts/copy-data.mjs && node scripts/check-units-guard.mjs",
+    "check:units": "node scripts/check-units-guard.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

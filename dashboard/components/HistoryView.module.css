@@ -781,6 +781,32 @@
   align-items: center;
   gap: 6px 12px;
 }
+
+/* PRE-EXISTING OVERFLOW, fixed 2026-07-30 while verifying at 375px.
+   Not caused by the font swap -- measured byte-identical under VT323
+   and JetBrains Mono, because the two `minmax()` minimums are fixed
+   pixels: 140 + 200 + 64 + 78 plus three 12px gaps is 518px of
+   irreducible width inside a 343px card. It could never fit a phone at
+   any type size, and `html { overflow-x: clip }` meant it did not
+   scroll either -- the rate, the P&L and the right-hand edge of every
+   bar were simply cut off, on the page's only hit-rate table.
+
+   Two rows on a phone: label over bar, then the two figures beside the
+   bar where they can still be read against it. */
+@media (max-width: 720px) {
+  .zoneRow {
+    grid-template-columns: 1fr 62px 76px;
+    grid-template-areas:
+      "label label label"
+      "bar   rate  pl";
+    gap: 6px 10px;
+  }
+  .zoneLabel    { grid-area: label; }
+  .zoneBarTrack { grid-area: bar; }
+  .zoneRate     { grid-area: rate; }
+  .zonePL       { grid-area: pl; }
+  .zoneSub      { grid-column: 1 / -1; }
+}
 .zoneLabel {
   display: flex;
   flex-direction: column;

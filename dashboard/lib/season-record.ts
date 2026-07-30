@@ -1,3 +1,5 @@
+import { asCumulative, type CumulativeUnits } from "./units";
+
 /**
  * Types for data/season_record.json, written by tools/export_season_record.py.
  *
@@ -183,23 +185,45 @@ export function replayStakesFor(
 }
 
 
-/** The system's result over an arbitrary date window. */
+/** The system's result over an arbitrary date window.
+ *
+ *  EVERY P&L FIELD HERE IS BRANDED `CumulativeUnits` (2026-07-30), and
+ *  that is not decoration -- `formatUnits()` refuses the brand at
+ *  compile time, so `next build` fails rather than shipping a summed
+ *  unit figure. See lib/units.ts for why the sum is not money. Reach
+ *  for `bankStart`/`bankEnd` or the return derived from them. */
 export interface ReplayWindow {
   from: string; to: string;
   bets: number; wins: number; losses: number;
-  /** Quarter-Kelly P&L in units, at the bank the run had reached. */
-  pnl: number;
+  /** Quarter-Kelly P&L in units, at the bank the run had reached.
+   *  Summed across days: NOT printable. `bankEnd - bankStart`. */
+  pnl: CumulativeUnits;
   /** The scale-free figure. pnl as a fraction of the bank at window
    *  start -- the ONLY number that is not distorted by where the
-   *  compounding run happened to be when the window opened. */
+   *  compounding run happened to be when the window opened.
+   *
+   *  !! DO NOT RENDER THIS FIELD. It is wrong and it has been wrong
+   *  since it was written; it is kept only so that deleting it is a
+   *  separate, reviewable change. `pnl` covers BOTH sides while
+   *  `bankStart` is a YRFI-ONLY bank (the 2026-07-30 exporter fix
+   *  stopped the simulation staking a side the system does not bet).
+   *  Over the last seven days that lands on -7.7% where the bank says
+   *  -5.91%, because one NRFI bet the bank never took is in the
+   *  numerator. `real.days` holds 24 such bets season-wide.
+   *
+   *  Nothing reads it today -- RoiPanel computes its own from
+   *  `yrfi.pnl / bankStart`, which is exact because the bank IS
+   *  bankStart plus the YRFI P&L. Use `bankReturn(bankStart, bankEnd)`
+   *  from lib/units, which cannot pick the wrong numerator. */
   pct: number | null;
   bankStart: number | null;
   bankEnd: number | null;
   /** Split by side, because only one of them is actually bet.
    *  `flat` is the same bets at one unit a bet, PER SIDE -- see the
-   *  window-level `flatPnl` below for why per-side matters. */
-  yrfi: { bets: number; wins: number; pnl: number; flat: number };
-  nrfi: { bets: number; wins: number; pnl: number; flat: number };
+   *  window-level `flatPnl` below for why per-side matters.
+   *  Both P&L fields are summed across days, hence the brand. */
+  yrfi: { bets: number; wins: number; pnl: CumulativeUnits; flat: CumulativeUnits };
+  nrfi: { bets: number; wins: number; pnl: CumulativeUnits; flat: CumulativeUnits };
   /** THE EDGE, UNLEVERED -- this window at a flat 1 unit a bet, before
    *  Kelly compounding multiplies it. BOTH SIDES; use `yrfi.flat` when
    *  pairing it with a YRFI-only headline.
@@ -223,7 +247,7 @@ export interface ReplayWindow {
    *  for it. Now summed per game from the same `action === "BET"` loop
    *  that produces `pnl`, so the two cannot describe different
    *  populations. */
-  flatPnl: number;
+  flatPnl: CumulativeUnits;
   /** Bets priced at the -125 stand-in because no DK price was ever
    *  captured. Load-bearing: change that assumption to -155 and the
    *  season's simulated bank falls from ~967u to ~641u. A figure built
@@ -407,6 +431,9 @@ export function replayWindow(
   let bets = 0, wins = 0, pnl = 0, assumed = 0, flatPnl = 0;
   const y = { bets: 0, wins: 0, pnl: 0, flat: 0 };
   const n = { bets: 0, wins: 0, pnl: 0, flat: 0 };
+  // Accumulated as plain numbers, branded once on the way out --
+  // asCumulative() at the return is the single place the "this was
+  // summed across days" fact gets attached.
   for (const d of days) {
     for (const g of d.games) {
       if (g.record.action !== "BET") continue;
@@ -433,10 +460,12 @@ export function replayWindow(
     ? first.simBankAfter - first.simPnl : null;
   return {
     from: first.date, to: last.date,
-    bets, wins, losses: bets - wins, pnl,
+    bets, wins, losses: bets - wins, pnl: asCumulative(pnl),
     pct: isNum(bankStart) && bankStart > 0 ? pnl / bankStart : null,
     bankStart,
     bankEnd: isNum(last.simBankAfter) ? last.simBankAfter : null,
-    yrfi: y, nrfi: n, assumed, flatPnl,
+    yrfi: { ...y, pnl: asCumulative(y.pnl), flat: asCumulative(y.flat) },
+    nrfi: { ...n, pnl: asCumulative(n.pnl), flat: asCumulative(n.flat) },
+    assumed, flatPnl: asCumulative(flatPnl),
   };
 }

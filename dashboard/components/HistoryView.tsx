@@ -13,6 +13,16 @@ import {
 } from "./InsightCharts";
 import type { RecFile, RecSide } from "@/lib/season-record";
 import { replayWindow, isNum } from "@/lib/season-record";
+/* THE UNIT MODEL LIVES IN ONE FILE NOW (2026-07-30). This page used to
+   own a private `formatUnits`, which is how it managed to print a
+   season total in units on four separate surfaces: nothing could tell
+   it not to. lib/units exports a `formatUnits` that REFUSES a figure
+   branded as summed-across-days, so those four are now compile errors
+   rather than plausible-looking numbers. */
+import {
+  formatUnits, formatLevel, formatBankGrowth, formatReturn,
+  returnAsUnits, bankReturn, MINUS, EM_DASH,
+} from "@/lib/units";
 import { WeekAtAGlance } from "./WeekAtAGlance";
 import styles from "./HistoryView.module.css";
 
@@ -22,10 +32,38 @@ const WINDOWS: { key: RoiWindow; label: string }[] = [
   { key: "season", label: "Season" },
 ];
 
+/** The bank every replay opens with, and the definition of a unit: the
+ *  bankroll is 100 units, always, so a unit is 1% of it. Charts anchor
+ *  their axis here rather than at zero -- zero is not a meaningful
+ *  gridline for a bankroll. */
+const START_BANK = 100;
+
+/* 2026-07-30 -- `cumulative` IS GONE, and its replacement is not a
+   rename.
+
+   It held "units since the season opener", i.e. a sum of daily unit
+   figures, and it fed the ledger's third column, the whole equity
+   curve, and all three stat cells under it. Under the re-based unit
+   model that quantity is not money: the replay compounds the unit
+   COUNT, so a 10.00u day at a 217u bank and a 2.00u day at a 223u bank
+   are amounts in different currencies and adding them means nothing.
+
+   `bank` is a LEVEL -- what the bankroll stood at when that day closed
+   -- and a level is a fact about one instant, so it survives re-basing
+   untouched. It is also what a subscriber can act on: "100 became
+   209.89" is true for a $1k bank and a $25k bank alike.
+
+   `units` is now RE-BASED as well: that day's P&L over the bank it
+   OPENED with. It has to be, or this table and the week card at the top
+   of the page print different numbers for the same night -- 2026-07-28
+   was -10.00u raw and is -4.61u re-based, and both were on screen. */
 interface DayRecord {
   date: string;
-  units: number;       // daily P&L
-  cumulative: number;  // running total
+  /** That day's return on the bank it opened with, on a 100u bank.
+   *  One night, one bank: safe to print with a "u". */
+  units: number;
+  /** The bank at that day's close. A level, never a sum. */
+  bank: number;
 }
 
 type SeriesPoint = { date: string; units: number };
@@ -202,24 +240,52 @@ export function HistoryView({
       for (const d of side.days) {
         if (d.date < data.startDate || d.date > data.endDate) continue;
         if (!isNum(d.simBankAfter)) continue;
+        const raw = isNum(d.simPnl) ? d.simPnl : 0;
+        // The bank the day OPENED with -- the denominator that makes
+        // this figure comparable across a compounding run.
+        const before = d.simBankAfter - raw;
         out.push({
           date: d.date,
-          units: isNum(d.simPnl) ? d.simPnl : 0,
-          cumulative: d.simBankAfter - bank0,
+          units: before > 0 ? (raw / before) * 100 : 0,
+          bank: d.simBankAfter,
         });
       }
       return out;
     }
-    // Ledger fallback (no record): differencing is fine here because the
-    // roi series is already windowed and starts at 0.
+    // LEDGER FALLBACK (no record at all). The roi series is a running
+    // total of realised units, so the bank is the opening bank plus it.
+    // Differencing for the daily figure is fine because the series is
+    // already windowed and starts at 0.
     const out: DayRecord[] = [];
     let prev = 0;
     for (const row of money.points) {
-      out.push({ date: row.date, units: row.units - prev, cumulative: row.units });
+      const before = bank0 + prev;
+      out.push({
+        date: row.date,
+        units: before > 0 ? ((row.units - prev) / before) * 100 : 0,
+        bank: bank0 + row.units,
+      });
       prev = row.units;
     }
     return out;
   }, [money.points, money.isReplay, seasonRecord, data.startDate, data.endDate]);
+
+  /* THE WINDOW'S RESULT, from the bank's two endpoints rather than from
+     adding up `days`. Daily returns COMPOUND, they do not sum -- the
+     last seven days are -0.90, 0.00, -1.81, -4.61, +1.37, which add to
+     -5.95 and compound to -5.91. Taking the ratio is exact and needs no
+     apology; taking the sum is a different number that happens to look
+     close on a quiet week and diverges badly on a loud one. */
+  const windowBank = useMemo(() => {
+    if (days.length === 0) return null;
+    const bank0 = seasonRecord?.startBank ?? 100;
+    // The opening bank is the close of the day BEFORE the window, which
+    // for the first row is its own close minus its own move.
+    const first = days[0];
+    const openBank = first.units !== 0 ? first.bank / (1 + first.units / 100) : first.bank;
+    const endBank = days[days.length - 1].bank;
+    return { openBank, endBank, seasonStart: bank0, ret: bankReturn(openBank, endBank) };
+  }, [days, seasonRecord]);
 
   // How many of the graded bets behind this page carry a real captured
   // price, and how many settled against the fabricated -110.  Summed over
@@ -258,7 +324,7 @@ export function HistoryView({
       .filter((z) => z.strength !== "LEAN" && z.provenance.realPricedBets > 0);
     const parts = withMoney.map(
       (z) =>
-        `${z.label} ${unitsText(z.provenance.realPricedPL)} over ` +
+        `${z.label} ${zoneReturnText(z)} over ` +
         `${z.provenance.realPricedBets} ` +
         `${z.provenance.realPricedBets === 1 ? "bet" : "bets"}`,
     );
@@ -269,10 +335,12 @@ export function HistoryView({
     );
   }, [data.betZones, data.passZones]);
 
-  const totalUnits = days.length ? days[days.length - 1].cumulative : 0;
-  const totalDays  = days.length;
-  const bestDay    = days.length ? Math.max(...days.map((d) => d.units)) : 0;
-  const worstDay   = days.length ? Math.min(...days.map((d) => d.units)) : 0;
+  // `totalUnits` and `totalDays` deleted 2026-07-30. totalUnits was the
+  // season unit total and had no reader; totalDays duplicated
+  // stats.totalDays. Both were dead, and the dead one was the dangerous
+  // one -- a computed season total sitting in scope is an invitation.
+  const bestDay  = days.length ? Math.max(...days.map((d) => d.units)) : 0;
+  const worstDay = days.length ? Math.min(...days.map((d) => d.units)) : 0;
 
   // Reverse-chronological for the table
   const tableRows = [...days].reverse();
@@ -342,18 +410,32 @@ export function HistoryView({
             <div className={styles.heroLabel}>
               The system · ¼-Kelly <span className="tag">Simulated</span>
             </div>
-            {/* RAW window profit, NOT rebased to a 100u base (2026-07-30).
-                The rebased form scaled by the bank at window start, so
-                "Last 30 days" read +13.23u while its own Day P&L column
-                summed to +30.7u -- two numbers on one screen measuring
-                the same window in different units, which is the exact
-                trap this page has been cleared of twice already. The
-                bank the profit was earned on is named in the sub-line
-                below, which is the honest way to give it context. */}
+            {/* THE RETURN, NOT THE SUM (2026-07-30, unit re-basing).
+                This printed `sysWindow.yrfi.pnl` -- units added across
+                every day in the window. Under the re-based model that
+                is not a money quantity, and the field is now branded so
+                that printing it does not compile.
+
+                What replaces it is the same number the bank moved by,
+                expressed on a 100-unit bank. That is legitimate for a
+                multi-day window ONLY because a unit is 1% of bank by
+                definition, so a percentage and a unit count are the
+                same figure. For the SEASON window the two happen to
+                agree (the run opens at exactly 100u); for "Last 30
+                days" they do not, and the old figure was the wrong one.
+
+                The bank endpoints stay in the sub-line and are now
+                doing real work: they are where this number comes from,
+                not decoration. */}
             <div className={styles.heroFig}>
-              {formatUnits(sysWindow.yrfi.pnl)}
+              {windowBank?.ret != null
+                ? returnAsUnits(windowBank.ret)
+                : formatLevel(0)}
             </div>
             <div className={styles.heroSub}>
+              {windowBank?.ret != null && (
+                <>{formatReturn(windowBank.ret)} of bank · </>
+              )}
               {sysWindow.yrfi.wins}-{sysWindow.yrfi.bets - sysWindow.yrfi.wins} over{" "}
               {sysWindow.yrfi.bets} {sysWindow.yrfi.bets === 1 ? "bet" : "bets"} ·{" "}
               {sysWindow.from} → {sysWindow.to}
@@ -365,8 +447,8 @@ export function HistoryView({
                   100u; 232u is just where it had got to when the window
                   opened. Showing the two endpoints says that without
                   introducing a second base. */}
-              {isNum(sysWindow.bankStart) && isNum(sysWindow.bankEnd) && (
-                <> · bank {sysWindow.bankStart.toFixed(0)}u → {sysWindow.bankEnd.toFixed(0)}u</>
+              {windowBank && (
+                <> · bank {formatBankGrowth(windowBank.openBank, windowBank.endBank)}</>
               )}
             </div>
             {/* THE UNLEVERED ("flat 1u") LINE WAS REMOVED 2026-07-30.
@@ -462,8 +544,16 @@ export function HistoryView({
           whether the operator can keep running the system, and the equity
           curve buries both: a line that wanders can be read optimistically,
           an underwater plot cannot.  Renders its own card. */}
+      {/* FED FROM `days`, not from `money.points` (2026-07-30).
+          Two reasons. The chart now measures depth as a share of the
+          peak BANK, so it needs bank levels rather than the cumulative
+          unit series it used to take. And `days` is already the
+          windowed, re-based series that the equity curve and the ledger
+          table below both read -- routing this chart through it means
+          three surfaces cannot disagree about which days are in the
+          window, which they could while there were two arrays. */}
       <UnderwaterChart
-        series={money.points}
+        series={days.map((d) => ({ date: d.date, bank: d.bank }))}
         stakeEpoch={stakeEpoch}
         composition={composition}
       />
@@ -514,8 +604,8 @@ export function HistoryView({
               retired ledger. */}
           <div className={styles.theadRow}>
             <div>Date</div>
-            <div className={styles.right}>Day P&L</div>
-            <div className={styles.right}>Cumulative</div>
+            <div className={styles.right}>Day</div>
+            <div className={styles.right}>Bank</div>
             <div className={styles.barCell}>Distribution</div>
           </div>
           {tableRows.length === 0 ? (
@@ -533,11 +623,19 @@ export function HistoryView({
           )}
         </div>
         <div className={styles.tableFoot}>
-          <b>System</b> is what today&apos;s rules would have staked that day,
-          simulated, rebased to your {sysBank ?? 100}u bank — it sums to the
-          figure at the top of this page. <b>You</b> is what actually moved.
-          They differ because most of these nights were bet under rules that
-          have since changed.
+          {/* REWRITTEN 2026-07-30. The old copy described a System/You
+              column pair deleted earlier the same day, and claimed the
+              column "sums to the figure at the top of this page" --
+              which is now exactly the thing that must never be said.
+              Daily returns COMPOUND; they do not add. The last seven
+              days add to −5.95 and compound to −5.91, and on a loud
+              week the gap is much wider. */}
+          <b>Day</b> is that night&apos;s move as a share of the bank it
+          opened with, so it means the same thing in April and in July.
+          <b> Bank</b> is where the bankroll stood at the close. Day figures
+          compound rather than add, so they will not total to the change in
+          the Bank column — that is what compounding is, not a rounding
+          error.
           {/* EXPORT LAG, disclosed rather than left to mislead.
               System comes from the nightly season_record.json replay; You
               reads the live ledger. A game that grades AFTER the export
@@ -563,10 +661,17 @@ export function HistoryView({
 /* ------------- T2.42: bankroll equity curve ------------- */
 
 interface EquityStats {
-  peak: number;            // ATH cumulative value
+  /** Highest BANK LEVEL reached. Was the highest cumulative-units
+   *  total, which under re-basing is not a quantity. */
+  peak: number;
   peakDate: string | null; // ISO date of the ATH
-  maxDrawdown: number;     // deepest peak-to-trough draw (positive number)
-  maxDrawdownPct: number;  // maxDrawdown / peak * 100  (0 when peak <= 0)
+  /** Deepest peak-to-trough fall, as a FRACTION of the peak bank.
+   *  Kept as a fraction rather than units on purpose: a 20-unit fall
+   *  from a 220u bank and a 20-unit fall from a 110u bank are 9% and
+   *  18% -- the same "units" describing twice the damage. Percentage
+   *  of peak is the only reading that holds across a compounding run,
+   *  and it is what a follower on any bankroll actually experienced. */
+  maxDrawdownPct: number;
   totalDays: number;
 }
 
@@ -588,7 +693,7 @@ interface EquityStats {
 
 function computeEquityStats(days: DayRecord[]): EquityStats {
   if (days.length === 0) {
-    return { peak: 0, peakDate: null, maxDrawdown: 0, maxDrawdownPct: 0, totalDays: 0 };
+    return { peak: 0, peakDate: null, maxDrawdownPct: 0, totalDays: 0 };
   }
 
   // Running peak per day -- once a day's cumulative exceeds the prior
@@ -598,19 +703,22 @@ function computeEquityStats(days: DayRecord[]): EquityStats {
   let maxDD = 0;          // largest peak-to-trough draw seen
 
   for (const d of days) {
-    if (d.cumulative > runningPeak) {
-      runningPeak = d.cumulative;
+    if (d.bank > runningPeak) {
+      runningPeak = d.bank;
       runningPeakDate = d.date;
     }
-    const dd = runningPeak - d.cumulative;
+    // Measured as a share of the peak IT FELL FROM, day by day, not of
+    // the all-time peak at the end. A 10% fall early in the run and a
+    // 10% fall late are the same experience for the follower, and only
+    // the per-peak ratio says so.
+    const dd = runningPeak > 0 ? (runningPeak - d.bank) / runningPeak : 0;
     if (dd > maxDD) maxDD = dd;
   }
 
   return {
     peak:           runningPeak === -Infinity ? 0 : runningPeak,
     peakDate:       runningPeakDate,
-    maxDrawdown:    maxDD,
-    maxDrawdownPct: runningPeak > 0 ? (maxDD / runningPeak) * 100 : 0,
+    maxDrawdownPct: maxDD * 100,
     totalDays:      days.length,
   };
 }
@@ -642,17 +750,26 @@ function EquityCurveChart({
   // The raw (assumed-price) comparison line, aligned to this chart's
   // x-axis by DATE.  Dates the real series doesn't have are skipped
   // rather than shifted, which would silently mis-date the line.
-  const rawByDate = new Map(rawSeries.map((p) => [p.date, p.units]));
+  // REBASED ONTO THE BANK AXIS (2026-07-30). The equity line is a bank
+  // level starting at 100u; this comparison series is cumulative P&L
+  // starting at 0. Plotted raw against the new axis it would sit a
+  // whole bankroll below the curve it is supposed to be compared with.
+  const rawByDate = new Map(rawSeries.map((p) => [p.date, START_BANK + p.units]));
   const rawValues = days
     .map((d) => rawByDate.get(d.date))
     .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
 
   // Y range pinned to include 0 so "where the bankroll started" is
   // always visible, even if we've been profitable the whole window.
-  const cumMax = Math.max(0, stats.peak, days[days.length - 1].cumulative, ...rawValues);
+  // Pinned to include the OPENING BANK (100u) rather than zero, so
+  // "where the bankroll started" is always on the chart. Zero is not a
+  // meaningful gridline for a bank level -- a bankroll at 0 is a ruined
+  // one, and anchoring there squashes the whole series into the top
+  // sliver of the plot.
+  const cumMax = Math.max(START_BANK, stats.peak, days[days.length - 1].bank, ...rawValues);
   const cumMin = Math.min(
-    0,
-    ...days.map((d) => d.cumulative),
+    START_BANK,
+    ...days.map((d) => d.bank),
     ...rawValues,
   );
   const cumRange = cumMax - cumMin || 1;
@@ -660,11 +777,11 @@ function EquityCurveChart({
   const stepX = innerW / Math.max(days.length, 1);
   const xFor = (i: number) => padL + (i + 0.5) * stepX;
   const yFor = (v: number) => padT + innerH - ((v - cumMin) / cumRange) * innerH;
-  const yZero = yFor(0);
+  const yZero = yFor(START_BANK);
 
   // Build the equity line path
   const linePath = days
-    .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(d.cumulative).toFixed(1)}`)
+    .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(d.bank).toFixed(1)}`)
     .join(" ");
 
   /* 2026-07-28: the "Expected (avg trend)" line was deleted here.  Its
@@ -696,7 +813,7 @@ function EquityCurveChart({
   // Build the area-fill path (line down to baseline = 0, back to start)
   const areaPath =
     `M ${xFor(0).toFixed(1)} ${yZero.toFixed(1)} ` +
-    days.map((d, i) => `L ${xFor(i).toFixed(1)} ${yFor(d.cumulative).toFixed(1)}`).join(" ") +
+    days.map((d, i) => `L ${xFor(i).toFixed(1)} ${yFor(d.bank).toFixed(1)}`).join(" ") +
     ` L ${xFor(days.length - 1).toFixed(1)} ${yZero.toFixed(1)} Z`;
 
   // Drawdown shading: for each point, draw a thin segment from the
@@ -707,7 +824,7 @@ function EquityCurveChart({
   let runningPeak = -Infinity;
   const peakLine: { x: number; y: number; v: number }[] = [];
   for (let i = 0; i < days.length; i++) {
-    if (days[i].cumulative > runningPeak) runningPeak = days[i].cumulative;
+    if (days[i].bank > runningPeak) runningPeak = days[i].bank;
     peakLine.push({ x: xFor(i), y: yFor(runningPeak), v: runningPeak });
   }
   // Shade polygons -- one per contiguous drawdown segment so we don't
@@ -715,7 +832,7 @@ function EquityCurveChart({
   const drawdownPolys: { d: string }[] = [];
   let segStart = -1;
   for (let i = 0; i < days.length; i++) {
-    const inDD = days[i].cumulative < peakLine[i].v;
+    const inDD = days[i].bank < peakLine[i].v;
     if (inDD && segStart < 0) segStart = i;
     if ((!inDD || i === days.length - 1) && segStart >= 0) {
       const end = inDD ? i : i - 1;
@@ -724,7 +841,7 @@ function EquityCurveChart({
       const bot = days.slice(segStart, end + 1).reverse()
         .map((d, k) => {
           const idx = end - k;
-          return `${xFor(idx).toFixed(1)} ${yFor(d.cumulative).toFixed(1)}`;
+          return `${xFor(idx).toFixed(1)} ${yFor(d.bank).toFixed(1)}`;
         }).join(" L ");
       drawdownPolys.push({ d: `M ${top} L ${bot} Z` });
       segStart = -1;
@@ -762,7 +879,10 @@ function EquityCurveChart({
             <g key={i}>
               <line x1={padL} x2={W - padR} y1={t.y} y2={t.y} className={styles.gridLine} />
               <text x={padL - 8} y={t.y + 3} textAnchor="end" className={styles.axisText}>
-                {t.v >= 0 ? "+" : ""}{t.v.toFixed(0)}u
+                {/* A BANK LEVEL, so no sign: 209u, not +209u. The
+                    signed form read as profit and made the 100u start
+                    look like a 100u gain. */}
+                {t.v.toFixed(0)}u
               </text>
             </g>
           ))}
@@ -814,7 +934,7 @@ function EquityCurveChart({
           {lastIdx >= 0 && (
             <circle
               cx={xFor(lastIdx)}
-              cy={yFor(days[lastIdx].cumulative)}
+              cy={yFor(days[lastIdx].bank)}
               r={4}
               className={styles.equityCurrentMarker}
             />
@@ -841,30 +961,32 @@ function EquityCurveChart({
           Sharpe are gone (see the note on EquityStats). */}
       <div className={styles.equityStats}>
         <div className={styles.equityStatCell}>
-          <div className={styles.equityStatLabel}>Window P&amp;L</div>
-          <div
-            className={styles.equityStatBig}
-            data-tone={days[lastIdx].cumulative >= 0 ? "pos" : "neg"}
-          >
-            {formatUnits(days[lastIdx].cumulative)}
+          {/* 2026-07-30: was "Window P&L" printing cumulative units.
+              A bank level needs no re-basing and no caveat -- it is
+              simply where the bankroll stands, and it is the figure a
+              follower on any bankroll can multiply by their own unit
+              size. Unsigned, because a level is not a profit.
+              (2026-07-28 note kept: this cell was ONCE labelled
+              "Bankroll" while printing window P&L, which is how the
+              two quantities got confused in the first place.) */}
+          <div className={styles.equityStatLabel}>Bank now</div>
+          <div className={styles.equityStatBig} data-tone="neutral">
+            {formatLevel(days[lastIdx].bank)}
           </div>
           <div className={styles.equityStatSub}>
-            {/* 2026-07-28: this cell was labelled "Bankroll" and printed
-                cumulative window P&L.  The bankroll is 100u plus or minus
-                this figure -- two different quantities under one label. */}
-            over {stats.totalDays} {stats.totalDays === 1 ? "day" : "days"}
+            from {formatLevel(START_BANK, 0)} at the season opener ·{" "}
+            {stats.totalDays} {stats.totalDays === 1 ? "day" : "days"} in this window
           </div>
         </div>
         <div className={styles.equityStatCell}>
-          <div className={styles.equityStatLabel}>All-time high</div>
-          {/* 2026-07-28: data-tone was hardcoded "pos", so on a losing
-              window this rendered a NEGATIVE all-time high in the profit
-              colour. */}
-          <div
-            className={styles.equityStatBig}
-            data-tone={stats.peak > 0 ? "pos" : stats.peak < 0 ? "neg" : "neutral"}
-          >
-            {formatUnits(stats.peak)}
+          <div className={styles.equityStatLabel}>Peak bank</div>
+          {/* 2026-07-30: the peak of a BANK LEVEL, so it can never be
+              negative and never needs a tone. (2026-07-28 note kept:
+              data-tone was once hardcoded "pos", so a losing window
+              rendered a negative all-time high in the profit colour --
+              a class of bug that a level simply cannot have.) */}
+          <div className={styles.equityStatBig} data-tone="neutral">
+            {formatLevel(stats.peak)}
           </div>
           <div className={styles.equityStatSub}>
             {stats.peakDate ? `on ${stats.peakDate.slice(5)}` : "—"}
@@ -872,21 +994,24 @@ function EquityCurveChart({
         </div>
         <div className={styles.equityStatCell}>
           <div className={styles.equityStatLabel}>Max drawdown</div>
+          {/* 2026-07-30: a PERCENTAGE of the peak it fell from, not a
+              unit figure. A 20-unit fall from a 220u bank and a 20-unit
+              fall from a 110u bank are 9% and 18% -- the same "units"
+              describing twice the damage, which is exactly the drift
+              re-basing exists to remove. The percentage is also the
+              only form a follower on a different bankroll can use. */}
           <div
             className={styles.equityStatBig}
-            data-tone={stats.maxDrawdown > 0 ? "neg" : "neutral"}
+            data-tone={stats.maxDrawdownPct > 0 ? "neg" : "neutral"}
           >
-            {stats.maxDrawdown > 0 ? `−${stats.maxDrawdown.toFixed(2)}u` : "0.00u"}
+            {stats.maxDrawdownPct > 0
+              ? `${MINUS}${stats.maxDrawdownPct.toFixed(1)}%`
+              : "0.0%"}
           </div>
           <div className={styles.equityStatSub}>
-            {/* 2026-07-28: maxDrawdownPct guards on peak > 0 but the "no
-                drawdown" copy did not, so a window that never went positive
-                printed "no drawdown" underneath a -13.19u drawdown. */}
-            {stats.maxDrawdown <= 0
+            {stats.maxDrawdownPct <= 0
               ? "never below the high"
-              : stats.peak > 0
-                ? `${stats.maxDrawdownPct.toFixed(1)}% of peak`
-                : "the window never went positive, so there is no peak to measure against"}
+              : "deepest fall from a running high"}
           </div>
         </div>
       </div>
@@ -903,15 +1028,47 @@ function EquityCurveChart({
 
 /* ------------- T4.17 win-rate by zone ------------- */
 
-/** P&L over bets that had a REAL captured DraftKings price.
- *
- *  Falls back to the raw column only when provenance is unknown (nothing
- *  classified), which mirrors RoiPanel.realPL so the two screens cannot
- *  print different signs for the same season again. */
-function realZonePL(z: import("@/lib/roi").ZoneRoi): number {
+/* realZonePL() DELETED 2026-07-30. Its only caller printed a season
+   unit total; zoneReturn() below folds the same real-priced-population
+   logic into the ratio that replaced it, so there is one function
+   rather than two that must agree. */
+
+/* ============================================================
+   ZONE RESULTS AS A RETURN, NOT A UNIT TOTAL (2026-07-30).
+
+   These figures sum `profit_loss_units` across a whole season of
+   LEDGER rows, which is the same across-time addition the re-basing
+   forbids everywhere else on this page.
+
+   The honest denominator is what was staked to earn it, which turns
+   the figure into a RETURN PER UNIT STAKED -- scale-free, comparable
+   between zones with very different bet counts, and the number a
+   follower on any bankroll would have experienced.
+
+   THE DENOMINATOR IS AN ASSUMPTION AND IT IS STATED ON THE CARD.
+   `ZoneProvenance` counts bets, not units risked, so this divides by
+   the bet count and thereby assumes one unit a bet. That is exactly
+   right for every row placed before quarter-Kelly went live on
+   2026-07-28 and progressively wrong after it. It is a display fix,
+   not the underlying repair: the ledger's stored `profit_loss_units`
+   is still in old compounded units for the Kelly-era rows, and
+   correcting THAT is a data migration through tracker.py rather than
+   anything this component can do.
+   ============================================================ */
+
+/** Return per unit staked. `null` when the zone has no priced bets. */
+function zoneReturn(z: import("@/lib/roi").ZoneRoi): number | null {
   const pr = z.provenance;
   const known = pr.realPricedBets + pr.placeholderBets;
-  return known > 0 ? pr.realPricedPL : z.unitsPL;
+  const pl = known > 0 ? pr.realPricedPL : z.unitsPL;
+  const staked = known > 0 ? pr.realPricedBets : z.bets;
+  if (!Number.isFinite(pl) || !Number.isFinite(staked) || staked <= 0) return null;
+  return pl / staked;
+}
+
+function zoneReturnText(z: import("@/lib/roi").ZoneRoi): string {
+  const r = zoneReturn(z);
+  return r == null ? EM_DASH : formatReturn(r, 1);
 }
 
 /** Hit rate over the SAME population as the P&L and the break-even tick:
@@ -954,7 +1111,7 @@ function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
         const hasRate = Number.isFinite(rate);
         const above = hasRate && rate >= breakEven;
         const fillW = hasRate ? Math.min(100, rate * 100) : 0;
-        const pl = realZonePL(z);
+        const roi = zoneReturn(z);
         return (
           <div key={z.label} className={styles.zoneRow}>
             <div className={styles.zoneLabel}>
@@ -982,14 +1139,15 @@ function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
             >
               {hasRate ? `${(rate * 100).toFixed(1)}%` : "—"}
             </div>
-            {/* 2026-07-28 AUDIT FIX: this printed z.unitsPL -- the raw sum
-                INCLUDING bets settled against a fabricated -110 because no
-                DraftKings price was ever captured. That made this table read
-                +33.50u for the season while the ROI panel one click away read
-                -1.03u for the same bets. Opposite signs, same season. Show the
-                real-priced figure, matching RoiPanel. */}
-            <div className={`${styles.zonePL} ${pl >= 0 ? styles.numWin : styles.numLoss}`}>
-              {formatUnits(pl)}
+            {/* 2026-07-30: a RETURN PER UNIT STAKED, not a unit total --
+                see the block above zoneReturn(). (2026-07-28 note kept:
+                this once printed z.unitsPL, the raw sum INCLUDING bets
+                settled against a fabricated -110, so the table read
+                +33.50u for a season the ROI panel one click away read
+                as -1.03u. Same bets, opposite signs. The population fix
+                stands; only the unit has changed.) */}
+            <div className={`${styles.zonePL} ${roi != null && roi >= 0 ? styles.numWin : styles.numLoss}`}>
+              {zoneReturnText(z)}
             </div>
             <div className={styles.zoneSub}>
               {z.provenance.realPricedBets > 0 ? (
@@ -1019,7 +1177,12 @@ function ZoneHitRateChart({ zones }: { zones: import("@/lib/roi").ZoneRoi[] }) {
       <div className={styles.zoneFoot}>
         The vertical mark on each bar is that zone&rsquo;s own break-even rate
         &mdash; the average price actually paid, not a flat &minus;110. A bar
-        that reaches past its mark made money; one short of it lost.
+        that reaches past its mark made money; one short of it lost. The
+        figure on the right is <b>return per unit staked</b> rather than a
+        unit total: units from different dates are worth different money
+        once the bank has moved, so adding them across a season is not a
+        quantity. It assumes one unit a bet, which is what the ledger
+        recorded for every row before 2026-07-28.
         {placeholderTotal > 0 && (
           <> {placeholderTotal} graded {placeholderTotal === 1 ? "bet" : "bets"} across
           all zones had no captured price and are excluded from both the rate
@@ -1045,20 +1208,33 @@ function DayRow({ day, maxAbs }: { day: DayRecord; maxAbs: number }) {
       <div className={`${styles.right} ${isWin ? styles.numWin : isLoss ? styles.numLoss : styles.numFlat}`}>
         {formatUnits(day.units)}
       </div>
-      <div
-        className={`${styles.right} ${
-          day.cumulative > 0 ? styles.numWin : day.cumulative < 0 ? styles.numLoss : styles.numFlat
-        }`}
-      >
-        {formatUnits(day.cumulative)}
+      {/* A LEVEL, so no tone and no sign (2026-07-30). This column was
+          cumulative units and was tone-coloured by whether that total
+          was positive -- which meant the whole column turned green the
+          moment the season went into profit and stayed green through
+          every losing week inside it. */}
+      <div className={`${styles.right} ${styles.numFlat}`}>
+        {formatLevel(day.bank)}
       </div>
       <div className={styles.barCell}>
         <div className={styles.distBar}>
           <div
             className={`${styles.distFill} ${isWin ? styles.distFillWin : styles.distFillLoss}`}
+            /* HALF-WIDTH PER SIDE (2026-07-30). This is a diverging bar
+               centred at 50%, so each wing has 50% of the track to grow
+               into -- but the fill was drawn at the FULL magnitude, so
+               the biggest day rendered a bar from 50% to 150% and the
+               track's `overflow: hidden` clipped it.
+
+               The bug was not cosmetic: clipping caps every large day at
+               the same visible length, so the worst night of the season
+               and a night 40% smaller drew an identical bar. The column
+               exists to compare magnitudes and it silently stopped being
+               able to above the halfway mark. Ten of the visible rows
+               were overflowing, the worst by 133px of a 265px track. */
             style={{
-              width: `${fillPct}%`,
-              marginLeft: isWin ? "50%" : `${50 - fillPct}%`,
+              width: `${fillPct / 2}%`,
+              marginLeft: isWin ? "50%" : `${50 - fillPct / 2}%`,
             }}
           />
           <div className={styles.distMid} />
@@ -1070,12 +1246,11 @@ function DayRow({ day, maxAbs }: { day: DayRecord; maxAbs: number }) {
 
 /* ------------- helpers ------------- */
 
-function formatUnits(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  if (n === 0) return "0.00u";
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}u`;
-}
+/* formatUnits() and unitsText() DELETED 2026-07-30 -- both moved to
+   lib/units.ts. They were private to this file, which is precisely why
+   a season unit total could be printed on four surfaces here with
+   nothing able to object. The shared one refuses a figure branded as
+   summed-across-days, and refuses it at compile time. */
 
 function formatDate(iso: string): string {
   if (!iso) return "—";
@@ -1088,16 +1263,6 @@ function formatDate(iso: string): string {
     weekday: "short",
     timeZone: "UTC",
   });
-}
-
-/** Units as plain text for a prose sentence.  Uses U+2212 MINUS rather
- *  than a hyphen so the figure reads as a negative number, not a dash.
- *  Em dash on a missing value -- never "0.00u", which the operator would
- *  read as "nothing happened". */
-function unitsText(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  if (n === 0) return "0.00u";
-  return n > 0 ? `+${n.toFixed(2)}u` : `−${Math.abs(n).toFixed(2)}u`;
 }
 
 // tileTone() deleted 2026-07-29: its only caller was the pair of

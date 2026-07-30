@@ -599,8 +599,15 @@ function ReliabilityCurveBody({ data }: { data: CalibrationData }) {
 
 export interface UnderwaterPoint {
   date: string;
-  /** cumulative units, real captured prices only */
-  units: number;
+  /** THE BANK LEVEL at that day's close -- not cumulative units.
+   *
+   *  Changed 2026-07-30 with the unit re-basing. The depth of a hole
+   *  measured in units drifts with the bank it was dug in: a 20-unit
+   *  fall from a 220u bank and a 20-unit fall from a 110u bank are 9%
+   *  and 18%, i.e. the same "units" describing twice the damage. Depth
+   *  is a RATIO now, and this field carries the level it is taken
+   *  against. */
+  bank: number;
 }
 
 export interface UnderwaterChartProps {
@@ -634,7 +641,7 @@ export function UnderwaterChart({
   composition,
 }: UnderwaterChartProps) {
   const pts = useMemo(
-    () => (series ?? []).filter((p) => p && typeof p.date === "string" && isNum(p.units)),
+    () => (series ?? []).filter((p) => p && typeof p.date === "string" && isNum(p.bank)),
     [series],
   );
 
@@ -654,14 +661,16 @@ export function UnderwaterChart({
     const depth: { date: string; depth: number }[] = [];
 
     pts.forEach((p, i) => {
-      if (p.units > peak) {
-        peak = p.units;
+      if (p.bank > peak) {
+        peak = p.bank;
         peakDate = p.date;
         currentPeakDate = p.date;
         currentPeakIdx = i;
       }
-      const d = Math.max(0, peak - p.units);
-      if (d <= 0.0000001) {
+      // A FRACTION of the peak it fell from, so the number means the
+      // same thing in April on a 100u bank and in July on a 230u one.
+      const d = peak > 0 ? Math.max(0, (peak - p.bank) / peak) : 0;
+      if (d <= 1e-9) {
         currentPeakDate = p.date;
         currentPeakIdx = i;
       }
@@ -682,8 +691,12 @@ export function UnderwaterChart({
       deepest,
       deepestDate: deepestDate as string | null,
       current,
-      daysUnderWater: current > 0.0000001 ? lastIdx - currentPeakIdx : 0,
-      currentIsDeepest: current > 0.0000001 && Math.abs(current - deepest) < 0.005,
+      daysUnderWater: current > 1e-9 ? lastIdx - currentPeakIdx : 0,
+      // 5 basis points of the peak, i.e. the same "close enough" the
+      // old 0.005 absolute meant against a ~100u bank. Rescaled with
+      // the units, not left behind -- an absolute 0.005 against a
+      // fractional depth would treat a 0.4% hole as no hole at all.
+      currentIsDeepest: current > 1e-9 && Math.abs(current - deepest) < 0.0005,
     };
   }, [pts]);
 
@@ -709,6 +722,7 @@ export function UnderwaterChart({
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
+  // 1% floor so a flat, never-underwater run still gets a sane axis.
   const depthMax = Math.max(0.01, ...depth.map((d) => d.depth));
   const stepX = innerW / Math.max(depth.length, 1);
   const xFor = (i: number) => padL + (i + 0.5) * stepX;
@@ -738,7 +752,12 @@ export function UnderwaterChart({
   // runs the text off the canvas.
 
   const pctOfBank =
-    isNum(bankrollUnits) && bankrollUnits > 0 ? (model.current / bankrollUnits) * 100 : null;
+    // DEPTH IS ALREADY A SHARE OF BANK (2026-07-30), so this used to
+    // divide a fraction by 100 and print 0.1% where the truth was 11%.
+    // Kept as an explicit conversion rather than deleted, because the
+    // sub-line's job is the MONEY translation: a unit is 1% of bank, so
+    // an 11% hole is 11 units is $1,100 at $100 a unit.
+    isNum(bankrollUnits) && bankrollUnits > 0 ? model.current * 100 : null;
 
   return (
     <section className={styles.card}>
@@ -750,7 +769,7 @@ export function UnderwaterChart({
         />
         <div className={styles.legend}>
           <span className={styles.legendItem}>
-            <span className={styles.legendLine} /> depth below the high
+            <span className={styles.legendLine} /> depth below the high, % of peak
           </span>
         </div>
       </div>
@@ -761,7 +780,7 @@ export function UnderwaterChart({
           className={styles.wideSvg}
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label="Underwater plot: units below the high-water mark, day by day"
+          aria-label="Underwater plot: how far below the high-water mark, as a percentage of the peak, day by day"
         >
           {/* Depth ticks.  Zero is the high-water line, at the top. */}
           {tickVals.map((v, i) => (
@@ -774,7 +793,7 @@ export function UnderwaterChart({
                 className={i === 0 ? styles.uwHighWater : styles.grid}
               />
               <text x={padL - 8} y={yFor(v) + 4} textAnchor="end" className={styles.uwAxis}>
-                {v <= 0.0000001 ? "0u" : `${MINUS}${v.toFixed(1)}u`}
+                {v <= 1e-9 ? "0%" : `${MINUS}${(v * 100).toFixed(1)}%`}
               </text>
             </g>
           ))}
@@ -812,8 +831,8 @@ export function UnderwaterChart({
             textAnchor="end"
             className={styles.uwTroughLabel}
           >
-            {model.current > 0.0000001
-              ? `${MINUS}${fmtUAbs(model.current)} · ${fmtInt(model.daysUnderWater)} ${plural(model.daysUnderWater, "day")}`
+            {model.current > 1e-9
+              ? `${MINUS}${(model.current * 100).toFixed(1)}% · ${fmtInt(model.daysUnderWater)} ${plural(model.daysUnderWater, "day")}`
               : "at the high-water mark"}
           </text>
 
@@ -837,14 +856,17 @@ export function UnderwaterChart({
       <div className={styles.statRow}>
         <div>
           <div className={styles.statLabel}>Current drawdown</div>
-          <span className="figStat" data-money={model.current > 0.005 ? "down" : "flat"}>
-            {model.current > 0.005 ? `${MINUS}${fmtUAbs(model.current)}` : "at the high"}
+          <span className="figStat" data-money={model.current > 0.00005 ? "down" : "flat"}>
+            {model.current > 0.00005
+              ? `${MINUS}${(model.current * 100).toFixed(1)}%`
+              : "at the high"}
           </span>
           <span className={styles.statSub}>
-            {model.current > 0.005 && pctOfBank != null ? (
+            {model.current > 0.00005 && pctOfBank != null ? (
               <>
-                {pctOfBank.toFixed(1)}% of your {fmtInt(bankrollUnits)}u bankroll ·{" "}
-                {fmtDollars(model.current, dollarsPerUnit)} at{" "}
+                {fmtUAbs(model.current * bankrollUnits)} of your{" "}
+                {fmtInt(bankrollUnits)}u bankroll ·{" "}
+                {fmtDollars(model.current * bankrollUnits, dollarsPerUnit)} at{" "}
                 {fmtDollars(1, dollarsPerUnit)} a unit
               </>
             ) : (
@@ -854,11 +876,13 @@ export function UnderwaterChart({
         </div>
         <div>
           <div className={styles.statLabel}>Deepest drawdown</div>
-          <span className="figStat" data-money={model.deepest > 0.005 ? "down" : "flat"}>
-            {model.deepest > 0.005 ? `${MINUS}${fmtUAbs(model.deepest)}` : "0.00u"}
+          <span className="figStat" data-money={model.deepest > 0.00005 ? "down" : "flat"}>
+            {model.deepest > 0.00005
+              ? `${MINUS}${(model.deepest * 100).toFixed(1)}%`
+              : "0.0%"}
           </span>
           <span className={styles.statSub}>
-            {model.deepest <= 0.005
+            {model.deepest <= 0.00005
               ? "the curve has never been below its high"
               : model.currentIsDeepest
                 ? "the current one is the deepest"
@@ -878,12 +902,16 @@ export function UnderwaterChart({
 
       {composition && <p className="copy">{composition}</p>}
 
-      {epochIdx >= 0 && isNum(epochDrop) && epochDrop > 0.005 && (
+      {epochIdx >= 0 && isNum(epochDrop) && epochDrop > 0.00005 && (
         <p className="copy">
+          {/* Both figures are fractions of the peak now, so the
+              threshold moved with them -- 0.005 against a fraction is
+              half a percent, which would have hidden most epoch days. */}
           {shortDate(stakeEpoch)} is the first stake bigger than one unit. That single day
-          accounts for <b className={styles.fig}>{fmtUAbs(epochDrop)}</b> of the{" "}
-          <b className={styles.fig}>{fmtUAbs(model.current)}</b> hole — one ordinary loss at
-          several times the old size, not several ordinary losses.
+          accounts for{" "}
+          <b className={styles.fig}>{(epochDrop * 100).toFixed(1)}%</b> of the{" "}
+          <b className={styles.fig}>{(model.current * 100).toFixed(1)}%</b> hole — one
+          ordinary loss at several times the old size, not several ordinary losses.
         </p>
       )}
 
@@ -925,7 +953,14 @@ export interface DivergenceSegment {
   state: DivergenceState;
   count: number;
   /** ledger units for the two ledger rows; replay units for the replay
-   *  row (which is simulated); null for "flagged, nobody bet". */
+   *  row (which is simulated); null for "flagged, nobody bet".
+   *
+   *  SUMMED ACROSS BETS AND ACROSS DATES, so it is never rendered as a
+   *  unit total (2026-07-30). It is divided by `count` and shown as a
+   *  return per unit staked -- see segReturn() below. Under the
+   *  re-based unit model a 1u win when the unit was worth $100 and a 1u
+   *  win when it was worth $150 are different money, so the sum is not
+   *  a quantity; the ratio is. */
   units?: number | null;
   /** true when `units` is a back-test figure, not money that moved */
   simulated?: boolean;
@@ -965,6 +1000,21 @@ export interface DivergenceBarProps {
 /** Fixed and meaningful order: agreement first, then the two kinds of
  *  disagreement, then the games nobody touched.  Same order and the
  *  same wording DayReconcile uses, so the two views read alike. */
+/** Return per unit staked for one segment, assuming a unit a bet --
+ *  the same assumption and the same reasoning as the zone table on
+ *  /history. `null` when there is nothing to divide. */
+function segReturn(units: number | null | undefined, count: number): number | null {
+  if (!isNum(units) || !isNum(count) || count <= 0) return null;
+  return units / count;
+}
+
+function segReturnText(units: number | null | undefined, count: number): string {
+  const r = segReturn(units, count);
+  if (r == null) return EM_DASH;
+  if (Math.abs(r) < 0.00005) return "0.00%";
+  return `${r > 0 ? "+" : MINUS}${Math.abs(r * 100).toFixed(1)}%`;
+}
+
 const DIV_ORDER: { state: DivergenceState; label: string }[] = [
   { state: "agree",       label: "Both acted" },
   { state: "you-only",    label: "You bet, replay passed" },
@@ -1100,7 +1150,7 @@ export function DivergenceBar({ summary, contrastNote }: DivergenceBarProps) {
                       : "flat"
               }
             >
-              {s.units == null ? EM_DASH : fmtU(s.units)}
+              {segReturnText(s.units, s.count)}
             </span>
           </div>
         ))}
@@ -1112,11 +1162,13 @@ export function DivergenceBar({ summary, contrastNote }: DivergenceBarProps) {
         today&rsquo;s model would decline
         {isNum(youOnly.units) && (
           <>
-            , and they came to <b className={styles.fig}>{fmtU(youOnly.units)}</b>
+            , and they returned{" "}
+            <b className={styles.fig}>{segReturnText(youOnly.units, youOnly.count)}</b>{" "}
+            per unit staked
           </>
         )}
-        . The <b className={styles.fig}>{fmtInt(agree.count)}</b> it agrees with came to{" "}
-        <b className={styles.fig}>{fmtU(agree.units)}</b>.
+        . The <b className={styles.fig}>{fmtInt(agree.count)}</b> it agrees with returned{" "}
+        <b className={styles.fig}>{segReturnText(agree.units, agree.count)}</b>.
       </p>
 
       {skips.length > 0 && (

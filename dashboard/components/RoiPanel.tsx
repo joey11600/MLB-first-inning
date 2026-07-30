@@ -9,6 +9,12 @@ import { isNum, replayWindow } from "@/lib/season-record";
 import type { NightCounts } from "@/lib/reconcile";
 import type { TonightSystem } from "@/lib/reconcile";
 import { nightFromRecord, nightFromBoard, tonightFromBoard, fmtU } from "@/lib/reconcile";
+/* 2026-07-30 unit re-basing. `fmtU` stays for the PER-NIGHT and
+   PER-BET figures on this panel, which are real quantities. The
+   season-long ones move to bank growth / a return -- see lib/units. */
+import {
+  formatBankGrowth, formatReturn, returnAsUnits, bankReturn, EM_DASH,
+} from "@/lib/units";
 import styles from "./RoiPanel.module.css";
 
 /* ============================================================
@@ -426,7 +432,22 @@ function SystemCard({
   //
   // The real money for these windows is the flat-1u ledger block below.
   const tone = "neutral" as const;
-  const pct = w && y && isNum(w.bankStart) && w.bankStart > 0 ? y.pnl / w.bankStart : null;
+  /* FROM THE BANK'S TWO ENDPOINTS (2026-07-30), not from summing the
+     per-game P&L.
+
+     `y.pnl / w.bankStart` is very nearly right -- the bank IS bankStart
+     plus the YRFI P&L, so the ratio is exact in principle. In practice
+     the exporter rounds per-game `pnl` and the bank series separately,
+     and the two drift: this card read +109.95u for the season while
+     /history read +109.89u for the same bets on the same day. Six
+     hundredths of a unit is nothing as money and everything as trust --
+     it is precisely the "two legitimate figures side by side measuring
+     the same thing differently" defect this dashboard has been cleared
+     of repeatedly.
+
+     Both pages now divide the same two bank levels, so they cannot
+     disagree by construction rather than by luck. */
+  const pct = w ? bankReturn(w.bankStart ?? NaN, w.bankEnd ?? NaN) : null;
 
   return (
     <div className={styles.moneyCard} data-tone={tone}>
@@ -451,7 +472,16 @@ function SystemCard({
                 filters showing percentages and not units? im so
                 confused". */}
             <span className="figHero">
-              {pct == null ? fmtU(y.pnl) : fmtU(pct * bankUnits)}
+              {/* 2026-07-30: the pct==null fallback used to print
+                  `y.pnl` -- units added across every day in the window,
+                  which is not a money quantity once the bank has moved.
+                  There is no honest unit figure when the opening bank
+                  is unknown, so it now shows an em dash and the bet
+                  count carries the sentence. The main branch is
+                  unchanged and was already correct: a return times a
+                  100-unit bank IS a unit count, because a unit is 1% of
+                  bank by definition. */}
+              {pct == null ? EM_DASH : returnAsUnits(pct)}
             </span>
             <span className="meta">
               {pct == null
@@ -576,8 +606,18 @@ function HowComputed({ rec }: { rec: RecFile }) {
           that had a genuine captured DraftKings price. */}
       {real && isNum(real.sim.profit) && (
         <p>
-          {`Over real captured prices only (${real.from} → ${real.to}): `}
-          {`${fmtU(real.sim.profit)}, ${real.bets} ${real.bets === 1 ? "bet" : "bets"}, `}
+          {/* BANK GROWTH, not a summed profit (2026-07-30). This
+              printed `sim.profit`, which is finalBank - startBank --
+              arithmetically a level difference, but presented as a unit
+              total it invites exactly the addition the unit model
+              forbids. The two endpoints say the same thing and cannot
+              be misread as something to add to another window's. */}
+          {`Over real captured prices only (${real.from} → ${real.to}): bank `}
+          {`${formatBankGrowth(real.sim.startBank, real.sim.finalBank)}`}
+          {isNum(bankReturn(real.sim.startBank, real.sim.finalBank))
+            ? ` (${formatReturn(bankReturn(real.sim.startBank, real.sim.finalBank) as number)})`
+            : ""}
+          {`, ${real.bets} ${real.bets === 1 ? "bet" : "bets"}, `}
           {`${real.wins}-${real.losses}.`}
         </p>
       )}
@@ -592,11 +632,18 @@ function HowComputed({ rec }: { rec: RecFile }) {
  *  "Model replay" card and every one of them is still here. */
 function ReplayBody({ side }: { side: RecSide }) {
   const k = side.sim;
+  const seasonRet = bankReturn(k.startBank, k.finalBank);
+  const floorRet = side.floor
+    ? bankReturn(k.startBank, side.floor.sim.finalBank)
+    : null;
   return (
     <>
       <p>
-        {`Whole season · ¼-Kelly compounded: ${isNum(k.profit) ? fmtU(k.profit) : "—"} over `}
-        {`${side.bets} ${side.bets === 1 ? "bet" : "bets"}, ${side.wins}-${side.losses}`}
+        {/* A RETURN, not a unit total (2026-07-30). See the note on the
+            real-prices sentence above; same reasoning, same fix. */}
+        {`Whole season · ¼-Kelly compounded: `}
+        {isNum(seasonRet) ? formatReturn(seasonRet) : "—"}
+        {` over ${side.bets} ${side.bets === 1 ? "bet" : "bets"}, ${side.wins}-${side.losses}`}
         {isNum(side.hitRate) ? `, ${(100 * side.hitRate).toFixed(1)}% hit` : ""}.
       </p>
 
@@ -635,7 +682,12 @@ function ReplayBody({ side }: { side: RecSide }) {
 
       {side.floor && (
         <p>
-          {`No-hindsight check: ${fmtU(side.floor.sim.profit)} over ${side.floor.bets} bets `}
+          {/* Same re-basing as the headline: this compounds from the
+              same 100u open, so its RETURN is directly comparable to
+              the season figure above while a unit total is not. */}
+          {`No-hindsight check: `}
+          {isNum(floorRet) ? formatReturn(floorRet) : "—"}
+          {` over ${side.floor.bets} bets `}
           {`(${side.floor.wins}-${side.floor.losses}), same ¼-Kelly staking.`}
         </p>
       )}
