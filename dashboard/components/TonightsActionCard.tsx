@@ -30,8 +30,10 @@
  *
  * THE AT-RISK FIGURE IS THE SUM OF THE VISIBLE STAKE CHIPS.  It resolves
  * each game's stake through the exact same precedence the board's chips
- * use (replay first, ledger second) -- see summarizeSides below.  Adding
- * up the chips has to reproduce the number in this card.
+ * use -- LEDGER FIRST, replay second (corrected 2026-07-30; it was the
+ * other way round, which made the board claim "staked 17.00u" on a bet
+ * actually placed at 5.97u).  Adding up the chips has to reproduce the
+ * number in this card.
  *
  * Reads from rows + details that DashboardShell already receives from the
  * BoardResponse -- no new data layer.
@@ -132,7 +134,7 @@ function lookupDetail(
 /** The STRONG picks, as things to act on rather than things to count.
  *
  *  Stake resolution is IDENTICAL to summarizeSides below and to
- *  BoardRow's StakeChip -- replay first, ledger second -- because the
+ *  BoardRow's StakeChip -- LEDGER FIRST, replay second -- because the
  *  three are the same quantity shown in three places and any drift
  *  between them reads as the system contradicting itself.
  *
@@ -162,11 +164,13 @@ function extractPlays(
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "YRFI")) ??
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "NRFI"))
     );
+    // YOUR STAKE WINS -- see BoardRow's StakeChip for the full note.
+    // The replay compounds from 100u to ~257u; the real bank is ~88u,
+    // so replay-first showed 17.00u on a bet placed at 5.97u.
     let units: number | null = null;
-    if (rp?.action === "BET" && typeof rp.stake === "number") units = rp.stake;
+    if (d?.unitsRisked != null && d.unitsRisked > 0) units = d.unitsRisked;
+    else if (rp?.action === "BET" && typeof rp.stake === "number") units = rp.stake;
     else if (rp?.action === "SKIP") units = 0;
-    else if (locked && d?.unitsRisked != null) units = d.unitsRisked;
-    else if (d?.unitsRisked != null) units = d.unitsRisked;
 
     const price = (r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds) || "";
 
@@ -251,8 +255,13 @@ function summarizeSides(
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "NRFI"))
     );
 
+    // Same precedence as the play list and the board chip: the stake
+    // the operator actually has on the game, then the replay. This
+    // total is captioned "at risk", so it must be the real exposure.
     let stakeU = 0;
-    if (rp?.action === "BET" && typeof rp.stake === "number") {
+    if (placed === "Y" && d?.unitsRisked != null && d.unitsRisked > 0) {
+      stakeU = d.unitsRisked;
+    } else if (rp?.action === "BET" && typeof rp.stake === "number") {
       stakeU = rp.stake;
     } else if (rp?.action === "SKIP") {
       // The current model declined this game -- the chip says "model

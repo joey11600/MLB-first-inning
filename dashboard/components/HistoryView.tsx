@@ -356,8 +356,16 @@ export function HistoryView({
               {sysWindow.yrfi.wins}-{sysWindow.yrfi.bets - sysWindow.yrfi.wins} over{" "}
               {sysWindow.yrfi.bets} {sysWindow.yrfi.bets === 1 ? "bet" : "bets"} ·{" "}
               {sysWindow.from} → {sysWindow.to}
-              {isNum(sysWindow.bankStart) && (
-                <> · on a {sysWindow.bankStart.toFixed(0)}u bank</>
+              {/* THE BANK'S JOURNEY, not "on a NNNu bank" (2026-07-30).
+                  Operator: "the total units profit should be based off
+                  of starting with 100units. it doesnt make sense where
+                  you say 'bank it was earned off of'." Right -- naming a
+                  232u base implies the run started there. It started at
+                  100u; 232u is just where it had got to when the window
+                  opened. Showing the two endpoints says that without
+                  introducing a second base. */}
+              {isNum(sysWindow.bankStart) && isNum(sysWindow.bankEnd) && (
+                <> · bank {sysWindow.bankStart.toFixed(0)}u → {sysWindow.bankEnd.toFixed(0)}u</>
               )}
             </div>
             {/* THE UNLEVERED ("flat 1u") LINE WAS REMOVED 2026-07-30.

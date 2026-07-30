@@ -797,12 +797,40 @@ function StakeChip({
   thresholds: PickThresholds | undefined;
   replay: Map<string, ReplayStake> | undefined;
 }) {
-  // The replay lookup runs BEFORE the STRONG guard on purpose. The old
-  // gate and the current model disagree about which games qualify, so
-  // the model will sometimes stake a game this row labels PASS or LEAN
-  // (2026-04-15 COL@HOU: 8.94u). Suppressing the chip there would hide a
-  // real bet the current system would place. Try the row's own side
-  // first, then either side, since the labels can differ too.
+  // WHAT *YOU* STAKED WINS. ALWAYS. (2026-07-30)
+  //
+  // This used to try the REPLAY first and return unconditionally, so a
+  // game the operator really bet showed the replay's figure under the
+  // word "staked" -- a claim about the past that was simply false.
+  // 2026-07-29 HOU@LAA read "staked 17.00u" on a bet placed at 5.97u,
+  // and TOR@WSH read 6.00u against a real 2.08u.
+  //
+  // The gap is not a rounding artefact, it is two different bankrolls:
+  // the replay compounds from 100u and had reached ~257u by that date,
+  // while the real bank is ~88u. Same quarter-Kelly fraction, ~3x the
+  // absolute units. A board that says "staked 17u" is telling the
+  // operator to risk three times what the system actually sizes.
+  //
+  // Order now: the ledger's recorded stake, then the replay as a
+  // clearly-labelled suggestion. Pre-Kelly rows read "1.00u" under this
+  // rule, which was the old objection to ledger-first -- but 1.00u is
+  // what was bet on those nights, so it is the true answer.
+  const placedReal = detail?.betPlaced === "Y";
+  const riskedReal = detail?.unitsRisked;
+  if (placedReal && typeof riskedReal === "number" && riskedReal > 0) {
+    return (
+      <span className={styles.stakeChip}>
+        <span className={styles.stakeLabel}>staked</span>
+        <span className={styles.stakeValue}>{riskedReal.toFixed(2)}u</span>
+      </span>
+    );
+  }
+
+  // No real bet on this row. The replay's figure may still be worth
+  // showing -- the current gate stakes games the old one passed on --
+  // but it is labelled "system", never "staked", because nobody staked
+  // it. Lookup tries the row's own side first, then either side, since
+  // the labels can differ between the two gates.
   const rp = replay && (
     replay.get(replayKey(row.away, row.home, row.gameNumber, row.pickSide)) ??
     replay.get(replayKey(row.away, row.home, row.gameNumber, "YRFI")) ??
@@ -810,8 +838,8 @@ function StakeChip({
   );
   if (rp?.action === "BET" && typeof rp.stake === "number") {
     return (
-      <span className={styles.stakeChip}>
-        <span className={styles.stakeLabel}>staked</span>
+      <span className={styles.stakeChip} data-sim="1">
+        <span className={styles.stakeLabel}>system</span>
         <span className={styles.stakeValue}>
           {rp.stake.toFixed(2)}u{rp.assumed ? "*" : ""}
         </span>
