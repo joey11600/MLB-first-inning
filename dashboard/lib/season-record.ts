@@ -195,21 +195,34 @@ export interface ReplayWindow {
   pct: number | null;
   bankStart: number | null;
   bankEnd: number | null;
-  /** Split by side, because only one of them is actually bet. */
-  yrfi: { bets: number; wins: number; pnl: number };
-  nrfi: { bets: number; wins: number; pnl: number };
-  /** THE EDGE, UNLEVERED -- what this window returns at a flat 1 unit a
-   *  bet, before Kelly compounding multiplies it.
+  /** Split by side, because only one of them is actually bet.
+   *  `flat` is the same bets at one unit a bet, PER SIDE -- see the
+   *  window-level `flatPnl` below for why per-side matters. */
+  yrfi: { bets: number; wins: number; pnl: number; flat: number };
+  nrfi: { bets: number; wins: number; pnl: number; flat: number };
+  /** THE EDGE, UNLEVERED -- this window at a flat 1 unit a bet, before
+   *  Kelly compounding multiplies it. BOTH SIDES; use `yrfi.flat` when
+   *  pairing it with a YRFI-only headline.
    *
    *  Added 2026-07-29 because the operator kept reading the levered
-   *  figure as the system's performance. Over the season the two are
-   *  +9.33u flat against ~+145u Kelly: the SAME selection, one of them
-   *  multiplied about 13x by compounding. Showing them side by side is
+   *  figure as the system's performance. Showing them side by side is
    *  the difference between "the model is finding edge" and "the model
-   *  is finding edge AND we are levering it hard", which are separate
-   *  questions with separate risks. season_record.py's own footer says
-   *  it: "Flat 1u is the edge. The Kelly line is that same edge levered,
-   *  and it is real only while the hit rate holds." */
+   *  is finding edge AND we are levering it hard" -- separate questions
+   *  with separate risks. season_record.py's own footer: "Flat 1u is the
+   *  edge. The Kelly line is that same edge levered, and it is real only
+   *  while the hit rate holds."
+   *
+   *  2026-07-30 BUG FIX. This was summed from each day's `flatPnl`,
+   *  which is a DAY-level total and therefore includes NRFI -- while
+   *  every headline it sat beside is YRFI-only, because NRFI is not bet.
+   *  Season-wide it printed +9.29u where the honest twin of a +144.85u
+   *  YRFI headline is +12.30u; the -2.97u difference is 22 NRFI
+   *  would-be bets. A figure captioned "the same bets, unlevered" that
+   *  silently covered a DIFFERENT set of bets is precisely the defect
+   *  this dashboard spent two days removing, reintroduced by the fix
+   *  for it. Now summed per game from the same `action === "BET"` loop
+   *  that produces `pnl`, so the two cannot describe different
+   *  populations. */
   flatPnl: number;
   /** Bets priced at the -125 stand-in because no DK price was ever
    *  captured. Load-bearing: change that assumption to -155 and the
@@ -242,8 +255,8 @@ export function replayWindow(
   const days = side.days.filter((d) => d.date >= startIso && d.date <= endIso);
   if (days.length === 0) return null;
   let bets = 0, wins = 0, pnl = 0, assumed = 0, flatPnl = 0;
-  const y = { bets: 0, wins: 0, pnl: 0 };
-  const n = { bets: 0, wins: 0, pnl: 0 };
+  const y = { bets: 0, wins: 0, pnl: 0, flat: 0 };
+  const n = { bets: 0, wins: 0, pnl: 0, flat: 0 };
   for (const d of days) {
     for (const g of d.games) {
       if (g.record.action !== "BET") continue;
@@ -251,12 +264,18 @@ export function replayWindow(
       const w = g.record.win === true;
       bets += 1; if (w) wins += 1; pnl += p;
       if (g.record.assumed) assumed += 1;
+      // FLAT, PER GAME, in the same loop as pnl -- see flatPnl's note.
+      // A win pays the price; a loss costs exactly one unit.
+      const odds = g.record.odds;
+      const payout = isNum(odds)
+        ? (odds > 0 ? odds / 100 : 100 / -odds)
+        : 0;
+      const flat = w ? payout : -1;
+      flatPnl += flat;
       const bucket = g.side === "NRFI" ? n : y;
       bucket.bets += 1; if (w) bucket.wins += 1; bucket.pnl += p;
+      bucket.flat += flat;
     }
-    // Flat is a DAY-level figure in the export (one flat unit per bet,
-    // summed), so it accumulates per day rather than per game.
-    if (isNum(d.flatPnl)) flatPnl += d.flatPnl;
   }
   if (bets === 0) return null;
   const first = days[0], last = days[days.length - 1];

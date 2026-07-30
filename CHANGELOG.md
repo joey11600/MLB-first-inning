@@ -11,6 +11,56 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-30] — Old ledger removed; the "Flat 1u" stat was measuring the wrong bets
+
+Operator: *"remove the old ledger entirely ... still keep the data
+saved"*, and *"are there any other bugs or errors to fix?"*
+
+### Removed — the flat-1u ledger block
+
+Gone from `RoiPanel`, along with `LedgerRow` and its helpers (96 lines).
+It reported the same nights as the system card above it under an
+accounting method retired 2026-07-28 (flat 1u, looser gate, NRFI still
+live), and its own footnote conceded the figures rested on a placeholder
+−110. Season-wide it read −8.93u, of which **−11.29u is NRFI** from a
+strategy switched off 2026-06-07.
+
+**No data was deleted, deliberately.** Every row is untouched in
+`data/picks_2026.csv` and Supabase. `tools/pl_calc.py` reports it and
+`tools/kelly_season_backfill.py` compares flat against every Kelly
+fraction on demand, so "what would flat 1u have done" is still one
+command away. This removed a *render*, not a *record*.
+
+### Fixed — "Flat 1u" covered a different set of bets than its headline
+
+Shipped in 2026-07-29i, wrong from the start. `flatPnl` summed each
+day's day-level `flatPnl`, **which includes NRFI** — while every
+headline it sits beside is YRFI-only, because NRFI is tracked and never
+bet.
+
+| | shown | correct |
+|---|---|---|
+| Season flat | +9.29u | **+12.30u** |
+
+The −2.97u gap is 22 NRFI would-be bets. A figure captioned *"the same
+bets, unlevered"* that silently covered a **different** set of bets is
+exactly the defect this dashboard spent two days removing — reintroduced
+by the fix for it.
+
+`flat` is now accumulated per game inside the same `action === "BET"`
+loop that produces `pnl`, and split per side, so the two cannot describe
+different populations. Both call sites read `yrfi.flat`.
+
+### Also found (not fixed — dead weight, no money impact)
+
+`DashboardShell`'s comment claims `ShadowPnlCard`, `SlateProjections`
+and `StatusLine` were "FILE DELETED 2026-07-28". **All three still
+exist.** `ShadowPnlCard` is the sole consumer of `/api/shadow-pnl` and
+is mounted nowhere, so that endpoint is live with no caller.
+`SummaryStrip` is correctly alive (OpsHealthCard and TonightsActionCard
+import it).
+
+
 ## [2026-07-29k] — The daily ledger now reconciles to the headline
 
 Operator, on the daily ledger: *"i think these numbers are off"*.

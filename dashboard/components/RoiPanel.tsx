@@ -157,7 +157,6 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
 
   // The superseded flat-1u ledger, STRONG only.  LEAN never reaches this
   // block: nothing was wagered on it, so it has no P&L to show.
-  const ledgerZones = (view?.betZones ?? []).filter((z) => z.strength === "STRONG");
 
   // FIX 2 (2026-07-28) — THE HEADER SAID THE SEASON STARTED IN JANUARY.
   //
@@ -267,40 +266,28 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
           tonight={tonightLive}
         />
 
-        {/* The old flat-1u ledger. Real money that really moved, so it is
-            not deleted -- but it is the PREVIOUS gate at a stake the
-            system no longer uses, so it gets one quiet block rather than
-            a grid of its own. */}
-        {/* 2026-07-29 distill pass -- COLLAPSED BY DEFAULT.
-            This block reports the SAME nights as the system card above
-            it, under an accounting method the system stopped using on
-            2026-07-28, and its own footnote concedes the figures rest on
-            a placeholder −110 rather than a price that was ever paid.
-            Open on the primary surface, it put a knowingly-wrong number
-            at eye level immediately below the right one, with an apology
-            attached -- the operator read both and trusted neither.
+        {/* THE "OLDER LEDGER · FLAT 1U · SUPERSEDED" BLOCK WAS REMOVED
+            HERE 2026-07-30, at the operator's request: "remove the old
+            ledger entirely ... all i care about is the new system, the
+            new kelly sizing, and the new total profit."
 
-            NOTHING IS DELETED. It is real money that really moved, the
-            rows are byte-identical, and one tap still reaches them. */}
-        {ledgerZones.length > 0 && (
-          <details className={styles.ledgerBlock}>
-            <summary className={styles.ledgerSummary}>
-              <span className="eyebrow">
-                Older ledger · flat 1u · superseded 2026-07-28
-              </span>
-            </summary>
-            {ledgerZones.map((z) => (
-              <LedgerRow key={z.label} zone={z} />
-            ))}
-          </details>
-        )}
-        {view && ledgerZones.length === 0 && (
-          <div className={styles.emptyZone}>
-            {window === "today"
-              ? "No graded bets tonight yet."
-              : "No graded bets in this window yet."}
-          </div>
-        )}
+            It reported the same nights as the system card above under an
+            accounting method retired on 2026-07-28 (flat 1u, the looser
+            gate, NRFI still live), and its own footnote conceded the
+            figures rested on a placeholder −110 rather than a price
+            anyone paid. Season-wide that ledger is −8.93u, of which
+            −11.29u is NRFI bets from a strategy switched off on
+            2026-06-07. It was answering a question the operator has
+            stopped asking, in the loudest position on the panel.
+
+            NO DATA WAS DELETED, and that is deliberate — the operator
+            wants to be able to ask "what would flat 1u have done"
+            later. Every row is untouched in data/picks_2026.csv and
+            Supabase; `tools/pl_calc.py` reports it, and
+            `tools/kelly_season_backfill.py` compares flat against every
+            Kelly fraction on demand. This removes a RENDER, not a
+            record. Recover the block from git history if the flat-1u
+            view is ever wanted back on screen. */}
 
         {/* CUT 2026-07-28 — the LEAN calls line.
             It read: "N LEAN calls in this window — never bet, so no P&L is
@@ -540,7 +527,11 @@ function SystemCard({
             finding edge" from "and we are levering it 13x". */}
         <Stat
           label="Flat 1u"
-          value={w ? fmtU(w.flatPnl) : "—"}
+          /* yrfi.flat, NOT flatPnl: the headline above is YRFI-only
+             (NRFI is tracked, never bet), so its unlevered twin must
+             cover the same bets. flatPnl includes NRFI and printed
+             +9.29u against a true +12.30u. */
+          value={w ? fmtU(w.yrfi.flat) : "—"}
           caption="the same bets, unlevered"
           muted
         />
@@ -664,102 +655,9 @@ function ReplayBody({ side }: { side: RecSide }) {
   );
 }
 
-/** One row of the superseded flat-1u ledger.
- *
- *  FIX 6 (2026-07-28) — ONE POPULATION PER ROW.
- *
- *  This row used to print the record and the hit rate over ALL graded
- *  bets, next to a "vs break-even" figure and a units figure computed
- *  over the REAL-PRICED subset only.  STRONG NRFI rendered:
- *
- *      STRONG NRFI · 57-39 · 59.4% hit · −13.0pp vs break-even · −11.29u
- *
- *  which cannot be true of any single set of bets: 59.4% is 13 points
- *  under break-even only if break-even is 72.4%.  The record and the hit
- *  rate were 96 graded bets; the pp and the −11.29u were the 49 of those
- *  that had a captured DraftKings price, and those 49 went 22-27 (44.9%)
- *  against a true break-even of 57.87%.  The bar made it visible: the
- *  fill ran to 59.4% and visibly cleared a tick hard-pinned at 52.38% on
- *  a row whose units said the zone lost money.
- *
- *  Now every figure on the row — record, hit rate, bar fill, break-even
- *  tick, points-vs-break-even and units — describes the same bets, and a
- *  line underneath says how many bets that is out of how many graded. */
-function LedgerRow({ zone }: { zone: ZoneRoi }) {
-  const tone = zoneTone(zone);
-  const pop  = ledgerPopulation(zone);
-  return (
-    <div className={styles.ledgerRow} data-side={zone.side} data-tone={tone}>
-      <span className={styles.ledgerLabel}>{zone.label}</span>
-      <span className={styles.ledgerCount}>
-        {pop.graded > 0 ? `${pop.wins}-${pop.losses}` : "—"}
-      </span>
-      <div className={styles.ledgerMid}>
-        <div className={styles.ledgerBar}>
-          <span
-            className={styles.ledgerBarFill}
-            style={{ width: `${barWidthPct(pop.hitRate)}%` }}
-            aria-hidden
-          />
-          {/* The tick is the price this zone ACTUALLY paid, not a
-              hardcoded −110.  Inline because it is a datum, not a
-              style: 55.8% on YRFI, 57.9% on NRFI. */}
-          <span
-            className={styles.ledgerBarBE}
-            style={{ left: `calc(${(pop.breakEven * 100).toFixed(2)}% - 1px)` }}
-            aria-hidden
-          />
-        </div>
-        <span className={styles.ledgerSub}>
-          {pop.graded > 0 ? (
-            <>
-              <span><span className="num">{pctText(pop.hitRate)}</span> hit</span>
-              <span className={styles.ledgerSep} aria-hidden>·</span>
-              <span>
-                <span className="num">{signedPctText(pop.hitRate - pop.breakEven)}</span>
-                {" vs break-even "}
-                <span className="num">{pctText(pop.breakEven)}</span>
-              </span>
-            </>
-          ) : (
-            <span>{zone.picks} picks, none graded yet</span>
-          )}
-        </span>
-      </div>
-      <span className={styles.ledgerUnits}>
-        {pop.graded > 0 ? fmtU(realPL(zone)) : "—"}
-      </span>
-
-      {/* WHICH BETS THE ROW ABOVE IS ABOUT.  Without this the operator
-          reads a smaller record than he remembers placing and assumes
-          rows went missing — his single most common report. */}
-      {pop.graded > 0 && (
-        <span className={styles.ledgerProv}>
-          {pop.real ? (
-            zone.bets > pop.graded ? (
-              <>
-                {`${pop.graded} of ${zone.bets} graded ${zone.bets === 1 ? "bet" : "bets"} had a `}
-                {`captured DraftKings price. The other ${zone.bets - pop.graded} settled against a `}
-                {`placeholder −110 and are not counted here — nobody knows what those actually `}
-                {`paid, so including them would invent a result.`}
-              </>
-            ) : (
-              <>
-                {`All ${pop.graded} graded ${pop.graded === 1 ? "bet" : "bets"} had a captured `}
-                {`DraftKings price, so every figure above is a price you really paid.`}
-              </>
-            )
-          ) : (
-            <>
-              {`No bet in this zone has a captured DraftKings price, so every figure above `}
-              {`rests on a placeholder −110 (break-even 52.4%) rather than a price you paid.`}
-            </>
-          )}
-        </span>
-      )}
-    </div>
-  );
-}
+// LedgerRow + its helpers were DELETED 2026-07-30 with the flat-1u
+// ledger block they rendered. See the removal note in the panel body.
+// The DATA is untouched; this was the only renderer.
 
 function Stat({ label, value, caption, muted }: {
   label: string; value: string; caption?: string; muted?: boolean;

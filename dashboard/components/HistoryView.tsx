@@ -325,7 +325,7 @@ export function HistoryView({
                 difference is impossible to miss. */}
             <div className={styles.heroFlat}>
               <span className={styles.heroFlatFig}>
-                {formatUnits(sysWindow.flatPnl)}
+                {formatUnits(sysWindow.yrfi.flat)}
               </span>
               <span>unlevered, at a flat 1u on the same bets</span>
             </div>
