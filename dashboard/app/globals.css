@@ -64,7 +64,7 @@
    500 figures / 600 eyebrows / 700 tag) and VT323 shipped exactly one.
    Every weight distinction in that scale has been a no-op -- or a
    synthesised smear -- for as long as VT323 has been the family. */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
 
 /* --------- Default theme = Bloomberg dark --------- */
 :root {
@@ -166,6 +166,33 @@
      The fallback chain ends at the OS monospace rather than at
      "Courier New" specifically, so a failed webfont load degrades to
      whatever the device actually has. ---- */
+  /* ---- THE PICK VOICE (2026-07-31, operator's call) ----
+     Operator: "can we make it so that any of the picks on this screen
+     are not green, and they have white text thats a different font, not
+     terminal, thats more readable."
+
+     Two tokens, deliberately narrow in scope: they dress the PICK
+     column only -- the verdict pill and its word-chips. Everything else
+     on the board stays phosphor mono, so the pick reads as the one
+     thing on the row that is speaking plainly to you.
+
+     WHY WHITE IS A NEW TOKEN RATHER THAN --foreground. The matrix
+     palette has no white; --foreground IS #00FF41. Reusing it would
+     have kept the pick green, which is the thing being fixed. #FFFFFF
+     is 21:1 on --card -- the highest contrast available anywhere on
+     this page, which is the point for the one field the operator reads
+     under time pressure.
+
+     WHY INTER AND NOT JETBRAINS MONO. Monospace buys column alignment,
+     which a pick LABEL never needs -- it is words, not figures. Inter
+     is drawn for UI text at small sizes and its proportional spacing
+     fits ~15% more characters in the same width, which matters on a
+     pill reading "PENDING - LOCKS 7:40 PM ET". The numeric chips beside
+     it stay mono precisely because they ARE figures. */
+  --pick-ink:  #FFFFFF;
+  --font-ui:   "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+
   --font-display: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
                   "Courier New", monospace;
   --font-sans:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,

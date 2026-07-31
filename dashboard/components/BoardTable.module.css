@@ -108,3 +108,46 @@
 @media (max-width: 1180px) {
   .headRow { display: none; }
 }
+
+/* ============================================================
+   "WHAT MAKES IT #1" -- the note under the board.
+
+   Added 2026-07-31 because the operator asked exactly that, and the
+   answer lived only in the badge's hover tooltip: undiscoverable on
+   desktop and non-existent on a phone. Quiet chrome, not a banner --
+   it explains a marker, it is not competing with one.
+   ============================================================ */
+.topPickNote {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 2px 0;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  max-width: 92ch;
+}
+
+/* Same outline as the badge on the row, so the sentence is visibly
+   about THAT mark rather than about a concept. */
+.topPickNoteBadge {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--attn);
+  border: 1px solid color-mix(in oklab, var(--attn) 55%, var(--border));
+  border-radius: var(--radius);
+}
+
+.topPickNoteLink {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in oklab, var(--foreground) 40%, transparent);
+}
+.topPickNoteLink:hover { text-decoration-color: var(--foreground); }

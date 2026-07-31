@@ -358,16 +358,19 @@
   align-items: center;
   margin-left: 6px;
   padding: 2px 8px;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
+  /* Same voice as the pick label it sits beside (2026-07-31): these
+     are WORDS -- "no edge", "elite power" -- not figures, so they take
+     the UI face and the white ink rather than the terminal green. */
+  font-family: var(--font-ui);
+  font-size: 11px;
   font-weight: 500;
   line-height: 1rem;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   text-transform: lowercase;
   border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--secondary) 35%, var(--border));
-  background: color-mix(in oklab, var(--secondary) 8%, var(--background));
-  color: color-mix(in oklab, var(--foreground) 80%, var(--secondary));
+  border: 1px solid color-mix(in oklab, var(--pick-ink) 22%, var(--border));
+  background: color-mix(in oklab, var(--pick-ink) 6%, var(--background));
+  color: color-mix(in oklab, var(--pick-ink) 78%, transparent);
   vertical-align: middle;
   white-space: nowrap;
   cursor: help;
@@ -377,10 +380,12 @@
 /* Elite-hitter chip -- attention-grabber tone (warmer / brighter)
    so it stands out from the calmer passReason chip.  Same shape,
    different color. */
+/* Elite-hitter chip -- brighter than the calm passReason chip, but the
+   difference is now WEIGHT and opacity rather than a switch to green. */
 .eliteHitter {
-  border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
-  background: color-mix(in oklab, var(--primary) 12%, var(--background));
-  color: color-mix(in oklab, var(--foreground) 80%, var(--primary));
+  border-color: color-mix(in oklab, var(--pick-ink) 42%, var(--border));
+  background: color-mix(in oklab, var(--pick-ink) 11%, var(--background));
+  color: var(--pick-ink);
   font-weight: 600;
 }
 
@@ -540,7 +545,14 @@
    the chip drop to a second line on narrow viewports.
    ============================================================ */
 
+/* THE WHOLE PICK CELL SPEAKS IN WHITE (2026-07-31, operator's call).
+   Set on the cell so every chip inside inherits it and no future
+   child can quietly land back on phosphor green by leaving `color`
+   unset. Children that need to be quieter mix DOWN from this ink
+   rather than switching hue. The one exception is the #1 badge,
+   which keeps --attn because it is the row asking for attention. */
 .pickCell {
+  color: var(--pick-ink);
   /* Fills the grid cell instead of shrink-wrapping to content.  Without
      this, the inline-flex container ignored its grid track width, the
      chip ran past the cell boundary, and flex-wrap never triggered
@@ -576,13 +588,23 @@
   background: var(--muted-foreground);
   flex: 0 0 auto;
 }
+/* THE PICK LABEL SPEAKS PLAINLY (2026-07-31, operator's call).
+   "any of the picks on this screen are not green, and they have white
+   text thats a different font, not terminal, thats more readable."
+
+   White (21:1 -- the highest contrast on this page), Inter rather than
+   the terminal mono, and the tracking dropped from 0.10em to 0.02em.
+   Letter-spacing that wide is a MONOSPACE mannerism: it buys nothing on
+   a proportional face and costs real width on "PENDING - LOCKS 7:40 PM
+   ET". Case left uppercase -- that is the board's voice and the
+   operator did not ask for it back. */
 .pickLabel {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  letter-spacing: 0.10em;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--foreground);
+  color: var(--pick-ink);
   white-space: nowrap;
 }
 
@@ -615,13 +637,23 @@
 
 /* STRONG -- the rows that carry a bet. Full-strength label, visible
    pill, side-weighted dot. */
+/* 2026-07-31: the pill surface follows its label onto the white ink.
+   These were --foreground mixes (#00FF41), so a white label sat on a
+   faintly green plate -- the fringe you notice before you notice the
+   colour itself. Strength is still carried here, by how much plate
+   there is: STRONG visible, LEAN barely, PASS none. */
 .nrfiStrong .pickPill,
 .yrfiStrong .pickPill {
-  background: color-mix(in oklab, var(--foreground) 7%, transparent);
-  border-color: color-mix(in oklab, var(--foreground) 24%, var(--border));
+  background: color-mix(in oklab, var(--pick-ink) 8%, transparent);
+  border-color: color-mix(in oklab, var(--pick-ink) 26%, var(--border));
 }
+/* 2026-07-31: these used to set --foreground (= #00FF41) and were the
+   reason the pick still read green after the token change. Strength is
+   now carried by the pill's border and background, which is where it
+   was already being carried anyway -- the label just repeated it in
+   colour. All three tiers share one ink now. */
 .nrfiStrong .pickLabel,
-.yrfiStrong .pickLabel { color: var(--foreground); }
+.yrfiStrong .pickLabel { color: var(--pick-ink); }
 .nrfiStrong .pickDot { background: var(--side-nrfi); }
 .yrfiStrong .pickDot { background: var(--side-yrfi); }
 
@@ -629,11 +661,16 @@
    axis so it cannot be mistaken for an actionable row. */
 .nrfiLean .pickPill,
 .yrfiLean .pickPill {
-  background: color-mix(in oklab, var(--foreground) 3%, transparent);
+  background: color-mix(in oklab, var(--pick-ink) 4%, transparent);
   border-color: color-mix(in oklab, var(--border) 70%, transparent);
 }
+/* LEAN stays quieter, but in WHITE at 72% rather than green: the
+   distinction between tiers is brightness, and mixing hue back in here
+   would undo the change above on two thirds of the board. */
 .nrfiLean .pickLabel,
-.yrfiLean .pickLabel { color: var(--muted-foreground); }
+.yrfiLean .pickLabel {
+  color: color-mix(in oklab, var(--pick-ink) 72%, transparent);
+}
 .nrfiLean .pickDot {
   background: color-mix(in oklab, var(--side-nrfi) 70%, transparent);
 }
@@ -649,7 +686,10 @@
   border-color: color-mix(in oklab, var(--border) 45%, transparent);
 }
 .passTone .pickDot   { background: var(--chrome-ink); opacity: 0.55; }
-.passTone .pickLabel { color: var(--muted-foreground); font-style: normal; }
+.passTone .pickLabel {
+  color: color-mix(in oklab, var(--pick-ink) 55%, transparent);
+  font-style: normal;
+}
 
 /* "Starter pending" / "Lineup pending" -- dashed muted treatment.
    Reads as data-quality halt, not model decision.
@@ -681,9 +721,11 @@
   animation: pendingPulse 2s ease-in-out infinite;
 }
 .pickPillPending .pickLabel {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  letter-spacing: 0.10em;
+  /* 2026-07-31: was --muted-foreground (green). Pending is a QUIETER
+     state, not a different hue -- carried by opacity on the same ink. */
+  color: color-mix(in oklab, var(--pick-ink) 62%, transparent);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
@@ -713,7 +755,11 @@
   animation: none !important;
 }
 .pickPillLocking .pickLabel {
-  color: var(--foreground);
+  /* 2026-07-31: was --foreground (#00FF41). Being the most specific
+     rule it beat every change above -- it is exactly why the two
+     locking picks stayed green after the first pass. Locking is the
+     loudest pending state, so it gets the full white. */
+  color: var(--pick-ink);
   font-weight: 600;
 }
 
@@ -731,33 +777,42 @@
    ============================================================ */
 
 .pickLabelMuted {
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, var(--pick-ink) 55%, transparent);
   font-weight: 600;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.02em;
 }
 
 .pickLabelSep {
-  color: color-mix(in oklab, var(--muted-foreground) 50%, transparent);
+  color: color-mix(in oklab, var(--pick-ink) 40%, transparent);
   font-weight: 400;
 }
 
 .pickLabelLean {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  /* Inherit color from .pickLabelLeanNrfi / .pickLabelLeanYrfi below */
-  color: var(--foreground);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--pick-ink);
 }
 
+/* 2026-07-31 -- A LIVE SIDE-AS-HUE VIOLATION, found while making the
+   picks white. These two painted the tentative-lean tail of a PENDING
+   pill --primary (green) for NRFI and --destructive (RED) for YRFI, and
+   added a glow. So the board rendered a YRFI lean in the LOSS colour on
+   a game that had not started, which is the exact defect the palette
+   memory says "kept resurfacing" and the 2026-07-29 pass thought it had
+   finished off.
+
+   Side is carried by WEIGHT, never hue -- the same rule as the dot
+   beside it: NRFI dimmed (the gate is off), YRFI full ink (the side the
+   system actually bets). No glow: a text-shadow on a 12px label is
+   legibility spent on decoration. */
 .pickLabelLeanNrfi {
-  color: var(--primary);
-  text-shadow: 0 0 6px color-mix(in oklab, var(--primary) 30%, transparent);
+  color: color-mix(in oklab, var(--pick-ink) 62%, transparent);
 }
 
 .pickLabelLeanYrfi {
-  color: var(--destructive);
-  text-shadow: 0 0 6px color-mix(in oklab, var(--destructive) 30%, transparent);
+  color: var(--pick-ink);
 }
 
 /* LOW LAMBDA pill -- would-be YRFI demoted because lambda below floor.
@@ -772,9 +827,10 @@
   box-shadow: 0 0 6px color-mix(in oklab, var(--secondary) 50%, transparent) !important;
 }
 .pickPillLowLambda .pickLabel {
-  color: color-mix(in oklab, var(--secondary) 80%, var(--foreground)) !important;
+  /* 2026-07-31: was a --secondary/--foreground green mix. */
+  color: color-mix(in oklab, var(--pick-ink) 68%, transparent) !important;
   font-size: 11.5px;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -811,14 +867,14 @@
   font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, var(--pick-ink) 55%, transparent);
 }
 .oddsPrice {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: 11.5px;
-  color: var(--foreground);
+  color: var(--pick-ink);
 }
 .oddsSep {
   opacity: 0.30;
@@ -840,27 +896,46 @@
   white-space: nowrap;
 }
 
+/* ── THE ODDS CHIP: SIDE IS WEIGHT, NOT HUE ────────────────────────
+   REWRITTEN 2026-07-31. This block was the largest surviving
+   side-as-hue violation on the board, and the 2026-07-29 pass that
+   cleaned the pick pills did not reach it.
+
+   What it used to say:
+     .oddsNrfi  ->  --primary      (= --gain, money UP)   background,
+                                    border, price AND book label
+     .oddsYrfi  ->  --destructive  (= --loss, money DOWN) same four
+
+   So the price of every YRFI bet -- the ONLY side this system bets --
+   rendered in the LOSS colour, on a game that had not started. Over a
+   green page that red tint is also what made this chip read orange,
+   which is the "amber means a decision is waiting" signal spent on
+   something that is not a decision.
+
+   Now: the chip inherits the pick cell's white ink, the side is carried
+   by the Y/N side label already inside it, and emphasis is opacity.
+   Nothing in the pick column depends on hue any more. */
 .oddsNrfi {
-  background: color-mix(in oklab, var(--primary) 12%, var(--muted));
-  border-color: color-mix(in oklab, var(--primary) 38%, var(--border));
+  background: color-mix(in oklab, var(--pick-ink) 5%, var(--muted));
+  border-color: color-mix(in oklab, var(--pick-ink) 18%, var(--border));
 }
-.oddsNrfi .oddsPrice { color: var(--primary); }
-.oddsNrfi .oddsBook  { color: color-mix(in oklab, var(--primary) 70%, var(--muted-foreground)); }
+.oddsNrfi .oddsPrice { color: color-mix(in oklab, var(--pick-ink) 72%, transparent); }
+.oddsNrfi .oddsBook  { color: color-mix(in oklab, var(--pick-ink) 45%, transparent); }
 
 .oddsYrfi {
-  background: color-mix(in oklab, var(--destructive) 12%, var(--muted));
-  border-color: color-mix(in oklab, var(--destructive) 38%, var(--border));
+  background: color-mix(in oklab, var(--pick-ink) 8%, var(--muted));
+  border-color: color-mix(in oklab, var(--pick-ink) 26%, var(--border));
 }
-.oddsYrfi .oddsPrice { color: var(--destructive); }
-.oddsYrfi .oddsBook  { color: color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground)); }
+.oddsYrfi .oddsPrice { color: var(--pick-ink); }
+.oddsYrfi .oddsBook  { color: color-mix(in oklab, var(--pick-ink) 62%, transparent); }
 
 .oddsPending {
   background: color-mix(in oklab, var(--muted) 50%, transparent);
   border-color: color-mix(in oklab, var(--border) 100%, transparent);
   opacity: 0.78;
 }
-.oddsPending .oddsPrice { color: var(--muted-foreground); }
-.oddsPending .oddsBook  { color: color-mix(in oklab, var(--muted-foreground) 80%, transparent); }
+.oddsPending .oddsPrice { color: color-mix(in oklab, var(--pick-ink) 55%, transparent); }
+.oddsPending .oddsBook  { color: color-mix(in oklab, var(--pick-ink) 38%, transparent); }
 
 .oddsSkipped {
   border-style: dashed;
@@ -875,9 +950,11 @@
   margin-right: 3px;
   opacity: 0.72;
 }
-.oddsNrfi    .oddsSideLabel { color: var(--primary); }
-.oddsYrfi    .oddsSideLabel { color: var(--destructive); }
-.oddsPending .oddsSideLabel { color: var(--muted-foreground); }
+/* The N / Y marker IS the side. It does not also need to be the side's
+   colour -- that was the duplication that made hue load-bearing. */
+.oddsNrfi    .oddsSideLabel { color: color-mix(in oklab, var(--pick-ink) 45%, transparent); }
+.oddsYrfi    .oddsSideLabel { color: color-mix(in oklab, var(--pick-ink) 70%, transparent); }
+.oddsPending .oddsSideLabel { color: color-mix(in oklab, var(--pick-ink) 38%, transparent); }
 
 .oddsPair {
   display: inline-flex;
@@ -1165,7 +1242,7 @@
     max-width: 100%;
   }
   .pickPill { padding: 7px 14px 7px 12px; }
-  .pickLabel { font-size: 13px; letter-spacing: 0.06em; }
+  .pickLabel { font-size: 13px; letter-spacing: 0.02em; }
   .distBar { grid-area: dist; }
   .row { margin: 6px 0; }
   .at { font-size: 11px; }
@@ -1190,19 +1267,21 @@
   font-size: 0.6rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, var(--pick-ink) 55%, transparent);
 }
+/* The stake is the number the operator types into DraftKings, so it is
+   the brightest thing in the cell after the verdict itself. */
 .stakeValue {
   font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--foreground);
+  color: var(--pick-ink);
 }
 .stakeChipZero .stakeValue {
   font-size: 0.7rem;
   font-weight: 500;
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, var(--pick-ink) 50%, transparent);
 }
 
 /* ============================================================

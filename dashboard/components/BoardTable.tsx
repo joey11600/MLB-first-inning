@@ -234,6 +234,27 @@ export function BoardTable({
           );
         })}
       </div>
+
+      {/* WHAT MAKES IT #1, SAID OUT LOUD (2026-07-31).
+          Operator: "what even makes it the #1 pick?" It was only ever
+          in the badge's hover tooltip, which is not discoverable and
+          does not exist on a phone at all. A marker whose meaning has
+          to be hunted for is a marker that gets mistrusted -- and this
+          one points at the single number on the history page that never
+          rewrites itself, so it is worth spelling out.
+          Rendered only when a badge is actually on the board. */}
+      {topPickKey && (
+        <p className={styles.topPickNote}>
+          <span className={styles.topPickNoteBadge}>#1</span>
+          The model&rsquo;s most confident bet tonight — the STRONG play
+          furthest from a coin flip. When two are equally confident, the
+          one at the better price wins. Its running record is the{" "}
+          <a href="/history" className={styles.topPickNoteLink}>
+            #1 pick card
+          </a>{" "}
+          on the history page.
+        </p>
+      )}
     </div>
   );
 }

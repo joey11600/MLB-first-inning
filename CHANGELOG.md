@@ -11,6 +11,79 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-07-31] - #1 leads the board; the pick column speaks in white
+
+Operator, on a screenshot: *"visually, why is the #1 pick not at the top.
+also, what even makes it the #1 pick? also, can we make it so that any of
+the picks on this screen are not green, and they have white text thats a
+different font, not terminal, thats more readable."*
+
+### 1. Why #1 was not at the top - a missing tie-break
+
+CWS@TB and KC@COL were **exactly tied** at `p_nrfi = 0.287200`. The board's
+`P(YRFI) high -> low` comparator was probability *only*, so it returned 0,
+the stable sort kept the incoming order, and KC@COL led while the badge sat
+on CWS@TB.
+
+Neither was wrong alone - the badge breaks ties on the better price
+(-135 beats -155) and the sort broke them not at all. But two rankings of
+one slate disagreeing about which game is first made the badge look
+arbitrary.
+
+Ties at the top are **not rare and will not become rare**: the current CIR
+calibrator has a floor clamp at `0.2872` that 63 games sit on, so the
+strongest plays are the *most* likely to tie. Fixed by giving the
+probability sorts the same tie-break, rather than pinning the badged row -
+#1 now leads because it genuinely ranks first.
+
+### 2. What makes it #1 - said out loud
+
+A note under the board, rendered only when a badge is present:
+
+> **#1** The model's most confident bet tonight - the STRONG play furthest
+> from a coin flip. When two are equally confident, the one at the better
+> price wins. Its running record is the #1 pick card on the history page.
+
+It was only ever in the badge's hover tooltip: undiscoverable on desktop,
+non-existent on a phone.
+
+### 3. The pick column is white, in Inter
+
+Two new tokens, scoped to the PICK column only - everything else on the
+board stays phosphor mono, so the pick reads as the one thing on the row
+speaking plainly.
+
+- `--pick-ink: #FFFFFF` - **20.38:1** on `--card`, up from green's 14.93:1
+- `--font-ui: Inter` - proportional, drawn for UI text at small sizes;
+  tracking cut 0.10em -> 0.02em (wide tracking is a *monospace* mannerism
+  that buys nothing on a proportional face and costs real width on
+  "PENDING - LOCKS 7:40 PM ET")
+
+**Four side-as-hue violations found and fixed on the way**, all of them
+live, none reached by the 2026-07-29 pass that cleaned the pick pills:
+
+| element | was | why it mattered |
+|---|---|---|
+| `.oddsNrfi` / `.oddsYrfi` chip | `--primary` / `--destructive` on background, border, price **and** book label | the price of every YRFI bet - the only side this system bets - rendered in the **loss** colour on a game that had not started, and the red tint over a green page is what made this chip read orange |
+| `.oddsSideLabel` | green / red by side | the N/Y marker *is* the side; it did not also need to be the side's colour |
+| `.pickLabelLeanNrfi` / `Yrfi` | `--primary` / `--destructive` + glow | same defect on the tentative-lean tail of PENDING pills |
+| `.pickPillLocking .pickLabel` | `--foreground` | most specific rule on the label - it beat every other change and is why the two locking picks stayed green after the first pass |
+
+Audited rather than spot-fixed, per the palette memory's own standing rule
+(*"grep every call site, don't just fix the component you were looking
+at"*): a scripted sweep of every `color` / `background` / `border-color`
+declaration on a pick-column selector now reports **no money hue left in
+the pick column**. The only green remaining there is the `#1` badge, which
+keeps `--attn` deliberately as the row asking for attention.
+
+### Verified
+
+Production build. #1 badge on the first row. Pick labels, prices and stakes
+all `rgb(255,255,255)` in Inter. 375px and 1280px: **zero overflowing
+elements**, pill does not overflow with the wider proportional face.
+
+---
+
 ## [2026-07-30i] — "#1" badge on the board's top bet
 
 Operator: *"i would like to be able to tell which bet is the top bet."*

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { BoardResponse, BoardRow } from "@/lib/types";
 import { useSupabaseRealtime } from "@/lib/useSupabaseRealtime";
 import { todayEtIso } from "@/lib/date";
+import { impliedFromOdds } from "@/lib/top-pick-rank";
 import { ControlPanel, type Filters } from "./ControlPanel";
 import { OpsHealthCard } from "./OpsHealthCard";
 import { DemotionsBanner } from "./DemotionsBanner";
@@ -829,11 +830,54 @@ function filterAndSort(
     return true;
   });
 
+  /* THE PROBABILITY SORTS NEED THE SAME TIE-BREAK THE #1 BADGE USES.
+   *
+   * Operator, 2026-07-31: "visually, why is the #1 pick not at the top."
+   * Because these comparators were probability ONLY. On that night
+   * CWS@TB and KC@COL were EXACTLY tied at p_nrfi = 0.287200, so the
+   * comparator returned 0, the stable sort kept the incoming order, and
+   * KC@COL led the board while the #1 badge sat on CWS@TB.
+   *
+   * Neither was wrong on its own -- the badge breaks ties on the better
+   * price (-135 beats -155) and the sort broke them not at all. But two
+   * rankings of the same slate disagreeing about which game is first is
+   * exactly the class of contradiction this dashboard keeps being
+   * cleared of, and here it made the badge look arbitrary.
+   *
+   * Ties at the top are NOT rare and will not become rare: the current
+   * CIR calibrator has a floor clamp at 0.2872 that 63 games sit on, so
+   * the strongest plays are the MOST likely to tie. Fixing the tie-break
+   * rather than floating the badged row keeps the operator's chosen sort
+   * honest -- #1 leads because it genuinely ranks first, not because it
+   * was pinned there.
+   */
+  const oddsFor = (r: BoardRow): number | null => {
+    const d = details
+      ? (r.gamePk && details[r.gamePk])
+        || details[`${r.away}@${r.home}#${r.gameNumber || 1}`]
+        || details[`${r.away}@${r.home}`]
+      : undefined;
+    const raw = r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds;
+    const n = raw ? Number.parseFloat(String(raw)) : NaN;
+    return Number.isFinite(n) && n !== 0 ? n : null;
+  };
+  /** Better price first, then game name, so the order is fully
+   *  determined. Mirrors lib/top-pick-rank.compareForTopPick's tail. */
+  const breakTie = (a: BoardRow, b: BoardRow): number => {
+    const ao = oddsFor(a), bo = oddsFor(b);
+    const ai = ao == null ? 1 : impliedFromOdds(ao);
+    const bi = bo == null ? 1 : impliedFromOdds(bo);
+    if (Math.abs(ai - bi) > 1e-9) return ai - bi;
+    return `${a.away}@${a.home}`.localeCompare(`${b.away}@${b.home}`);
+  };
+
   const cmp = {
     "lambda-desc": (a: BoardRow, b: BoardRow) => b.lambda - a.lambda,
     "lambda-asc": (a: BoardRow, b: BoardRow) => a.lambda - b.lambda,
-    "nrfi-desc": (a: BoardRow, b: BoardRow) => b.nrfiPct - a.nrfiPct,
-    "yrfi-desc": (a: BoardRow, b: BoardRow) => b.yrfiPct - a.yrfiPct,
+    "nrfi-desc": (a: BoardRow, b: BoardRow) =>
+      (b.nrfiPct - a.nrfiPct) || breakTie(a, b),
+    "yrfi-desc": (a: BoardRow, b: BoardRow) =>
+      (b.yrfiPct - a.yrfiPct) || breakTie(a, b),
     "rank": (a: BoardRow, b: BoardRow) => a.rank - b.rank,
   }[f.sort];
   out = [...out].sort(cmp);
