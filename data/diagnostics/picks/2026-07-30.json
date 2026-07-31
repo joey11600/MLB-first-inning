@@ -1,7 +1,7 @@
 {
   "date": "2026-07-30",
   "model_version": "V2.2",
-  "fitted_at": "2026-07-31T00:05:30Z",
+  "fitted_at": "2026-07-31T00:36:07Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -570,7 +570,7 @@
       "game_pk": "823595",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.1717,
       "raw_p_run_b1": 0.252,
       "raw_p_nrfi": 0.6196,
@@ -1016,15 +1016,15 @@
     {
       "matchup": "SF@SD",
       "game_pk": "823271",
-      "pick_side": "PASS",
-      "pick_strength": "STARTER PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2383,
-      "raw_p_run_b1": 0.2892,
-      "raw_p_nrfi": 0.5414,
-      "calibrated_p_nrfi": 0.5245,
+      "raw_p_run_t1": 0.2561,
+      "raw_p_run_b1": 0.2492,
+      "raw_p_nrfi": 0.5585,
+      "calibrated_p_nrfi": 0.544,
       "calibrator_band": {
-        "band": "bin_7-8",
+        "band": "bin_8-9",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -1047,6 +1047,14 @@
           "outlier": false
         },
         {
+          "name": "era_gap_t1",
+          "value": 1.271,
+          "z": 1.498,
+          "weight": 0.0923,
+          "contribution": 0.1382,
+          "outlier": false
+        },
+        {
           "name": "home_fip",
           "value": 5.055,
           "z": 2.059,
@@ -1060,14 +1068,6 @@
           "z": -0.562,
           "weight": 0.0856,
           "contribution": -0.0481,
-          "outlier": false
-        },
-        {
-          "name": "home_p_last10_pitcher_nrfi",
-          "value": 0.6,
-          "z": -0.688,
-          "weight": 0.0661,
-          "contribution": -0.0455,
           "outlier": false
         }
       ],
@@ -1097,31 +1097,31 @@
           "outlier": false
         },
         {
-          "name": "away_p_last10_pitcher_nrfi",
-          "value": 0.5,
-          "z": -1.251,
-          "weight": -0.057,
-          "contribution": 0.0713,
+          "name": "era_gap_b1",
+          "value": -1.271,
+          "z": -1.498,
+          "weight": 0.058,
+          "contribution": -0.0869,
           "outlier": false
         },
         {
-          "name": "home_top3c_obp",
-          "value": 0.323,
-          "z": -0.598,
-          "weight": 0.1015,
-          "contribution": -0.0607,
+          "name": "away_whiff_pct_rank",
+          "value": 64.0,
+          "z": 0.602,
+          "weight": -0.1011,
+          "contribution": -0.0609,
           "outlier": false
         }
       ],
       "priors_vs_raw": {
         "home_xera_raw": 4.2,
         "home_xera_pooled": 4.2,
-        "away_xera_raw": 4.2,
-        "away_xera_pooled": null
+        "away_xera_raw": 3.719,
+        "away_xera_pooled": 3.719
       },
       "pitcher_q": {
         "home_pitcher_q": "live",
-        "away_pitcher_q": "avg"
+        "away_pitcher_q": "live"
       },
       "warnings": []
     }
