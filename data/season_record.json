@@ -1,10 +1,10 @@
 {
- "generatedUtc": "2026-07-30T06:07:54Z",
+ "generatedUtc": "2026-07-31T04:31:37Z",
  "headlineMethod": "the model that is live right now -- the shipped calibrator and the current gate -- replayed over every game of the season",
  "floorMethod": "no-hindsight check: at each date the calibrator is refit using only games played before that date",
  "caveat": "the shipped calibrator was fit on 2025+2026 data, so it has already seen these outcomes; the model weights are the fixed 2026-05-26 refit (trained through 2026-05-11), which makes bets on or before 2026-05-11 partially in-sample",
  "gates": {
-  "yrfi": 0.4,
+  "yrfi": 0.42,
   "nrfi": 0.6
  },
  "kellyFraction": 0.25,
@@ -14,74 +14,74 @@
   "label": "Projected profit",
   "priceFill": -125.0,
   "from": "2026-04-01",
-  "to": "2026-07-29",
-  "bets": 156,
-  "wins": 108,
-  "losses": 48,
-  "hitRate": 0.6923,
-  "breakEvenNeeded": 0.5677,
-  "edgePts": 12.46,
-  "flatProfit": 35.26,
-  "assumedBets": 48,
-  "selectedBets": 228,
-  "droppedZeroStake": 28,
-  "droppedFlatPnl": -0.01,
+  "to": "2026-07-30",
+  "bets": 184,
+  "wins": 123,
+  "losses": 61,
+  "hitRate": 0.6685,
+  "breakEvenNeeded": 0.5639,
+  "edgePts": 10.45,
+  "flatProfit": 35.23,
+  "assumedBets": 56,
+  "selectedBets": 276,
+  "droppedZeroStake": 47,
+  "droppedFlatPnl": -1.9,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 343.83,
-   "profit": 243.83,
-   "maxDrawdownPct": 7.08,
+   "finalBank": 345.07,
+   "profit": 245.07,
+   "maxDrawdownPct": 7.68,
    "kellyFraction": 0.25,
    "largestStake": 10.0,
-   "medianStake": 6.0
+   "medianStake": 5.0
   },
   "floor": {
-   "bets": 113,
-   "wins": 75,
-   "losses": 38,
-   "hitRate": 0.6637,
-   "breakEvenNeeded": 0.5737,
-   "edgePts": 9.0,
-   "flatProfit": 18.1,
-   "assumedBets": 22,
+   "bets": 155,
+   "wins": 98,
+   "losses": 57,
+   "hitRate": 0.6323,
+   "breakEvenNeeded": 0.5671,
+   "edgePts": 6.52,
+   "flatProfit": 18.07,
+   "assumedBets": 37,
    "sim": {
-    "finalBank": 255.7,
-    "profit": 155.7,
-    "maxDrawdownPct": 8.36,
+    "finalBank": 263.14,
+    "profit": 163.14,
+    "maxDrawdownPct": 9.38,
     "largestStake": 10.0
    }
   },
   "monthly": [
    {
     "month": "2026-04",
-    "bets": 50,
-    "wins": 38,
-    "losses": 12,
-    "flat": 18.28,
-    "assumedBets": 48
+    "bets": 57,
+    "wins": 40,
+    "losses": 17,
+    "flat": 14.88,
+    "assumedBets": 55
    },
    {
     "month": "2026-05",
-    "bets": 29,
-    "wins": 21,
-    "losses": 8,
-    "flat": 9.32,
-    "assumedBets": 0
+    "bets": 33,
+    "wins": 24,
+    "losses": 9,
+    "flat": 11.13,
+    "assumedBets": 1
    },
    {
     "month": "2026-06",
-    "bets": 44,
-    "wins": 29,
-    "losses": 15,
-    "flat": 6.9,
+    "bets": 52,
+    "wins": 34,
+    "losses": 18,
+    "flat": 8.26,
     "assumedBets": 0
    },
    {
     "month": "2026-07",
-    "bets": 33,
-    "wins": 20,
-    "losses": 13,
-    "flat": 0.76,
+    "bets": 42,
+    "wins": 25,
+    "losses": 17,
+    "flat": 0.96,
     "assumedBets": 0
    }
   ],
@@ -102,7 +102,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.487 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.487 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -119,7 +119,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -149,7 +149,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.496 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.496 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -231,7 +231,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.502 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.502 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -311,8 +311,8 @@
       "modelP": 0.4191,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -346,7 +346,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.487 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.487 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -407,7 +407,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.437 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.437 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -461,7 +461,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.510 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.510 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -576,7 +576,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -593,7 +593,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.514 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.514 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -610,7 +610,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -627,7 +627,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.486 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.486 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -712,7 +712,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.448 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.448 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -729,7 +729,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.481 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.481 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -875,7 +875,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -925,7 +925,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.548 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.548 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1007,7 +1007,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1044,7 +1044,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.471 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.471 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1081,7 +1081,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.429 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.429 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1098,7 +1098,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.495 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.495 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1163,21 +1163,24 @@
    },
    {
     "date": "2026-04-09",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": -1.0,
+    "simPnl": -1.0,
+    "simBankAfter": 130.2,
     "flagged": 1,
     "placed": 0,
-    "bet": 0,
+    "bet": 1,
     "games": [
      {
       "game": "CWS@KC",
       "side": "YRFI",
       "modelP": 0.418,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -125,
+       "win": false,
+       "pnl": -1.0,
+       "assumed": true
       },
       "ledger": {
        "strength": "STRONG",
@@ -1193,7 +1196,7 @@
     "date": "2026-04-10",
     "flatPnl": 0.8,
     "simPnl": 7.2,
-    "simBankAfter": 138.4,
+    "simBankAfter": 137.4,
     "flagged": 7,
     "placed": 0,
     "bet": 2,
@@ -1205,7 +1208,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1222,7 +1225,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.421 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.421 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1329,7 +1332,7 @@
     "date": "2026-04-11",
     "flatPnl": 1.6,
     "simPnl": 12.0,
-    "simBankAfter": 150.4,
+    "simBankAfter": 149.4,
     "flagged": 9,
     "placed": 0,
     "bet": 5,
@@ -1381,7 +1384,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.427 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.427 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1397,8 +1400,8 @@
       "modelP": 0.4185,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1415,7 +1418,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.513 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.513 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1432,7 +1435,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.465 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.465 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1506,21 +1509,24 @@
    },
    {
     "date": "2026-04-12",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": -0.2,
+    "simPnl": -0.4,
+    "simBankAfter": 149.0,
     "flagged": 8,
     "placed": 0,
-    "bet": 1,
+    "bet": 3,
     "games": [
      {
       "game": "BOS@STL",
       "side": "YRFI",
       "modelP": 0.4038,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.404 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": true,
+       "pnl": 1.6,
+       "assumed": true
       },
       "ledger": {
        "strength": "STRONG",
@@ -1537,7 +1543,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.490 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.490 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1554,7 +1560,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1571,7 +1577,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.456 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.456 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1586,9 +1592,12 @@
       "side": "YRFI",
       "modelP": 0.4163,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": false,
+       "pnl": -2.0,
+       "assumed": true
       },
       "ledger": {
        "strength": "STRONG",
@@ -1605,7 +1614,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.432 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.432 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1622,7 +1631,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.482 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.482 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1658,7 +1667,7 @@
     "date": "2026-04-13",
     "flatPnl": 2.4,
     "simPnl": 12.0,
-    "simBankAfter": 162.4,
+    "simBankAfter": 161.0,
     "flagged": 5,
     "placed": 0,
     "bet": 3,
@@ -1670,7 +1679,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.526 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.526 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1747,7 +1756,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.485 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.485 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1763,7 +1772,7 @@
     "date": "2026-04-14",
     "flatPnl": 1.6,
     "simPnl": 8.8,
-    "simBankAfter": 171.2,
+    "simBankAfter": 169.8,
     "flagged": 7,
     "placed": 0,
     "bet": 3,
@@ -1775,7 +1784,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.452 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.452 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1792,7 +1801,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1829,7 +1838,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.457 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.457 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1859,7 +1868,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.462 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.462 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1876,7 +1885,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.487 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.487 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -1912,7 +1921,7 @@
     "date": "2026-04-15",
     "flatPnl": 2.4,
     "simPnl": 12.0,
-    "simBankAfter": 183.2,
+    "simBankAfter": 181.8,
     "flagged": 5,
     "placed": 0,
     "bet": 4,
@@ -1977,7 +1986,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.467 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.467 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2030,7 +2039,7 @@
     "date": "2026-04-16",
     "flatPnl": -1.2,
     "simPnl": -9.6,
-    "simBankAfter": 173.6,
+    "simBankAfter": 172.2,
     "flagged": 6,
     "placed": 0,
     "bet": 4,
@@ -2055,7 +2064,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2112,7 +2121,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.498 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.498 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2175,7 +2184,7 @@
     "date": "2026-04-17",
     "flatPnl": 1.6,
     "simPnl": 12.0,
-    "simBankAfter": 185.6,
+    "simBankAfter": 184.2,
     "flagged": 7,
     "placed": 0,
     "bet": 2,
@@ -2207,7 +2216,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.435 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.435 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2224,7 +2233,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2278,7 +2287,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.498 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.498 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2311,7 +2320,7 @@
     "date": "2026-04-18",
     "flatPnl": 0.6,
     "simPnl": -2.4,
-    "simBankAfter": 183.2,
+    "simBankAfter": 181.8,
     "flagged": 11,
     "placed": 0,
     "bet": 3,
@@ -2343,7 +2352,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2400,7 +2409,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.475 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.475 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2434,7 +2443,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.447 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.447 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2516,12 +2525,12 @@
    },
    {
     "date": "2026-04-19",
-    "flatPnl": -0.2,
-    "simPnl": -4.2,
-    "simBankAfter": 179.0,
+    "flatPnl": -1.2,
+    "simPnl": -6.0,
+    "simBankAfter": 175.8,
     "flagged": 4,
     "placed": 0,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "LAD@COL",
@@ -2544,15 +2553,28 @@
       }
      },
      {
+      "game": "STL@HOU",
+      "side": "YRFI",
+      "modelP": 0.4181,
+      "record": {
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -125,
+       "win": false,
+       "pnl": -1.0,
+       "assumed": true
+      }
+     },
+     {
       "game": "CWS@OAK",
       "side": "YRFI",
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 6.0,
+       "stake": 5.0,
        "odds": -125,
        "win": true,
-       "pnl": 4.8,
+       "pnl": 4.0,
        "assumed": true
       }
      },
@@ -2563,7 +2585,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2580,7 +2602,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.491 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.491 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2597,7 +2619,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.453 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.453 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2611,12 +2633,12 @@
    },
    {
     "date": "2026-04-20",
-    "flatPnl": 0.8,
-    "simPnl": 7.2,
-    "simBankAfter": 186.2,
+    "flatPnl": -0.2,
+    "simPnl": 5.2,
+    "simBankAfter": 181.0,
     "flagged": 3,
     "placed": 0,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "LAD@COL",
@@ -2639,13 +2661,26 @@
       }
      },
      {
+      "game": "STL@MIA",
+      "side": "YRFI",
+      "modelP": 0.4171,
+      "record": {
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": false,
+       "pnl": -2.0,
+       "assumed": true
+      }
+     },
+     {
       "game": "HOU@CLE",
       "side": "YRFI",
       "modelP": 0.5141,
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.514 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.514 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2662,7 +2697,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.511 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.511 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2676,12 +2711,12 @@
    },
    {
     "date": "2026-04-21",
-    "flatPnl": 0.6,
-    "simPnl": 6.6,
-    "simBankAfter": 192.8,
+    "flatPnl": -0.4,
+    "simPnl": 4.8,
+    "simBankAfter": 185.8,
     "flagged": 9,
     "placed": 0,
-    "bet": 5,
+    "bet": 6,
     "games": [
      {
       "game": "NYY@BOS",
@@ -2710,7 +2745,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.513 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.513 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2745,9 +2780,12 @@
       "side": "YRFI",
       "modelP": 0.419,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -125,
+       "win": false,
+       "pnl": -1.0,
+       "assumed": true
       },
       "ledger": {
        "strength": "STRONG",
@@ -2763,10 +2801,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 9.0,
+       "stake": 8.0,
        "odds": -125,
        "win": true,
-       "pnl": 7.2,
+       "pnl": 6.4,
        "assumed": true
       },
       "ledger": {
@@ -2784,7 +2822,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2867,7 +2905,7 @@
     "date": "2026-04-22",
     "flatPnl": 1.6,
     "simPnl": 12.0,
-    "simBankAfter": 204.8,
+    "simBankAfter": 197.8,
     "flagged": 7,
     "placed": 0,
     "bet": 2,
@@ -2899,7 +2937,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.484 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.484 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2936,7 +2974,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.542 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.542 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2970,7 +3008,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.499 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.499 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -2986,8 +3024,8 @@
       "modelP": 0.4078,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.408 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3003,7 +3041,7 @@
     "date": "2026-04-23",
     "flatPnl": 1.6,
     "simPnl": 10.4,
-    "simBankAfter": 215.2,
+    "simBankAfter": 208.2,
     "flagged": 3,
     "placed": 0,
     "bet": 2,
@@ -3083,7 +3121,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.514 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.514 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3100,7 +3138,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.446 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.446 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3117,7 +3155,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.488 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.488 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3151,12 +3189,12 @@
    },
    {
     "date": "2026-04-25",
-    "flatPnl": -1.0,
-    "simPnl": -7.0,
-    "simBankAfter": 208.2,
+    "flatPnl": -0.2,
+    "simPnl": -5.4,
+    "simBankAfter": 202.8,
     "flagged": 5,
     "placed": 0,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "CHC@LAD",
@@ -3185,7 +3223,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.492 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.492 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3193,6 +3231,19 @@
        "unitsRisked": null,
        "odds": null,
        "pnl": 0.909
+      }
+     },
+     {
+      "game": "NYY@HOU",
+      "side": "YRFI",
+      "modelP": 0.4105,
+      "record": {
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": true,
+       "pnl": 1.6,
+       "assumed": true
       }
      },
      {
@@ -3255,7 +3306,7 @@
     "date": "2026-04-26",
     "flatPnl": -0.2,
     "simPnl": -3.8,
-    "simBankAfter": 204.4,
+    "simBankAfter": 199.0,
     "flagged": 6,
     "placed": 0,
     "bet": 3,
@@ -3287,7 +3338,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3304,7 +3355,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.497 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.497 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3377,7 +3428,7 @@
     "date": "2026-04-27",
     "flatPnl": 0.8,
     "simPnl": 7.2,
-    "simBankAfter": 211.6,
+    "simBankAfter": 206.2,
     "flagged": 4,
     "placed": 0,
     "bet": 1,
@@ -3483,7 +3534,7 @@
     "date": "2026-04-29",
     "flatPnl": 1.48,
     "simPnl": 6.66,
-    "simBankAfter": 218.27,
+    "simBankAfter": 212.87,
     "flagged": 8,
     "placed": 4,
     "bet": 2,
@@ -3515,7 +3566,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.509 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.509 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3552,7 +3603,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.484 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.484 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3648,7 +3699,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.496 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.496 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3764,7 +3815,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.489 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.489 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3814,7 +3865,7 @@
     "date": "2026-05-02",
     "flatPnl": 0,
     "simPnl": 0,
-    "simBankAfter": null,
+    "simBankAfter": 212.87,
     "flagged": 8,
     "placed": 8,
     "bet": 0,
@@ -3826,7 +3877,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.487 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.487 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3876,8 +3927,8 @@
       "modelP": 0.4157,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3894,7 +3945,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.502 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.502 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3973,7 +4024,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -3990,7 +4041,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.500 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.500 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4007,7 +4058,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.492 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.492 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4024,7 +4075,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.490 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.490 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4120,7 +4171,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.465 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.465 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4137,7 +4188,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.423 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.423 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4185,21 +4236,24 @@
    },
    {
     "date": "2026-05-05",
-    "flatPnl": 1.98,
-    "simPnl": 15.67,
-    "simBankAfter": 233.93,
+    "flatPnl": 2.78,
+    "simPnl": 15.6,
+    "simBankAfter": 228.47,
     "flagged": 7,
     "placed": 7,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "MIN@WSH",
       "side": "YRFI",
       "modelP": 0.4162,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": true,
+       "pnl": 1.6,
+       "assumed": true
       },
       "ledger": {
        "strength": "STRONG",
@@ -4235,10 +4289,10 @@
       "modelP": 0.2872,
       "record": {
        "action": "BET",
-       "stake": 5.0,
+       "stake": 3.0,
        "odds": -120,
        "win": true,
-       "pnl": 4.17,
+       "pnl": 2.5,
        "assumed": false
       },
       "ledger": {
@@ -4335,7 +4389,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.434 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.434 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4419,7 +4473,7 @@
     "date": "2026-05-07",
     "flatPnl": -1.0,
     "simPnl": -7.0,
-    "simBankAfter": 226.93,
+    "simBankAfter": 221.47,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -4451,7 +4505,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4600,7 +4654,7 @@
     "date": "2026-05-09",
     "flatPnl": 0.74,
     "simPnl": 5.93,
-    "simBankAfter": 232.86,
+    "simBankAfter": 227.39,
     "flagged": 5,
     "placed": 5,
     "bet": 1,
@@ -4632,7 +4686,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.504 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.504 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4711,7 +4765,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.467 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.467 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4835,7 +4889,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4868,7 +4922,7 @@
     "date": "2026-05-13",
     "flatPnl": 0.83,
     "simPnl": 5.0,
-    "simBankAfter": 237.86,
+    "simBankAfter": 232.39,
     "flagged": 5,
     "placed": 5,
     "bet": 3,
@@ -4880,7 +4934,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -4973,7 +5027,7 @@
     "date": "2026-05-14",
     "flatPnl": 0.69,
     "simPnl": 4.83,
-    "simBankAfter": 242.69,
+    "simBankAfter": 237.22,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -5058,7 +5112,7 @@
     "date": "2026-05-15",
     "flatPnl": -0.35,
     "simPnl": -3.48,
-    "simBankAfter": 239.2,
+    "simBankAfter": 233.74,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -5126,7 +5180,7 @@
     "date": "2026-05-16",
     "flatPnl": -0.33,
     "simPnl": 0.67,
-    "simBankAfter": 239.87,
+    "simBankAfter": 234.4,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -5195,7 +5249,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.444 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.444 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5211,7 +5265,7 @@
     "date": "2026-05-17",
     "flatPnl": 0.53,
     "simPnl": -4.39,
-    "simBankAfter": 235.47,
+    "simBankAfter": 230.01,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -5297,21 +5351,24 @@
    },
    {
     "date": "2026-05-18",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": -1.0,
+    "simPnl": -1.0,
+    "simBankAfter": 229.01,
     "flagged": 1,
     "placed": 1,
-    "bet": 0,
+    "bet": 1,
     "games": [
      {
       "game": "NYM@WSH",
       "side": "YRFI",
       "modelP": 0.4093,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.409 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -130,
+       "win": false,
+       "pnl": -1.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -5327,7 +5384,7 @@
     "date": "2026-05-19",
     "flatPnl": 0.77,
     "simPnl": 2.31,
-    "simBankAfter": 237.78,
+    "simBankAfter": 231.31,
     "flagged": 2,
     "placed": 2,
     "bet": 3,
@@ -5391,7 +5448,7 @@
     "date": "2026-05-20",
     "flatPnl": 1.64,
     "simPnl": 12.24,
-    "simBankAfter": 250.02,
+    "simBankAfter": 243.55,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -5459,7 +5516,7 @@
     "date": "2026-05-21",
     "flatPnl": 0.87,
     "simPnl": 6.09,
-    "simBankAfter": 256.11,
+    "simBankAfter": 249.64,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -5491,7 +5548,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5581,7 +5638,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.472 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.472 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5660,7 +5717,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.432 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.432 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5710,7 +5767,7 @@
     "date": "2026-05-25",
     "flatPnl": -0.13,
     "simPnl": 4.09,
-    "simBankAfter": 260.19,
+    "simBankAfter": 253.73,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -5795,7 +5852,7 @@
     "date": "2026-05-26",
     "flatPnl": -1.0,
     "simPnl": -4.0,
-    "simBankAfter": 256.19,
+    "simBankAfter": 249.73,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -5820,7 +5877,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5837,7 +5894,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.429 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.429 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5854,7 +5911,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.437 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.437 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5870,7 +5927,7 @@
     "date": "2026-05-27",
     "flatPnl": 0.95,
     "simPnl": 6.67,
-    "simBankAfter": 262.86,
+    "simBankAfter": 256.39,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -5882,7 +5939,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5899,7 +5956,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5916,7 +5973,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5946,7 +6003,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -5960,21 +6017,24 @@
    },
    {
     "date": "2026-05-28",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": 1.05,
+    "simPnl": 5.25,
+    "simBankAfter": 261.64,
     "flagged": 2,
     "placed": 2,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "MIN@CWS",
       "side": "YRFI",
       "modelP": 0.41,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.410 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 5.0,
+       "odds": 105,
+       "win": true,
+       "pnl": 5.25,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -6008,12 +6068,12 @@
    },
    {
     "date": "2026-05-29",
-    "flatPnl": 0.74,
-    "simPnl": 2.22,
-    "simBankAfter": 265.08,
+    "flatPnl": 1.69,
+    "simPnl": 6.03,
+    "simBankAfter": 267.68,
     "flagged": 7,
     "placed": 7,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "SF@COL",
@@ -6022,7 +6082,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6039,7 +6099,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6054,9 +6114,12 @@
       "side": "YRFI",
       "modelP": 0.4163,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": true,
+       "pnl": 3.81,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -6073,7 +6136,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.437 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.437 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6110,7 +6173,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.446 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.446 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6143,7 +6206,7 @@
     "date": "2026-05-30",
     "flatPnl": 1.79,
     "simPnl": 13.28,
-    "simBankAfter": 278.36,
+    "simBankAfter": 280.95,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -6195,7 +6258,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.456 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.456 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6211,8 +6274,8 @@
       "modelP": 0.4033,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.403 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6245,8 +6308,8 @@
       "modelP": 0.408,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.408 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6262,7 +6325,7 @@
     "date": "2026-05-31",
     "flatPnl": 0.6,
     "simPnl": 5.34,
-    "simBankAfter": 283.7,
+    "simBankAfter": 286.29,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -6331,7 +6394,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.446 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.446 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6348,7 +6411,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.457 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.457 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6382,21 +6445,24 @@
    },
    {
     "date": "2026-06-01",
-    "flatPnl": 0.95,
-    "simPnl": 5.71,
-    "simBankAfter": 289.42,
+    "flatPnl": 1.86,
+    "simPnl": 8.44,
+    "simBankAfter": 294.74,
     "flagged": 4,
     "placed": 4,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "DET@TB",
       "side": "YRFI",
       "modelP": 0.418,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -110,
+       "win": true,
+       "pnl": 2.73,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -6433,7 +6499,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.451 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.451 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6466,7 +6532,7 @@
     "date": "2026-06-02",
     "flatPnl": -0.26,
     "simPnl": -7.04,
-    "simBankAfter": 282.38,
+    "simBankAfter": 287.7,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -6498,7 +6564,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6515,7 +6581,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6552,7 +6618,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6586,12 +6652,12 @@
    },
    {
     "date": "2026-06-03",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": -1.0,
+    "simPnl": -4.0,
+    "simBankAfter": 283.7,
     "flagged": 5,
     "placed": 5,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "DET@TB",
@@ -6600,7 +6666,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.430 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.430 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6615,9 +6681,12 @@
       "side": "YRFI",
       "modelP": 0.4018,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.402 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": false,
+       "pnl": -4.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -6634,7 +6703,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.447 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.447 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6651,7 +6720,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.453 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.453 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6687,7 +6756,7 @@
     "date": "2026-06-04",
     "flatPnl": -2.0,
     "simPnl": -9.0,
-    "simBankAfter": 273.38,
+    "simBankAfter": 274.7,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -6739,7 +6808,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.457 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.457 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6755,7 +6824,7 @@
     "date": "2026-06-05",
     "flatPnl": 1.19,
     "simPnl": 7.14,
-    "simBankAfter": 280.52,
+    "simBankAfter": 281.84,
     "flagged": 6,
     "placed": 6,
     "bet": 5,
@@ -6807,7 +6876,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.435 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.435 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6881,12 +6950,12 @@
    },
    {
     "date": "2026-06-06",
-    "flatPnl": 1.39,
-    "simPnl": 7.57,
-    "simBankAfter": 288.09,
+    "flatPnl": 2.26,
+    "simPnl": 10.18,
+    "simBankAfter": 292.02,
     "flagged": 4,
     "placed": 4,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "CWS@PHI",
@@ -6915,7 +6984,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.423 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.423 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -6930,9 +6999,12 @@
       "side": "YRFI",
       "modelP": 0.4162,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -115,
+       "win": true,
+       "pnl": 2.61,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -6966,12 +7038,12 @@
    },
    {
     "date": "2026-06-07",
-    "flatPnl": 0.71,
-    "simPnl": 5.71,
-    "simBankAfter": 293.81,
+    "flatPnl": -0.29,
+    "simPnl": 1.71,
+    "simBankAfter": 293.73,
     "flagged": 6,
     "placed": 6,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "MIL@COL",
@@ -7000,7 +7072,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7015,9 +7087,12 @@
       "side": "YRFI",
       "modelP": 0.4069,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.407 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": false,
+       "pnl": -4.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -7034,7 +7109,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.434 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.434 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7051,7 +7126,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7087,7 +7162,7 @@
     "date": "2026-06-08",
     "flatPnl": -1.0,
     "simPnl": -9.0,
-    "simBankAfter": 284.81,
+    "simBankAfter": 284.73,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -7119,7 +7194,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.455 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.455 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7136,7 +7211,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.448 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.448 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7152,7 +7227,7 @@
     "date": "2026-06-09",
     "flatPnl": 1.31,
     "simPnl": 5.78,
-    "simBankAfter": 290.59,
+    "simBankAfter": 290.51,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -7201,7 +7276,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7218,7 +7293,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7254,7 +7329,7 @@
     "date": "2026-06-10",
     "flatPnl": -0.17,
     "simPnl": -3.67,
-    "simBankAfter": 286.92,
+    "simBankAfter": 286.85,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -7303,7 +7378,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.457 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.457 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7340,7 +7415,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7357,7 +7432,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7373,7 +7448,7 @@
     "date": "2026-06-11",
     "flatPnl": -1.0,
     "simPnl": -3.0,
-    "simBankAfter": 283.92,
+    "simBankAfter": 283.85,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -7405,7 +7480,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.441 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.441 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7422,7 +7497,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7439,7 +7514,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.444 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.444 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7455,7 +7530,7 @@
     "date": "2026-06-12",
     "flatPnl": 0.87,
     "simPnl": 6.09,
-    "simBankAfter": 290.01,
+    "simBankAfter": 289.93,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -7467,7 +7542,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7484,7 +7559,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.421 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.421 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7521,7 +7596,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7557,7 +7632,7 @@
     "date": "2026-06-13",
     "flatPnl": 0,
     "simPnl": 0,
-    "simBankAfter": 290.01,
+    "simBankAfter": 289.93,
     "flagged": 3,
     "placed": 3,
     "bet": 0,
@@ -7569,7 +7644,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.445 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.445 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7586,7 +7661,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7603,7 +7678,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7619,7 +7694,7 @@
     "date": "2026-06-14",
     "flatPnl": -0.26,
     "simPnl": -2.56,
-    "simBankAfter": 287.45,
+    "simBankAfter": 287.38,
     "flagged": 7,
     "placed": 7,
     "bet": 3,
@@ -7687,8 +7762,8 @@
       "modelP": 0.4191,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7705,7 +7780,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7722,7 +7797,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.434 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.434 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7756,12 +7831,12 @@
    },
    {
     "date": "2026-06-15",
-    "flatPnl": -0.17,
-    "simPnl": 2.0,
-    "simBankAfter": 289.45,
+    "flatPnl": 0.63,
+    "simPnl": 3.6,
+    "simBankAfter": 290.98,
     "flagged": 4,
     "placed": 4,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "LAA@ARI",
@@ -7808,9 +7883,12 @@
       "side": "YRFI",
       "modelP": 0.4177,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": true,
+       "pnl": 1.6,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -7827,7 +7905,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.429 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.429 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7841,21 +7919,24 @@
    },
    {
     "date": "2026-06-16",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": 0.95,
+    "simPnl": 3.81,
+    "simBankAfter": 294.79,
     "flagged": 3,
     "placed": 3,
-    "bet": 0,
+    "bet": 1,
     "games": [
      {
       "game": "CWS@NYY",
       "side": "YRFI",
       "modelP": 0.4159,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": true,
+       "pnl": 3.81,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -7872,7 +7953,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.432 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.432 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7888,8 +7969,8 @@
       "modelP": 0.4157,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7905,7 +7986,7 @@
     "date": "2026-06-17",
     "flatPnl": 0.41,
     "simPnl": -0.88,
-    "simBankAfter": 288.57,
+    "simBankAfter": 293.91,
     "flagged": 6,
     "placed": 5,
     "bet": 3,
@@ -7977,7 +8058,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -7994,7 +8075,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.437 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.437 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8011,7 +8092,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8027,7 +8108,7 @@
     "date": "2026-06-18",
     "flatPnl": -0.35,
     "simPnl": -1.48,
-    "simBankAfter": 287.08,
+    "simBankAfter": 292.42,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -8038,8 +8119,8 @@
       "modelP": 0.4185,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8108,7 +8189,7 @@
     "date": "2026-06-19",
     "flatPnl": -0.2,
     "simPnl": 1.6,
-    "simBankAfter": 288.68,
+    "simBankAfter": 294.02,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -8119,8 +8200,8 @@
       "modelP": 0.4118,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.412 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8156,8 +8237,8 @@
       "modelP": 0.4182,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8194,7 +8275,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8211,7 +8292,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8227,7 +8308,7 @@
     "date": "2026-06-20",
     "flatPnl": 1.48,
     "simPnl": 11.12,
-    "simBankAfter": 299.8,
+    "simBankAfter": 305.13,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -8278,8 +8359,8 @@
       "modelP": 0.4115,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.412 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8296,7 +8377,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.427 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.427 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8329,7 +8410,7 @@
     "date": "2026-06-21",
     "flatPnl": -1.0,
     "simPnl": -6.0,
-    "simBankAfter": 293.8,
+    "simBankAfter": 299.13,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -8361,7 +8442,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.423 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.423 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8378,7 +8459,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8406,7 +8487,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8423,7 +8504,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.436 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.436 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8440,7 +8521,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.456 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.456 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8457,7 +8538,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.427 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.427 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8473,7 +8554,7 @@
     "date": "2026-06-23",
     "flatPnl": 1.62,
     "simPnl": 8.31,
-    "simBankAfter": 302.11,
+    "simBankAfter": 307.45,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -8525,7 +8606,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8542,7 +8623,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8559,7 +8640,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.430 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.430 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8576,7 +8657,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.456 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.456 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8590,21 +8671,24 @@
    },
    {
     "date": "2026-06-24",
-    "flatPnl": 0.8,
-    "simPnl": 4.8,
-    "simBankAfter": 306.91,
+    "flatPnl": -0.2,
+    "simPnl": 0.8,
+    "simBankAfter": 308.25,
     "flagged": 3,
     "placed": 3,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "CLE@CWS",
       "side": "YRFI",
       "modelP": 0.4193,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": false,
+       "pnl": -4.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -8641,7 +8725,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8657,7 +8741,7 @@
     "date": "2026-06-25",
     "flatPnl": 0.83,
     "simPnl": 7.5,
-    "simBankAfter": 314.41,
+    "simBankAfter": 315.75,
     "flagged": 1,
     "placed": 1,
     "bet": 1,
@@ -8688,7 +8772,7 @@
     "date": "2026-06-26",
     "flatPnl": 0.87,
     "simPnl": 7.83,
-    "simBankAfter": 322.23,
+    "simBankAfter": 323.57,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -8720,7 +8804,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.454 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.454 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8736,7 +8820,7 @@
     "date": "2026-06-27",
     "flatPnl": 0.83,
     "simPnl": 3.33,
-    "simBankAfter": 325.57,
+    "simBankAfter": 326.91,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -8768,7 +8852,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.445 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.445 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8785,7 +8869,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8812,12 +8896,12 @@
    },
    {
     "date": "2026-06-28",
-    "flatPnl": 0.87,
-    "simPnl": 7.83,
-    "simBankAfter": 333.39,
+    "flatPnl": 1.7,
+    "simPnl": 9.5,
+    "simBankAfter": 336.4,
     "flagged": 6,
     "placed": 6,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "OAK@LAA",
@@ -8825,8 +8909,8 @@
       "modelP": 0.4183,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8861,9 +8945,12 @@
       "side": "YRFI",
       "modelP": 0.4185,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -120,
+       "win": true,
+       "pnl": 1.67,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -8880,7 +8967,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.430 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.430 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8897,7 +8984,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8914,7 +9001,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8943,7 +9030,7 @@
     "date": "2026-06-29",
     "flatPnl": -2.0,
     "simPnl": -9.0,
-    "simBankAfter": 324.39,
+    "simBankAfter": 327.4,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -8975,7 +9062,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.454 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.454 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -8992,7 +9079,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9029,7 +9116,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9045,7 +9132,7 @@
     "date": "2026-06-30",
     "flatPnl": 1.16,
     "simPnl": 4.6,
-    "simBankAfter": 328.99,
+    "simBankAfter": 331.99,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -9097,7 +9184,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.421 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.421 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9114,7 +9201,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9131,7 +9218,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9147,7 +9234,7 @@
     "date": "2026-07-01",
     "flatPnl": -0.29,
     "simPnl": 0.57,
-    "simBankAfter": 329.56,
+    "simBankAfter": 332.57,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -9199,7 +9286,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9215,7 +9302,7 @@
     "date": "2026-07-02",
     "flatPnl": 1.15,
     "simPnl": 4.72,
-    "simBankAfter": 334.28,
+    "simBankAfter": 337.28,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -9267,7 +9354,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.421 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.421 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9296,7 +9383,7 @@
     "date": "2026-07-03",
     "flatPnl": 0.71,
     "simPnl": 5.0,
-    "simBankAfter": 339.28,
+    "simBankAfter": 342.28,
     "flagged": 6,
     "placed": 6,
     "bet": 1,
@@ -9328,7 +9415,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9345,7 +9432,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.445 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.445 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9362,7 +9449,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9379,7 +9466,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.434 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.434 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9395,8 +9482,8 @@
       "modelP": 0.4161,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9412,7 +9499,7 @@
     "date": "2026-07-04",
     "flatPnl": -0.39,
     "simPnl": 2.64,
-    "simBankAfter": 341.91,
+    "simBankAfter": 344.92,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -9461,7 +9548,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9478,7 +9565,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.451 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.451 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9515,7 +9602,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9529,12 +9616,12 @@
    },
    {
     "date": "2026-07-05",
-    "flatPnl": 0.54,
-    "simPnl": 0.54,
-    "simBankAfter": 342.46,
+    "flatPnl": 1.34,
+    "simPnl": 2.14,
+    "simBankAfter": 347.06,
     "flagged": 6,
     "placed": 6,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "SF@COL",
@@ -9561,9 +9648,12 @@
       "side": "YRFI",
       "modelP": 0.4027,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.403 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": true,
+       "pnl": 1.6,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -9580,7 +9670,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9597,7 +9687,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9614,7 +9704,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.432 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.432 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9631,7 +9721,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9647,7 +9737,7 @@
     "date": "2026-07-06",
     "flatPnl": -0.38,
     "simPnl": 2.62,
-    "simBankAfter": 345.08,
+    "simBankAfter": 349.69,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -9699,7 +9789,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9715,7 +9805,7 @@
     "date": "2026-07-07",
     "flatPnl": 0.58,
     "simPnl": 3.23,
-    "simBankAfter": 348.31,
+    "simBankAfter": 352.91,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -9767,7 +9857,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.441 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.441 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9803,7 +9893,7 @@
     "date": "2026-07-08",
     "flatPnl": -0.26,
     "simPnl": -1.07,
-    "simBankAfter": 347.24,
+    "simBankAfter": 351.84,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -9855,7 +9945,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9872,7 +9962,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9901,7 +9991,7 @@
     "date": "2026-07-09",
     "flatPnl": 0.0,
     "simPnl": -1.0,
-    "simBankAfter": 346.24,
+    "simBankAfter": 350.84,
     "flagged": 1,
     "placed": 1,
     "bet": 2,
@@ -9957,7 +10047,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9974,7 +10064,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -9991,7 +10081,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.441 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.441 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10008,7 +10098,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10024,7 +10114,7 @@
     "date": "2026-07-11",
     "flatPnl": 0.8,
     "simPnl": 2.4,
-    "simBankAfter": 348.64,
+    "simBankAfter": 353.24,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -10036,7 +10126,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10073,7 +10163,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.454 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.454 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10090,7 +10180,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.451 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.451 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10118,7 +10208,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10135,7 +10225,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.449 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.449 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10152,7 +10242,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.445 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.445 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10169,7 +10259,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10186,7 +10276,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.449 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.449 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10227,7 +10317,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.442 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.442 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10241,12 +10331,12 @@
    },
    {
     "date": "2026-07-17",
-    "flatPnl": 0.57,
-    "simPnl": 2.86,
-    "simBankAfter": 351.49,
+    "flatPnl": 1.31,
+    "simPnl": 3.6,
+    "simBankAfter": 356.84,
     "flagged": 5,
     "placed": 5,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "CIN@COL",
@@ -10275,7 +10365,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10292,7 +10382,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10309,7 +10399,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.429 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.429 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10324,9 +10414,12 @@
       "side": "YRFI",
       "modelP": 0.4018,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.402 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -135,
+       "win": true,
+       "pnl": 0.74,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -10353,12 +10446,12 @@
    },
    {
     "date": "2026-07-18",
-    "flatPnl": 0.07,
-    "simPnl": -0.19,
-    "simBankAfter": 351.3,
+    "flatPnl": 1.12,
+    "simPnl": 0.86,
+    "simBankAfter": 357.7,
     "flagged": 4,
     "placed": 4,
-    "bet": 4,
+    "bet": 5,
     "games": [
      {
       "game": "CIN@COL",
@@ -10425,9 +10518,12 @@
       "side": "YRFI",
       "modelP": 0.418,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": 105,
+       "win": true,
+       "pnl": 1.05,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -10456,7 +10552,7 @@
     "date": "2026-07-19",
     "flatPnl": 1.48,
     "simPnl": 7.02,
-    "simBankAfter": 358.32,
+    "simBankAfter": 364.71,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -10488,7 +10584,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10505,7 +10601,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.420 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.420 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10522,7 +10618,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.447 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.447 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10539,7 +10635,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10586,12 +10682,12 @@
    },
    {
     "date": "2026-07-20",
-    "flatPnl": 0.65,
-    "simPnl": 4.52,
-    "simBankAfter": 362.83,
+    "flatPnl": -0.35,
+    "simPnl": 4.02,
+    "simBankAfter": 368.73,
     "flagged": 3,
     "placed": 3,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "WSH@COL",
@@ -10620,7 +10716,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10635,9 +10731,12 @@
       "side": "YRFI",
       "modelP": 0.4185,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 0.5,
+       "odds": -135,
+       "win": false,
+       "pnl": -0.5,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -10666,7 +10765,7 @@
     "date": "2026-07-21",
     "flatPnl": 0.83,
     "simPnl": 4.17,
-    "simBankAfter": 367.0,
+    "simBankAfter": 372.9,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -10712,12 +10811,12 @@
    },
    {
     "date": "2026-07-22",
-    "flatPnl": -2.0,
-    "simPnl": -10.0,
-    "simBankAfter": 357.0,
+    "flatPnl": -3.0,
+    "simPnl": -12.0,
+    "simBankAfter": 360.9,
     "flagged": 5,
     "placed": 5,
-    "bet": 3,
+    "bet": 4,
     "games": [
      {
       "game": "STL@LAA",
@@ -10764,9 +10863,12 @@
       "side": "YRFI",
       "modelP": 0.4176,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": false,
+       "pnl": -2.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -10782,8 +10884,8 @@
       "modelP": 0.4179,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10800,7 +10902,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10827,12 +10929,12 @@
    },
    {
     "date": "2026-07-24",
-    "flatPnl": -1.0,
-    "simPnl": -2.0,
-    "simBankAfter": 355.0,
+    "flatPnl": -0.26,
+    "simPnl": -1.26,
+    "simBankAfter": 359.64,
     "flagged": 4,
     "placed": 4,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "ARI@WSH",
@@ -10861,7 +10963,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10876,9 +10978,12 @@
       "side": "YRFI",
       "modelP": 0.4167,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.417 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -135,
+       "win": true,
+       "pnl": 0.74,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -10895,7 +11000,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10909,21 +11014,24 @@
    },
    {
     "date": "2026-07-25",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": -1.0,
+    "simPnl": -4.0,
+    "simBankAfter": 355.64,
     "flagged": 4,
     "placed": 4,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "CLE@TB",
       "side": "YRFI",
       "modelP": 0.4037,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.404 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -110,
+       "win": false,
+       "pnl": -4.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -10940,7 +11048,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10957,7 +11065,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.451 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.451 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -10974,7 +11082,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11003,7 +11111,7 @@
     "date": "2026-07-26",
     "flatPnl": 0,
     "simPnl": 0,
-    "simBankAfter": 355.0,
+    "simBankAfter": 355.64,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -11032,7 +11140,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.423 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.423 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11059,12 +11167,12 @@
    },
    {
     "date": "2026-07-27",
-    "flatPnl": -1.0,
-    "simPnl": -4.0,
-    "simBankAfter": 351.0,
+    "flatPnl": -0.13,
+    "simPnl": -1.39,
+    "simBankAfter": 354.24,
     "flagged": 6,
     "placed": 4,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "TOR@WSH",
@@ -11091,9 +11199,12 @@
       "side": "YRFI",
       "modelP": 0.4177,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -115,
+       "win": true,
+       "pnl": 2.61,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -11110,7 +11221,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11127,7 +11238,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.442 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.442 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11144,7 +11255,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11161,7 +11272,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.441 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.441 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11177,7 +11288,7 @@
     "date": "2026-07-28",
     "flatPnl": -1.0,
     "simPnl": -10.0,
-    "simBankAfter": 341.0,
+    "simBankAfter": 344.24,
     "flagged": 1,
     "placed": 1,
     "bet": 1,
@@ -11208,7 +11319,7 @@
     "date": "2026-07-29",
     "flatPnl": -0.31,
     "simPnl": 2.83,
-    "simBankAfter": 343.83,
+    "simBankAfter": 347.07,
     "flagged": 2,
     "placed": 2,
     "bet": 2,
@@ -11254,6 +11365,50 @@
       }
      }
     ]
+   },
+   {
+    "date": "2026-07-30",
+    "flatPnl": -1.0,
+    "simPnl": -2.0,
+    "simBankAfter": 345.07,
+    "flagged": 1,
+    "placed": 1,
+    "bet": 2,
+    "games": [
+     {
+      "game": "WSH@ATL",
+      "side": "YRFI",
+      "modelP": 0.3623,
+      "record": {
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -155,
+       "win": false,
+       "pnl": -2.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 2.0,
+       "odds": -155,
+       "pnl": -2.0
+      }
+     },
+     {
+      "game": "MIA@NYM",
+      "side": "NRFI",
+      "modelP": 0.6171,
+      "record": {
+       "action": "BET",
+       "stake": 0.5,
+       "odds": -160,
+       "win": true,
+       "pnl": 0.31,
+       "assumed": false
+      }
+     }
+    ]
    }
   ]
  },
@@ -11261,66 +11416,66 @@
   "label": "Real profit",
   "priceFill": null,
   "from": "2026-05-07",
-  "to": "2026-07-29",
-  "bets": 104,
-  "wins": 68,
-  "losses": 36,
-  "hitRate": 0.6538,
-  "breakEvenNeeded": 0.5744,
-  "edgePts": 7.95,
-  "flatProfit": 14.99,
+  "to": "2026-07-30",
+  "bets": 124,
+  "wins": 80,
+  "losses": 44,
+  "hitRate": 0.6452,
+  "breakEvenNeeded": 0.5685,
+  "edgePts": 7.67,
+  "flatProfit": 17.56,
   "assumedBets": 0,
-  "selectedBets": 142,
-  "droppedZeroStake": 14,
-  "droppedFlatPnl": 1.39,
+  "selectedBets": 174,
+  "droppedZeroStake": 25,
+  "droppedFlatPnl": 0.46,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 209.89,
-   "profit": 109.89,
-   "maxDrawdownPct": 11.16,
+   "finalBank": 216.61,
+   "profit": 116.61,
+   "maxDrawdownPct": 12.05,
    "kellyFraction": 0.25,
    "largestStake": 10.0,
-   "medianStake": 6.0
+   "medianStake": 5.0
   },
   "floor": {
-   "bets": 87,
-   "wins": 56,
-   "losses": 31,
-   "hitRate": 0.6437,
-   "breakEvenNeeded": 0.5799,
-   "edgePts": 6.38,
-   "flatProfit": 9.63,
+   "bets": 113,
+   "wins": 71,
+   "losses": 42,
+   "hitRate": 0.6283,
+   "breakEvenNeeded": 0.572,
+   "edgePts": 5.63,
+   "flatProfit": 11.2,
    "assumedBets": 0,
    "sim": {
-    "finalBank": 187.64,
-    "profit": 87.64,
-    "maxDrawdownPct": 11.17,
+    "finalBank": 195.89,
+    "profit": 95.89,
+    "maxDrawdownPct": 12.25,
     "largestStake": 10.0
    }
   },
   "monthly": [
    {
     "month": "2026-05",
-    "bets": 27,
-    "wins": 19,
-    "losses": 8,
-    "flat": 7.34,
+    "bets": 30,
+    "wins": 21,
+    "losses": 9,
+    "flat": 8.34,
     "assumedBets": 0
    },
    {
     "month": "2026-06",
-    "bets": 44,
-    "wins": 29,
-    "losses": 15,
-    "flat": 6.9,
+    "bets": 52,
+    "wins": 34,
+    "losses": 18,
+    "flat": 8.26,
     "assumedBets": 0
    },
    {
     "month": "2026-07",
-    "bets": 33,
-    "wins": 20,
-    "losses": 13,
-    "flat": 0.76,
+    "bets": 42,
+    "wins": 25,
+    "losses": 17,
+    "flat": 0.96,
     "assumedBets": 0
    }
   ],
@@ -11361,7 +11516,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11542,7 +11697,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.504 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.504 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11621,7 +11776,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.467 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.467 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11745,7 +11900,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -11790,7 +11945,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12105,7 +12260,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.444 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.444 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12207,21 +12362,24 @@
    },
    {
     "date": "2026-05-18",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": -1.0,
+    "simPnl": -1.0,
+    "simBankAfter": 100.54,
     "flagged": 1,
     "placed": 1,
-    "bet": 0,
+    "bet": 1,
     "games": [
      {
       "game": "NYM@WSH",
       "side": "YRFI",
       "modelP": 0.4093,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.409 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -130,
+       "win": false,
+       "pnl": -1.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -12237,7 +12395,7 @@
     "date": "2026-05-19",
     "flatPnl": 0.77,
     "simPnl": 2.31,
-    "simBankAfter": 103.85,
+    "simBankAfter": 102.85,
     "flagged": 2,
     "placed": 2,
     "bet": 3,
@@ -12301,7 +12459,7 @@
     "date": "2026-05-20",
     "flatPnl": 1.64,
     "simPnl": 12.24,
-    "simBankAfter": 116.09,
+    "simBankAfter": 115.09,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -12369,7 +12527,7 @@
     "date": "2026-05-21",
     "flatPnl": 0.87,
     "simPnl": 6.09,
-    "simBankAfter": 122.17,
+    "simBankAfter": 121.17,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -12401,7 +12559,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12491,7 +12649,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.472 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.472 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12570,7 +12728,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.432 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.432 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12620,7 +12778,7 @@
     "date": "2026-05-25",
     "flatPnl": -0.13,
     "simPnl": 4.09,
-    "simBankAfter": 126.26,
+    "simBankAfter": 125.26,
     "flagged": 4,
     "placed": 4,
     "bet": 2,
@@ -12705,7 +12863,7 @@
     "date": "2026-05-26",
     "flatPnl": -1.0,
     "simPnl": -4.0,
-    "simBankAfter": 122.26,
+    "simBankAfter": 121.26,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -12730,7 +12888,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12747,7 +12905,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.429 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.429 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12764,7 +12922,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.437 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.437 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12780,7 +12938,7 @@
     "date": "2026-05-27",
     "flatPnl": 0.95,
     "simPnl": 6.67,
-    "simBankAfter": 128.93,
+    "simBankAfter": 127.93,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -12792,7 +12950,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12809,7 +12967,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12826,7 +12984,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12856,7 +13014,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12870,21 +13028,24 @@
    },
    {
     "date": "2026-05-28",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": 1.05,
+    "simPnl": 5.25,
+    "simBankAfter": 133.18,
     "flagged": 2,
     "placed": 2,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "MIN@CWS",
       "side": "YRFI",
       "modelP": 0.41,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.410 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 5.0,
+       "odds": 105,
+       "win": true,
+       "pnl": 5.25,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -12918,12 +13079,12 @@
    },
    {
     "date": "2026-05-29",
-    "flatPnl": 0.74,
-    "simPnl": 2.22,
-    "simBankAfter": 131.15,
+    "flatPnl": 1.69,
+    "simPnl": 6.03,
+    "simBankAfter": 139.21,
     "flagged": 7,
     "placed": 7,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "SF@COL",
@@ -12932,7 +13093,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12949,7 +13110,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -12964,9 +13125,12 @@
       "side": "YRFI",
       "modelP": 0.4163,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": true,
+       "pnl": 3.81,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -12983,7 +13147,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.437 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.437 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13020,7 +13184,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.446 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.446 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13053,7 +13217,7 @@
     "date": "2026-05-30",
     "flatPnl": 1.79,
     "simPnl": 13.28,
-    "simBankAfter": 144.43,
+    "simBankAfter": 152.49,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -13105,7 +13269,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.456 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.456 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13121,8 +13285,8 @@
       "modelP": 0.4033,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.403 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13155,8 +13319,8 @@
       "modelP": 0.408,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.408 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13172,7 +13336,7 @@
     "date": "2026-05-31",
     "flatPnl": 0.6,
     "simPnl": 5.34,
-    "simBankAfter": 149.77,
+    "simBankAfter": 157.83,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -13241,7 +13405,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.446 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.446 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13258,7 +13422,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.457 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.457 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13292,21 +13456,24 @@
    },
    {
     "date": "2026-06-01",
-    "flatPnl": 0.95,
-    "simPnl": 5.71,
-    "simBankAfter": 155.48,
+    "flatPnl": 1.86,
+    "simPnl": 8.44,
+    "simBankAfter": 166.27,
     "flagged": 4,
     "placed": 4,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "DET@TB",
       "side": "YRFI",
       "modelP": 0.418,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -110,
+       "win": true,
+       "pnl": 2.73,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -13343,7 +13510,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.451 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.451 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13376,7 +13543,7 @@
     "date": "2026-06-02",
     "flatPnl": -0.26,
     "simPnl": -7.04,
-    "simBankAfter": 148.44,
+    "simBankAfter": 159.23,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -13408,7 +13575,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13425,7 +13592,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13462,7 +13629,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13496,12 +13663,12 @@
    },
    {
     "date": "2026-06-03",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": -1.0,
+    "simPnl": -4.0,
+    "simBankAfter": 155.23,
     "flagged": 5,
     "placed": 5,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "DET@TB",
@@ -13510,7 +13677,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.430 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.430 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13525,9 +13692,12 @@
       "side": "YRFI",
       "modelP": 0.4018,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.402 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": false,
+       "pnl": -4.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -13544,7 +13714,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.447 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.447 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13561,7 +13731,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.453 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.453 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13597,7 +13767,7 @@
     "date": "2026-06-04",
     "flatPnl": -2.0,
     "simPnl": -9.0,
-    "simBankAfter": 139.44,
+    "simBankAfter": 146.23,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -13649,7 +13819,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.457 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.457 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13665,7 +13835,7 @@
     "date": "2026-06-05",
     "flatPnl": 1.19,
     "simPnl": 7.14,
-    "simBankAfter": 146.58,
+    "simBankAfter": 153.37,
     "flagged": 6,
     "placed": 6,
     "bet": 5,
@@ -13717,7 +13887,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.435 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.435 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13791,12 +13961,12 @@
    },
    {
     "date": "2026-06-06",
-    "flatPnl": 1.39,
-    "simPnl": 7.57,
-    "simBankAfter": 154.16,
+    "flatPnl": 2.26,
+    "simPnl": 10.18,
+    "simBankAfter": 163.55,
     "flagged": 4,
     "placed": 4,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "CWS@PHI",
@@ -13825,7 +13995,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.423 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.423 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13840,9 +14010,12 @@
       "side": "YRFI",
       "modelP": 0.4162,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -115,
+       "win": true,
+       "pnl": 2.61,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -13876,12 +14049,12 @@
    },
    {
     "date": "2026-06-07",
-    "flatPnl": 0.71,
-    "simPnl": 5.71,
-    "simBankAfter": 159.87,
+    "flatPnl": -0.29,
+    "simPnl": 1.71,
+    "simBankAfter": 165.27,
     "flagged": 6,
     "placed": 6,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "MIL@COL",
@@ -13910,7 +14083,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13925,9 +14098,12 @@
       "side": "YRFI",
       "modelP": 0.4069,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.407 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": false,
+       "pnl": -4.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -13944,7 +14120,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.434 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.434 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13961,7 +14137,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -13997,7 +14173,7 @@
     "date": "2026-06-08",
     "flatPnl": -1.0,
     "simPnl": -9.0,
-    "simBankAfter": 150.87,
+    "simBankAfter": 156.27,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -14029,7 +14205,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.455 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.455 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14046,7 +14222,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.448 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.448 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14062,7 +14238,7 @@
     "date": "2026-06-09",
     "flatPnl": 1.31,
     "simPnl": 5.78,
-    "simBankAfter": 156.65,
+    "simBankAfter": 162.05,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -14111,7 +14287,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14128,7 +14304,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14164,7 +14340,7 @@
     "date": "2026-06-10",
     "flatPnl": -0.17,
     "simPnl": -3.67,
-    "simBankAfter": 152.99,
+    "simBankAfter": 158.38,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -14213,7 +14389,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.457 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.457 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14250,7 +14426,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14267,7 +14443,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14283,7 +14459,7 @@
     "date": "2026-06-11",
     "flatPnl": -1.0,
     "simPnl": -3.0,
-    "simBankAfter": 149.99,
+    "simBankAfter": 155.38,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -14315,7 +14491,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.441 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.441 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14332,7 +14508,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14349,7 +14525,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.444 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.444 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14365,7 +14541,7 @@
     "date": "2026-06-12",
     "flatPnl": 0.87,
     "simPnl": 6.09,
-    "simBankAfter": 156.07,
+    "simBankAfter": 161.47,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -14377,7 +14553,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14394,7 +14570,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.421 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.421 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14431,7 +14607,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14467,7 +14643,7 @@
     "date": "2026-06-13",
     "flatPnl": 0,
     "simPnl": 0,
-    "simBankAfter": 156.07,
+    "simBankAfter": 161.47,
     "flagged": 3,
     "placed": 3,
     "bet": 0,
@@ -14479,7 +14655,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.445 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.445 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14496,7 +14672,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14513,7 +14689,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14529,7 +14705,7 @@
     "date": "2026-06-14",
     "flatPnl": -0.26,
     "simPnl": -2.56,
-    "simBankAfter": 153.52,
+    "simBankAfter": 158.91,
     "flagged": 7,
     "placed": 7,
     "bet": 3,
@@ -14597,8 +14773,8 @@
       "modelP": 0.4191,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14615,7 +14791,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14632,7 +14808,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.434 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.434 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14666,12 +14842,12 @@
    },
    {
     "date": "2026-06-15",
-    "flatPnl": -0.17,
-    "simPnl": 2.0,
-    "simBankAfter": 155.52,
+    "flatPnl": 0.63,
+    "simPnl": 3.6,
+    "simBankAfter": 162.51,
     "flagged": 4,
     "placed": 4,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "LAA@ARI",
@@ -14718,9 +14894,12 @@
       "side": "YRFI",
       "modelP": 0.4177,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": true,
+       "pnl": 1.6,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -14737,7 +14916,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.429 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.429 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14751,21 +14930,24 @@
    },
    {
     "date": "2026-06-16",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": 0.95,
+    "simPnl": 3.81,
+    "simBankAfter": 166.32,
     "flagged": 3,
     "placed": 3,
-    "bet": 0,
+    "bet": 1,
     "games": [
      {
       "game": "CWS@NYY",
       "side": "YRFI",
       "modelP": 0.4159,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": true,
+       "pnl": 3.81,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -14782,7 +14964,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.432 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.432 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14798,8 +14980,8 @@
       "modelP": 0.4157,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14815,7 +14997,7 @@
     "date": "2026-06-17",
     "flatPnl": 0.41,
     "simPnl": -0.88,
-    "simBankAfter": 154.64,
+    "simBankAfter": 165.44,
     "flagged": 6,
     "placed": 5,
     "bet": 3,
@@ -14887,7 +15069,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14904,7 +15086,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.437 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.437 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14921,7 +15103,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -14937,7 +15119,7 @@
     "date": "2026-06-18",
     "flatPnl": -0.35,
     "simPnl": -1.48,
-    "simBankAfter": 153.15,
+    "simBankAfter": 163.96,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -14948,8 +15130,8 @@
       "modelP": 0.4185,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15018,7 +15200,7 @@
     "date": "2026-06-19",
     "flatPnl": -0.2,
     "simPnl": 1.6,
-    "simBankAfter": 154.75,
+    "simBankAfter": 165.56,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -15029,8 +15211,8 @@
       "modelP": 0.4118,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.412 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15066,8 +15248,8 @@
       "modelP": 0.4182,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15104,7 +15286,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15121,7 +15303,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15137,7 +15319,7 @@
     "date": "2026-06-20",
     "flatPnl": 1.48,
     "simPnl": 11.12,
-    "simBankAfter": 165.86,
+    "simBankAfter": 176.67,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -15188,8 +15370,8 @@
       "modelP": 0.4115,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.412 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15206,7 +15388,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.427 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.427 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15239,7 +15421,7 @@
     "date": "2026-06-21",
     "flatPnl": -1.0,
     "simPnl": -6.0,
-    "simBankAfter": 159.86,
+    "simBankAfter": 170.67,
     "flagged": 3,
     "placed": 3,
     "bet": 1,
@@ -15271,7 +15453,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.423 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.423 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15288,7 +15470,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15316,7 +15498,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15333,7 +15515,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.436 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.436 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15350,7 +15532,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.456 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.456 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15367,7 +15549,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.427 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.427 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15383,7 +15565,7 @@
     "date": "2026-06-23",
     "flatPnl": 1.62,
     "simPnl": 8.31,
-    "simBankAfter": 168.17,
+    "simBankAfter": 178.98,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -15435,7 +15617,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15452,7 +15634,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15469,7 +15651,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.430 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.430 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15486,7 +15668,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.456 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.456 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15500,21 +15682,24 @@
    },
    {
     "date": "2026-06-24",
-    "flatPnl": 0.8,
-    "simPnl": 4.8,
-    "simBankAfter": 172.97,
+    "flatPnl": -0.2,
+    "simPnl": 0.8,
+    "simBankAfter": 179.78,
     "flagged": 3,
     "placed": 3,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "CLE@CWS",
       "side": "YRFI",
       "modelP": 0.4193,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -105,
+       "win": false,
+       "pnl": -4.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -15551,7 +15736,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15567,7 +15752,7 @@
     "date": "2026-06-25",
     "flatPnl": 0.83,
     "simPnl": 7.5,
-    "simBankAfter": 180.47,
+    "simBankAfter": 187.28,
     "flagged": 1,
     "placed": 1,
     "bet": 1,
@@ -15598,7 +15783,7 @@
     "date": "2026-06-26",
     "flatPnl": 0.87,
     "simPnl": 7.83,
-    "simBankAfter": 188.3,
+    "simBankAfter": 195.11,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -15630,7 +15815,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.454 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.454 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15646,7 +15831,7 @@
     "date": "2026-06-27",
     "flatPnl": 0.83,
     "simPnl": 3.33,
-    "simBankAfter": 191.63,
+    "simBankAfter": 198.44,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -15678,7 +15863,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.445 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.445 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15695,7 +15880,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.426 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.426 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15722,12 +15907,12 @@
    },
    {
     "date": "2026-06-28",
-    "flatPnl": 0.87,
-    "simPnl": 7.83,
-    "simBankAfter": 199.46,
+    "flatPnl": 1.7,
+    "simPnl": 9.5,
+    "simBankAfter": 207.93,
     "flagged": 6,
     "placed": 6,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "OAK@LAA",
@@ -15735,8 +15920,8 @@
       "modelP": 0.4183,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15771,9 +15956,12 @@
       "side": "YRFI",
       "modelP": 0.4185,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -120,
+       "win": true,
+       "pnl": 1.67,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -15790,7 +15978,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.430 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.430 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15807,7 +15995,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15824,7 +16012,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15853,7 +16041,7 @@
     "date": "2026-06-29",
     "flatPnl": -2.0,
     "simPnl": -9.0,
-    "simBankAfter": 190.46,
+    "simBankAfter": 198.93,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -15885,7 +16073,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.454 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.454 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15902,7 +16090,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15939,7 +16127,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -15955,7 +16143,7 @@
     "date": "2026-06-30",
     "flatPnl": 1.16,
     "simPnl": 4.6,
-    "simBankAfter": 195.06,
+    "simBankAfter": 203.53,
     "flagged": 5,
     "placed": 5,
     "bet": 2,
@@ -16007,7 +16195,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.421 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.421 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16024,7 +16212,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16041,7 +16229,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16057,7 +16245,7 @@
     "date": "2026-07-01",
     "flatPnl": -0.29,
     "simPnl": 0.57,
-    "simBankAfter": 195.63,
+    "simBankAfter": 204.1,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -16109,7 +16297,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16125,7 +16313,7 @@
     "date": "2026-07-02",
     "flatPnl": 1.15,
     "simPnl": 4.72,
-    "simBankAfter": 200.34,
+    "simBankAfter": 208.82,
     "flagged": 3,
     "placed": 3,
     "bet": 3,
@@ -16177,7 +16365,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.421 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.421 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16206,7 +16394,7 @@
     "date": "2026-07-03",
     "flatPnl": 0.71,
     "simPnl": 5.0,
-    "simBankAfter": 205.34,
+    "simBankAfter": 213.82,
     "flagged": 6,
     "placed": 6,
     "bet": 1,
@@ -16238,7 +16426,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16255,7 +16443,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.445 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.445 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16272,7 +16460,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16289,7 +16477,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.434 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.434 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16305,8 +16493,8 @@
       "modelP": 0.4161,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.416 vs 0.40 needed)"
+       "code": "daily_cap",
+       "reason": "daily risk cap already used"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16322,7 +16510,7 @@
     "date": "2026-07-04",
     "flatPnl": -0.39,
     "simPnl": 2.64,
-    "simBankAfter": 207.98,
+    "simBankAfter": 216.45,
     "flagged": 6,
     "placed": 6,
     "bet": 2,
@@ -16371,7 +16559,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16388,7 +16576,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.451 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.451 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16425,7 +16613,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16439,12 +16627,12 @@
    },
    {
     "date": "2026-07-05",
-    "flatPnl": 0.54,
-    "simPnl": 0.54,
-    "simBankAfter": 208.52,
+    "flatPnl": 1.34,
+    "simPnl": 2.14,
+    "simBankAfter": 218.59,
     "flagged": 6,
     "placed": 6,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "SF@COL",
@@ -16471,9 +16659,12 @@
       "side": "YRFI",
       "modelP": 0.4027,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.403 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": true,
+       "pnl": 1.6,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -16490,7 +16681,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16507,7 +16698,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16524,7 +16715,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.432 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.432 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16541,7 +16732,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16557,7 +16748,7 @@
     "date": "2026-07-06",
     "flatPnl": -0.38,
     "simPnl": 2.62,
-    "simBankAfter": 211.15,
+    "simBankAfter": 221.22,
     "flagged": 3,
     "placed": 3,
     "bet": 2,
@@ -16609,7 +16800,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16625,7 +16816,7 @@
     "date": "2026-07-07",
     "flatPnl": 0.58,
     "simPnl": 3.23,
-    "simBankAfter": 214.38,
+    "simBankAfter": 224.45,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -16677,7 +16868,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.441 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.441 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16713,7 +16904,7 @@
     "date": "2026-07-08",
     "flatPnl": -0.26,
     "simPnl": -1.07,
-    "simBankAfter": 213.3,
+    "simBankAfter": 223.37,
     "flagged": 4,
     "placed": 4,
     "bet": 3,
@@ -16765,7 +16956,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16782,7 +16973,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16811,7 +17002,7 @@
     "date": "2026-07-09",
     "flatPnl": 0.0,
     "simPnl": -1.0,
-    "simBankAfter": 212.3,
+    "simBankAfter": 222.37,
     "flagged": 1,
     "placed": 1,
     "bet": 2,
@@ -16867,7 +17058,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16884,7 +17075,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16901,7 +17092,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.441 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.441 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16918,7 +17109,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.428 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.428 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16934,7 +17125,7 @@
     "date": "2026-07-11",
     "flatPnl": 0.8,
     "simPnl": 2.4,
-    "simBankAfter": 214.7,
+    "simBankAfter": 224.77,
     "flagged": 4,
     "placed": 4,
     "bet": 1,
@@ -16946,7 +17137,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -16983,7 +17174,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.454 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.454 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17000,7 +17191,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.451 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.451 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17028,7 +17219,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.431 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.431 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17045,7 +17236,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.449 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.449 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17062,7 +17253,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.445 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.445 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17079,7 +17270,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.440 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.440 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17096,7 +17287,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.449 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.449 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17137,7 +17328,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.442 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.442 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17151,12 +17342,12 @@
    },
    {
     "date": "2026-07-17",
-    "flatPnl": 0.57,
-    "simPnl": 2.86,
-    "simBankAfter": 217.56,
+    "flatPnl": 1.31,
+    "simPnl": 3.6,
+    "simBankAfter": 228.37,
     "flagged": 5,
     "placed": 5,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "CIN@COL",
@@ -17185,7 +17376,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17202,7 +17393,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.438 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.438 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17219,7 +17410,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.429 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.429 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17234,9 +17425,12 @@
       "side": "YRFI",
       "modelP": 0.4018,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.402 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -135,
+       "win": true,
+       "pnl": 0.74,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -17263,12 +17457,12 @@
    },
    {
     "date": "2026-07-18",
-    "flatPnl": 0.07,
-    "simPnl": -0.19,
-    "simBankAfter": 217.37,
+    "flatPnl": 1.12,
+    "simPnl": 0.86,
+    "simBankAfter": 229.23,
     "flagged": 4,
     "placed": 4,
-    "bet": 4,
+    "bet": 5,
     "games": [
      {
       "game": "CIN@COL",
@@ -17335,9 +17529,12 @@
       "side": "YRFI",
       "modelP": 0.418,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": 105,
+       "win": true,
+       "pnl": 1.05,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -17366,7 +17563,7 @@
     "date": "2026-07-19",
     "flatPnl": 1.48,
     "simPnl": 7.02,
-    "simBankAfter": 224.38,
+    "simBankAfter": 236.25,
     "flagged": 6,
     "placed": 6,
     "bet": 3,
@@ -17398,7 +17595,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17415,7 +17612,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.420 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.420 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17432,7 +17629,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.447 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.447 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17449,7 +17646,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17496,12 +17693,12 @@
    },
    {
     "date": "2026-07-20",
-    "flatPnl": 0.65,
-    "simPnl": 4.52,
-    "simBankAfter": 228.9,
+    "flatPnl": -0.35,
+    "simPnl": 4.02,
+    "simBankAfter": 240.26,
     "flagged": 3,
     "placed": 3,
-    "bet": 2,
+    "bet": 3,
     "games": [
      {
       "game": "WSH@COL",
@@ -17530,7 +17727,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.425 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.425 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17545,9 +17742,12 @@
       "side": "YRFI",
       "modelP": 0.4185,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.419 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 0.5,
+       "odds": -135,
+       "win": false,
+       "pnl": -0.5,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -17576,7 +17776,7 @@
     "date": "2026-07-21",
     "flatPnl": 0.83,
     "simPnl": 4.17,
-    "simBankAfter": 233.07,
+    "simBankAfter": 244.43,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -17622,12 +17822,12 @@
    },
    {
     "date": "2026-07-22",
-    "flatPnl": -2.0,
-    "simPnl": -10.0,
-    "simBankAfter": 223.07,
+    "flatPnl": -3.0,
+    "simPnl": -12.0,
+    "simBankAfter": 232.43,
     "flagged": 5,
     "placed": 5,
-    "bet": 3,
+    "bet": 4,
     "games": [
      {
       "game": "STL@LAA",
@@ -17674,9 +17874,12 @@
       "side": "YRFI",
       "modelP": 0.4176,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -125,
+       "win": false,
+       "pnl": -2.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -17692,8 +17895,8 @@
       "modelP": 0.4179,
       "record": {
        "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17710,7 +17913,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.443 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.443 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17737,12 +17940,12 @@
    },
    {
     "date": "2026-07-24",
-    "flatPnl": -1.0,
-    "simPnl": -2.0,
-    "simBankAfter": 221.07,
+    "flatPnl": -0.26,
+    "simPnl": -1.26,
+    "simBankAfter": 231.17,
     "flagged": 4,
     "placed": 4,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "ARI@WSH",
@@ -17771,7 +17974,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17786,9 +17989,12 @@
       "side": "YRFI",
       "modelP": 0.4167,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.417 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 1.0,
+       "odds": -135,
+       "win": true,
+       "pnl": 0.74,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -17805,7 +18011,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.422 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.422 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17819,21 +18025,24 @@
    },
    {
     "date": "2026-07-25",
-    "flatPnl": 0,
-    "simPnl": 0,
-    "simBankAfter": null,
+    "flatPnl": -1.0,
+    "simPnl": -4.0,
+    "simBankAfter": 227.17,
     "flagged": 4,
     "placed": 4,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "CLE@TB",
       "side": "YRFI",
       "modelP": 0.4037,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.404 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 4.0,
+       "odds": -110,
+       "win": false,
+       "pnl": -4.0,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -17850,7 +18059,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.424 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.424 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17867,7 +18076,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.451 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.451 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17884,7 +18093,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.433 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.433 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17913,7 +18122,7 @@
     "date": "2026-07-26",
     "flatPnl": 0,
     "simPnl": 0,
-    "simBankAfter": 221.07,
+    "simBankAfter": 227.17,
     "flagged": 2,
     "placed": 2,
     "bet": 1,
@@ -17942,7 +18151,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.423 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.423 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -17969,12 +18178,12 @@
    },
    {
     "date": "2026-07-27",
-    "flatPnl": -1.0,
-    "simPnl": -4.0,
-    "simBankAfter": 217.07,
+    "flatPnl": -0.13,
+    "simPnl": -1.39,
+    "simBankAfter": 225.78,
     "flagged": 6,
     "placed": 4,
-    "bet": 1,
+    "bet": 2,
     "games": [
      {
       "game": "TOR@WSH",
@@ -18001,9 +18210,12 @@
       "side": "YRFI",
       "modelP": 0.4177,
       "record": {
-       "action": "SKIP",
-       "code": "gate",
-       "reason": "model wasn't confident enough (0.418 vs 0.40 needed)"
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -115,
+       "win": true,
+       "pnl": 2.61,
+       "assumed": false
       },
       "ledger": {
        "strength": "STRONG",
@@ -18020,7 +18232,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.450 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.450 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -18037,7 +18249,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.442 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.442 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -18054,7 +18266,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.439 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.439 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -18071,7 +18283,7 @@
       "record": {
        "action": "SKIP",
        "code": "gate",
-       "reason": "model wasn't confident enough (0.441 vs 0.40 needed)"
+       "reason": "model wasn't confident enough (0.441 vs 0.42 needed)"
       },
       "ledger": {
        "strength": "STRONG",
@@ -18087,7 +18299,7 @@
     "date": "2026-07-28",
     "flatPnl": -1.0,
     "simPnl": -10.0,
-    "simBankAfter": 207.07,
+    "simBankAfter": 215.78,
     "flagged": 1,
     "placed": 1,
     "bet": 1,
@@ -18118,7 +18330,7 @@
     "date": "2026-07-29",
     "flatPnl": -0.31,
     "simPnl": 2.83,
-    "simBankAfter": 209.89,
+    "simBankAfter": 218.61,
     "flagged": 2,
     "placed": 2,
     "bet": 2,
@@ -18161,6 +18373,50 @@
        "unitsRisked": 2.08,
        "odds": -130,
        "pnl": -2.08
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-07-30",
+    "flatPnl": -1.0,
+    "simPnl": -2.0,
+    "simBankAfter": 216.61,
+    "flagged": 1,
+    "placed": 1,
+    "bet": 2,
+    "games": [
+     {
+      "game": "WSH@ATL",
+      "side": "YRFI",
+      "modelP": 0.3623,
+      "record": {
+       "action": "BET",
+       "stake": 2.0,
+       "odds": -155,
+       "win": false,
+       "pnl": -2.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 2.0,
+       "odds": -155,
+       "pnl": -2.0
+      }
+     },
+     {
+      "game": "MIA@NYM",
+      "side": "NRFI",
+      "modelP": 0.6171,
+      "record": {
+       "action": "BET",
+       "stake": 0.5,
+       "odds": -160,
+       "win": true,
+       "pnl": 0.31,
+       "assumed": false
       }
      }
     ]
