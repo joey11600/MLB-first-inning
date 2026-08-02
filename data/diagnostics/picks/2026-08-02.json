@@ -1,7 +1,7 @@
 {
   "date": "2026-08-02",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-02T20:10:32Z",
+  "fitted_at": "2026-08-02T21:05:05Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -122,7 +122,7 @@
       "game_pk": "824971",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.3401,
       "raw_p_run_b1": 0.4331,
       "raw_p_nrfi": 0.3741,
@@ -576,7 +576,7 @@
       "game_pk": "823107",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.2154,
       "raw_p_run_b1": 0.2403,
       "raw_p_nrfi": 0.596,
@@ -689,12 +689,12 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2904,
-      "raw_p_run_b1": 0.3159,
-      "raw_p_nrfi": 0.4854,
-      "calibrated_p_nrfi": 0.4935,
+      "raw_p_run_t1": 0.2936,
+      "raw_p_run_b1": 0.3225,
+      "raw_p_nrfi": 0.4786,
+      "calibrated_p_nrfi": 0.4903,
       "calibrator_band": {
-        "band": "bin_4-5",
+        "band": "bin_3-4",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -717,19 +717,19 @@
           "outlier": false
         },
         {
+          "name": "wx_temp_c",
+          "value": 30.7,
+          "z": 1.632,
+          "weight": 0.0347,
+          "contribution": 0.0565,
+          "outlier": false
+        },
+        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4823,
           "z": -0.382,
           "weight": -0.141,
           "contribution": 0.0538,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 29.6,
-          "z": 1.442,
-          "weight": 0.0347,
-          "contribution": 0.05,
           "outlier": false
         },
         {
@@ -800,7 +800,7 @@
       "game_pk": "823270",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.2394,
       "raw_p_run_b1": 0.2806,
       "raw_p_nrfi": 0.5471,
