@@ -1,7 +1,7 @@
 {
   "date": "2026-08-02",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-02T19:05:08Z",
+  "fitted_at": "2026-08-02T20:10:32Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -10,7 +10,7 @@
       "game_pk": "824323",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.4601,
       "raw_p_run_b1": 0.4088,
       "raw_p_nrfi": 0.3192,
@@ -462,7 +462,7 @@
       "game_pk": "823996",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.3011,
       "raw_p_run_b1": 0.3149,
       "raw_p_nrfi": 0.4788,
@@ -687,27 +687,19 @@
       "matchup": "BOS@LAD",
       "game_pk": "823919",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3294,
-      "raw_p_run_b1": 0.3286,
-      "raw_p_nrfi": 0.4503,
-      "calibrated_p_nrfi": 0.4788,
+      "raw_p_run_t1": 0.2904,
+      "raw_p_run_b1": 0.3159,
+      "raw_p_nrfi": 0.4854,
+      "calibrated_p_nrfi": 0.4935,
       "calibrator_band": {
-        "band": "bin_2-3",
+        "band": "bin_4-5",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
       },
       "top_drivers_t1": [
-        {
-          "name": "away_top3c_slg",
-          "value": 0.3956,
-          "z": -0.693,
-          "weight": -0.3266,
-          "contribution": 0.2263,
-          "outlier": false
-        },
         {
           "name": "era_gap_t1",
           "value": 1.181,
@@ -725,23 +717,39 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4823,
           "z": -0.382,
           "weight": -0.141,
           "contribution": 0.0538,
           "outlier": false
+        },
+        {
+          "name": "wx_temp_c",
+          "value": 29.6,
+          "z": 1.442,
+          "weight": 0.0347,
+          "contribution": 0.05,
+          "outlier": false
+        },
+        {
+          "name": "away_top3_ops_vs_oppHand",
+          "value": 0.72,
+          "z": -0.562,
+          "weight": 0.0856,
+          "contribution": -0.0481,
+          "outlier": false
         }
       ],
       "top_drivers_b1": [
+        {
+          "name": "home_top3c_slg",
+          "value": 0.4935,
+          "z": 0.829,
+          "weight": -0.398,
+          "contribution": -0.3299,
+          "outlier": false
+        },
         {
           "name": "home_obp",
           "value": 0.338,
@@ -751,35 +759,27 @@
           "outlier": false
         },
         {
+          "name": "home_top3c_iso",
+          "value": 0.21,
+          "z": 0.639,
+          "weight": 0.2289,
+          "contribution": 0.1463,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_obp",
+          "value": 0.3685,
+          "z": 0.974,
+          "weight": 0.1015,
+          "contribution": 0.0989,
+          "outlier": false
+        },
+        {
           "name": "away_p_last10_pitcher_nrfi",
           "value": 1.0,
           "z": 1.63,
           "weight": -0.057,
           "contribution": -0.0929,
-          "outlier": false
-        },
-        {
-          "name": "fi_park_nrfi_rate",
-          "value": 0.4823,
-          "z": -0.382,
-          "weight": -0.2168,
-          "contribution": 0.0827,
-          "outlier": false
-        },
-        {
-          "name": "era_gap_b1",
-          "value": -1.181,
-          "z": -1.392,
-          "weight": 0.058,
-          "contribution": -0.0807,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 29.9,
-          "z": 1.493,
-          "weight": 0.0483,
-          "contribution": 0.0722,
           "outlier": false
         }
       ],
