@@ -1,7 +1,7 @@
 {
   "date": "2026-08-02",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-02T14:58:23Z",
+  "fitted_at": "2026-08-02T15:05:07Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1473,20 +1473,36 @@
     {
       "matchup": "WSH@ATL",
       "game_pk": "824891",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "YRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.3196,
+      "raw_p_run_t1": 0.3609,
       "raw_p_run_b1": 0.2676,
-      "raw_p_nrfi": 0.4984,
-      "calibrated_p_nrfi": 0.5001,
+      "raw_p_nrfi": 0.4681,
+      "calibrated_p_nrfi": 0.4869,
       "calibrator_band": {
-        "band": "bin_4-5",
+        "band": "bin_3-4",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
       },
       "top_drivers_t1": [
+        {
+          "name": "away_top3c_iso",
+          "value": 0.2518,
+          "z": 1.495,
+          "weight": 0.3454,
+          "contribution": 0.5163,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_slg",
+          "value": 0.5209,
+          "z": 1.25,
+          "weight": -0.3266,
+          "contribution": -0.4084,
+          "outlier": false
+        },
         {
           "name": "home_xera",
           "value": 5.1495,
@@ -1509,22 +1525,6 @@
           "z": 0.761,
           "weight": 0.0923,
           "contribution": 0.0702,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 29.3,
-          "z": 1.39,
-          "weight": 0.0347,
-          "contribution": 0.0482,
           "outlier": false
         }
       ],
