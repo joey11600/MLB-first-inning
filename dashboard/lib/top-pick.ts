@@ -157,6 +157,16 @@ export interface TopPickReport {
   byMonth: TopPickSlice[];
   /** Every settled #1 play, most recent first. */
   all: TopPickBet[];
+  /**
+   * Cumulative units at quarter-Kelly, one point per settled night.
+   *
+   * A RUNNING SUM, NOT A BANK. It replaced the equity curve on
+   * 2026-08-03, and the difference is the whole point: an equity curve
+   * compounds, so its later moves are drawn bigger than its earlier ones
+   * for the same unit result. This does not, so a +5u night in May and a
+   * +5u night in August are the same height of line.
+   */
+  cumulative: { date: string; units: number }[];
 }
 
 /** The live model weights were fit on this date. Everything before it
@@ -403,5 +413,16 @@ export async function loadTopPickReport(
     noEdgeUnderKelly,
     byMonth: [...months.keys()].sort().map((m) => slice(months.get(m)!, m)),
     all: [...tops].reverse(),
+    cumulative: (() => {
+      const byDate = new Map<string, number>();
+      for (const b of tops) {
+        byDate.set(b.date, (byDate.get(b.date) ?? 0) + b.kellyPnl);
+      }
+      let run = 0;
+      return [...byDate.keys()].sort().map((date) => {
+        run += byDate.get(date)!;
+        return { date, units: run };
+      });
+    })(),
   };
 }

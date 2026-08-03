@@ -79,7 +79,7 @@ export function TopPickHistory({
   splitAgainst?: TopPickReport | null;
 }) {
   if (!report || report.all.length === 0) return null;
-  const { last10, byMonth, all, totals, noEdgeUnderKelly } = report;
+  const { last10, byMonth, all, totals, noEdgeUnderKelly, cumulative } = report;
   const season = report.windows[0];
   const nights = new Set(all.map((b) => b.date)).size;
   /* A night's P&L is a single point in time, so this is a real quantity
@@ -207,6 +207,21 @@ export function TopPickHistory({
         </div>
       </div>
 
+      {/* ---- the curve ---- */}
+      {cumulative.length > 1 && (
+        <>
+          <h3 className={styles.h3}>Cumulative units</h3>
+          <CumulativeChart points={cumulative} />
+          <p className={styles.note}>
+            A running sum at quarter-Kelly, one point per settled night. Not a
+            bankroll: nothing compounds, so a five-unit night in May is drawn
+            the same height as a five-unit night in August. That is the whole
+            reason it replaced the old equity curve, which compounded and so
+            drew later results larger than earlier ones for the same result.
+          </p>
+        </>
+      )}
+
       {/* ---- month by month ---- */}
       <h3 className={styles.h3}>Month by month</h3>
       <SliceTable
@@ -272,6 +287,40 @@ export function TopPickHistory({
         </table>
       </div>
     </section>
+  );
+}
+
+/** A plain line of the running total. No axis furniture beyond the zero
+ *  rule and the endpoints, because the only questions it answers are
+ *  "which way" and "how far". */
+function CumulativeChart({ points }: { points: { date: string; units: number }[] }) {
+  const W = 1000, H = 150, PAD = 4;
+  const vals = points.map((p) => p.units);
+  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const span = hi - lo || 1;
+  const x = (i: number) => PAD + (i / (points.length - 1)) * (W - PAD * 2);
+  const y = (u: number) => PAD + (1 - (u - lo) / span) * (H - PAD * 2);
+  const d = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.units).toFixed(1)}`).join(" ");
+  const last = points[points.length - 1];
+  return (
+    <div className={styles.chartWrap}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className={styles.chart}
+        role="img"
+        aria-label={`Cumulative units at quarter-Kelly, ending at ${last.units.toFixed(2)} units after ${points.length} settled nights`}
+      >
+        <line x1={PAD} x2={W - PAD} y1={y(0)} y2={y(0)} className={styles.chartZero} />
+        <path d={d} className={styles.chartLine} />
+      </svg>
+      <div className={styles.chartFoot}>
+        <span>{points[0].date}</span>
+        <span className={styles.chartEnd} data-money={last.units >= 0 ? "up" : "down"}>
+          {formatFlatUnits(asFlat(last.units))}
+        </span>
+        <span>{last.date}</span>
+      </div>
+    </div>
   );
 }
 

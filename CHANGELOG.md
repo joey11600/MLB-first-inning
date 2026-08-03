@@ -11,6 +11,72 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03h] - The +115.72u explained, the equity curve replaced, the drawdown chart deleted
+
+Operator: *"convert the equity curve to cumulative units, drop the
+drawdown chart. and also, that doesnt make any sense, because our actual
+current profit shows +115.72u so i want you to fully analyze and explain
+it."*
+
+### THE ANALYSIS - what +115.72u actually was
+
+It came from `season_record.json` -> `real.sim.profit`: a bank compounded
+from 100 to 215.72. It was never the operator's money, and it differs
+from the ledger figure on **three independent axes at once**. Holding
+staking constant at flat 1u wherever possible:
+
+| | figure | bets | hit |
+|---|---|---|---|
+| 1. replay, compounded, in-sample calibrator | **+115.72u** | 132 | 64.4% |
+| 2. same replay, flat 1u a bet | **+18.18u** | 132 | 64.4% |
+| 3. replay, flat 1u, WALK-FORWARD (no hindsight) | **+10.26u** | 119 | 62.2% |
+| 4. what was ACTUALLY bet, flat 1u | **+4.85u** | 240 | 57.1% |
+
+Per bet, flat: replay in-sample **+0.1377u**, replay walk-forward
+**+0.0862u**, actually bet **+0.0202u**.
+
+So the gap decomposes as:
+
+- **Compounding is 6.4x of it.** +18.18u flat becomes +115.72u once the
+  bank grows and later stakes ride on it.
+- **Hindsight is +7.92u of the flat figure.** The shipped calibrator was
+  fit on 2025+2026 and has already seen the outcomes it is scored
+  against - the file says so in its own `caveat` field. The walk-forward
+  floor, refitting from prior games only, drops 64.4% to 62.2%.
+- **The rest is SELECTION.** The replay re-scores which games qualify
+  with today's gate and bets 132 where the ledger actually bet 240. It
+  is choosing different, better games with the benefit of the final
+  model - not recording what was placed.
+
+None of that is a bug in the replay; it is what a replay IS, and the
+file documented it. The bug was putting it on the same page as the
+ledger under the word "profit" with no bridge between them.
+
+### Removed
+
+- **The bankroll equity curve** and **the underwater/drawdown plot**.
+  Both are bank-shaped: an equity curve IS compounding, and a drawdown
+  is measured against a running high-water mark, so neither survives the
+  removal of compounding. Converting them in place would have left two
+  charts drawing the same cumulative line twice.
+
+### Added
+
+- **A cumulative-units chart** in each of the two settled-bet sections,
+  reading the LEDGER at quarter-Kelly - the same source as every other
+  figure beside it, so the page now has one number instead of two. A
+  running sum, not a bank: a five-unit night in May is drawn the same
+  height as a five-unit night in August.
+
+### Fixed
+
+- The chart letterboxed into the middle 65% of its box: `max-height`
+  fought `height: auto`, so the viewBox scaled to ~220px, got clipped to
+  180, and the browser centred the drawing. The viewBox aspect alone
+  decides the height now.
+
+---
+
 ## [2026-08-03g] - Compounding removed, quarter-Kelly everywhere, the whole system gets a history
 
 Operator: *"i want to remove compounding from the dashboard... everywhere

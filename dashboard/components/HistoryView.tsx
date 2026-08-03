@@ -554,73 +554,27 @@ export function HistoryView({
         splitAgainst={topPick ?? null}
       />
 
-      {/* T2.42: Bankroll equity curve.  Bank level + drawdown shading +
-          peak marker + stats panel.  Reads the real-priced series; the
-          raw column rides along as a labelled dashed line. */}
-      <section className={styles.chartCard}>
-        <div className={styles.chartHead}>
-          <div>
-            <div className={styles.eyebrow}>Bankroll equity curve</div>
-            {/* RETITLED 2026-07-30 with the unit re-basing. It said
-                "Cumulative units over time", which is now the name of
-                the quantity this chart deliberately stopped plotting --
-                a caption describing the discarded reading is worse than
-                no caption, because the axis looks like it agrees. */}
-            <div className={styles.chartTitle}>
-              Bankroll from a 100u start · drawdown vs all-time high
-            </div>
-          </div>
-          <div className={styles.legend}>
-            <span className={styles.legendItem}>
-              <span className={styles.legendLine} data-tone="equity" /> Equity
-            </span>
-            <span className={styles.legendItem}>
-              <span className={styles.legendDot} data-tone="peak" /> All-time high
-            </span>
-            <span className={styles.legendItem}>
-              <span className={styles.legendSwatch} data-tone="drawdown" /> Drawdown
-            </span>
-            {money.isReal && (
-              <span
-                className={styles.legendItem}
-                title={
-                  "The same days, counting every graded bet including the " +
-                  "ones that had no captured DraftKings price and were " +
-                  "settled against an assumed -110. Shown only so the older, " +
-                  "higher number is still visible; it is not your ledger."
-                }
-              >
-                <span className={styles.legendLine} data-tone="assumed" /> Includes
-                assumed &minus;110 prices
-              </span>
-            )}
-          </div>
-        </div>
-        <EquityCurveChart
-          days={days}
-          rawSeries={money.isReal ? data.cumulativePL : []}
-        />
-        {stamp}
-      </section>
+      {/* THE EQUITY CURVE AND THE UNDERWATER PLOT ARE GONE (2026-08-03).
 
-      {/* CHART 2 -- underwater / drawdown depth.  Depth AND age, on a fixed
-          axis.  At compounding stakes these are the two numbers that decide
-          whether the operator can keep running the system, and the equity
-          curve buries both: a line that wanders can be read optimistically,
-          an underwater plot cannot.  Renders its own card. */}
-      {/* FED FROM `days`, not from `money.points` (2026-07-30).
-          Two reasons. The chart now measures depth as a share of the
-          peak BANK, so it needs bank levels rather than the cumulative
-          unit series it used to take. And `days` is already the
-          windowed, re-based series that the equity curve and the ledger
-          table below both read -- routing this chart through it means
-          three surfaces cannot disagree about which days are in the
-          window, which they could while there were two arrays. */}
-      <UnderwaterChart
-        series={days.map((d) => ({ date: d.date, bank: d.bank }))}
-        stakeEpoch={stakeEpoch}
-        composition={composition}
-      />
+          Operator: "convert the equity curve to cumulative units, drop
+          the drawdown chart", and separately "compounding is up to the
+          bettor, not the system."
+
+          Both charts were bank-shaped, not unit-shaped. An equity curve
+          IS a compounding bank; a drawdown is measured against a running
+          high-water mark, so without a bank it has nothing to measure
+          against. Neither survives the removal of compounding, and
+          converting them in place would have left two charts drawing the
+          same cumulative line twice.
+
+          Their replacement is the cumulative-units chart inside
+          TopPickHistory, which reads the LEDGER at quarter-Kelly -- the
+          same source as every other figure in those two sections. That
+          also retires the +115.72u this card used to print, which was a
+          compounded, in-sample, RE-SCORED replay and not the operator's
+          money: flat and walk-forward the same replay is +10.26u, and
+          what was actually bet is +4.85u flat. See the 2026-08-03h
+          CHANGELOG entry for the full ladder. */}
 
       {/* CHART 3 -- replay vs ledger divergence.  Only mounted when the
           server handed us the census; the card renders nothing useful

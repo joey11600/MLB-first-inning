@@ -260,3 +260,56 @@
 .table td[data-money="down"] {
   color: var(--loss);
 }
+
+/* ---------------- cumulative chart ---------------- */
+
+.chartWrap {
+  margin-bottom: 0.75rem;
+}
+
+/* NO max-height. It fought `height: auto`: the viewBox aspect scaled the
+   svg to ~220px tall at full width, the cap clipped it back to 180, and
+   the browser letterboxed the whole drawing into the middle 65% of the
+   box. The viewBox aspect alone decides the height now. */
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chartZero {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+/* Ink, not a money hue: the LINE is a shape, and the sign is carried by
+   the endpoint figure under it. */
+.chartLine {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartFoot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  padding-top: 0.375rem;
+  border-top: 1px solid var(--border);
+}
+
+.chartEnd {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chartEnd[data-money="up"]   { color: var(--gain); }
+.chartEnd[data-money="down"] { color: var(--loss); }
