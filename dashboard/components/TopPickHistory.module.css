@@ -13,6 +13,7 @@
  */
 
 .wrap {
+  --measure: 620px;
   margin: 3rem 0 0;
   padding-top: 1.5rem;
   border-top: 2px solid var(--foreground);
@@ -33,7 +34,7 @@
   margin: 0 0 1.75rem;
   font-size: 13px;
   line-height: 1.6;
-  max-width: 62ch;
+  max-width: var(--measure);
   color: var(--muted-foreground);
 }
 
@@ -123,7 +124,7 @@
   margin: 0 0 2rem;
   font-size: 12px;
   line-height: 1.6;
-  max-width: 68ch;
+  max-width: var(--measure);
   color: var(--muted-foreground);
 }
 
@@ -213,6 +214,7 @@
    `position: sticky` needs the background or the scrolled cells show
    through underneath it. */
 .rowHead {
+  width: 1%;
   font-weight: 700;
   text-align: left;
   color: var(--foreground);

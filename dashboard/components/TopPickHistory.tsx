@@ -22,6 +22,7 @@
 import type { TopPickReport, TopPickSlice } from "@/lib/top-pick";
 import {
   asFlat,
+  formatUnits,
   formatBankGrowth,
   formatFlatUnits,
   formatLevel,
@@ -169,8 +170,8 @@ export function TopPickHistory({
             and therefore of the bettor rather than the system. Replaced
             with the worst single night, which needs no bank at all. */}
         <div className={styles.fig}>
-          <span className={styles.figValue} data-money="down">
-            {formatLevel(Math.abs(worstNight))}
+          <span className={styles.figValue} data-money={tone(worstNight)}>
+            {formatUnits(worstNight)}
           </span>
           <span className={styles.figLabel}>
             worst single night at quarter-Kelly
