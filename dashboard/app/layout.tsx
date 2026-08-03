@@ -68,14 +68,24 @@ export const viewport: Viewport = {
   viewportFit:  "cover",
 };
 
-// Run BEFORE React hydrates — applies the saved (or system-preferred) theme
-// to the <html> element so there's no flash of wrong theme on first paint.
+// Run BEFORE React hydrates — applies the saved theme to <html> so there
+// is no flash of the wrong one on first paint.
+//
+// THIS SCRIPT IS THE REAL DEFAULT, not ThemeToggle. It runs before React
+// and whatever it writes is what the operator sees; ThemeToggle's own
+// initial state only ever agrees with it. On 2026-08-03 the toggle was
+// switched to default light and this was missed, so a browser with NO
+// saved preference still got dark and the newly chosen light theme was
+// unreachable without clicking. Change the two together, always.
+//
+// The polarity is now inverted with the Newsprint palette: LIGHT unless
+// the operator explicitly chose dark. It deliberately does not consult
+// prefers-color-scheme -- see the note in ThemeToggle.readInitialTheme.
 const themeBootstrap = `
 (function () {
   try {
     var stored = localStorage.getItem('nrfi-theme');
-    // Bloomberg terminal default: dark unless user explicitly chose light
-    var theme = stored === 'light' ? 'light' : 'dark';
+    var theme = stored === 'dark' ? 'dark' : 'light';
     var root = document.documentElement;
     root.classList.toggle('dark', theme === 'dark');
     root.classList.toggle('light', theme === 'light');
