@@ -249,21 +249,26 @@ invalidates their bot config.
 - The user runs production from this branch. **Don't break working
   state.** When in doubt, do less.
 - The user prefers **flat 1u plays, no Kelly sizing** (asked + answered).
-- **PALETTE = MATRIX TERMINAL as of 2026-07-30.** Black `#000000`,
-  phosphor green `#00FF41`, alarm red `#FF0000`, square corners.
-  **Type is JetBrains Mono as of 2026-07-30c** -- VT323 was the
-  operator's original spec and they retired it as unreadable at
-  11-13px on a phone. Colour was NOT touched by that change.
-  Operator supplied the spec verbatim and it is the current product.
-  **This REVERSED the long-standing "terminal green/red is rejected"
-  rule** (2026-04-30, reaffirmed twice) — do not restore that rule or
-  the cyan/rose palette that preceded it. Tokens: `--primary` /
-  `--gain` `#00FF41`, `--destructive` / `--loss` `#FF0000`,
-  `--attn` `#008F11` (NOT `--secondary` `#003B00`, which is 1.63:1 and
-  invisible as text). Still work through `--gain` / `--loss` / `--attn`,
-  never the raw names. Known trade-off: green/red is the colour-blind-
-  unsafe pair, so no figure may rely on hue alone — signs and words
-  carry the meaning.
+- **PALETTE = NEWSPRINT (light editorial) as of 2026-08-03.** Warm paper
+  `#FBFAF7`, near-black ink `#211E1A`, deep green `#137355` for money up,
+  crimson `#A01D14` for money down, ochre `#845608` for attention.
+  Square corners stay (`--radius: 0`). **Type is split**: Inter for
+  prose, JetBrains Mono for FIGURES ONLY -- that contrast is what makes
+  monospace mean "this is a number", and `--font-sans` pointing at
+  JetBrains Mono had silently disabled it. Light is the DEFAULT and no
+  longer defers to the OS; a dark variant exists behind the toggle.
+  **This RETIRES the matrix terminal palette** (2026-07-30), which is
+  the third palette in three months -- do not restore it, nor the
+  cyan/rose or warm palettes before it. It was retired for taste
+  (*"i dont really like the current green theme anymore"*) AND for a
+  structural defect: `--foreground` and `--gain` were the same
+  `#00FF41`, so a losing figure printed in the gain colour. Work through
+  `--gain` / `--loss` / `--attn`, never the raw names. Every text token
+  clears 4.5:1 on both `--background` and `--muted`; `--border` is a
+  1.89:1 hairline and `--rule` (3.4:1) is the token for a boundary that
+  MEANS something. Hue still never carries meaning alone -- signs and
+  words do -- and side-as-hue is still banned (sides use `--side-nrfi` /
+  `--side-yrfi`, which separate by weight).
 - The user **does not want odds fabricated** for unmatched games.
 - The user gets frustrated when picks appear to disappear (incident
   history: 4/30 grade reset, 5/01 odds-chip-hidden, 5/01 deploy-overwrite).

@@ -5,13 +5,26 @@ import shellStyles from "./DashboardShell.module.css";
 
 type Theme = "light" | "dark";
 
+/**
+ * LIGHT UNLESS THE OPERATOR SAID OTHERWISE (2026-08-03).
+ *
+ * This used to fall through to the OS preference, which meant an
+ * operator on a dark-mode machine never saw the product's own theme.
+ * Light is not a fallback here, it is the identity: PRODUCT.md's usage
+ * scene is "phone in hand, early evening, ordinary indoor light... a
+ * lit room, not a 2am incident call", and the newsprint palette was
+ * chosen for that room. The dark variant still exists and the toggle
+ * still reaches it; it is just no longer chosen on the operator's
+ * behalf by an OS setting that knows nothing about the room.
+ *
+ * An EXPLICIT saved choice always wins, so anyone who toggles once is
+ * never overridden.
+ */
 function readInitialTheme(): Theme {
   if (typeof window === "undefined") return "light";
   const saved = localStorage.getItem("nrfi-theme") as Theme | null;
   if (saved === "light" || saved === "dark") return saved;
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return "light";
 }
 
 function applyTheme(theme: Theme): void {

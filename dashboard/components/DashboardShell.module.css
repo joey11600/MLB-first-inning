@@ -53,8 +53,8 @@
      top-left corner of every screen, so it was the most persistent
      orange left on the page. */
   box-shadow:
-    0 0 0 1px rgba(34, 211, 238, 0.25),
-    0 0 24px rgba(34, 211, 238, 0.20);
+    0 0 0 1px rgba(19, 115, 85, 0.25),
+    0 0 24px rgba(19, 115, 85, 0.20);
 }
 .mark::after {
   content: "";
@@ -65,8 +65,8 @@
 }
 .light .mark {
   box-shadow:
-    0 0 0 1px rgba(11, 95, 119, 0.30),
-    0 0 18px rgba(11, 95, 119, 0.18);
+    0 0 0 1px rgba(19, 115, 85, 0.30),
+    0 0 18px rgba(19, 115, 85, 0.18);
 }
 
 .brandText {
@@ -112,7 +112,7 @@
   font-weight: 600;
   font-size: 22px;
   line-height: 1.75rem;
-  color: var(--primary);
+  color: var(--chrome-ink);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -140,8 +140,8 @@
   transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
 }
 .themeToggle:hover {
-  color: var(--primary);
-  border-color: var(--primary);
+  color: var(--chrome-ink);
+  border-color: var(--chrome-ink);
 }
 .themeToggle svg {
   width: 18px;
@@ -173,7 +173,7 @@
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 .navLink:hover {
-  color: var(--primary);
+  color: var(--chrome-ink);
   border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
   background: color-mix(in oklab, var(--primary) 8%, var(--card));
 }

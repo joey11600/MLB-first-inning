@@ -44,7 +44,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--chrome-ink);
   box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent);
   animation: pulseDot 2s ease-in-out infinite;
 }

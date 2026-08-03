@@ -3,20 +3,20 @@
   NRFI Terminal — 192px PWA icon (Android home-screen / "any" purpose).
   Bloomberg-terminal aesthetic: cyan diamond mark over deep ink,
   with a thin violet inner inscription matching the dashboard's
-  --primary (#22d3ee) / --secondary (#a78bfa) accents.
+  --primary (#137355) / --secondary (#a78bfa) accents.
 
   Geometry chosen so the diamond fills ~80% of the canvas with
   generous gutter for OS-specific corner masking.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="NRFI">
   <!-- Backdrop -->
-  <rect width="192" height="192" rx="36" fill="#0a0e14"/>
+  <rect width="192" height="192" rx="36" fill="#FBFAF7"/>
 
   <!-- Faint cyan halo -->
   <radialGradient id="halo" cx="0.5" cy="0.5" r="0.55">
-    <stop offset="0"   stop-color="#22d3ee" stop-opacity="0.18"/>
-    <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.04"/>
-    <stop offset="1"   stop-color="#22d3ee" stop-opacity="0"/>
+    <stop offset="0"   stop-color="#137355" stop-opacity="0.18"/>
+    <stop offset="0.55" stop-color="#137355" stop-opacity="0.04"/>
+    <stop offset="1"   stop-color="#137355" stop-opacity="0"/>
   </radialGradient>
   <circle cx="96" cy="96" r="78" fill="url(#halo)"/>
 
@@ -24,7 +24,7 @@
        brand mark (see DashboardShell.module.css .mark) but scaled. -->
   <path d="M96 22 L170 96 L96 170 L22 96 Z"
         fill="none"
-        stroke="#22d3ee"
+        stroke="#137355"
         stroke-width="6"
         stroke-linejoin="round"/>
 
@@ -37,5 +37,5 @@
         opacity="0.85"/>
 
   <!-- Cyan pin at the centroid -->
-  <circle cx="96" cy="96" r="5" fill="#22d3ee"/>
+  <circle cx="96" cy="96" r="5" fill="#137355"/>
 </svg>

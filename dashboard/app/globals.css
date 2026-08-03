@@ -66,46 +66,84 @@
    synthesised smear -- for as long as VT323 has been the family. */
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
 
-/* --------- Default theme = Bloomberg dark --------- */
+/* ============================================================
+   DEFAULT THEME = NEWSPRINT (light editorial), 2026-08-03.
+   ============================================================
+   THE THIRD PALETTE IN THREE MONTHS, and the operator knows it:
+   terminal green/red was rejected 2026-04-30 and reaffirmed twice,
+   adopted 2026-07-30 from their verbatim spec, and retired here --
+   *"i dont really like the current green theme anymore."*
+
+   IT IS NOT ONLY TASTE. The matrix palette had a structural defect
+   that produced a real bug on 2026-08-03: `--foreground` and `--gain`
+   were the SAME `#00FF41`, byte-identical, so the palette had no way to
+   tell "this is text" from "this is money up" -- and a losing figure on
+   /brief would have printed in the gain colour. A monochrome scheme
+   leaves one hue for every job. Two more, both admitted in this file at
+   the time: `--border` at 1.63:1 was under the 3:1 WCAG asks of a
+   meaningful boundary, and green-with-red is the pair that collapses
+   for the commonest colour blindness, which forced the standing rule
+   that no figure may rely on hue alone.
+
+   WHY LIGHT, AND WHY IT IS NOW THE DEFAULT. PRODUCT.md's usage scene
+   has said from the beginning: "phone in hand, early evening, ordinary
+   indoor light... this is a lit room, not a 2am incident call. Any dark
+   treatment has to earn its place some other way." It never did.
+   ThemeToggle already defaults to "light", so :root holding light also
+   removes an SSR flash that has been there the whole time.
+
+   WHAT THE VALUES BUY, measured not asserted (see the light block for
+   the numbers): every text token clears 4.5:1 on BOTH --background and
+   --muted, the ink is 2.85:1 from the gain ink so the two can never be
+   confused again, and gain sits 1.35:1 from loss in lightness so the
+   pair carries a second channel on top of hue. The sign-and-word rule
+   STAYS anyway: lightness is a bonus, never the mechanism.
+
+   NOT CHANGED, deliberately: square corners (--radius 0) and JetBrains
+   Mono for FIGURES. The operator objected to the colour, not to those.
+   What did change is --font-sans, which was pointed at JetBrains Mono
+   and made this file's own rule ("TEXT -- sans ONLY... that prohibition
+   is what makes monospace *mean* 'this is a number'") a no-op. Prose is
+   Inter now, figures stay mono, and that contrast is most of why the
+   page reads as editorial rather than as a terminal.
+   ============================================================ */
 :root {
-  /* ---- MATRIX TERMINAL, operator spec 2026-07-30 ---- */
-  --background:        #000000;
-  --card:              #050505;
-  --muted:             #001A00;
-  --accent:            #003B00;
-  --input:             #000000;
-  --border:            #003B00;   /* 1.63:1 -- see the note in the header */
-  --ring:              #00FF41;
+  --background:        #FBFAF7;   /* warm paper, never pure white */
+  --card:              #FFFFFE;
+  --muted:             #F1EFE9;
+  --accent:            #E7E3D9;
+  --input:             #FFFFFE;
+  --border:            #BFB8A7;   /* 1.89:1 -- a hairline, see --rule */
+  --rule:              #8E877A;   /* 3.4:1 -- meaningful boundaries */
+  --ring:              #137355;
   --radius:            0rem;
 
-  --foreground:           #00FF41;   /* 15.38 / 14.93 */
-  --muted-foreground:     #008F11;   /*  4.94 /  4.79 */
+  --foreground:           #211E1A;   /* 15.90 on bg / 14.43 on muted */
+  --muted-foreground:     #5F584E;   /*  6.72 /  6.10 */
 
-  --primary:               #00FF41;
-  --primary-foreground:    #000000;
-  --secondary:             #003B00;
-  --secondary-foreground:  #00FF41;
-  --destructive:           #FF0000;   /*  5.25 /  5.10 */
-  --destructive-foreground:#FFFFFF;
+  --primary:               #137355;
+  --primary-foreground:    #FBFAF7;
+  --secondary:             #E7E3D9;
+  --secondary-foreground:  #211E1A;
+  --destructive:           #A01D14;   /*  7.51 /  6.81 */
+  --destructive-foreground:#FBFAF7;
 
   /* ---- THE THREE MEANINGS.  New code uses these names, never the
      raw ones above, so the rule is readable at the call site. ---- */
-  --gain:  var(--primary);       /* real money UP */
-  --loss:  var(--destructive);   /* real money DOWN */
-  /* --attn is NOT --secondary here. The spec's #003B00 measures 1.63:1
-     on black, and this token paints TEXT -- the lock countdown and the
-     "Nu at risk" figure -- so it would be invisible. --muted-foreground
-     (#008F11) is in the same palette and clears AA at 4.94:1. */
-  --attn:  var(--muted-foreground);   /* money at risk / needs a decision */
+  --gain:  var(--primary);       /* real money UP   #137355  5.57 / 5.06 */
+  --loss:  var(--destructive);   /* real money DOWN #A01D14  7.51 / 6.81 */
+  /* --attn is its OWN ink now. Under the matrix palette it had to alias
+     --muted-foreground because the spec's #003B00 was invisible; on
+     paper an ochre clears AA on its own and stops "needs a decision"
+     looking identical to every dimmed label on the page. */
+  --attn:  #845608;                   /*  6.07 /  5.51 */
 
-  /* ---- SIDE INKS.  Weight, not hue.  Dots, bar fills and small
-     uppercase labels only -- 2026-07-29 also fixed BoardRow's two
-     probability numerals, which were still painted --primary and
-     --destructive and were the last live remnant of side-as-hue.
-     3.2x luminance apart, so the distribution bar reads as two-tone
-     without either half looking like a P&L figure. ---- */
-  --side-nrfi:  #008F11;            /*  4.94 /  4.79 */
-  --side-yrfi:  var(--foreground);  /* 16.74 / 14.97 / 12.94 */
+  /* ---- SIDE INKS.  Weight, not hue.  Still banned as hue: two rounds
+     of violations survived the original law and were only found when a
+     brighter palette made them louder.  On paper the separation is
+     ink-vs-dimmed, same as before. ---- */
+  --side-nrfi:  var(--muted-foreground);
+  --side-yrfi:  var(--foreground);
 
   /* ---- CHROME.  Interface is not data.  Everything that used to
      borrow --primary for an active state, a hover or a date lands
@@ -131,7 +169,7 @@
 
   /* 10% wash behind soft NRFI tints.  Re-derived from the CURRENT
      accent value rather than a stale one. */
-  --nrfi-soft:    rgba(0, 255, 65, 0.10);
+  --nrfi-soft:    rgba(19, 115, 85, 0.08);
 
   /* "Draft / reconstructed" as a TEXTURE, for the simulated
      surfaces (the model-replay rail, replay-only rows).  Built from
@@ -176,12 +214,13 @@
      on the board stays phosphor mono, so the pick reads as the one
      thing on the row that is speaking plainly to you.
 
-     WHY WHITE IS A NEW TOKEN RATHER THAN --foreground. The matrix
-     palette has no white; --foreground IS #00FF41. Reusing it would
-     have kept the pick green, which is the thing being fixed. #FFFFFF
-     is 21:1 on --card -- the highest contrast available anywhere on
-     this page, which is the point for the one field the operator reads
-     under time pressure.
+     WHY THIS IS A TOKEN RATHER THAN --foreground DIRECTLY. It was
+     #FFFFFF under the matrix palette, where --foreground WAS the
+     phosphor green and reusing it would have kept the pick green. On
+     paper white is invisible, so it now aliases --foreground -- but it
+     stays a named token, because the pick column is the one field the
+     operator reads under time pressure and it should be able to move
+     independently of body ink again without hunting call sites.
 
      WHY INTER AND NOT JETBRAINS MONO. Monospace buys column alignment,
      which a pick LABEL never needs -- it is words, not figures. Inter
@@ -189,14 +228,18 @@
      fits ~15% more characters in the same width, which matters on a
      pill reading "PENDING - LOCKS 7:40 PM ET". The numeric chips beside
      it stay mono precisely because they ARE figures. */
-  --pick-ink:  #FFFFFF;
+  --pick-ink:  var(--foreground);
   --font-ui:   "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, sans-serif;
 
-  --font-display: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
-                  "Courier New", monospace;
-  --font-sans:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
-                  "Courier New", monospace;
+  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+                  "Helvetica Neue", Arial, sans-serif;
+  /* SANS, and it must never be pointed back at the mono stack: the
+     monospace/proportional contrast is what makes mono MEAN "this is a
+     number". Was JetBrains Mono until 2026-08-03, which silently
+     disabled the whole rule below. */
+  --font-sans:    "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+                  "Helvetica Neue", Arial, sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
                   monospace;
 
@@ -220,86 +263,88 @@
    above, 6 added (--gain --loss --attn --side-nrfi --side-yrfi
    --chrome-ink). */
 
-/* --------- Dark mode is the default; .dark class is a no-op pin --------- */
+/* --------- DARK VARIANT.  Literals only; every ALIAS lives in
+   :root and follows on its own (a var() inside a custom property is
+   substituted per element).  That is why --gain / --loss /
+   --side-nrfi / --side-yrfi / --chrome-ink / --success / --warning /
+   --accent-cyan / --ds-gray-1000 / --sim-hatch are absent here.
+   Same warm neutral family as the light theme, so the two read as
+   one product in two lights rather than two designs. --------- */
 .dark {
-  /* Same as :root above */
+  --background:        #17150F;
+  --card:              #1E1C16;
+  --muted:             #26231C;
+  --accent:            #322E26;
+  --input:             #1E1C16;
+  --border:            #3B372E;
+  --rule:              #6B6456;
+  --foreground:            #EFEBE1;   /* 15.33 on bg / 13.17 on muted */
+  --muted-foreground:      #A39B8C;   /*  6.63 /  5.69 */
+  --primary:               #4FBE8C;   /*  7.89 /  6.78 */
+  --primary-foreground:    #17150F;
+  --secondary:             #322E26;
+  --secondary-foreground:  #EFEBE1;
+  --destructive:           #F0705F;   /*  6.25 /  5.37 */
+  --destructive-foreground:#17150F;
+  --attn:                  #D6A343;   /*  7.98 /  6.85 */
+  --ring:                  #4FBE8C;
+  --nrfi-soft:  rgba(79, 190, 140, 0.10);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 1px 1px rgba(0, 0, 0, 0.20);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.30);
 }
 
 /* --------- Light mode -- soft inverse for daylight terminals ---------
 
-   !! THE LIGHT PALETTE LIVES IN TWO BLOCKS AND ALWAYS WILL !!
-   This one (the explicit .light toggle) and `@media
-   (prefers-color-scheme: light) :root:not(.dark)` immediately below.
-   They have silently diverged twice.  They are now LITERALS ONLY, in
-   the same order, byte-identical -- every ALIAS lives in :root and
-   follows the redefined literals on its own, because a var() inside a
-   custom property is substituted per element.  If you are about to add
-   a line to a light block, first ask whether it can be an alias in
-   :root instead.  It almost always can.
-
-   That is why --ring, --accent-cyan, --success, --warning,
-   --ds-gray-1000, --sim-hatch, --side-yrfi, --gain, --loss, --attn and
-   --chrome-ink are absent here: they are aliases and they follow.
+   !! THE THEME LIVES IN TWO BLOCKS AND ALWAYS WILL !!
+   Since 2026-08-03 :root IS the light theme, so the pair that must not
+   diverge is `.dark` and `@media (prefers-color-scheme: dark)
+   :root:not(.light)`.  They are LITERALS ONLY, in the same order,
+   byte-identical -- every ALIAS lives in :root and follows the
+   redefined literals on its own, because a var() inside a custom
+   property is substituted per element.  If you are about to add a line
+   to a theme block, first ask whether it can be an alias in :root
+   instead.  It almost always can.
 
    I deliberately did NOT adopt light-dark().  An unsupported
    light-dark() inside a custom property is guaranteed-invalid at
    computed-value time -- it does NOT fall back to a prior declaration,
    so the whole page would lose its tokens.  A working @supports
-   fallback is MORE code than two blocks.
-
-   LIGHT IS THE CONSTRAINED THEME: all three money hues must clear
-   4.5:1 on --muted, which leaves roughly one usable luminance octave,
-   so separation has to come from HUE.  The old brown palette fought
-   for this and reached a 24 / 42 / 7 spread -- three narrow gaps
-   inside one wedge.  The 2026-07-29 repalette does not have to fight:
-   teal 195 / violet 262 / crimson 345 is a genuine three-way split, and
-   every ratio clears AA with margin instead of by a hair. */
+   fallback is MORE code than two blocks. */
 .light {
-  --background:    #000000;
-  --card:        #050505;
-  --muted:       #001A00;
-  --accent:      #003B00;
-  --input:       #000000;
-  --border:      #003B00;
-  --foreground:      #00FF41;
-  --muted-foreground:    #008F11;
-  --primary:         #00FF41;
-  --primary-foreground:  #000000;
-  --secondary:       #003B00;
-  --secondary-foreground:  #00FF41;
-  --destructive:       #FF0000;
-  --destructive-foreground:#FFFFFF;
-  --side-nrfi:  #008F11;
-  --nrfi-soft:  rgba(0, 255, 65, 0.10);
-  --shadow-1: 0 1px 2px rgba(15, 26, 36, 0.06), 0 1px 1px rgba(15, 26, 36, 0.04);
-  --shadow-2: 0 4px 14px rgba(15, 26, 36, 0.08), 0 1px 3px rgba(15, 26, 36, 0.05);
-  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(15, 26, 36, 0.04);
+  /* No-op pin: :root is already the light theme. Kept so
+     ThemeToggle's explicit `.light` class has something to match and
+     so an OS-dark user who chooses light gets it back. */
 }
 
-/* SECOND HALF OF THE LIGHT PALETTE -- applies only when the user never
-   touched the theme toggle and their OS asked for light.  Must stay
-   byte-identical to `.light` above.  See the note there. */
-@media (prefers-color-scheme: light) {
-  :root:not(.dark) {
-    --background:        #000000;
-    --card:              #050505;
-    --muted:             #001A00;
-    --accent:            #003B00;
-    --input:             #000000;
-    --border:            #003B00;
-    --foreground:            #00FF41;
-    --muted-foreground:      #008F11;
-    --primary:               #00FF41;
-    --primary-foreground:    #000000;
-    --secondary:             #003B00;
-    --secondary-foreground:  #00FF41;
-    --destructive:           #FF0000;
-    --destructive-foreground:#FFFFFF;
-    --side-nrfi:  #008F11;
-    --nrfi-soft:  rgba(0, 255, 65, 0.10);
-    --shadow-1: 0 1px 2px rgba(15, 26, 36, 0.06), 0 1px 1px rgba(15, 26, 36, 0.04);
-    --shadow-2: 0 4px 14px rgba(15, 26, 36, 0.08), 0 1px 3px rgba(15, 26, 36, 0.05);
-    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(15, 26, 36, 0.04);
+/* OS-DARK USERS WHO NEVER TOUCHED THE TOGGLE.  Must stay
+   byte-identical to `.dark` above.  Under the old dark-default
+   structure this block was the LIGHT half and it had silently
+   diverged twice; it is now the dark half and the same warning
+   applies.  Literals only -- see the note on .dark. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background:        #17150F;
+    --card:              #1E1C16;
+    --muted:             #26231C;
+    --accent:            #322E26;
+    --input:             #1E1C16;
+    --border:            #3B372E;
+    --rule:              #6B6456;
+    --foreground:            #EFEBE1;   /* 15.33 on bg / 13.17 on muted */
+    --muted-foreground:      #A39B8C;   /*  6.63 /  5.69 */
+    --primary:               #4FBE8C;   /*  7.89 /  6.78 */
+    --primary-foreground:    #17150F;
+    --secondary:             #322E26;
+    --secondary-foreground:  #EFEBE1;
+    --destructive:           #F0705F;   /*  6.25 /  5.37 */
+    --destructive-foreground:#17150F;
+    --attn:                  #D6A343;   /*  7.98 /  6.85 */
+    --ring:                  #4FBE8C;
+    --nrfi-soft:  rgba(79, 190, 140, 0.10);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 1px 1px rgba(0, 0, 0, 0.20);
+    --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+    --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.30);
   }
 }
 
@@ -347,29 +392,34 @@ html, body {
    OS-light divergence dies with it.  The ambient identity is carried
    entirely by body::before, which stays. */
 body::before {
+  /* NOTHING ON PAPER. This layer existed to carry the "Diamond
+     Terminal" ambient signature of a palette that is two retirements
+     old, and until 2026-08-03 it was still washing dead cyan and rose
+     over every surface -- the single best example of why a repalette
+     that only edits tokens does not repalette this app. An editorial
+     light page wants clean stock, not a tint. */
+  content: none;
+}
+.dark body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  /* Re-keyed 2026-07-29 to the new --gain / --loss.  These were the
-     literal peach #f5a465 and tomato #ec8060 -- the ambient layer is
-     the reason a repalette that only touches tokens still leaves an
-     orange page, because this wash sits over every surface. */
   background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(34, 211, 238, 0.045), transparent 60%),
-    radial-gradient(900px 500px at 95% 0%, rgba(251, 92, 120, 0.030), transparent 65%);
+    radial-gradient(1100px 560px at 12% -10%, rgba(79, 190, 140, 0.045), transparent 62%),
+    radial-gradient(900px 500px at 95% 0%, rgba(214, 163, 67, 0.028), transparent 65%);
 }
-.light body::before {
-  background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(11, 95, 119, 0.05), transparent 60%),
-    radial-gradient(900px 500px at 95% 0%, rgba(184, 26, 60, 0.030), transparent 65%);
-}
-@media (prefers-color-scheme: light) {
-  :root:not(.dark) body::before {
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
     background:
-      radial-gradient(1200px 600px at 12% -10%, rgba(11, 95, 119, 0.05), transparent 60%),
-      radial-gradient(900px 500px at 95% 0%, rgba(184, 26, 60, 0.030), transparent 65%);
+      radial-gradient(1100px 560px at 12% -10%, rgba(79, 190, 140, 0.045), transparent 62%),
+      radial-gradient(900px 500px at 95% 0%, rgba(214, 163, 67, 0.028), transparent 65%);
   }
 }
 
@@ -556,18 +606,18 @@ button {
    a colour audit has to sweep rgb()/rgba() and URL-encoded forms too,
    not just hex literals. */
 ::selection {
-  background: rgba(34, 211, 238, 0.28);
+  background: rgba(19, 115, 85, 0.18);
   color: var(--foreground);
 }
-.light ::selection {
-  background: rgba(11, 95, 119, 0.22);
-  color: var(--foreground);
-}
-@media (prefers-color-scheme: light) {
-  :root:not(.dark) ::selection {
-    background: rgba(11, 95, 119, 0.22);
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) ::selection {
+    background: rgba(79, 190, 140, 0.26);
     color: var(--foreground);
   }
+}
+.dark ::selection {
+  background: rgba(79, 190, 140, 0.26);
+  color: var(--foreground);
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }

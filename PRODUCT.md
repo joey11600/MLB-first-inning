@@ -95,24 +95,42 @@ losses. Numbers carry the message.
 
 ## Brand / palette
 
-**Matrix terminal.** Black `#000000`, phosphor green `#00FF41`, alarm
-red `#FF0000`, square corners. Operator spec, 2026-07-30.
+**Newsprint.** Warm paper `#FBFAF7`, near-black ink `#211E1A`, square
+corners. Chosen 2026-08-03 after the operator retired the matrix
+terminal palette (*"i dont really like the current green theme
+anymore"*). This is the THIRD palette in three months and the history is
+kept below on purpose.
 
-**Type: JetBrains Mono**, replacing VT323 on 2026-07-30. The operator
-chose VT323 with the palette and then retired it: a pixel font measures
-0.40em of x-height against JetBrains Mono's 0.55em, so at the 11-13px
-this interface actually uses it was drawing a third smaller than its
-declared size -- which fails the usage scene above. Colour is unchanged.
+**Type is split**, which is most of why the page reads as editorial:
+Inter for prose, **JetBrains Mono for figures only**. That contrast is
+what makes monospace mean "this is a number". Until 2026-08-03
+`--font-sans` was itself pointed at JetBrains Mono, which made the
+"sans only for text" rule in globals.css a no-op and left every surface
+looking like a terminal.
 
-| token | value | meaning |
-|---|---|---|
-| `--gain` (`--primary`) | `#00FF41` | real money UP |
-| `--loss` (`--destructive`) | `#FF0000` | real money DOWN |
-| `--attn` | `#008F11` | money at risk / decision waiting |
+| token | value | meaning | on paper |
+|---|---|---|---|
+| `--foreground` | `#211E1A` | body ink | 15.90:1 |
+| `--muted-foreground` | `#5F584E` | secondary ink | 6.72:1 |
+| `--gain` (`--primary`) | `#137355` | real money UP | 5.57:1 |
+| `--loss` (`--destructive`) | `#A01D14` | real money DOWN | 7.51:1 |
+| `--attn` | `#845608` | money at risk / decision waiting | 6.07:1 |
 
-This reversed the earlier rejection of terminal green-and-red, which had
-stood since 2026-04-30. It is the current product; do not restore the
-cyan/rose or warm palettes.
+**Why it changed, and it was not only taste.** Under the matrix palette
+`--foreground` and `--gain` were the same `#00FF41`, byte-identical, so
+the interface had no way to distinguish "this is text" from "this is
+money up" -- a losing season would have printed in the gain colour on
+the filmed page. A monochrome scheme leaves one hue for every job.
+`--border` at 1.63:1 was also under the 3:1 WCAG asks of a meaningful
+boundary, and green-with-red is the pair that collapses for the
+commonest colour blindness.
+
+**Light is the default and no longer follows the OS.** The usage scene
+above is a lit room in the early evening; a dark treatment never earned
+its place. The dark variant still exists behind the toggle, and an
+explicit choice is always respected.
+
+Do not restore the matrix terminal, cyan/rose or warm palettes.
 
 **Consequence to design around:** green-and-red is the pair that
 collapses for red-green colour blindness, so **no figure may depend on

@@ -33,7 +33,7 @@ export const metadata: Metadata = {
       // greps for "#rrggbb" silently misses data-URI icons, and the
       // favicon is the one piece of the palette the operator stares at
       // in a browser tab all day.
-      { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2322d3ee' d='M12 2 22 12 12 22 2 12Z'/%3E%3C/svg%3E", type: "image/svg+xml" },
+      { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23137355' d='M12 2 22 12 12 22 2 12Z'/%3E%3C/svg%3E", type: "image/svg+xml" },
     ],
     apple: [
       { url: "/apple-touch-icon.svg", sizes: "180x180" },
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   // Help WebShare, link previews, etc. render with the right brand.
   other: {
     // 2026-07-29: was the warm #171009; now --background (dark).
-    "msapplication-TileColor": "#0a0e14",
+    "msapplication-TileColor": "#FBFAF7",
   },
 };
 
@@ -60,8 +60,8 @@ export const metadata: Metadata = {
 // read a CSS custom property).
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eef3f8" },
-    { media: "(prefers-color-scheme: dark)",  color: "#0a0e14" },
+    { media: "(prefers-color-scheme: light)", color: "#FBFAF7" },
+    { media: "(prefers-color-scheme: dark)",  color: "#17150F" },
   ],
   width:        "device-width",
   initialScale: 1,

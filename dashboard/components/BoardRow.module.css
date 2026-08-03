@@ -1073,11 +1073,17 @@
 }
 .distNrfiFill {
   left: 0;
-  background: var(--primary);
+  /* WEIGHT, NOT HUE. Was var(--primary) / var(--destructive), i.e. the
+     money inks, on a bar that shows a SIDE distribution and never money.
+     Invisible while the whole palette was one green; the moment gain and
+     loss became real hues the bar started reading as profit-and-loss.
+     --side-nrfi / --side-yrfi are the sanctioned pair and they separate
+     by ink weight, which is the rule this repo has had since 2026-07-29. */
+  background: var(--side-nrfi);
 }
 .distYrfiFill {
   right: 0;
-  background: var(--destructive);
+  background: var(--side-yrfi);
 }
 
 .recede .distNrfiFill,
