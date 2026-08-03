@@ -551,6 +551,7 @@ export function HistoryView({
         title="The whole system, under today&rsquo;s rules"
         what="Every STRONG play, not just the night&rsquo;s top one,"
         everyLabel="Every play, most recent first"
+        splitAgainst={topPick ?? null}
       />
 
       {/* T2.42: Bankroll equity curve.  Bank level + drawdown shading +

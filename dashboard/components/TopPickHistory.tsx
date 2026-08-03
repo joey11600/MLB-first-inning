@@ -64,12 +64,19 @@ export function TopPickHistory({
   what = "The top YRFI play of each night",
   id = "topPickHistTitle",
   everyLabel = "Every #1 play, most recent first",
+  splitAgainst,
 }: {
   report: TopPickReport | null;
   title?: string;
   what?: string;
   id?: string;
   everyLabel?: string;
+  /** The #1-play report, when THIS section is the whole system. Used to
+   *  show the split, because the two figures look contradictory side by
+   *  side: the top play out-earns the whole slate it belongs to. It is
+   *  not a contradiction -- everything below #1 loses -- but nobody
+   *  should have to do that subtraction themselves. */
+  splitAgainst?: TopPickReport | null;
 }) {
   if (!report || report.all.length === 0) return null;
   const { last10, byMonth, all, totals, noEdgeUnderKelly } = report;
@@ -143,6 +150,27 @@ export function TopPickHistory({
         the system publishes a unit count, and what a unit is worth after a
         winning week is yours to decide.
       </p>
+
+      {/* WHERE THE MONEY COMES FROM. Without this the two sections read
+          as a contradiction -- the #1 play out-earns the whole slate it
+          is part of. It does, because everything below it loses. */}
+      {splitAgainst && splitAgainst.all.length > 0 && (
+        <p className={styles.note}>
+          <b>Where that comes from.</b> The night&rsquo;s top play accounts for{" "}
+          <b>{formatFlatUnits(asFlat(splitAgainst.totals.atKelly))}</b> of it
+          across {splitAgainst.all.length} bets. Everything below #1 is{" "}
+          <b>
+            {formatFlatUnits(
+              asFlat(totals.atKelly - splitAgainst.totals.atKelly),
+            )}
+          </b>{" "}
+          across the other {all.length - splitAgainst.all.length}. So the top
+          play earns more than the whole slate it belongs to, which is the
+          ranking working rather than an error: the rest of the board hits
+          below the rate its prices demand. On these sample sizes that gap
+          is suggestive and not yet significant.
+        </p>
+      )}
 
       {/* ---- the record ---- */}
       <h3 className={styles.h3}>The record</h3>
