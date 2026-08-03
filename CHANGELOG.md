@@ -11,6 +11,70 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03f] - The #1 section becomes the CURRENT system, and half its money becomes a simulation
+
+Operator, reading the every-bet table: *"it still includes NRFI, which
+we've seen that NRFI doesnt apparently work... most of the bets are only
+betting 1 unit. quarter kelly should be applied for all the history...
+i also thought i told you to start the #1 pick model since we started
+getting real odds data in may"*
+
+All three correct. The May 26 cut had been added as a SIDE BLOCK while
+the headline still led with the old series; that was a fair reading of
+"add it" and the wrong reading of the intent.
+
+### Changed - the section is now one population, defined by today's rules
+
+1. **YRFI only.** 15 of the old 92 nights had an NRFI play as their #1.
+   NRFI has been off since 2026-06-07 for losing in every band, so
+   showing them as the record of a system that would not place them was
+   simply wrong. On those nights the top YRFI play is counted instead.
+2. **From 2026-05-26**, when the live weights were fit. Earlier picks
+   came from a model that no longer exists.
+3. **Staked at quarter-Kelly**, via the same `stakeUnitsFor` the board
+   uses. 85 of the old 92 bets were recorded at exactly 1.00u because
+   Kelly only went live 2026-07-27.
+
+92 bets -> 65 qualifying -> **63**, because Kelly finds no edge at the
+price paid on 2 of them and would not bet at all. That drop is counted
+and printed rather than silently sized to zero (the trap recorded in the
+`kelly_staking` memory).
+
+### The honesty problem this creates, and how it is handled
+
+Points 1 and 2 are FILTERS and stay factual. Point 3 is a
+COUNTERFACTUAL, and the gap is not small:
+
+| basis | figure | status |
+|---|---|---|
+| flat 1u a night | **+10.37u** | fact |
+| actually staked and returned | **+7.49u** | fact |
+| quarter-Kelly | **+68.23u** | **simulation** |
+| ...compounding | **100.00u -> 184.77u** | **simulation** |
+
+Roughly **nine times** the realized number, because the median stake
+moves from 1.00u to 5.00u. The operator SELLS these picks, so:
+
+- both simulated figures carry the word "simulated" in the basis label,
+  a dashed rule under the label AND a dashed underline on the figure
+  itself, so the marker travels with the number rather than its caption
+- the marker is a FORM difference, not a hue one: globals.css reserves
+  hue for real money and spending it on provenance would weaken both
+- `totals.realized` is printed beside them, always
+- the note says outright which two are facts and which two are not
+
+`/brief` deliberately shows the **flat 1u** figure instead: that surface
+gets read aloud, and a caveat is the first thing to fall off on camera.
+
+### Note
+
+`tools/season_replay.py` already excluded NRFI (`decide()` is YRFI-only
+and says why), so the backtest needed no change on that count.
+`bySide` is dropped from the report: with the series YRFI-only it had
+one row.
+
+---
+
 ## [2026-08-03e] - UI upgrade: rounded corners, paper shadows, a display serif
 
 Operator: *"i want to upgrade the ui too. rounded corners. shadows. nice

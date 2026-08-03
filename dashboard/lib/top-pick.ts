@@ -1,19 +1,27 @@
 /**
- * THE #1 PICK — how the top-ranked play of each night actually did.
+ * THE #1 PICK, UNDER THE RULES IN FORCE TODAY.
  *
- * REAL MONEY, NOT THE REPLAY. Everything here comes from the ledger:
- * bets that were really placed, at prices really captured, graded
- * against real results, using the units really staked. It is NOT the
- * season-record replay that the equity curve and the week card show —
- * those re-score history with today's model, which is a different and
- * more flattering question. Both are legitimate; they must never be
- * mistaken for one another, so this file touches `season_record.json`
- * nowhere.
+ * PART FACT, PART SIMULATION, AND THE DIFFERENCE IS THE WHOLE POINT.
+ * Rewritten 2026-08-03. Every game, price and result here is real
+ * ledger data. What is NOT real is the stake: the section sizes each
+ * night at today's quarter-Kelly, and 85 of the old 92 bets were
+ * actually placed at 1.00u because Kelly only went live 2026-07-27.
  *
- * WHAT "#1" MEANS. On each slate the board sorts by confidence, so the
- * #1 pick is the top row: the lowest p(no run) among YRFI plays, or the
- * highest among NRFI ones. This picks exactly that game, from the bets
- * that were actually placed.
+ *     really staked, really returned    +7.49u
+ *     the same nights at quarter-Kelly  +68.23u
+ *
+ * Nine times apart, because the median stake moves from 1.00u to 5.00u.
+ * So `totals.realized` travels beside `totals.atKelly` everywhere and
+ * the UI must label the Kelly figures as a simulation. The operator
+ * SELLS these picks; publishing a re-staked backtest as realized profit
+ * is the one thing this file exists to prevent.
+ *
+ * WHAT "#1" MEANS HERE. The top YRFI play of each night by confidence,
+ * then by the better price. NRFI is excluded outright -- it was
+ * switched off 2026-06-07 for losing in every band -- so on a night
+ * whose overall #1 was an NRFI play, the best YRFI play is #1 instead.
+ * The series starts at CURRENT_SYSTEM_FROM, when the live weights were
+ * fit; earlier picks came from a model that no longer exists.
  *
  * ONE POPULATION, THROUGHOUT. Every figure below — record, hit rate,
  * break-even, units staked, units returned — is computed over the SAME
@@ -32,6 +40,7 @@
  */
 import { loadLedgerRows } from "./roi";
 import { compareForTopPick } from "./top-pick-rank";
+import { stakeUnitsFor } from "./kelly-sim";
 
 export interface TopPickBet {
   date: string;
@@ -41,8 +50,14 @@ export interface TopPickBet {
   modelP: number;
   odds: number;
   win: boolean;
+  /** What the ledger RECORDED. Mostly 1.00u: Kelly went live 07-27. */
   unitsRisked: number;
+  /** REALIZED P&L at that recorded stake. */
   pnl: number;
+  /** SIMULATED stake under today's quarter-Kelly rule. */
+  kellyStake: number;
+  /** SIMULATED P&L at that stake. Never realized money. */
+  kellyPnl: number;
 }
 
 export interface TopPickWindow {
@@ -108,51 +123,39 @@ export interface TopPickReport {
   /** The whole series compounded from a 100u bank. Levels, not a sum. */
   bank: { start: number; end: number; ret: number; peak: number; maxDrawdown: number };
   /**
-   * THE TWO HONEST SEASON TOTALS, both on a FIXED unit value.
+   * THREE TOTALS, ONE OF WHICH IS NOT REAL.
    *
-   * `atFlat1u` bets exactly 1 unit every night: the model's edge with
-   * staking removed. `atPublishedStakes` bets the unit count the system
-   * actually published (quarter-Kelly, 3.9u to 10u), which is what a
-   * follower who never re-sizes their unit really made.
+   * All three are exact sums on a FIXED unit value, so they add
+   * honestly and mean the same thing on a $1,000 bank and a $10,000
+   * one. What differs is their STATUS:
    *
-   * Both add exactly, because in neither case does the unit's dollar
-   * value move between bets, and both mean the same thing on a $1,000
-   * bank and a $10,000 one. They are NOT the operator's own bank, which
-   * compounds and is `bank` above; the three can differ in sign, which
-   * is why every one of them is printed with its basis named.
+   *   atFlat1u  the edge with stake size removed          FACT
+   *   realized  what was actually staked and returned     FACT
+   *   atKelly   today's staking over the same nights      SIMULATION
+   *
+   * Never print `atKelly` without saying it is a simulation, and never
+   * print it without `realized` nearby. They differ by about 9x.
    */
-  totals: { atFlat1u: number; atPublishedStakes: number };
+  totals: {
+    /** Flat 1u a night: the edge with stake size removed. FACT. */
+    atFlat1u: number;
+    /** What was ACTUALLY staked and returned. The only realized figure. */
+    realized: number;
+    /** Today's quarter-Kelly applied to these nights. A SIMULATION. */
+    atKelly: number;
+  };
+  /** Nights where today's Kelly rule finds no edge at the price paid, so
+   *  the current system would not bet at all. Disclosed, not hidden. */
+  noEdgeUnderKelly: number;
   /** Calendar months, oldest first. */
   byMonth: TopPickSlice[];
-  /** YRFI and NRFI, each compounded from 100 in isolation. */
-  bySide: TopPickSlice[];
   /** Every settled #1 play, most recent first. */
   all: TopPickBet[];
-  /**
-   * THE CURRENT SYSTEM'S #1, as far as the ledger can honestly show it.
-   *
-   * Two rules applied to history, and it matters which is which:
-   *
-   *   1. FROM 2026-05-26, the date the live model weights were fit. Games
-   *      before that were scored by a model that no longer exists.
-   *   2. YRFI ONLY, RE-RANKED. STRONG NRFI was switched off on
-   *      2026-06-07 for losing in every band. Dropping a side is a rule
-   *      you CAN apply backwards without re-scoring anything -- you
-   *      simply do not place those bets -- so on the nights whose #1 was
-   *      an NRFI play, the top YRFI play becomes #1 instead.
-   *
-   * WHAT THIS IS NOT. It is not a backtest. The calibrator swap of
-   * 2026-07-28 and the gate move of 2026-07-30 changed which games
-   * qualify as STRONG at all, and no amount of filtering the ledger can
-   * undo that -- only re-scoring can, which is `tools/season_replay.py
-   * --top-only --since 2026-05-26`. Read this as "today's selection rule
-   * over the numbers the model printed at the time".
-   */
-  currentSystem: (TopPickWindow & { from: string }) | null;
 }
 
-/** The live model weights were fit on this date; earlier picks came from
- *  a model that no longer exists. See `currentSystem`. */
+/** The live model weights were fit on this date. Everything before it
+ *  was picked by a model that no longer exists, and April's prices were
+ *  barely captured, so the series starts here. */
 export const CURRENT_SYSTEM_FROM = "2026-05-26";
 
 const num = (v: string | undefined): number | null => {
@@ -218,34 +221,73 @@ export async function loadTopPickReport(
   const rows = await loadLedgerRows(season);
   if (!rows) return null;
 
-  // Every placed, graded, really-priced bet. Nights whose top pick was
-  // unpriced are tracked separately so the count can be disclosed.
+  /* ============================================================
+     THIS SECTION IS THE CURRENT SYSTEM, NOT THE OLD LEDGER.
+     ============================================================
+     Rewritten 2026-08-03 on the operator's instruction, and the three
+     changes compound, so read them together:
+
+       1. YRFI ONLY. STRONG NRFI was switched off 2026-06-07 for losing
+          in every band. 15 of the 92 nights in the old series had an
+          NRFI play as their #1, and showing them as the record of a
+          system that would not place them is simply wrong.
+       2. FROM 2026-05-26, the date the live model weights were fit.
+          Earlier picks came from a model that no longer exists, and
+          April's prices were barely captured.
+       3. STAKED AT QUARTER-KELLY. 85 of the old 92 bets were recorded
+          at exactly 1.00u because Kelly only went live 2026-07-27. The
+          section now sizes every night by the rule in force TODAY, via
+          the same `stakeUnitsFor` the board uses -- bankroll-free, 10u
+          per-bet cap, so it is the number a follower would stake.
+
+     WHAT THAT MAKES THESE FIGURES. Points 1 and 2 are FILTERS: they
+     remove bets, which needs no re-scoring and stays factual. Point 3
+     is a COUNTERFACTUAL: the money is what this staking WOULD have
+     returned, not what the bank did. The gap is not small -- +7.49u
+     really staked against +68.23u at quarter-Kelly, about nine times --
+     because the median stake goes from 1.00u to 5.00u. So `realized`
+     is carried alongside every simulated figure and the UI labels the
+     Kelly ones as a simulation. An operator SELLING these picks cannot
+     publish a re-staked backtest as though it were realized profit.
+
+     KELLY ALSO DROPS BETS, which is easy to miss: `stakeUnitsFor`
+     returns 0 when the model has no edge at the price actually paid,
+     so 2 of the 65 qualifying nights are not bets at all under today's
+     rule. Counted and disclosed rather than silently sized to zero.
+     ============================================================ */
   const all: TopPickBet[] = [];
   const unpricedNights = new Set<string>();
+  let noEdgeUnderKelly = 0;
   for (const r of rows) {
     const graded = (r.graded_result || "").trim().toUpperCase();
     if (graded !== "WIN" && graded !== "LOSS") continue;
     if ((r.bet_placed || "").trim().toUpperCase() !== "Y") continue;
     const side = (r.pick_side || "").trim();
-    if (side !== "YRFI" && side !== "NRFI") continue;
+    if (side !== "YRFI") continue;                       // (1) NRFI is off
+    const date = (r.date || "").trim();
+    if (date < CURRENT_SYSTEM_FROM) continue;            // (2) current weights
     const modelP = num(r.nrfi_prob);
     if (modelP == null) continue;
-    const odds = num(side === "YRFI" ? r.market_yrfi_odds : r.market_nrfi_odds);
+    const odds = num(r.market_yrfi_odds);
     const unitsRisked = num(r.units_risked);
     const pnl = num(r.profit_loss_units);
     if (odds == null || odds === 0 || unitsRisked == null || pnl == null) {
-      unpricedNights.add((r.date || "").trim());
+      unpricedNights.add(date);
       continue;
     }
     all.push({
-      date: (r.date || "").trim(),
+      date,
       game: `${(r.away_team || "").trim()}@${(r.home_team || "").trim()}`,
       side, modelP, odds, win: graded === "WIN", unitsRisked, pnl,
+      // Placeholders; the real values are set once the night's #1 is known.
+      kellyStake: 0, kellyPnl: 0,
     });
   }
   if (all.length === 0) return null;
 
-  // One bet per night: the strongest.
+  // One bet per night: the strongest. With NRFI filtered out above this
+  // is already the "re-rank to the top YRFI play" rule -- on a night
+  // whose overall #1 was NRFI, the best YRFI play becomes #1.
   const byDay = new Map<string, TopPickBet[]>();
   for (const b of all) {
     const list = byDay.get(b.date);
@@ -254,9 +296,17 @@ export async function loadTopPickReport(
   }
   const tops: TopPickBet[] = [];
   for (const d of [...byDay.keys()].sort()) {
-    const list = byDay.get(d)!;
-    tops.push(list.reduce(better));
+    const b = byDay.get(d)!.reduce(better);
+    // (3) size it the way the system sizes a bet today. p is the
+    // probability of the SIDE BET, and modelP is p(no run), so YRFI
+    // takes the complement -- the same conversion StakeChip makes.
+    const stake = stakeUnitsFor(1 - b.modelP, b.odds);
+    if (stake <= 0) { noEdgeUnderKelly++; continue; }
+    b.kellyStake = stake;
+    b.kellyPnl = b.win ? stake * payout(b.odds) : -stake;
+    tops.push(b);
   }
+  if (tops.length === 0) return null;
 
   const end = tops[tops.length - 1].date;
   const windows: TopPickWindow[] = [];
@@ -266,8 +316,8 @@ export async function loadTopPickReport(
     if (sel.length === 0) continue;
     const n = sel.length;
     const wins = sel.filter((b) => b.win).length;
-    const staked = sel.reduce((a, b) => a + b.unitsRisked, 0);
-    const returned = sel.reduce((a, b) => a + b.pnl, 0);
+    const staked = sel.reduce((a, b) => a + b.kellyStake, 0);
+    const returned = sel.reduce((a, b) => a + b.kellyPnl, 0);
     const flat = sel.reduce((a, b) => a + (b.win ? payout(b.odds) : -1), 0);
     const be = sel.reduce((a, b) => a + implied(b.odds), 0) / n;
     const [lo, hi] = wilson(wins, n);
@@ -297,10 +347,10 @@ export async function loadTopPickReport(
   const slice = (sel: TopPickBet[], key: string): TopPickSlice => {
     const n = sel.length;
     const wins = sel.filter((b) => b.win).length;
-    const staked = sel.reduce((a, b) => a + b.unitsRisked, 0);
-    const returned = sel.reduce((a, b) => a + b.pnl, 0);
+    const staked = sel.reduce((a, b) => a + b.kellyStake, 0);
+    const returned = sel.reduce((a, b) => a + b.kellyPnl, 0);
     let bank = 100;
-    for (const b of sel) bank *= 1 + b.pnl / 100;
+    for (const b of sel) bank *= 1 + b.kellyPnl / 100;
     return {
       key,
       bets: n,
@@ -315,50 +365,11 @@ export async function loadTopPickReport(
     };
   };
 
-  /* ---- TODAY'S SELECTION RULE, APPLIED BACKWARDS ----
-     YRFI only, re-ranked: on a night whose #1 was an NRFI play, the top
-     YRFI play becomes #1, because under current policy the NRFI bet
-     would never have been placed at all. Dropping a side needs no
-     re-scoring, which is what makes this legitimate where undoing the
-     calibrator swap would not be. See the `currentSystem` doc comment. */
-  const yrfiTops: TopPickBet[] = [];
-  for (const d of [...byDay.keys()].sort()) {
-    const yr = byDay.get(d)!.filter((b) => b.side === "YRFI");
-    if (yr.length) yrfiTops.push(yr.reduce(better));
-  }
-  const curSel = yrfiTops.filter((b) => b.date >= CURRENT_SYSTEM_FROM);
-  let currentSystem: (TopPickWindow & { from: string }) | null = null;
-  if (curSel.length > 0) {
-    const n = curSel.length;
-    const wins = curSel.filter((b) => b.win).length;
-    const staked = curSel.reduce((a, b) => a + b.unitsRisked, 0);
-    const returned = curSel.reduce((a, b) => a + b.pnl, 0);
-    const [lo, hi] = wilson(wins, n);
-    currentSystem = {
-      label: "Current system",
-      spanDays: 0,
-      from: curSel[0].date,
-      to: curSel[n - 1].date,
-      bets: n,
-      wins,
-      losses: n - wins,
-      hitRate: wins / n,
-      breakEven: curSel.reduce((a, b) => a + implied(b.odds), 0) / n,
-      staked,
-      returned,
-      roiPerUnit: staked > 0 ? returned / staked : 0,
-      flatRoi: curSel.reduce((a, b) => a + (b.win ? payout(b.odds) : -1), 0) / n,
-      ciLo: lo,
-      ciHi: hi,
-      excludedNoPrice: 0,
-    };
-  }
-
   let bank = 100;
   let peak = 100;
   let maxDd = 0;
   for (const b of tops) {
-    bank *= 1 + b.pnl / 100;
+    bank *= 1 + b.kellyPnl / 100;
     if (bank > peak) peak = bank;
     const dd = bank / peak - 1;
     if (dd < maxDd) maxDd = dd;
@@ -386,13 +397,11 @@ export async function loadTopPickReport(
     bank: { start: 100, end: bank, ret: bank / 100 - 1, peak, maxDrawdown: maxDd },
     totals: {
       atFlat1u: tops.reduce((a, b) => a + (b.win ? payout(b.odds) : -1), 0),
-      atPublishedStakes: tops.reduce((a, b) => a + b.pnl, 0),
+      realized: tops.reduce((a, b) => a + b.pnl, 0),
+      atKelly: tops.reduce((a, b) => a + b.kellyPnl, 0),
     },
+    noEdgeUnderKelly,
     byMonth: [...months.keys()].sort().map((m) => slice(months.get(m)!, m)),
-    bySide: (["YRFI", "NRFI"] as const)
-      .map((s) => slice(tops.filter((b) => b.side === s), s))
-      .filter((s) => s.bets > 0),
     all: [...tops].reverse(),
-    currentSystem,
   };
 }

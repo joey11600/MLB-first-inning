@@ -1,24 +1,16 @@
 /**
- * THE #1 PLAY, IN FULL — the section that answers "is the top pick any
- * good", with the tables to back it.
+ * THE #1 PLAY UNDER TODAY'S RULES — the section that answers "is the top
+ * pick any good, run the way I run it now".
  *
- * SITS UNDER TopPickCard, WHICH IT DOES NOT DUPLICATE. That card is the
- * verdict: four time windows, a record, a confidence interval. This is
- * the working: how the bank actually moved, month by month, side by
- * side, and every settled bet in order. The card is for deciding whether
- * to trust the number; this is for finding out why it is what it is, and
- * for pulling a figure to quote.
- *
- * THE "UNITS PROFIT" QUESTION, ANSWERED THE ONLY WAY IT CAN BE. The
- * operator asked for "units profit" on the #1 pick. There is no such
- * quantity: 1 unit is 1% of bankroll, so a unit won in April and a unit
- * won in July are amounts in different currencies, and `formatUnits`
- * refuses a summed figure at COMPILE time to stop exactly this
- * (lib/units.ts). What there IS, and what this section prints, is where
- * the bank went: 100u in, X out, which is the same information and is
- * true. Because the bank is 100 units by definition, that return can
- * legitimately be read with a "u" on it, which is what `returnAsUnits`
- * is for.
+ * TWO OF ITS MONEY FIGURES ARE FACTS AND TWO ARE SIMULATIONS. The games,
+ * prices and results are all real ledger data; the STAKES are not. Since
+ * 2026-08-03 the section sizes every night at today's quarter-Kelly,
+ * where 85 of the original 92 bets were really placed at 1.00u. That is
+ * a ~9x difference (+7.49u realized against +68.23u simulated), so the
+ * simulated figures carry a dashed rule and the word "simulated", and
+ * `totals.realized` sits beside them. The operator SELLS these picks:
+ * a re-staked backtest printed as realized profit is the failure this
+ * section is built to avoid.
  *
  * EVERY SLICE COMPOUNDS FROM 100 SEPARATELY. A month that opened on a
  * 210u bank and one that opened on 100u would otherwise look like wildly
@@ -66,17 +58,29 @@ function shortDate(iso: string): string {
 
 export function TopPickHistory({ report }: { report: TopPickReport | null }) {
   if (!report || report.all.length === 0) return null;
-  const { bank, last10, byMonth, bySide, all, totals, currentSystem } = report;
+  const { bank, last10, byMonth, all, totals, noEdgeUnderKelly } = report;
   const season = report.windows[0];
 
   return (
     <section className={styles.wrap} aria-labelledby="topPickHistTitle">
       <h2 className={styles.title} id="topPickHistTitle">
-        The #1 play · full history
+        The #1 play, under today&rsquo;s rules
       </h2>
       <p className={styles.lead}>
-        Every night&rsquo;s top-ranked play, settled at the price actually
-        captured. One bet a night, {all.length} of them.
+        The top YRFI play of each night since May 26, when the live model
+        weights were fit, staked at today&rsquo;s quarter-Kelly. One bet a
+        night, {all.length} of them. NRFI is excluded because it has been
+        switched off since June 7, so on a night whose top play was an NRFI
+        pick the best YRFI play is counted instead.
+        {noEdgeUnderKelly > 0 && (
+          <>
+            {" "}
+            {noEdgeUnderKelly} further night
+            {noEdgeUnderKelly === 1 ? "" : "s"} had a top play that
+            today&rsquo;s staking rule would not bet at all, because there was
+            no edge at the price actually paid.
+          </>
+        )}
       </p>
 
       {/* ---- UNITS PROFIT, ON ALL THREE BASES ----
@@ -107,45 +111,67 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
           </span>
         </div>
         <div className={styles.fig}>
-          <span className={styles.figBasis}>Published stakes</span>
+          <span className={`${styles.figBasis} ${styles.figBasisSim}`}>
+            Quarter-Kelly · simulated
+          </span>
           <span
-            className={styles.figValue}
-            data-money={tone(totals.atPublishedStakes)}
+            className={`${styles.figValue} ${styles.figValueSim}`}
+            data-money={tone(totals.atKelly)}
           >
-            {formatFlatUnits(asFlat(totals.atPublishedStakes))}
+            {formatFlatUnits(asFlat(totals.atKelly))}
           </span>
           <span className={styles.figLabel}>
-            betting the unit count actually published each night, without
-            re-sizing · what a follower made
+            these nights sized the way the system sizes a bet today · NOT
+            money anyone made
           </span>
         </div>
         <div className={styles.fig}>
-          <span className={`${styles.figBasis} ${styles.figBasisAlt}`}>
-            Compounded · a different kind of number
+          <span className={styles.figBasis}>Actually staked</span>
+          <span
+            className={styles.figValue}
+            data-money={tone(totals.realized)}
+          >
+            {formatFlatUnits(asFlat(totals.realized))}
           </span>
-          <span className={styles.figValue} data-money={tone(bank.ret)}>
+          <span className={styles.figLabel}>
+            what the ledger really risked and really returned · Kelly only
+            went live on Jul 27, so most of these were 1.00u
+          </span>
+        </div>
+        <div className={styles.fig}>
+          <span className={`${styles.figBasis} ${styles.figBasisSim}`}>
+            Compounded · simulated
+          </span>
+          <span
+            className={`${styles.figValue} ${styles.figValueSim}`}
+            data-money={tone(bank.ret)}
+          >
             {returnAsUnits(bank.ret)}
           </span>
           <span className={styles.figLabel}>
-            re-sizing every bet to 1% of the running bank ·{" "}
+            the quarter-Kelly run re-sized to 1% of the running bank ·{" "}
             {formatBankGrowth(bank.start, bank.end)}
           </span>
         </div>
       </div>
 
       <p className={styles.note}>
-        All three are the same bets. The first two are exact sums and mean
-        the same thing on any bankroll: one unit is 1% of the bank you
-        started with, so <b>{formatFlatUnits(asFlat(totals.atFlat1u))}</b> is{" "}
-        {Math.abs(totals.atFlat1u).toFixed(2)}% of a $1,000 bank and the same
-        percentage of a $10,000 one. The third is the only one that assumes
-        you re-size after every result, which changes what a unit is worth
-        as you go and is why it can disagree with the other two.
+        <b>Two of these are facts and two are simulations, and the gap is
+        large.</b> Flat 1u and Actually staked are what happened. The
+        quarter-Kelly figures are what today&rsquo;s staking rule WOULD have
+        returned on the same games, at a median stake of 5 units rather than
+        the 1 unit most of them were really placed at &mdash; which is why
+        they are roughly nine times the realized number. They are the right
+        thing to look at when deciding what this system is worth going
+        forward, and the wrong thing to call profit. Every figure is an exact
+        sum on a fixed unit value, so all of them mean the same on a $1,000
+        bank and a $10,000 one; only the last assumes you re-size after every
+        result.
       </p>
 
       {/* ---- the record ---- */}
       <h3 className={styles.h3}>The record</h3>
-      <div className={styles.figures}>
+      <div className={`${styles.figures} ${styles.figuresThree}`}>
         <div className={styles.fig}>
           <span className={styles.figValue}>
             {season.wins}
@@ -175,78 +201,6 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
         </div>
       </div>
 
-      {/* ---- TODAY'S RULE, APPLIED BACKWARDS ----
-          The season row above includes 15 nights whose #1 was an NRFI
-          play, and NRFI has been off since 2026-06-07 for losing in
-          every band. It also includes April and May games scored by
-          model weights replaced on 2026-05-26. This block is the same
-          ledger under today's selection rule. It is NOT a backtest, and
-          the copy says so: only re-scoring can undo the calibrator and
-          gate changes, which is what tools/season_replay.py does. */}
-      {currentSystem && (
-        <>
-          <h3 className={styles.h3}>Under the current system</h3>
-          <div className={styles.figures}>
-            <div className={styles.fig}>
-              <span className={styles.figValue}>
-                {currentSystem.wins}
-                {MINUS}
-                {currentSystem.losses}
-              </span>
-              <span className={styles.figLabel}>
-                since {shortDate(currentSystem.from)} · YRFI only, the rule
-                actually in force today
-              </span>
-            </div>
-            <div className={styles.fig}>
-              <span className={styles.figValue}>
-                {(currentSystem.hitRate * 100).toFixed(1)}%
-              </span>
-              <span className={styles.figLabel}>
-                against a {(currentSystem.breakEven * 100).toFixed(1)}%
-                break-even · 95% range{" "}
-                {(currentSystem.ciLo * 100).toFixed(0)}&ndash;
-                {(currentSystem.ciHi * 100).toFixed(0)}%
-              </span>
-            </div>
-            <div className={styles.fig}>
-              <span
-                className={styles.figValue}
-                data-money={tone(currentSystem.flatRoi)}
-              >
-                {formatFlatUnits(
-                  asFlat(currentSystem.flatRoi * currentSystem.bets),
-                )}
-              </span>
-              <span className={styles.figLabel}>
-                betting a flat 1 unit on each of these {currentSystem.bets}
-              </span>
-            </div>
-          </div>
-          <p className={styles.note}>
-            The model weights in production were fit on{" "}
-            {shortDate(currentSystem.from)}, and NRFI betting was switched off
-            on Jun 7 for losing in every band, so on nights whose top play was
-            an NRFI pick the top YRFI play is counted instead. That much can be
-            applied backwards honestly: you simply would not have placed those
-            bets.{" "}
-            <b>This is not a backtest.</b> The calibrator swap of Jul 28 and
-            the gate move of Jul 30 changed which games qualify as a play at
-            all, and no filter on past rows can undo that. For that, re-score
-            the season with <code>tools/season_replay.py --top-only --since{" "}
-            {currentSystem.from}</code>, which walks the calibrator forward so
-            no result is used before it was known.
-            {currentSystem.ciLo <= currentSystem.breakEven && (
-              <>
-                {" "}
-                Note the 95% range still crosses the break-even rate: {currentSystem.bets}{" "}
-                bets is not enough to rule out luck, whichever way it points.
-              </>
-            )}
-          </p>
-        </>
-      )}
-
       {/* ---- month by month ---- */}
       <h3 className={styles.h3}>Month by month</h3>
       <SliceTable
@@ -267,14 +221,6 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
         compared with each other.
       </p>
 
-      {/* ---- by side ---- */}
-      <h3 className={styles.h3}>By side</h3>
-      <SliceTable rows={bySide} firstCol="Side" label={(s) => s.key} />
-      <p className={styles.note}>
-        NRFI has been switched off since 2026-06-07, so its row is a closed
-        book rather than an ongoing result.
-      </p>
-
       {/* ---- every bet ---- */}
       <h3 className={styles.h3}>Every #1 play, most recent first</h3>
       <div className={styles.scroller}>
@@ -288,7 +234,7 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
               <th scope="col">Date</th>
               <th scope="col" className={styles.right}>Result</th>
               <th scope="col" className={styles.right}>Price</th>
-              <th scope="col" className={styles.right}>Stake</th>
+              <th scope="col" className={styles.right}>Stake (sim)</th>
               <th scope="col">Game</th>
             </tr>
           </thead>
@@ -306,13 +252,13 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
                     className={`${styles.right} ${styles.mono}`}
                     data-money={b.win ? "up" : "down"}
                   >
-                    {b.win ? "WON" : "LOST"} {formatLevel(Math.abs(b.pnl))}
+                    {b.win ? "WON" : "LOST"} {formatLevel(Math.abs(b.kellyPnl))}
                   </td>
                   <td className={`${styles.right} ${styles.mono}`}>
                     {b.odds > 0 ? `+${b.odds}` : `${MINUS}${Math.abs(b.odds)}`}
                   </td>
                   <td className={`${styles.right} ${styles.mono} ${styles.dim}`}>
-                    {formatLevel(b.unitsRisked)}
+                    {formatLevel(b.kellyStake)}
                   </td>
                   <td className={styles.game}>
                     {cityOf(away)} at {cityOf(home)}

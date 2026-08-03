@@ -533,18 +533,25 @@ function RecordBlock({ record }: { record: TopPickReport | null }) {
             to `--gain`. A losing season would have printed in the colour
             this codebase reserves for money UP, on the surface whose whole
             rule is that a wrong sentence is worse than a missing one. */}
+        {/* THE FLAT FIGURE, NOT THE KELLY ONE, and that is deliberate.
+            /history carries the quarter-Kelly simulation with a dashed
+            rule and the word "simulated" on it. This surface gets read
+            ALOUD, where a caveat is the first thing that falls off, so
+            it prints the number that needs no caveat: what the edge is
+            worth at a flat 1 unit a night. */}
         <div>
           <span
             className={styles.recordFigure}
-            data-money={moneyTone(record.totals.atPublishedStakes)}
+            data-money={moneyTone(record.totals.atFlat1u)}
           >
-            {formatFlatUnits(asFlat(record.totals.atPublishedStakes))}
+            {formatFlatUnits(asFlat(record.totals.atFlat1u))}
           </span>
           <span className={styles.recordLabel}>
-            units profit at the stakes published
+            at a flat 1 unit a night
           </span>
           <span className={styles.recordSub}>
-            {formatReturn(season.roiPerUnit, 1)} per unit risked
+            {formatReturn(season.roiPerUnit, 1)} per unit at today&rsquo;s
+            staking
           </span>
         </div>
       </div>
