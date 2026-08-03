@@ -152,10 +152,30 @@ def decide(p_nrfi, row, gate):
 
 
 def simulate(rows, probs, gate, frac=0.25, require_real_price=True,
-             start=START_BANK):
-    """Day-by-day compounding with the shipped Kelly helper."""
+             start=START_BANK, top_only=False, since=None):
+    """Day-by-day compounding with the shipped Kelly helper.
+
+    `top_only` keeps ONE bet a night: the slate's #1, which is the play
+    the operator publishes a video about. The ranking rule is the same
+    one the dashboard uses in lib/top-pick-rank.ts -- most confident
+    first, then the better price -- because a backtest that defined "#1"
+    differently from the live board would be measuring a strategy nobody
+    is running. For a YRFI bet, confidence is p_nrfi ASCENDING, i.e.
+    p_yrfi descending, and the price tiebreak takes the lower implied
+    probability (the bigger payout).
+
+    `since` filters what is EVALUATED, never what a calibrator was
+    trained on. Cutting the row set at load time instead would have
+    starved the walk-forward: it refits from games strictly before each
+    date, and those games are exactly the ones a `--since` would have
+    thrown away. The bank still starts at `start` on the first evaluated
+    day, so the figure is "what this strategy did over this window",
+    not a continuation of an earlier run.
+    """
     byday = defaultdict(list)
     for r, p_nrfi in zip(rows, probs):
+        if since and r["date"] < since:
+            continue
         if not decide(p_nrfi, r, gate):
             continue
         odds = r["yrfi_odds"]
@@ -164,6 +184,10 @@ def simulate(rows, probs, gate, frac=0.25, require_real_price=True,
                 continue
             odds = -110.0          # the placeholder, only when asked for
         byday[r["date"]].append((1.0 - p_nrfi, odds, r["yrfi_hit"]))
+
+    if top_only:
+        for d, cands in byday.items():
+            byday[d] = [min(cands, key=lambda c: (-c[0], implied(c[1])))]
 
     bank = peak = start
     mdd = 0.0
@@ -207,6 +231,14 @@ def line(label, r):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--top-only", action="store_true",
+                    help="one bet a night: the slate's #1, ranked as the "
+                         "dashboard ranks it. This is the play the operator "
+                         "publishes a video about.")
+    ap.add_argument("--since", metavar="YYYY-MM-DD", default=None,
+                    help="restrict to dates on or after this. Use 2026-05-26 "
+                         "for the current model weights; earlier games were "
+                         "scored by a model that no longer exists.")
     args = ap.parse_args()
 
     rows, skipped = load_season()
@@ -227,6 +259,12 @@ def main():
     priced = sum(1 for r in rows if r["yrfi_odds"] is not None)
     print(f"  games with a REAL captured DK price: {priced}/{len(rows)} "
           f"({100*priced/len(rows):.0f}%)")
+    if args.top_only:
+        print("  MODE                : #1 ONLY -- one bet a night, ranked as "
+              "the dashboard ranks it")
+    if args.since:
+        print(f"  EVALUATED FROM      : {args.since} (earlier games still train "
+              "the walk-forward calibrator)")
 
     probs = [prod_cal.predict(r["raw"]) for r in rows]
 
@@ -235,19 +273,23 @@ def main():
           f"{'final':>10}{'profit':>10}{'maxDD':>8}")
     print("=" * 108)
 
+    K = dict(top_only=args.top_only, since=args.since)
+
     print("\n  A. AS-DEPLOYED REPLAY  (optimistic -- calibrator has seen these games)")
-    line("     real prices only", simulate(rows, probs, gate, require_real_price=True))
+    line("     real prices only", simulate(rows, probs, gate, require_real_price=True, **K))
     line("     incl. -110 placeholder fills",
-         simulate(rows, probs, gate, require_real_price=False))
+         simulate(rows, probs, gate, require_real_price=False, **K))
 
     print("\n  B. PRICE-HONEST, BY MONTH  (real captured prices only)")
     bym = defaultdict(list)
     for r, p in zip(rows, probs):
         bym[r["date"][:7]].append((r, p))
     for m in sorted(bym):
+        if args.since and m < args.since[:7]:
+            continue
         rr = [x[0] for x in bym[m]]
         pp = [x[1] for x in bym[m]]
-        line(f"     {m}", simulate(rr, pp, gate))
+        line(f"     {m}", simulate(rr, pp, gate, **K))
 
     # ---------------- C. WALK-FORWARD -----------------------------------
     print("\n  C. WALK-FORWARD  (calibrator refit from PRIOR games only; no hindsight)")
@@ -274,7 +316,7 @@ def main():
           f"(first {MIN_TRAIN} games used only for training)")
     if live:
         line("     walk-forward, real prices",
-             simulate([x[0] for x in live], [x[1] for x in live], gate))
+             simulate([x[0] for x in live], [x[1] for x in live], gate, **K))
 
     print("\n" + "=" * 108)
     print("  HOW TO READ THIS")

@@ -11,6 +11,65 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03b] - A real backtest of the #1 play, and the window that is not one
+
+Operator: *"what about since may when we got correct odds, and with our
+new filters, floors, and everything from our new system, not from what
+our old system used to pick"* and then *"i want you to run a real
+backtest of the new system."*
+
+Two different things, and the value is in keeping them apart.
+
+### Added
+
+- **`tools/season_replay.py --top-only`** - restricts the replay to ONE
+  bet a night, the slate's #1, ranked by the same rule as
+  `lib/top-pick-rank.ts` (confidence, then the better price). A backtest
+  that defined "#1" differently from the live board would be measuring a
+  strategy nobody runs.
+- **`tools/season_replay.py --since YYYY-MM-DD`** - restricts what is
+  EVALUATED, deliberately not what is trained on. The first draft
+  filtered rows at load, which silently starved the walk-forward: it
+  refits from games strictly before each date, and those are exactly the
+  games a `--since` would have discarded.
+- **"Under the current system" block** on /history's #1 section:
+  `TopPickReport.currentSystem`, YRFI-only and re-ranked, from
+  2026-05-26. Labelled **not a backtest** in the copy, pointing at the
+  replay command for the real thing.
+
+### The numbers
+
+Ledger, today's selection rule applied backwards (65 bets, from 05-26):
+**44-21, 67.7%** against a 57.7% break-even, **+11.36u** flat.
+
+Replay, `--top-only --since 2026-05-26`, walk-forward calibrator:
+**37-19, 66.1%** against 58.2%, **+7.63u** flat, 56 bets.
+
+Replay, `--top-only`, whole season, walk-forward: **66.2%**, **+10.61u**
+flat over 71 bets.
+
+The convergence is the finding: three routes to roughly +8u to +13u flat
+on the #1 play. The replay also bets FEWER games than the ledger did (71
+vs 92) for about the same flat profit, which is the current gate being
+more selective.
+
+### The trap this entry exists to record
+
+**The replay's COMPOUNDED figures are not comparable to the ledger's and
+must never be quoted beside them.** The replay applies quarter-Kelly to
+every bet from April; in reality **85 of the 92 #1 bets were staked at
+exactly 1.00u**, because Kelly only went live 2026-07-27. So the replay
+reports 100u -> 193.68u while the ledger reports 100u -> 106.59u for
+overlapping bets. Both are right about different strategies. Only the
+**flat 1u** column compares.
+
+Also: every interval still crosses its break-even. 56 bets gives 95%
+[53.0-77.1%] against 58.2% needed. Positive on every route, proven on
+none, which is the same conclusion the 2026-06-04 edge investigation
+reached and it has not moved.
+
+---
+
 ## [2026-08-03] - THE BRIEF: the #1 play, explained in sentences
 
 Operator: *"i want to start making content where i post a video about the

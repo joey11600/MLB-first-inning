@@ -128,7 +128,32 @@ export interface TopPickReport {
   bySide: TopPickSlice[];
   /** Every settled #1 play, most recent first. */
   all: TopPickBet[];
+  /**
+   * THE CURRENT SYSTEM'S #1, as far as the ledger can honestly show it.
+   *
+   * Two rules applied to history, and it matters which is which:
+   *
+   *   1. FROM 2026-05-26, the date the live model weights were fit. Games
+   *      before that were scored by a model that no longer exists.
+   *   2. YRFI ONLY, RE-RANKED. STRONG NRFI was switched off on
+   *      2026-06-07 for losing in every band. Dropping a side is a rule
+   *      you CAN apply backwards without re-scoring anything -- you
+   *      simply do not place those bets -- so on the nights whose #1 was
+   *      an NRFI play, the top YRFI play becomes #1 instead.
+   *
+   * WHAT THIS IS NOT. It is not a backtest. The calibrator swap of
+   * 2026-07-28 and the gate move of 2026-07-30 changed which games
+   * qualify as STRONG at all, and no amount of filtering the ledger can
+   * undo that -- only re-scoring can, which is `tools/season_replay.py
+   * --top-only --since 2026-05-26`. Read this as "today's selection rule
+   * over the numbers the model printed at the time".
+   */
+  currentSystem: (TopPickWindow & { from: string }) | null;
 }
+
+/** The live model weights were fit on this date; earlier picks came from
+ *  a model that no longer exists. See `currentSystem`. */
+export const CURRENT_SYSTEM_FROM = "2026-05-26";
 
 const num = (v: string | undefined): number | null => {
   if (v == null) return null;
@@ -290,6 +315,45 @@ export async function loadTopPickReport(
     };
   };
 
+  /* ---- TODAY'S SELECTION RULE, APPLIED BACKWARDS ----
+     YRFI only, re-ranked: on a night whose #1 was an NRFI play, the top
+     YRFI play becomes #1, because under current policy the NRFI bet
+     would never have been placed at all. Dropping a side needs no
+     re-scoring, which is what makes this legitimate where undoing the
+     calibrator swap would not be. See the `currentSystem` doc comment. */
+  const yrfiTops: TopPickBet[] = [];
+  for (const d of [...byDay.keys()].sort()) {
+    const yr = byDay.get(d)!.filter((b) => b.side === "YRFI");
+    if (yr.length) yrfiTops.push(yr.reduce(better));
+  }
+  const curSel = yrfiTops.filter((b) => b.date >= CURRENT_SYSTEM_FROM);
+  let currentSystem: (TopPickWindow & { from: string }) | null = null;
+  if (curSel.length > 0) {
+    const n = curSel.length;
+    const wins = curSel.filter((b) => b.win).length;
+    const staked = curSel.reduce((a, b) => a + b.unitsRisked, 0);
+    const returned = curSel.reduce((a, b) => a + b.pnl, 0);
+    const [lo, hi] = wilson(wins, n);
+    currentSystem = {
+      label: "Current system",
+      spanDays: 0,
+      from: curSel[0].date,
+      to: curSel[n - 1].date,
+      bets: n,
+      wins,
+      losses: n - wins,
+      hitRate: wins / n,
+      breakEven: curSel.reduce((a, b) => a + implied(b.odds), 0) / n,
+      staked,
+      returned,
+      roiPerUnit: staked > 0 ? returned / staked : 0,
+      flatRoi: curSel.reduce((a, b) => a + (b.win ? payout(b.odds) : -1), 0) / n,
+      ciLo: lo,
+      ciHi: hi,
+      excludedNoPrice: 0,
+    };
+  }
+
   let bank = 100;
   let peak = 100;
   let maxDd = 0;
@@ -329,5 +393,6 @@ export async function loadTopPickReport(
       .map((s) => slice(tops.filter((b) => b.side === s), s))
       .filter((s) => s.bets > 0),
     all: [...tops].reverse(),
+    currentSystem,
   };
 }

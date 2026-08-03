@@ -66,7 +66,7 @@ function shortDate(iso: string): string {
 
 export function TopPickHistory({ report }: { report: TopPickReport | null }) {
   if (!report || report.all.length === 0) return null;
-  const { bank, last10, byMonth, bySide, all, totals } = report;
+  const { bank, last10, byMonth, bySide, all, totals, currentSystem } = report;
   const season = report.windows[0];
 
   return (
@@ -163,6 +163,78 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
           </span>
         </div>
       </div>
+
+      {/* ---- TODAY'S RULE, APPLIED BACKWARDS ----
+          The season row above includes 15 nights whose #1 was an NRFI
+          play, and NRFI has been off since 2026-06-07 for losing in
+          every band. It also includes April and May games scored by
+          model weights replaced on 2026-05-26. This block is the same
+          ledger under today's selection rule. It is NOT a backtest, and
+          the copy says so: only re-scoring can undo the calibrator and
+          gate changes, which is what tools/season_replay.py does. */}
+      {currentSystem && (
+        <>
+          <h3 className={styles.h3}>Under the current system</h3>
+          <div className={styles.figures}>
+            <div className={styles.fig}>
+              <span className={styles.figValue}>
+                {currentSystem.wins}
+                {MINUS}
+                {currentSystem.losses}
+              </span>
+              <span className={styles.figLabel}>
+                since {shortDate(currentSystem.from)} · YRFI only, the rule
+                actually in force today
+              </span>
+            </div>
+            <div className={styles.fig}>
+              <span className={styles.figValue}>
+                {(currentSystem.hitRate * 100).toFixed(1)}%
+              </span>
+              <span className={styles.figLabel}>
+                against a {(currentSystem.breakEven * 100).toFixed(1)}%
+                break-even · 95% range{" "}
+                {(currentSystem.ciLo * 100).toFixed(0)}&ndash;
+                {(currentSystem.ciHi * 100).toFixed(0)}%
+              </span>
+            </div>
+            <div className={styles.fig}>
+              <span
+                className={styles.figValue}
+                data-money={tone(currentSystem.flatRoi)}
+              >
+                {formatFlatUnits(
+                  asFlat(currentSystem.flatRoi * currentSystem.bets),
+                )}
+              </span>
+              <span className={styles.figLabel}>
+                betting a flat 1 unit on each of these {currentSystem.bets}
+              </span>
+            </div>
+          </div>
+          <p className={styles.note}>
+            The model weights in production were fit on{" "}
+            {shortDate(currentSystem.from)}, and NRFI betting was switched off
+            on Jun 7 for losing in every band, so on nights whose top play was
+            an NRFI pick the top YRFI play is counted instead. That much can be
+            applied backwards honestly: you simply would not have placed those
+            bets.{" "}
+            <b>This is not a backtest.</b> The calibrator swap of Jul 28 and
+            the gate move of Jul 30 changed which games qualify as a play at
+            all, and no filter on past rows can undo that. For that, re-score
+            the season with <code>tools/season_replay.py --top-only --since{" "}
+            {currentSystem.from}</code>, which walks the calibrator forward so
+            no result is used before it was known.
+            {currentSystem.ciLo <= currentSystem.breakEven && (
+              <>
+                {" "}
+                Note the 95% range still crosses the break-even rate: {currentSystem.bets}{" "}
+                bets is not enough to rule out luck, whichever way it points.
+              </>
+            )}
+          </p>
+        </>
+      )}
 
       {/* ---- month by month ---- */}
       <h3 className={styles.h3}>Month by month</h3>
