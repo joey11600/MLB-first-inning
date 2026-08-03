@@ -29,6 +29,33 @@ answering the money question above the fold. It does **not** justify a
 dark theme by ambient light — this is a lit room, not a 2am incident
 call. Any dark treatment has to earn its place some other way.
 
+### The third scene, added 2026-08-03: filming
+
+The operator has started publishing a short video about the night's #1
+play. That scene is **sitting down, camera running, reading numbers aloud
+to an audience who cannot see the screen.** It is the opposite of the
+board's scene in three ways, and `/brief` is the surface built for it:
+
+1. **No clock.** Density is fine; the operator is not deciding, they are
+   explaining. Sequence matters more than glanceability, so the page is
+   ordered as a script rather than as a grid.
+2. **Nothing may be abbreviated,** because abbreviations cannot be
+   spoken. "TB" becomes "Tampa Bay"; "0.200" becomes "2 of their last
+   10"; a z-score becomes a sentence.
+3. **A wrong sentence is worse than a missing one.** On the board a
+   misread costs one bet. On camera it is published, and someone will
+   check it. So every stat declares which way it cuts, and the figures
+   that argue AGAINST the play get their own block rather than being
+   quietly omitted — the operator has to answer them, and a video that
+   does is better than one that does not.
+
+The trap this scene creates, and the reason the "against" block exists:
+the operator's first instinct was that a team which had not scored in the
+first all series was **due** for one. That is the gambler's fallacy, and
+in that specific case it also pointed the opposite way from the bet the
+model had actually made. An interface that hands over figures without
+directions is a liability here in a way it is not on the board.
+
 ## Product purpose
 
 Predicts whether a run scores in the first inning of an MLB game and

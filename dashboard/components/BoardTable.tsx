@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { compareForTopPick } from "@/lib/top-pick-rank";
+import { selectTopPick } from "@/lib/top-pick-rank";
 import type { BoardRow, GameDetail, PickThresholds } from "@/lib/types";
 import type { ReplayStake } from "@/lib/season-record";
 import { BoardRowItem } from "./BoardRow";
@@ -73,34 +73,27 @@ export function BoardTable({
    * which game holds the badge.
    */
   const topPickKey = useMemo(() => {
-    let best: BoardRow | null = null;
-    for (const r of rows) {
-      if (r.pickStrength !== "STRONG") continue;
-      if (r.pickSide !== "YRFI" && r.pickSide !== "NRFI") continue;
-      const d = lookupDetail(r);
-      const oddsStr = r.pickSide === "YRFI" ? d?.marketYrfiOdds : d?.marketNrfiOdds;
-      const odds = oddsStr ? Number.parseFloat(String(oddsStr)) : NaN;
-      const cand = {
-        side: r.pickSide,
-        modelP: r.nrfiPct / 100,
-        odds: Number.isFinite(odds) && odds !== 0 ? odds : null,
-      };
-      if (!best) { best = r; continue; }
-      const bd = lookupDetail(best);
-      const bOddsStr = best.pickSide === "YRFI" ? bd?.marketYrfiOdds : bd?.marketNrfiOdds;
-      const bOdds = bOddsStr ? Number.parseFloat(String(bOddsStr)) : NaN;
-      const cur = {
-        side: best.pickSide,
-        modelP: best.nrfiPct / 100,
-        odds: Number.isFinite(bOdds) && bOdds !== 0 ? bOdds : null,
-      };
-      const c = compareForTopPick(cand, cur);
-      // Game name settles a full tie, matching lib/top-pick's final key.
-      if (c < 0 || (c === 0 && `${r.away}@${r.home}` < `${best.away}@${best.home}`)) {
-        best = r;
-      }
-    }
-    return best ? (best.gamePk || `${best.away}@${best.home}#${best.rank}`) : null;
+    /* The fold itself now lives in lib/top-pick-rank so the board, the
+       history card and the brief page cannot drift apart about which
+       game is #1. STRONG-only filter stays here: see the note above. */
+    const best = selectTopPick(
+      rows
+        .filter((r) => r.pickStrength === "STRONG")
+        .map((r) => {
+          const d = lookupDetail(r);
+          const oddsStr =
+            r.pickSide === "YRFI" ? d?.marketYrfiOdds : d?.marketNrfiOdds;
+          const odds = oddsStr ? Number.parseFloat(String(oddsStr)) : NaN;
+          return {
+            key: r.gamePk || `${r.away}@${r.home}#${r.rank}`,
+            name: `${r.away}@${r.home}`,
+            side: r.pickSide,
+            modelP: r.nrfiPct / 100,
+            odds: Number.isFinite(odds) && odds !== 0 ? odds : null,
+          };
+        }),
+    );
+    return best ? best.key : null;
   }, [rows, details]);
 
   // Memoized sort: avoid recomputing on every keystroke / unrelated re-render.
@@ -248,7 +241,12 @@ export function BoardTable({
           <span className={styles.topPickNoteBadge}>#1</span>
           The model&rsquo;s most confident bet tonight — the STRONG play
           furthest from a coin flip. When two are equally confident, the
-          one at the better price wins. Its running record is the{" "}
+          one at the better price wins.{" "}
+          <a href="/brief" className={styles.topPickNoteLink}>
+            Read the brief
+          </a>{" "}
+          for why it is on, what argues against it, and both teams&rsquo;
+          recent first innings. Its running record is the{" "}
           <a href="/history" className={styles.topPickNoteLink}>
             #1 pick card
           </a>{" "}

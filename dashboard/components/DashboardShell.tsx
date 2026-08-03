@@ -481,6 +481,18 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
         </div>
 
         <div className={styles.headerActions}>
+          {/* 2026-08-03: the explanatory surface. The board says WHAT to
+              bet; the brief says why, in sentences meant to be read
+              aloud. First in the nav because on a night with a play it
+              is now the more common destination. */}
+          <a
+            href="/brief"
+            className={styles.navLink}
+            title="Why tonight's #1 play is the #1 play"
+          >
+            <span className={styles.navLinkIcon} aria-hidden>◆</span>
+            Brief
+          </a>
           <a
             href="/history"
             className={styles.navLink}

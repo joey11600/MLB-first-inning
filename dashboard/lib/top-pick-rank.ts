@@ -61,3 +61,39 @@ export function compareForTopPick(a: RankableBet, b: RankableBet): number {
   if (Math.abs(ia - ib) > 1e-9) return ia - ib;
   return 0;
 }
+
+/** A candidate carrying whatever key its surface uses to identify a game. */
+export interface TopPickCandidate<K> extends RankableBet {
+  key: K;
+  /** Settles a full tie. Both existing callers pass "AWAY@HOME". */
+  name: string;
+}
+
+/**
+ * THE #1 OF A SLATE, for any surface holding board-shaped rows.
+ *
+ * Hoisted here on 2026-08-03 when the brief page became the THIRD
+ * surface needing it. BoardTable and lib/top-pick already shared the
+ * comparator but each re-implemented the fold around it, including the
+ * game-name tiebreak -- so the rule was shared and the SELECTION was
+ * not, which is the same defect one level up. A brief that disagreed
+ * with the badge on the board about which game is #1 would be the worst
+ * possible version of this bug, because the operator would be filming
+ * the disagreement.
+ *
+ * Callers filter to STRONG before calling: LEAN is tracked and never
+ * wagered, so a "top bet" that is not a bet would point at money the
+ * system does not intend to risk.
+ */
+export function selectTopPick<K>(
+  candidates: TopPickCandidate<K>[],
+): TopPickCandidate<K> | null {
+  let best: TopPickCandidate<K> | null = null;
+  for (const c of candidates) {
+    if (c.side !== "YRFI" && c.side !== "NRFI") continue;
+    if (!best) { best = c; continue; }
+    const cmp = compareForTopPick(c, best);
+    if (cmp < 0 || (cmp === 0 && c.name < best.name)) best = c;
+  }
+  return best;
+}

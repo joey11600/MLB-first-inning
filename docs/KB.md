@@ -75,6 +75,42 @@ inline copy is not a type error, it is a runtime crash.
 
 ---
 
+## Three surfaces, three questions (2026-08-03)
+
+| route | question | scene |
+|---|---|---|
+| `/` | what do I bet, and how much | phone, 30 seconds, hour before first pitch |
+| `/brief` | why is this the play | desk, camera running, read aloud |
+| `/history` | how has this gone | desk, tolerates density |
+
+**`/brief`** is the explanatory surface. Bare `/brief` shows the night's
+#1; `?game=<gamePk>` briefs any game on the slate.
+
+- `lib/first-inning-form.ts` — per-team last-10 first-inning form,
+  per-pitcher scoreless-first record, park rate + rank, head-to-head and
+  current series. **Derived entirely from `picks_<season>.csv`**, which
+  logs every game on every slate plus its graded first-inning line. No new
+  scraper. The one exception is a pitcher's last-10 rate: the STORED
+  `*_p_last10_pitcher_nrfi` (from StatsAPI) is authoritative and the
+  ledger reconstruction agrees on 540 of 562 checks, the misses all one
+  game apart because the ledger holds the PROBABLE starter.
+- `lib/pick-reasons.ts` — model features to speakable sentences. Where
+  `data/diagnostics/picks/<date>.json` exists (last 7 days ship), the
+  model's own contribution magnitudes order the reasons.
+- `lib/team-names.ts` — abbreviation to "Tampa Bay" / "the Rays".
+
+**One rule that exists because it would be filmed:** the #1 pick is
+selected by `selectTopPick()` in `lib/top-pick-rank.ts` and nowhere else.
+The board badge, the history card and the brief all call it. Three
+surfaces answering "which game is #1" with their own fold is how this
+dashboard has produced contradictions before.
+
+**`fi_park_factors.json` must stay in `scripts/copy-data.mjs`.** Without
+it the brief silently drops its ballpark reason on deployed builds only,
+which is the hardest class of bug to notice.
+
+---
+
 ## What this is
 
 An MLB first-inning **NRFI** (no run first inning) / **YRFI** (yes run first

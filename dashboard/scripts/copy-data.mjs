@@ -73,6 +73,17 @@ if (fs.existsSync(thresholds)) {
   copied += 1;
 }
 
+// fi_park_factors.json -- per-park p(no run in the 1st).  Read by /brief
+// to say "a run scores here 58% of the time, the highest in baseball",
+// which is usually the single biggest driver of a pick and the one an
+// audience understands instantly.  Small (30 floats); without it the
+// brief silently drops its ballpark reason on deployed builds.
+const parkFactors = path.join(src, "fi_park_factors.json");
+if (fs.existsSync(parkFactors)) {
+  fs.copyFileSync(parkFactors, path.join(dest, "fi_park_factors.json"));
+  copied += 1;
+}
+
 // season_record.json -- the walk-forward record shown as real profit.
 const seasonRecord = path.join(src, "season_record.json");
 if (fs.existsSync(seasonRecord)) {

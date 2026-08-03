@@ -25,6 +25,7 @@ import {
 } from "@/lib/units";
 import { WeekAtAGlance } from "./WeekAtAGlance";
 import { TopPickCard } from "./TopPickCard";
+import { TopPickHistory } from "./TopPickHistory";
 import type { TopPickReport } from "@/lib/top-pick";
 import { ReplayStamp } from "./ReplayStamp";
 import styles from "./HistoryView.module.css";
@@ -526,6 +527,15 @@ export function HistoryView({
           without a legend. It is also the answer to "how is the top
           play actually doing", which the replay cards cannot give. */}
       <TopPickCard report={topPick ?? null} />
+
+      {/* THE WORKING BEHIND THAT CARD (2026-08-03). The operator films a
+          video about the night's top play and needs figures to quote:
+          the record, the last ten, what a 100u bank actually became, and
+          the month-by-month and side-by-side tables underneath. Placed
+          immediately after the verdict card so the reader meets the
+          conclusion before the evidence, which is the order they will
+          talk about it in. */}
+      <TopPickHistory report={topPick ?? null} />
 
       {/* T2.42: Bankroll equity curve.  Bank level + drawdown shading +
           peak marker + stats panel.  Reads the real-priced series; the

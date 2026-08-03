@@ -72,11 +72,62 @@ export interface TopPickWindow {
   excludedNoPrice: number;
 }
 
+/**
+ * One cut of the #1-pick series: a month, a side, a park tier.
+ *
+ * `bankStart` / `bankEnd` are LEVELS, not a sum, which is what makes a
+ * multi-bet money figure legal at all (lib/units.ts). Each slice
+ * compounds from 100 so the slices are comparable with each other rather
+ * than with the season run — a month that opened on a 210u bank and one
+ * that opened on 100u would otherwise look wildly different for the same
+ * performance.
+ */
+export interface TopPickSlice {
+  key: string;
+  bets: number;
+  wins: number;
+  losses: number;
+  hitRate: number;
+  breakEven: number;
+  staked: number;
+  /** Compounded from 100 within this slice. A level, never a total. */
+  bankEnd: number;
+  /** bankEnd/100 - 1. The scale-free figure. */
+  ret: number;
+  /** returned ÷ staked, the per-unit view of the same thing. */
+  roiPerUnit: number;
+}
+
 export interface TopPickReport {
   windows: TopPickWindow[];
   /** Most recent first — the run of results behind the headline. */
   recent: TopPickBet[];
   generatedFor: string;
+  /** The last ten settled #1 plays, most recent first. */
+  last10: { wins: number; losses: number; bets: TopPickBet[] };
+  /** The whole series compounded from a 100u bank. Levels, not a sum. */
+  bank: { start: number; end: number; ret: number; peak: number; maxDrawdown: number };
+  /**
+   * THE TWO HONEST SEASON TOTALS, both on a FIXED unit value.
+   *
+   * `atFlat1u` bets exactly 1 unit every night: the model's edge with
+   * staking removed. `atPublishedStakes` bets the unit count the system
+   * actually published (quarter-Kelly, 3.9u to 10u), which is what a
+   * follower who never re-sizes their unit really made.
+   *
+   * Both add exactly, because in neither case does the unit's dollar
+   * value move between bets, and both mean the same thing on a $1,000
+   * bank and a $10,000 one. They are NOT the operator's own bank, which
+   * compounds and is `bank` above; the three can differ in sign, which
+   * is why every one of them is printed with its basis named.
+   */
+  totals: { atFlat1u: number; atPublishedStakes: number };
+  /** Calendar months, oldest first. */
+  byMonth: TopPickSlice[];
+  /** YRFI and NRFI, each compounded from 100 in isolation. */
+  bySide: TopPickSlice[];
+  /** Every settled #1 play, most recent first. */
+  all: TopPickBet[];
 }
 
 const num = (v: string | undefined): number | null => {
@@ -213,9 +264,70 @@ export async function loadTopPickReport(
     });
   }
 
+  /* ---------------- the compounding view ----------------
+     A unit is 1% of bankroll, so a bet returning +5.44u grew the bank by
+     5.44% -- `bank *= 1 + pnl/100`, the same rule the daily ledger uses.
+     Returning LEVELS (start, end, peak) rather than a sum is the only
+     way a multi-date money figure is a quantity at all. */
+  const slice = (sel: TopPickBet[], key: string): TopPickSlice => {
+    const n = sel.length;
+    const wins = sel.filter((b) => b.win).length;
+    const staked = sel.reduce((a, b) => a + b.unitsRisked, 0);
+    const returned = sel.reduce((a, b) => a + b.pnl, 0);
+    let bank = 100;
+    for (const b of sel) bank *= 1 + b.pnl / 100;
+    return {
+      key,
+      bets: n,
+      wins,
+      losses: n - wins,
+      hitRate: n > 0 ? wins / n : 0,
+      breakEven: n > 0 ? sel.reduce((a, b) => a + implied(b.odds), 0) / n : 0,
+      staked,
+      bankEnd: bank,
+      ret: bank / 100 - 1,
+      roiPerUnit: staked > 0 ? returned / staked : 0,
+    };
+  };
+
+  let bank = 100;
+  let peak = 100;
+  let maxDd = 0;
+  for (const b of tops) {
+    bank *= 1 + b.pnl / 100;
+    if (bank > peak) peak = bank;
+    const dd = bank / peak - 1;
+    if (dd < maxDd) maxDd = dd;
+  }
+
+  const months = new Map<string, TopPickBet[]>();
+  for (const b of tops) {
+    const m = b.date.slice(0, 7);
+    const l = months.get(m);
+    if (l) l.push(b);
+    else months.set(m, [b]);
+  }
+
+  const last10 = tops.slice(-10).reverse();
+
   return {
     windows,
     recent: tops.slice(-12).reverse(),
     generatedFor: end,
+    last10: {
+      wins: last10.filter((b) => b.win).length,
+      losses: last10.filter((b) => !b.win).length,
+      bets: last10,
+    },
+    bank: { start: 100, end: bank, ret: bank / 100 - 1, peak, maxDrawdown: maxDd },
+    totals: {
+      atFlat1u: tops.reduce((a, b) => a + (b.win ? payout(b.odds) : -1), 0),
+      atPublishedStakes: tops.reduce((a, b) => a + b.pnl, 0),
+    },
+    byMonth: [...months.keys()].sort().map((m) => slice(months.get(m)!, m)),
+    bySide: (["YRFI", "NRFI"] as const)
+      .map((s) => slice(tops.filter((b) => b.side === s), s))
+      .filter((s) => s.bets > 0),
+    all: [...tops].reverse(),
   };
 }

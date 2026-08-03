@@ -71,13 +71,96 @@
  * -- it is the label you put ON the thing you must not print.
  */
 
+/* ============================================================
+ * CORRECTION, 2026-08-03: THE RULE WAS TOO BROAD
+ * ============================================================
+ *
+ * Operator: *"units profit should be available. that doesnt make sense.
+ * every bet should be making the same amount of units as a person with a
+ * $1000 bankroll, or someone with a $10,000 bankroll."*
+ *
+ * They are right, and the original framing above conflated two things.
+ * What actually breaks a unit sum is not the passage of time, it is the
+ * unit's DOLLAR VALUE MOVING between the bets being added. That happens
+ * only under compounding.
+ *
+ *   FIXED BASIS — the unit is worth the same on every bet, because the
+ *   bettor never re-sizes. 1u is 1% of the bank they STARTED with. Sums
+ *   are exact, and identical for a $1,000 and a $10,000 bankroll, which
+ *   is precisely the operator's point. This is also what most people
+ *   selling picks publish, and what a subscriber who does not re-size
+ *   actually experiences. LEGITIMATE. See `FlatUnits`.
+ *
+ *   MOVING BASIS — the unit is 1% of the CURRENT bank, so it is worth
+ *   more after a win and less after a loss. Adding those is adding
+ *   amounts in different currencies. STILL FORBIDDEN. See
+ *   `CumulativeUnits`.
+ *
+ * So there are three honest season figures and the #1-pick section now
+ * prints all three side by side:
+ *
+ *   flat 1u a bet          +6.71u    the model's edge, size removed
+ *   at the published stakes +0.58u   what a non-compounding follower made
+ *   compounding            -0.31%    what the operator's own bank did
+ *
+ * They disagree in SIGN, which is exactly why the basis has to be named
+ * on screen every time rather than left for the reader to assume.
+ * `formatUnits` now rejects BOTH brands, so no summed figure of either
+ * kind can reach the page without its basis stated at the call site.
+ * ============================================================ */
+
 declare const CUMULATIVE_BRAND: unique symbol;
+declare const FLAT_BRAND: unique symbol;
 
 /**
- * Units added across more than one day. NOT a money quantity, has no
- * formatter, and cannot be passed to `formatUnits`.
+ * Units added while the unit's value was MOVING: a compounding bank.
+ * NOT a money quantity, has no formatter, and cannot be passed to
+ * `formatUnits`. Use the bank endpoints or a return instead.
  */
 export type CumulativeUnits = number & { readonly [CUMULATIVE_BRAND]: true };
+
+/**
+ * Units added on a FIXED basis: every unit in the sum was worth the same
+ * money, because the stake was never re-sized against a moving bank.
+ *
+ * This IS a quantity and it IS additive. It is bankroll-independent in
+ * the sense that matters commercially: 1 unit is 1% of the bank the
+ * follower started with, so "+6.71u" means +6.71% of starting bankroll
+ * whether that was $1,000 or $10,000.
+ *
+ * It has its own formatter rather than sharing `formatUnits`, so that
+ * the basis is declared at every call site. A season total and a single
+ * night's P&L must never be printed by the same function: they look
+ * identical on screen and mean different things.
+ */
+export type FlatUnits = number & { readonly [FLAT_BRAND]: true };
+
+/**
+ * Mark a sum as taken on a FIXED unit value.
+ *
+ * Only correct when nothing in the sum was sized against a compounding
+ * bank. Summing `profit_loss_units` from Kelly-sized bets qualifies ONLY
+ * if you are reporting what a follower who never re-sizes experienced,
+ * which is a real question and the one this exists to answer. It does
+ * NOT describe the operator's own bank; that compounds, and its answer
+ * is `formatBankGrowth`.
+ */
+export function asFlat(n: number): FlatUnits {
+  return n as FlatUnits;
+}
+
+/**
+ * A unit total on a fixed basis, e.g. "+6.71u".
+ *
+ * Always label the basis in the surrounding copy. The three season
+ * figures for one series can differ in sign (see the note above), so an
+ * unlabelled "+6.71u" is not an answer to any question.
+ */
+export function formatFlatUnits(n: FlatUnits): string {
+  if (!Number.isFinite(n)) return EM_DASH;
+  if (Math.abs(n) < 0.005) return "0.00u";
+  return `${n > 0 ? "+" : MINUS}${Math.abs(n).toFixed(2)}u`;
+}
 
 /**
  * Mark a figure as "produced by adding units across time".
@@ -95,11 +178,17 @@ export function asCumulative(n: number): CumulativeUnits {
  * A unit figure for ONE point in time: one bet, or one night.
  *
  * The conditional collapses the parameter to `never` when `T` carries
- * the cumulative brand, so passing a summed figure is a type error.
- * Plain numbers are unaffected and need no cast.
+ * EITHER brand, so passing any summed figure is a type error. Plain
+ * numbers are unaffected and need no cast.
+ *
+ * `FlatUnits` is rejected here even though it is a legitimate quantity:
+ * it has its own formatter so that a season total can never be printed
+ * by the same function as a single night's P&L. On screen they are
+ * indistinguishable, and the whole point of this module is that the
+ * reader can tell what kind of number they are looking at.
  */
 export function formatUnits<T extends number>(
-  n: T & (T extends CumulativeUnits ? never : unknown),
+  n: T & (T extends CumulativeUnits | FlatUnits ? never : unknown),
 ): string {
   if (!Number.isFinite(n)) return EM_DASH;
   if (Math.abs(n) < 0.005) return "0.00u";

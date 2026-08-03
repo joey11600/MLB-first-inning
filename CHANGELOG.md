@@ -11,6 +11,113 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03] - THE BRIEF: the #1 play, explained in sentences
+
+Operator: *"i want to start making content where i post a video about the
+#1 play from the model. i need to be able to give reasons why its the #1
+play, and not just mentioning data that doesnt make any sense to people
+... the Rays didnt score in the first inning at all in their last series
+of 3 games against the white sox."*
+
+A third usage scene, and it is not the one PRODUCT.md describes. The board
+answers "what do I bet and how much" in thirty seconds on a phone; the
+history page answers "how did it go" at a desk. Neither can be read ALOUD
+to an audience who cannot see the screen, which is what filming requires.
+
+### Added
+
+- **`/brief`** (`app/brief/page.tsx`, `components/BriefView.tsx`) - the
+  night's #1 play written as a script: the bet, the case for it, the case
+  against it, then the supporting numbers. Bare `/brief` uses the shared
+  #1 selector; `?game=<gamePk>` briefs any game on the slate.
+- **`lib/first-inning-form.ts`** - per-team last-10 first-inning form,
+  per-pitcher scoreless-first record, park rate and rank, head-to-head and
+  current series. All DERIVED FROM THE LEDGER, which already logs every
+  game on every slate plus its first-inning line, so there is no new
+  scraper and no new failure mode. Verified 2026-08-03: 119 slate dates
+  with exactly three calendar gaps (07-13/14/15), which are the All-Star
+  break.
+- **`lib/pick-reasons.ts`** - turns model features into speakable
+  sentences (`fi_park_nrfi_rate z=-1.476` becomes "a run scores in the
+  first inning 58% of the time in Colorado"). Where per-pick diagnostics
+  exist, the model's own contribution magnitudes ORDER the reasons; the
+  wording is always written here and the figures always come from the
+  ledger, so nothing is invented to fit a story.
+- **`lib/team-names.ts`** - "TB" is not a word. Abbreviations stay on the
+  board and expand to "Tampa Bay" / "the Rays" on the brief.
+- **`components/TopPickHistory.tsx`** - the #1 play's full record on
+  /history: bank growth from 100u, last-10, month-by-month and by-side
+  tables, and every settled #1 play. Answers the operator's "units profit"
+  request the only way it can be answered (see below).
+- **`lib/top-pick.ts`** gains `last10`, `bank`, `byMonth`, `bySide`, `all`.
+- Board header now links to the brief, as does the "#1" explainer note.
+
+### Changed
+
+- **`selectTopPick()` hoisted into `lib/top-pick-rank.ts`** (T2.61). The
+  comparator was already shared between the board badge and the history
+  card, but each re-implemented the FOLD around it including the game-name
+  tiebreak - so the rule was shared and the selection was not. A brief
+  that disagreed with the board about which game is #1 would be the worst
+  version of that bug, because the operator would be filming it.
+- `scripts/copy-data.mjs` now ships `fi_park_factors.json`, without which
+  the brief silently drops its ballpark reason on deployed builds.
+
+### Notable decisions
+
+- **UNITS PROFIT IS BACK, AND THE OLD RULE WAS TOO BROAD.** First pass
+  refused to print any season unit total and showed bank growth alone.
+  Operator: *"units profit should be available. that doesnt make sense.
+  every bet should be making the same amount of units as a person with a
+  $1000 bankroll, or someone with a $10,000 bankroll."* Correct, and the
+  original rule confused two things. What breaks a unit sum is the unit's
+  DOLLAR VALUE MOVING between the bets being added, which happens only
+  under compounding - not the passage of time. On a FIXED basis the sum
+  is exact and is identical on any bankroll, which is exactly the point
+  when you are selling picks. The section now prints all three:
+
+  | basis | #1 pick, season |
+  |---|---|
+  | flat 1u every night | **+10.70u** |
+  | at the published stakes, never re-sizing | **+7.82u** |
+  | re-sizing to 1% of the running bank | +6.59u (100.00u -> 106.59u) |
+
+  `lib/units.ts` gains a `FlatUnits` brand and `formatFlatUnits()` for
+  the legitimate case; `CumulativeUnits` still has no renderer and never
+  will. `formatUnits()` now rejects BOTH brands, so a season total can
+  never be printed by the same function as a single night's P&L - on
+  screen they are indistinguishable. Guard extended to 8 rejected forms
+  and 6 accepted ones, including `formatFlatUnits(asCumulative(x))` which
+  must stay an error so `asFlat` cannot launder a compounding sum.
+- **Stats that cut AGAINST the pick are a first-class block, not hidden.**
+  The operator's opening instinct was that Tampa Bay were "due" a first-
+  inning run after a scoreless series. That is the gambler's fallacy, and
+  it argues the opposite way from the YRFI bet the model actually made.
+  The card shows the figure, labels it as cutting against, and lets the
+  operator answer it on camera.
+- **Park standing is a TIER, not an ordinal.** The first draft printed
+  "2nd most run-friendly of 30 parks" for Colorado; Arizona sits at 0.4239
+  and Colorado at 0.4241, a dead heat. Ordinals claim a ranking the data
+  cannot support.
+
+### Fixed (found by measuring the rendered page, not by eye)
+
+- Strip opponent labels rendered at **8.4px** at 375px - a third smaller
+  than the 11-13px that got VT323 retired for being unreadable in this
+  exact scene. The strip now wraps to two rows of five on a phone, which
+  doubles cell width to 67px and lifts the label to 10.3px.
+- Brief nav links measured **17px tall**, then 41px after a `2.75rem`
+  min-height (the app's root font is 15px, not 16px). Now `44px` in
+  pixels, because a fingertip is not a typographic measure.
+
+### Performance snapshot
+
+#1 play, real captured prices, as of 2026-08-03: **59-33 (64.1%)** against
+a 57.6% break-even, +6.2% per unit staked, bank 100.00u -> 106.59u, deepest
+drawdown -12.6%. Last 10: 4-6.
+
+---
+
 ## [2026-07-31] - #1 leads the board; the pick column speaks in white
 
 Operator, on a screenshot: *"visually, why is the #1 pick not at the top.

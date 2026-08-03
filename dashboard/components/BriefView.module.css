@@ -1,0 +1,569 @@
+/* THE BRIEF — a reading surface, not a glance surface.
+ *
+ * The board is tuned for thirty seconds at arm's length on a phone. This
+ * page is read slowly, out loud, from the top. So the two differ on
+ * purpose in three ways:
+ *
+ *   1. MEASURE. Sentences are capped near 68 characters. The board has no
+ *      prose to speak of; this page is mostly prose.
+ *   2. SCALE CONTRAST. A wider ratio than the board's, because here the
+ *      hierarchy has to survive being skimmed for the next thing to say
+ *      while the operator is mid-sentence on the last one.
+ *   3. RHYTHM. Space between blocks is roughly triple the space inside
+ *      them, so the sections read as separate beats.
+ *
+ * Palette is the operator's matrix-terminal spec, unchanged: black,
+ * phosphor green, alarm red, square corners, JetBrains Mono. Colour is
+ * never the only carrier of meaning here — see the component file.
+ */
+
+.page {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 0 1rem 5rem;
+  color: var(--foreground);
+}
+
+/* ---------------- header ---------------- */
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+/* 44px minimum touch target. Measured at 17px tall before the padding
+   went on, which is a link you have to aim at rather than tap. */
+.back {
+  display: inline-flex;
+  align-items: center;
+  /* 44px in PIXELS, not rem: this is a fingertip, not a typographic
+     measure, and it must not shrink with the app's sub-16px root size
+     (2.75rem resolved to 41px here). */
+  min-height: 44px;
+  padding: 0 0.25rem;
+  margin: 0 -0.25rem;
+  color: var(--chrome-ink);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.back:hover,
+.back:focus-visible {
+  color: var(--foreground);
+}
+
+.headTitle {
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* ---------------- the play ---------------- */
+
+.play {
+  margin-bottom: 3.5rem;
+}
+
+.playTag {
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-bottom: 0.75rem;
+}
+
+.matchup {
+  font-size: clamp(2rem, 9vw, 3.25rem);
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.5rem;
+}
+
+.at {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+
+.matchupSub {
+  margin: 0 0 1.75rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+/* The ticket. Four facts, label left, value right, ruled between.
+   Deliberately not a card: it is the one place on the page where the
+   operator is reading DOWN a column of values rather than across prose. */
+.ticket {
+  margin: 0 0 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.ticketRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ticketRow dt {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.ticketRow dd {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticketSide {
+  letter-spacing: 0.04em;
+}
+
+.meaning {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  max-width: 62ch;
+  color: var(--muted-foreground);
+}
+
+/* ---------------- blocks ---------------- */
+
+.block {
+  margin-bottom: 3.5rem;
+}
+
+.h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--foreground);
+}
+
+/* The counter-case gets an alarm-red rule and its own heading colour.
+   The WORD "cuts against" in the heading is what carries the meaning;
+   the colour is reinforcement, never the signal. */
+.block_against .h2 {
+  border-top-color: var(--loss);
+  color: var(--loss);
+}
+
+.block_neutral .h2 {
+  border-top-color: var(--border);
+  color: var(--muted-foreground);
+}
+
+.count {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.blurb {
+  margin: 0 0 1.75rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  max-width: 66ch;
+  color: var(--muted-foreground);
+}
+
+.none {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  max-width: 66ch;
+  color: var(--muted-foreground);
+}
+
+/* ---------------- reasons ---------------- */
+
+.reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.reason {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.reason:first-child {
+  padding-top: 0;
+}
+
+.reasonTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.reasonLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.reasonFigure {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The line meant to be said out loud. Largest body text on the page. */
+.sentence {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  max-width: 64ch;
+}
+
+.context {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  max-width: 66ch;
+  color: var(--muted-foreground);
+}
+
+/* ---------------- team strips ---------------- */
+
+.teamBlock,
+.pitcherBlock,
+.parkBlock {
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.h3 {
+  font-size: 0.8125rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  margin: 0 0 0.75rem;
+}
+
+.teamLead {
+  margin: 0 0 1rem;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  max-width: 64ch;
+}
+
+.teamLead strong {
+  font-weight: 700;
+}
+
+/* Ten cells. The DIGIT is the encoding, brightness is the second
+   channel, and neither depends on hue — see the component note.
+ *
+ * FIVE ACROSS ON A PHONE, ten on anything wider. At 375px a ten-column
+ * strip gives each cell 35px, which forced the opponent label down to
+ * 8.4px — a third smaller than the 11-13px that got VT323 retired for
+ * being unreadable in this exact scene. Wrapping to two rows of five
+ * doubles the cell width and costs nothing: the items still flow
+ * left-to-right then down, so it still reads oldest-first like text. */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+@media (min-width: 30rem) {
+  .strip {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+}
+
+.cellOn,
+.cellOff {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0.5rem 0.125rem;
+  min-height: 3.25rem;
+  border: 1px solid var(--border);
+}
+
+.cellOn {
+  background: var(--muted);
+  color: var(--foreground);
+  border-color: var(--muted-foreground);
+}
+
+.cellOff {
+  color: var(--muted-foreground);
+}
+
+.cellRuns {
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cellOn .cellRuns {
+  font-size: 1.25rem;
+}
+
+.cellOpp {
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ---------------- pitchers ---------------- */
+
+.statPair {
+  display: grid;
+  gap: 0;
+}
+
+@media (min-width: 34rem) {
+  .statPair {
+    grid-template-columns: 1fr 1fr;
+    gap: 0 2rem;
+  }
+}
+
+.pitcherFigure {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pitcherOf {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+.pitcherSub {
+  margin: 0.375rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* ---------------- park ---------------- */
+
+.parkFigure {
+  margin: 0 0 0.375rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.parkFigureSub {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  max-width: 24ch;
+  line-height: 1.4;
+}
+
+/* ---------------- head to head ---------------- */
+
+.h2hTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.5rem;
+}
+
+.h2hTable th {
+  text-align: left;
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-weight: 400;
+  padding: 0 0.5rem 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.h2hTable td {
+  padding: 0.5rem 0.5rem 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.h2hTable th:last-child,
+.h2hTable td:last-child {
+  text-align: right;
+  padding-right: 0;
+}
+
+.wasYrfi {
+  color: var(--foreground);
+}
+
+.wasNrfi {
+  color: var(--muted-foreground);
+}
+
+/* ---------------- record ---------------- */
+
+.recordGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 34rem) {
+  .recordGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.recordGrid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.recordFigure {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.recordLabel {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+.last10 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.wOn,
+.wOff {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border: 1px solid var(--border);
+}
+
+.wOn {
+  background: var(--muted);
+  border-color: var(--gain);
+  color: var(--gain);
+}
+
+.wOff {
+  border-color: var(--loss);
+  color: var(--loss);
+}
+
+/* ---------------- other plays ---------------- */
+
+.otherList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.otherLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+.otherLink:hover,
+.otherLink:focus-visible {
+  color: var(--background);
+  background: var(--foreground);
+}
+
+.otherSide {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: var(--muted-foreground);
+}
+
+.otherLink:hover .otherSide,
+.otherLink:focus-visible .otherSide {
+  color: var(--background);
+}
+
+/* ---------------- empty ---------------- */
+
+.empty {
+  padding: 3rem 0;
+}
+
+.emptyLead {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+.emptyBody {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 60ch;
+  color: var(--muted-foreground);
+}

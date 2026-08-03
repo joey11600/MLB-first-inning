@@ -13,6 +13,17 @@ Companion to:
 
 ---
 
+## ✅ Recently shipped (Aug 2026)
+
+| item | shipped | what |
+|---|---|---|
+| **THE BRIEF — the #1 play, explained** | 2026-08-03 | New `/brief` surface written to be read ALOUD: the bet, the case for it, a first-class "what cuts against it" block, then team last-10 first-inning form, both starters' scoreless-first records, park rate and rank, and head-to-head. Model features translated into sentences; the model's own contribution magnitudes order them. |
+| First-inning form data layer | 2026-08-03 | `lib/first-inning-form.ts` derives complete per-team and per-pitcher first-inning history from the existing ledger. No new scraper, no new cron, no new failure mode. |
+| #1 play, full history | 2026-08-03 | `TopPickHistory` on /history: bank growth from 100u, last-10, month-by-month and by-side tables, every settled #1 play. "Units profit" answered as bank growth, because a cross-date unit total is not a quantity. |
+| One #1 selector for three surfaces | 2026-08-03 | `selectTopPick()` hoisted into `lib/top-pick-rank.ts`; board badge, history card and brief can no longer disagree about which game is #1. |
+
+---
+
 ## ✅ Recently shipped (Jul 2026)
 
 | item | shipped | what |
