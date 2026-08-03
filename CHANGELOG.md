@@ -11,6 +11,65 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03j] - Production refit on the clean files: TESTED, does not ship
+
+Operator: *"refit the production model on the clean files. then backtest
+it and compare profit."* Done. **It does not beat the incumbent.**
+
+### What was run
+
+`two_stage_model.py --phase-e3-vshand` (the live 19-feature architecture)
+fit twice on 2024+2025, once on the leaky files and once on the `_ptfix`
+ones, so the only difference between the two candidates is the leak.
+Saved to `data/candidates/`, production untouched. Scored against the
+881 graded 2026 games since 05-26 that carry a captured DraftKings price.
+
+### The methodological correction that decided it
+
+At the live `p < 0.42` gate the refits bet **17 and 21 games against
+production's 136** - not because they are worse, but because a gate is a
+cut point on a distribution and a differently-trained model puts its
+probabilities on a different scale. `2026-08-02_architecture_and_skip_rules`
+already records the rule: **never compare architectures at a fixed
+probability cut; match bet count by rank.** Re-run that way:
+
+| N (each model's own top-N) | PRODUCTION | refit LEAKY | refit CLEAN |
+|---|---|---|---|
+| 40 | **+10.5u** | +4.7u | -0.2u |
+| 80 | **+11.9u** | +7.6u | -0.1u |
+| 120 | **+14.0u** | -0.2u | +1.3u |
+| 136 | **+18.1u** | -2.0u | +1.3u |
+| 180 | **+10.2u** | +4.2u | -3.1u |
+
+Flat 1u. Production wins at **all five** counts.
+
+### Two conclusions, and they are different
+
+1. **The refit does not ship.** That is now the fifth refit variant to
+   lose to the frozen 2026-05-26 weights (see
+   `2026-07-28_refit_tested_dont`, which failed four holdout lengths).
+2. **The leak fix did NOT produce the loss, and did not produce a gain
+   either.** Clean vs leaky head to head is 2-3 on flat units across the
+   five counts - a wash inside noise. Both refits lose to production for
+   the same reason: they were trained on 2024+2025 only, while production
+   also saw 2026 through 05-11, and that 2026 data is doing real work.
+
+### Why a like-for-like clean refit is still blocked
+
+Adding 2026 to the clean training set is not currently possible: the
+2026 backtest files resolve only **12.7%** (Apr-May 11) and **0%**
+(May 12-26) of pitcher-slots to season-to-date figures, the rest falling
+back to league average. Fixing 2026 game_pk -> pitcher-id resolution is
+the prerequisite for a fair test, and until then this comparison cannot
+be run without handicapping the candidate.
+
+**The leakage fix remains correct and worth keeping** - training on
+future data is wrong regardless of whether removing it happens to help
+this particular holdout - but it is not, on this evidence, a money
+improvement.
+
+---
+
 ## [2026-08-03i] - The training-data leakage is fixed, and it moved the weights
 
 Operator: *"yes fix the leakage. but dont lose focus on my goal."*
