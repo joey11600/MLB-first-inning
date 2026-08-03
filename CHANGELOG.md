@@ -74,13 +74,40 @@ in the first version of it.
   because a fixed 44px monospace headline wraps "Baltimore at Cleveland"
   to three lines on a phone.
 
-### Not fixed, recorded
+### The measure rework (operator: "yes rework the measure, make it wider")
 
-/brief uses 690px of a 1910px viewport (36%) and its prose blocks cap at
-four different ch values that resolve to four different pixel widths
-(612 / 523 / 520 / 482), giving four ragged right edges in one column.
-Real, but the fix is a layout decision for the operator, not a defect
-to patch silently.
+/brief used 690px of a 1910px viewport, 36% of the screen, and its prose
+capped at FOUR ch values that resolved to four pixel widths (612 / 523 /
+520 / 482) because they sat at four font sizes. Four ragged right edges
+in one column.
+
+**Wider could not mean longer lines.** Prose stops being readable past
+about 75 characters, and this page is read ALOUD, where the failure mode
+is losing your place mid-sentence on camera. At 16px JetBrains Mono a
+620px line is already 64 characters; stretching it to fill 1910px would
+put it near 190 and make the page worse at its only job. So the width
+went into LAYOUT:
+
+- container 46rem (690px) -> **1080px**, about 76% of a 1430px screen
+- one `--measure` custom property (620px) replaces all four ch caps, so
+  there is one right edge per section rather than four
+- **at >= 60rem the reasons are two columns**: label and figure in a
+  190px rail, the spoken sentence in the measure column beside it. This
+  is what actually consumes the width, and it halves a reason's vertical
+  space, so less scrolls past while the camera is running.
+- the section intro joins the sentence column, SCOPED to reason blocks
+  only: "The numbers" has no rail, so indenting its intro would have
+  pushed it 230px right of the content it introduces, reintroducing the
+  same defect one level down.
+- `.count` loses `margin-left: auto`, which had stranded the "2" beside
+  "THE CASE FOR IT" 515px from the words it counts. Now 159px.
+- `.strip` capped at 740px so a single digit does not sit in a 105px cell
+
+Measured after: reason blocks one edge at 1038px, plain blocks one edge
+at 810px, the two-up pitcher grid on its own column edges. Three
+structural families, each justified by its own layout, instead of four
+accidental widths at the same nesting level. Mobile untouched: the
+measure exceeds the viewport there and every breakpoint is above it.
 
 ---
 

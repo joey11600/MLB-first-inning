@@ -4,8 +4,9 @@
  * page is read slowly, out loud, from the top. So the two differ on
  * purpose in three ways:
  *
- *   1. MEASURE. Sentences are capped near 68 characters. The board has no
- *      prose to speak of; this page is mostly prose.
+ *   1. MEASURE. ONE measure, `--measure`, shared by every block of prose
+ *      on the page. See the note on it below; this used to be four
+ *      different ch caps and it showed.
  *   2. SCALE CONTRAST. A wider ratio than the board's, because here the
  *      hierarchy has to survive being skimmed for the next thing to say
  *      while the operator is mid-sentence on the last one.
@@ -17,8 +18,44 @@
  * never the only carrier of meaning here — see the component file.
  */
 
+/* ============================================================
+   THE MEASURE REWORK, 2026-08-03.
+   ============================================================
+   The page was 690px inside a 1910px viewport -- 36% of the screen,
+   610px of dead black on either side -- and its prose capped at FOUR
+   different ch values. Because those four sat at four different font
+   sizes, they resolved to four different pixel widths: 612 / 523 / 520
+   / 482. Four ragged right edges stacked down one column, which reads
+   as accidental because it is.
+
+   WIDER CANNOT MEAN LONGER LINES. Prose stops being readable past
+   roughly 75 characters, and this page is read ALOUD, where the failure
+   mode is losing your place mid-sentence on camera. Stretching the
+   sentence to fill a 1910px screen would make the page worse at its one
+   job. So the width goes into LAYOUT instead:
+
+     - the container grows to 1080px, about 57% of a 1910px screen
+     - `--measure` (620px) caps every piece of prose, so there is ONE
+       right edge on the page rather than four
+     - at >= 60rem the reasons become two columns: the label and figure
+       in a fixed left rail, the spoken sentence in the measure column.
+       That is what actually consumes the extra width, and it is also
+       the layout the operator needs -- the figure sits beside its
+       sentence instead of above it, so less scrolls past while the
+       camera is running.
+     - the grids that have no readability ceiling (team strips, the
+       pitcher pair, the record row, the head-to-head table) simply get
+       the room.
+
+   Below the breakpoint nothing changes: `--measure` exceeds the
+   viewport on a phone, so it is inert there, and the single-column
+   order is untouched.
+   ============================================================ */
+
 .page {
-  max-width: 46rem;
+  --measure: 620px;
+  --rail: 190px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 0 1rem 5rem;
   color: var(--foreground);
@@ -153,7 +190,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
-  max-width: 62ch;
+  max-width: var(--measure);
   color: var(--muted-foreground);
 }
 
@@ -189,8 +226,10 @@
   color: var(--muted-foreground);
 }
 
+/* Sits NEXT TO its heading, not at the far end of the container.
+   `margin-left: auto` stranded it 515px from the words it counts once
+   the column got wide, which reads as an unrelated number. */
 .count {
-  margin-left: auto;
   font-size: 12px;
   font-weight: 400;
   color: var(--muted-foreground);
@@ -201,7 +240,7 @@
   margin: 0 0 1.75rem;
   font-size: 13px;
   line-height: 1.65;
-  max-width: 66ch;
+  max-width: var(--measure);
   color: var(--muted-foreground);
 }
 
@@ -209,7 +248,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
-  max-width: 66ch;
+  max-width: var(--measure);
   color: var(--muted-foreground);
 }
 
@@ -238,6 +277,66 @@
   margin-bottom: 0.5rem;
 }
 
+/* TWO COLUMNS FROM 60rem UP, and this is where the extra width goes.
+   The label and its figure move into a fixed left rail; the sentence
+   keeps the one measure beside them. Two things improve at once: the
+   page stops being a narrow ribbon in a sea of black, and the figure
+   now sits BESIDE the sentence it belongs to rather than above it, so
+   a reason occupies about half the vertical space and less scrolls
+   past while the camera is running. */
+@media (min-width: 60rem) {
+  .reason {
+    display: grid;
+    grid-template-columns: var(--rail) minmax(0, var(--measure));
+    column-gap: 2.5rem;
+    align-items: start;
+  }
+
+  .reasonTop {
+    display: block;
+    margin-bottom: 0;
+  }
+
+  .reasonLabel {
+    display: block;
+    margin-bottom: 0.375rem;
+  }
+
+  /* Label over figure in the rail, the same eyebrow-then-number order
+     used for the unit bases on /history, and the order it is spoken.
+     The rail then reads as a scannable column of figures while the
+     operator is still mid-sentence on the last one. */
+  .reasonFigure {
+    display: block;
+    white-space: normal;
+  }
+
+  .sentence,
+  .reason .context {
+    grid-column: 2;
+  }
+
+  /* The section intro moves into the same column as the sentences it
+     introduces, so all prose in a reason block shares one left edge and
+     one right edge, with only the figures hanging out in the rail. The
+     h2 keeps its full-width rule, because that rule is the divider.
+
+     SCOPED TO THE REASON BLOCKS ON PURPOSE. "The numbers" is a plain
+     `.block` with no rail, so indenting its intro would push the
+     paragraph 230px right of the content it introduces -- which is the
+     inconsistency this whole rework is removing, reintroduced one level
+     down. Each section is now internally aligned; the two sections
+     differ from each other because their layouts genuinely differ. */
+  .block_for .blurb,
+  .block_against .blurb,
+  .block_neutral .blurb,
+  .block_for > .none,
+  .block_against > .none,
+  .block_neutral > .none {
+    margin-left: calc(var(--rail) + 2.5rem);
+  }
+}
+
 .reasonLabel {
   font-size: 11px;
   letter-spacing: 0.14em;
@@ -257,14 +356,14 @@
   margin: 0;
   font-size: 16px;
   line-height: 1.55;
-  max-width: 64ch;
+  max-width: var(--measure);
 }
 
 .context {
   margin: 0.5rem 0 0;
   font-size: 12px;
   line-height: 1.55;
-  max-width: 66ch;
+  max-width: var(--measure);
   color: var(--muted-foreground);
 }
 
@@ -290,7 +389,7 @@
   margin: 0 0 1rem;
   font-size: 16px;
   line-height: 1.55;
-  max-width: 64ch;
+  max-width: var(--measure);
 }
 
 .teamLead strong {
@@ -318,6 +417,9 @@
 @media (min-width: 30rem) {
   .strip {
     grid-template-columns: repeat(10, minmax(0, 1fr));
+    /* Capped so a single digit does not sit in a 105px cell once the
+       container reaches 1080px. Ten cells of ~72px is roomy already. */
+    max-width: 740px;
   }
 }
 
@@ -587,6 +689,6 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
-  max-width: 60ch;
+  max-width: var(--measure);
   color: var(--muted-foreground);
 }
