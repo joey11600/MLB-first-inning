@@ -11,6 +11,73 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03i] - The training-data leakage is fixed, and it moved the weights
+
+Operator: *"yes fix the leakage. but dont lose focus on my goal."*
+
+### The leak, measured
+
+`era` / `fip` / `whip` / `k9` / `bb9` / `hr9` in the 2024+2025 backtest
+CSVs were SEASON-FINAL values, so an April game was predicted with the
+pitcher's September numbers. Pitchers with >=5 starts, share with ZERO
+within-season variation in `home_fip`: **92%**. Present in the `_pit`
+files too; only `xera` was already point-in-time.
+
+### The fix
+
+`tools/backfill_pit_pitching_stats.py` rebuilds all six from
+`data/cache/pitcher_gamelog_v2` (per-start ip/er/k/bb/hr/h, 2021-2026)
+using ONLY starts before the game's own date, resolving pitchers through
+`pitcher_id_cache.json` (game_pk -> ids, 100% on 2024, 90% on 2025).
+cFIP is derived per season rather than hardcoded, defined as whatever
+makes league FIP equal league ERA. Fallback ladder, counted and printed:
+season-to-date if >=20 IP, else prior season's final line, else league
+average. Writes `*_ptfix.csv`; originals untouched.
+
+Coverage: 2024 **73.7%** season-to-date / 17.1% prior / 9.2% league.
+2025 **69.9% / 11.7% / 18.4%**.
+
+Result: `home_fip` zero-variation share **92% -> 2%** (2024) and
+**92% -> 0%** (2025).
+
+### What it is worth, train 2024 -> test 2025 held out
+
+| | AUC | Brier |
+|---|---|---|
+| train leaky, test leaky | 0.5448 | 0.24994 |
+| **train clean, test clean** | **0.5397** | 0.25119 |
+| **train leaky, test CLEAN (what production does)** | **0.5317** | 0.25334 |
+
+The third row is the real one: a model trained on leaky data and served
+clean loses **0.008 AUC** against one trained clean. That is the cost of
+the leak in production terms, and it is now recoverable.
+
+### The weights, which is what the operator actually asked about
+
+| feature | leaky w | clean w | |
+|---|---|---|---|
+| `home_fip` | **+0.169** | **+0.009** | inflated ~19x by the leak |
+| `away_era` | +0.047 | **-0.092** | **sign flips** |
+| `away_whip` | -0.090 | **+0.007** | **sign flips** |
+| `home_hr9` | -0.099 | -0.010 | |
+| `fi_park_nrfi_rate` | **-0.209** | **-0.211** | unchanged, and still the largest |
+
+So: the operator's hunch that the system "heavily relies on the park
+rate" is **correct and legitimate** - it is the biggest weight by a wide
+margin and the leak never touched it. Several pitching features only
+looked useful because of the leak; cleaned, they are near zero and two
+of them flip sign.
+
+### Not yet done
+
+The production model has NOT been refit on the clean files. The numbers
+above come from a plain logistic fit over 17 features to measure the
+leak, not from `two_stage_model.py` at its real feature set. A
+production refit needs the full 3-split protocol in
+`feature_test_methodology`.
+
+---
+
 ## [2026-08-03h] - The +115.72u explained, the equity curve replaced, the drawdown chart deleted
 
 Operator: *"convert the equity curve to cumulative units, drop the
