@@ -75,12 +75,15 @@
   gap: 2px;
 }
 
+/* The wordmark is brand, and brand is where a display face earns most.
+   Mono here was saying "this is a number" about the product's own name. */
 .brandTitle {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
   font-weight: 600;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1.5rem;
-  letter-spacing: 0.06em;
+  letter-spacing: -0.005em;
   color: var(--foreground);
 }
 
@@ -108,12 +111,13 @@
 }
 
 .slateDate {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
   font-weight: 600;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1.75rem;
-  color: var(--chrome-ink);
-  letter-spacing: 0.04em;
+  color: var(--foreground);
+  letter-spacing: -0.005em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

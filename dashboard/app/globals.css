@@ -64,7 +64,7 @@
    500 figures / 600 eyebrows / 700 tag) and VT323 shipped exactly one.
    Every weight distinction in that scale has been a no-op -- or a
    synthesised smear -- for as long as VT323 has been the family. */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap");
 
 /* ============================================================
    DEFAULT THEME = NEWSPRINT (light editorial), 2026-08-03.
@@ -116,7 +116,9 @@
   --border:            #BFB8A7;   /* 1.89:1 -- a hairline, see --rule */
   --rule:              #8E877A;   /* 3.4:1 -- meaningful boundaries */
   --ring:              #137355;
-  --radius:            0rem;
+  --radius-sm:         6px;    /* chips, inputs, small controls */
+  --radius:            10px;   /* cards, rows, panels -- the default */
+  --radius-lg:         16px;   /* the largest surfaces only */
 
   --foreground:           #211E1A;   /* 15.90 on bg / 14.43 on muted */
   --muted-foreground:     #5F584E;   /*  6.72 /  6.10 */
@@ -232,8 +234,15 @@
   --font-ui:   "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, sans-serif;
 
-  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
-                  "Helvetica Neue", Arial, sans-serif;
+  /* DISPLAY = a variable editorial serif, used ONLY at headline sizes.
+     Three families, three jobs, and the contrast between them is the
+     system: serif says "this is the thing", sans says "this is prose",
+     mono says "this is a number". Fraunces carries an optical-size axis
+     so a 48px matchup and a 20px section head are drawn differently
+     rather than scaled, and it avoids the Playfair reflex that every
+     editorial redesign reaches for first. Never below ~20px: it has
+     enough personality to get noisy at caption sizes. */
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
   /* SANS, and it must never be pointed back at the mono stack: the
      monospace/proportional contrast is what makes mono MEAN "this is a
      number". Was JetBrains Mono until 2026-08-03, which silently
@@ -243,10 +252,18 @@
   --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
                   monospace;
 
-  /* Shadows for depth on dark */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.2);
-  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
-  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.3);
+  /* Shadows for paper. Ink-tinted, never pure black, and layered:
+     a 1px contact edge, a tight shadow, a wide soft one. */
+  --shadow-1: 0 1px 2px rgba(33, 30, 26, 0.05),
+              0 1px 1px rgba(33, 30, 26, 0.04);
+  --shadow-2: 0 2px 4px rgba(33, 30, 26, 0.04),
+              0 8px 24px rgba(33, 30, 26, 0.07);
+  --shadow-card: 0 0 0 1px rgba(33, 30, 26, 0.06),
+                 0 1px 2px rgba(33, 30, 26, 0.04),
+                 0 6px 18px rgba(33, 30, 26, 0.05);
+  --shadow-lift: 0 0 0 1px rgba(33, 30, 26, 0.07),
+                 0 2px 6px rgba(33, 30, 26, 0.05),
+                 0 14px 34px rgba(33, 30, 26, 0.09);
 }
 
 /* DELETED 2026-07-28, verified at 0 usages each across components/,
@@ -289,9 +306,14 @@
   --attn:                  #D6A343;   /*  7.98 /  6.85 */
   --ring:                  #4FBE8C;
   --nrfi-soft:  rgba(79, 190, 140, 0.10);
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 1px 1px rgba(0, 0, 0, 0.20);
-  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
-  --shadow-card: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40), 0 1px 1px rgba(0, 0, 0, 0.28);
+  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.40);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05),
+                 0 1px 2px rgba(0, 0, 0, 0.35),
+                 0 6px 18px rgba(0, 0, 0, 0.32);
+  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07),
+                 0 2px 6px rgba(0, 0, 0, 0.35),
+                 0 14px 34px rgba(0, 0, 0, 0.45);
 }
 
 /* --------- Light mode -- soft inverse for daylight terminals ---------
@@ -458,13 +480,20 @@ body::before {
 /* FIGURES -- monospace.  Longhand on purpose: the `font:`
    shorthand resets font-variant-numeric and would silently kill
    tabular-nums, which is what keeps a column of units aligned. */
-.figHero, .figLead, .figStat, .figRow {
+/* figHero is a HEADLINE, not a figure, and takes the display serif.
+   The other three stay mono because they are numbers and mono is what
+   says so. */
+.figHero {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+.figLead, .figStat, .figRow {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums slashed-zero;
   font-feature-settings: "tnum" 1, "zero" 1;
   color: var(--foreground);
 }
-.figHero { font-size: 44px; line-height: 1.05; font-weight: 500; letter-spacing: -0.02em;  }
+.figHero { font-size: 44px; line-height: 1.02; font-weight: 600; letter-spacing: -0.015em; }
 .figLead { font-size: 26px; line-height: 1.10; font-weight: 500; letter-spacing: -0.015em; }
 .figStat { font-size: 20px; line-height: 1.20; font-weight: 500; letter-spacing: -0.01em;  }
 .figRow  { font-size: 13px; line-height: 1.35; font-weight: 500; letter-spacing: 0;        }

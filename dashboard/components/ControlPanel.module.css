@@ -8,7 +8,7 @@
   border: 1px solid var(--border);
   background: var(--card);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--shadow-card);
 }
 
 /* Drop the old corner ticks — keep selectors so the JSX still mounts but render nothing */

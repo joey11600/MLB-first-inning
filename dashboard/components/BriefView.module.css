@@ -13,9 +13,13 @@
  *   3. RHYTHM. Space between blocks is roughly triple the space inside
  *      them, so the sections read as separate beats.
  *
- * Palette is the operator's matrix-terminal spec, unchanged: black,
- * phosphor green, alarm red, square corners, JetBrains Mono. Colour is
- * never the only carrier of meaning here — see the component file.
+ * Palette is Newsprint (2026-08-03): warm paper, near-black ink, deep
+ * green and crimson for money, rounded corners, soft paper shadows.
+ * Type is split three ways -- Fraunces for the matchup and section
+ * heads, Inter for prose, JetBrains Mono for figures -- and that
+ * contrast is the system: serif says "this is the thing", sans says
+ * "this is prose", mono says "this is a number". Colour is never the
+ * only carrier of meaning here; see the component file.
  */
 
 /* ============================================================
@@ -118,10 +122,12 @@
 }
 
 .matchup {
-  font-size: clamp(2rem, 9vw, 3.25rem);
-  line-height: 1.05;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: clamp(2.25rem, 9vw, 3.5rem);
+  line-height: 1.02;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   margin: 0 0 0.5rem;
 }
 
@@ -202,12 +208,14 @@
 
 .h2 {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.75rem;
-  font-size: 13px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  font-weight: 600;
   margin: 0 0 0.5rem;
   padding-top: 0.75rem;
   border-top: 2px solid var(--foreground);
@@ -680,7 +688,9 @@
 }
 
 .emptyLead {
-  font-size: 26px;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 32px;
   font-weight: 700;
   margin: 0 0 0.75rem;
 }

@@ -11,6 +11,54 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03e] - UI upgrade: rounded corners, paper shadows, a display serif
+
+Operator: *"i want to upgrade the ui too. rounded corners. shadows. nice
+fonts. etc"* -- straight after the Newsprint repalette.
+
+### Added
+
+- **A radius SCALE, not a value.** `--radius` was a single `0rem` (the
+  July square-corner spec). One number cannot serve a 4px chip and a
+  full-width panel, so: `--radius-sm` 6px (chips, inputs), `--radius`
+  10px (cards, rows, panels), `--radius-lg` 16px. 51 existing call sites
+  already read `var(--radius)` and picked it up for free; the pills at
+  `999px` were already round and are untouched.
+- **Shadows built for paper.** The old set was tuned for a near-black
+  page -- heavy pure-black alphas that read as grey mud on `#FBFAF7`.
+  The new tokens are ink-tinted (`rgba(33,30,26,...)`) and LAYERED: a
+  1px contact edge, a tight shadow, a wide soft one, which is what makes
+  a card look like it is resting on paper rather than floating over it.
+  `--shadow-lift` is new, for hover and open states.
+- **A third typeface, and now each one has a job.** Fraunces (variable,
+  optical-size axis) for display; Inter for prose; JetBrains Mono for
+  figures. The contrast IS the system: serif says "this is the thing",
+  sans says "this is prose", mono says "this is a number". Applied to
+  the matchup headline, the Brief's section heads, the #1-history title,
+  the wordmark and the slate date -- all of which were previously mono,
+  i.e. the interface was calling the product's own name a number.
+  Fraunces rather than Playfair on purpose: Playfair is the reflex every
+  editorial redesign reaches for first.
+
+### Changed
+
+- Board rows rest ON the paper instead of being outlined on it: the 1px
+  border goes transparent and the shadow's own contact edge does that
+  job, so a card no longer carries two competing outlines. Hover and
+  open states move to `--shadow-lift`.
+- Section heads on /brief drop `text-transform: uppercase` at 13px for
+  the serif at 22px. Tracked uppercase was doing the work of hierarchy
+  that the type scale can now do properly.
+
+### Note
+
+Fraunces is a fourth family on the Google Fonts `@import`, which is
+render-blocking. It is variable, so it is one file rather than four
+weights, but if first paint ever matters this import is the thing to
+move to `next/font`.
+
+---
+
 ## [2026-08-03c] - Design critique, 11 agents, and the contradiction it caught
 
 An 11-agent critique of /brief and /history: five independent lenses

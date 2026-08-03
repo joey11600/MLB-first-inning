@@ -46,10 +46,11 @@
 
 .row {
   position: relative;
-  margin: 8px 0;
-  border: 1px solid var(--border);
+  margin: 10px 0;
+  border: 1px solid transparent;
   border-radius: calc(var(--radius) + 4px);
   background: var(--card);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
   transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
               border-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -62,12 +63,11 @@
 
 .row:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in oklab, var(--foreground) 10%, var(--border));
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-lift);
 }
 .row.open {
-  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), 0 0 0 1px color-mix(in oklab, var(--primary) 20%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 30%, transparent);
+  box-shadow: var(--shadow-lift);
 }
 
 /* ============================================================
