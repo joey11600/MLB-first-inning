@@ -11,6 +11,45 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03m] - the brief's ballpark sentence names a club, not a "city"
+
+Operator, on seeing the STL at NYY brief: *"fix the yankees ballpark
+wording."*
+
+### Fixed
+
+- **"a run has scored in the first inning 55% of the time in the
+  Yankees."** The park sentence in `lib/pick-reasons.ts` read
+  `in ${cityOf(home)}`, and for five clubs the `city` field is a CLUB
+  name because the city is shared or would not identify the team — LAA,
+  LAD, NYM, NYY, OAK. Now `at home for ${clubOf(home)}`, which is
+  grammatical for all 30 and is also exactly what a park factor
+  measures: the home team's home games.
+- **A second, quieter bug in the same line.** Both Chicago clubs
+  rendered "in Chicago", so the sentence named neither ballpark. "At
+  home for the Cubs" / "for the White Sox" separates them.
+- `BriefView`'s no-park-factor fallback moved to `clubOf` too, so both
+  mentions of a ballpark on the page name the same thing.
+
+### Two alternatives rejected, recorded so they are not retried
+
+- **A possessive** ("the Yankees' ballpark") needs a different
+  apostrophe for the Red Sox and the White Sox — 30 chances to be wrong.
+- **Real venue names** ("at Coors Field") read best of all and are still
+  wrong to ship: 30 hard-coded names go stale on naming-rights deals and
+  relocations, and saying the wrong stadium into a camera is worse than
+  saying a plain phrase.
+
+`cityOf()` now carries a doc comment saying it must never follow "in",
+because that is the trap, and it is invisible until a brief happens to
+land on one of the five clubs.
+
+Verified on a production build: all 30 clubs rendered, plus the live
+2026-08-03 briefs for NYY ("at home for the Yankees") and COL ("at home
+for the Rockies", with the season-alone divergence clause intact).
+
+---
+
 ## [2026-08-03l] - a brief for every pick, and a door into it from the row
 
 Operator: *"can we make an individual brief for every single pick of the

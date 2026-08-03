@@ -473,7 +473,9 @@ function Numbers({ form, play }: { form: GameFiForm; play: BriefPlay }) {
           </>
         ) : (
           <p className={styles.none}>
-            No park factor on file for {cityOf(park.team)}.
+            {/* clubOf, matching the park sentence in lib/pick-reasons.ts:
+                both mentions of a ballpark on this page name the club. */}
+            No park factor on file for {clubOf(park.team)}.
           </p>
         )}
       </div>

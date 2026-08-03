@@ -121,7 +121,25 @@ export function buildReasons(
      this surface exists to prevent. So: the shrunk figure always says
      "across last season and this one", and when the season-alone
      figure diverges by more than eight points it is carried in the
-     SAME sentence rather than left to ambush the reader later. */
+     SAME sentence rather than left to ambush the reader later.
+
+     THE PARK IS NAMED "AT HOME FOR {club}", NEVER "IN {city}", and this
+     is the one place on the page that must not use cityOf(). Five clubs
+     carry a CLUB name in the `city` field because their city is shared
+     or ambiguous -- LAA, LAD, NYM, NYY, OAK -- so "in ${cityOf(home)}"
+     rendered "a run has scored in the first inning 55% of the time in
+     the Yankees" on the 2026-08-03 STL at NYY brief. Ungrammatical, and
+     it is a SPOKEN sentence.
+
+     The fix deliberately avoids two tempting alternatives. A possessive
+     ("the Yankees' ballpark") needs a different apostrophe for the Red
+     Sox and the White Sox, so it is thirty chances to be wrong. Real
+     venue names ("at Coors Field") read best of all and are rejected
+     anyway: thirty hard-coded names go stale on naming-rights deals and
+     relocations, and saying the wrong stadium into a camera is worse
+     than saying a plain one. "At home for the Rockies" is correct for
+     all thirty with one sentence shape, and it is also exactly what a
+     park factor MEASURES -- the home team's home games. */
   if (park.nrfiRate != null) {
     const yrfiHere = 1 - park.nrfiRate;
     const rankNote = parkTier(park.rank, park.parks);
@@ -134,7 +152,7 @@ export function buildReasons(
       figure: pct(yrfiHere),
       sentence:
         `Across last season and this one, a run has scored in the first inning ` +
-        `${pct(yrfiHere)} of the time in ${cityOf(home)}, ${rankNote ?? "by the model's park factor"}.` +
+        `${pct(yrfiHere)} of the time at home for ${clubOf(home)}, ${rankNote ?? "by the model's park factor"}.` +
         (diverges
           ? ` This season alone it has been ${ledRate! > yrfiHere ? "higher" : "lower"}: ${led!.yrfi} of the ${led!.games} played there, ${pct(ledRate!)}.`
           : ""),

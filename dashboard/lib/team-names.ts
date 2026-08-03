@@ -48,7 +48,18 @@ const TEAMS: Record<string, { city: string; club: string }> = {
   WSH: { city: "Washington", club: "the Nationals" },
 };
 
-/** "Tampa Bay". The subject of a sentence. */
+/**
+ * "Tampa Bay". The SUBJECT of a sentence, or the object of "for" / "at".
+ *
+ * NEVER PUT THIS AFTER "IN". For five clubs the `city` field above is a
+ * club name, because the city is shared (CHC/CWS, LAA/LAD, NYM/NYY) or
+ * would not identify the team: LAA, LAD, NYM, NYY and OAK all return
+ * "the Angels"-style strings. So "in ${cityOf(home)}" produces "in the
+ * Yankees", which shipped on the brief's ballpark sentence and was found
+ * on 2026-08-03. For anything locative use `clubOf` with a phrase that
+ * takes a club: "at home for the Yankees". See the park block in
+ * lib/pick-reasons.ts for the full reasoning.
+ */
 export function cityOf(abbr: string): string {
   return TEAMS[abbr?.trim().toUpperCase()]?.city ?? abbr;
 }
