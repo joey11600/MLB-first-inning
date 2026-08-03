@@ -77,6 +77,33 @@ IDMAP = ROOT / "data" / "pitcher_id_cache.json"
 STATS = ("era", "fip", "whip", "k9", "bb9", "hr9")
 
 
+def ids_for(row: dict, idmap: dict) -> tuple[int | None, int | None] | None:
+    """(away_pid, home_pid) for a backtest row.
+
+    THE ROW'S OWN COLUMNS WIN. The 2026 files carry `away_pitcher_id` /
+    `home_pitcher_id` directly and the 2024/2025 files do not, so an
+    idmap-only lookup resolved 2026 at 62% and 0% and sent almost every
+    2026 slot to the league-average fallback. The game_pk map stays as
+    the fallback for the older files, which have no id columns at all.
+    """
+    out: list[int | None] = []
+    for col in ("away_pitcher_id", "home_pitcher_id"):
+        v = str(row.get(col, "") or "").strip()
+        if not v:
+            out.append(None)
+            continue
+        try:
+            out.append(int(float(v)))
+        except ValueError:
+            out.append(None)
+    if out[0] is not None or out[1] is not None:
+        return out[0], out[1]
+    ids = idmap.get(str(row.get("game_pk", "")).strip())
+    if ids:
+        return int(ids[0]), int(ids[1])
+    return None
+
+
 def load_log(pid: int, season: int) -> list[dict]:
     p = LOGS / f"{pid}_{season}.json"
     if not p.exists():
@@ -171,9 +198,9 @@ def main() -> int:
         # every pitcher who appears, so cFIP is computed on the right pool
         pids: set[int] = set()
         for r in rows:
-            ids = idmap.get(str(r.get("game_pk", "")).strip())
+            ids = ids_for(r, idmap)
             if ids:
-                pids.update(int(x) for x in ids)
+                pids.update(int(x) for x in ids if x is not None)
         cfip, league = derive_cfip(season, pids)
 
         logs: dict[int, list[dict]] = {p: load_log(p, season) for p in pids}
@@ -184,7 +211,7 @@ def main() -> int:
 
         tier = defaultdict(int)
         for r in rows:
-            ids = idmap.get(str(r.get("game_pk", "")).strip())
+            ids = ids_for(r, idmap)
             date = str(r.get("date", "")).strip()
             for slot, pid in zip(("away", "home"), ids or (None, None)):
                 vals = None

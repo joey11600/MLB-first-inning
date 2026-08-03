@@ -11,6 +11,69 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03k] - 2026 pitcher-id resolution fixed; the fair refit test finally runs
+
+Operator: *"fix the 2026 game_pk resolution so we can test properly."*
+
+### The bug was one lookup
+
+`backfill_pit_pitching_stats.py` resolved pitchers only through
+`pitcher_id_cache.json` (game_pk -> ids). **The 2026 backtest files carry
+`away_pitcher_id` / `home_pitcher_id` columns directly** and the
+2024/2025 files do not, so 2026 went almost entirely to the
+league-average fallback. The row's own columns now win, with the game_pk
+map kept as the fallback for the older files.
+
+| file | league-avg fallback BEFORE | AFTER |
+|---|---|---|
+| 2026-04-01..05-11 | 43.2% | **9.2%** |
+| 2026-05-12..05-26 | **100%** | **11.5%** |
+
+Season-to-date coverage went 12.7% -> 39.6% and 0% -> 69.2%. The April
+file leans on prior-season (51.2%), which is correct: few starts exist
+that early, and the prior season is complete so it cannot leak.
+
+### The test it unblocked
+
+Refit twice on **production's own window** (2024 + 2025 + 2026 through
+05-11), once leaky and once clean, held out on the 866 graded 2026 games
+from 05-27. Rank-matched, flat 1u:
+
+| N | PRODUCTION | refit LEAKY | refit CLEAN |
+|---|---|---|---|
+| 40 | **+10.5** | +3.6 | +6.0 |
+| 80 | **+11.9** | +9.1 | +5.2 |
+| 120 | **+16.0** | +7.3 | +10.9 |
+| 160 | +11.8 | **+15.4** | +14.5 |
+| 200 | +7.0 | +15.2 | **+18.1** |
+| **sum** | **+57.3** | +50.6 | +54.8 |
+
+### Three findings
+
+1. **The leak fix is worth something, and this is the first test able to
+   see it.** Clean beats leaky at 3 of 5 counts and by **+4.2u** on the
+   sum. The earlier comparison could not show this because both
+   candidates were handicapped by a missing year of training data.
+2. **Neither refit beats production**, but clean is now close: +54.8
+   against +57.3 over ~600 bets. That gap is well inside noise, so the
+   honest reading is "no better", not "worse".
+3. **Production's edge is concentrated at the top of its ranking.** It
+   wins clearly at N=40/80/120 and LOSES at N=160/200. The refits are
+   better in the tail. That is consistent with the #1-pick pattern seen
+   earlier the same day, and it is the one genuinely new lead here.
+
+**Still does not ship.** Sixth refit variant tested, sixth to fail to
+beat the frozen 2026-05-26 weights.
+
+### Caveat on the Kelly columns
+
+Kelly stakes above were computed on RAW two-stage output for all three
+models, because a candidate has no calibrator of its own. Stake size
+depends on probability magnitude, so those figures are not comparable
+across models; only the FLAT column, which uses ranking alone, is.
+
+---
+
 ## [2026-08-03j] - Production refit on the clean files: TESTED, does not ship
 
 Operator: *"refit the production model on the clean files. then backtest
