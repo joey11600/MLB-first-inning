@@ -11,6 +11,68 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03l] - a brief for every pick, and a door into it from the row
+
+Operator: *"can we make an individual brief for every single pick of the
+day, including leans. skip passes. and i want to be able to navigate to
+the brief by adding a brief button inside each pick dropdown."*
+
+### Added
+
+- **`BriefLink` — the door.** Every expanded row on the board whose pick
+  is STRONG or LEAN now leads with a "Read the brief" button linking to
+  `/brief?game=<gamePk>&date=<slate>`. First child of the drawer, above
+  the notice stack: the notices are conditional, so anchoring below them
+  would put the same control at a different height on every row. 44px in
+  pixels, not rem — the app's root font is 15px, so a rem touch target
+  comes out short. `components/GameDetails.tsx`.
+- **Three honest dead ends** on `/brief`, where there was one. A game
+  the model PASSED on says so and explains that writing a brief for it
+  would mean inventing the case; a gamePk not on the slate says the link
+  points at another date; an empty slate keeps the old "no play tonight".
+  All three render the slate's pick list underneath, so every dead end
+  has a way out.
+- **`?date=`** on `/brief`, carried by every in-page link. Without it a
+  brief opened from an old slate resolves against tonight's board and
+  reports its own game missing.
+
+### Changed
+
+- **`/brief` briefs any STRONG or LEAN row, not only the #1.** A LEAN is
+  a verdict the model committed to and the ledger grades — there is
+  something true to explain. A PASS is the model declining to have an
+  opinion, so it gets no page. Same filter on both ends: the brief page's
+  `isBriefable()` and `BriefLink`'s guard.
+- **A lean says it is not a bet, three times**: in the tag above the
+  matchup (`LEAN · NOT BET`), in the ticket where the stake would be
+  ("nothing — this one is not bet"), and in a ruled paragraph under it.
+  Deliberate repetition — this surface is read ALOUD, and a qualifier
+  stated once is the one that falls off in the edit.
+- **`stake` is null for a LEAN before it reaches the view.** Quarter
+  Kelly will happily size a lean's probability, and the figure would be
+  plausible, set at 20px in the ticket, and read out. The tracker marks
+  every lean `bet_placed='N'` by rule, so printing a stake beside one is
+  an instruction to risk money the system never intends to risk. Same
+  guard the board's stake chip runs.
+- **"Also on tonight" carries every committed pick, each tagged** `#1
+  BET` / `BET` / `LEAN · NOT BET`, ordered #1 first, then bets, then
+  leans by game time. The list used to be STRONG-only, so "on the list"
+  and "wagered" were the same thing and neither needed saying.
+- **The #1 record block names whose record it is** when the brief on
+  screen is not the #1. The block follows whichever game was #1 each
+  night; on any other brief the unqualified title would be read aloud as
+  that game's record.
+- The brief's season now comes from the SLATE date, not the server's
+  clock, so an old slate reads the right season's ledger.
+
+Verified against a production build on the 2026-08-03 slate: 1 STRONG +
+3 LEAN got briefs and buttons, 3 LINEUP PENDING and 1 NO EDGE got
+neither. Every new text token clears 4.5:1 (`--attn` at 6.07, ink at
+15.9); no horizontal overflow at 375px; the drawer button measures 44px.
+Colour is reinforcement only — every lean marker prints the word.
+
+---
+
 ## [2026-08-03k] - 2026 pitcher-id resolution fixed; the fair refit test finally runs
 
 Operator: *"fix the 2026 game_pk resolution so we can test properly."*

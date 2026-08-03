@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type {
   BatterLine,
   BoardRow,
@@ -46,6 +47,8 @@ export function GameDetails({
 
   return (
     <div className={styles.wrap}>
+      <BriefLink row={row} slateDate={slateDate} />
+
       <NoticeStack
         row={row}
         detail={detail}
@@ -139,6 +142,67 @@ export function GameDetails({
           oppLineupQuality={detail?.away.offense.quality}
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * THE WAY INTO THE BRIEF, from the game it is about (2026-08-03).
+ *
+ * Operator: "i want to be able to navigate to the brief by adding a brief
+ * button inside each pick dropdown."  Until now /brief was reachable only
+ * from two places that both point at the SAME game -- the #1 note under
+ * the board and the header link -- so every other pick's brief existed
+ * and had no door.
+ *
+ * FIRST THING IN THE DRAWER, ABOVE THE NOTICES.  The notice stack is
+ * conditional (most rows render none), so anchoring the button below it
+ * would put the same control at a different height on every row, which
+ * is how a control gets hunted for instead of used.
+ *
+ * STRONG AND LEAN ONLY.  A PASS row has no brief -- the page would have
+ * to invent a case for a game the model refused to call -- so it gets no
+ * button rather than a button that lands on a dead end.  Same rule as
+ * the brief page's own filter; if one moves, move both.
+ *
+ * THE DATE RIDES ALONG.  Without it a brief opened from an old slate
+ * resolves against tonight's board and reports the game as missing, and
+ * a link followed at 11:55pm could land on tomorrow's slate mid-read.
+ */
+function BriefLink({
+  row,
+  slateDate,
+}: {
+  row: BoardRow;
+  slateDate?: string;
+}) {
+  const briefable =
+    Boolean(row.gamePk) &&
+    (row.pickStrength === "STRONG" || row.pickStrength === "LEAN") &&
+    (row.pickSide === "NRFI" || row.pickSide === "YRFI");
+  if (!briefable) return null;
+
+  const href =
+    `/brief?game=${encodeURIComponent(row.gamePk)}` +
+    (slateDate ? `&date=${encodeURIComponent(slateDate)}` : "");
+
+  const isLean = row.pickStrength === "LEAN";
+
+  return (
+    <div className={styles.briefBar}>
+      <span className={styles.briefHint}>
+        {isLean
+          ? "This one is tracked, not bet — the brief says what the model saw, what argues the other way, and why it stops short of a wager."
+          : "Why this pick is on, what argues against it, and both teams' recent first innings — written in full sentences, to be read out loud."}
+      </span>
+      <Link
+        href={href}
+        className={styles.briefLink}
+        title={`Open the brief for ${row.away} at ${row.home}`}
+      >
+        Read the brief
+        <span aria-hidden>→</span>
+      </Link>
     </div>
   );
 }

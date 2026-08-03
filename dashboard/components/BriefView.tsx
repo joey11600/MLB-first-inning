@@ -48,25 +48,62 @@ export interface BriefPlay {
   strength: string;
 }
 
+/** Another pick on the same slate, with everything needed to say what it
+ *  is WITHOUT opening it — which side, whether it is bet, and whether it
+ *  is the #1. */
+export interface BriefOtherPlay {
+  gamePk: string;
+  away: string;
+  home: string;
+  side: string;
+  strength: "STRONG" | "LEAN";
+  isTop: boolean;
+  gameTimeEt: string;
+}
+
+/** Why there is no play on screen. Three different facts, and collapsing
+ *  them into one "nothing here" would be a lie in two of the three cases:
+ *  an empty slate is the system working, a pass is a deliberate refusal,
+ *  and a missing game means the link pointed at another date. */
+export interface BriefEmpty {
+  kind: "none" | "pass" | "missing";
+  away?: string;
+  home?: string;
+}
+
 export function BriefView({
   date,
+  slateDate,
   play,
+  isTop,
   reasons,
   form,
   record,
   otherPlays,
+  empty,
 }: {
   date: string;
+  /** Carried onto every in-page link so a brief opened from an old slate
+   *  keeps browsing that slate instead of silently jumping to tonight. */
+  slateDate?: string;
   play: BriefPlay | null;
+  /** This game is the slate's #1 bet. Decided by the shared selector, so
+   *  the badge on the board and the headline here cannot disagree. */
+  isTop: boolean;
   reasons: { supports: Reason[]; against: Reason[]; neutral: Reason[] } | null;
   form: GameFiForm | null;
   record: TopPickReport | null;
-  otherPlays: { gamePk: string; away: string; home: string; side: string }[];
+  otherPlays: BriefOtherPlay[];
+  empty?: BriefEmpty;
 }) {
+  const briefHref = (gamePk: string) =>
+    `/brief?game=${encodeURIComponent(gamePk)}` +
+    (slateDate ? `&date=${encodeURIComponent(slateDate)}` : "");
+
   return (
     <main className={styles.page}>
       <header className={styles.head}>
-        <Link href="/" className={styles.back}>
+        <Link href={slateDate ? `/?date=${encodeURIComponent(slateDate)}` : "/"} className={styles.back}>
           ← slate
         </Link>
         <span className={styles.headTitle}>the brief</span>
@@ -76,10 +113,10 @@ export function BriefView({
       </header>
 
       {play == null ? (
-        <EmptyBrief date={date} />
+        <EmptyBrief date={date} empty={empty} />
       ) : (
         <>
-          <PlayHeader play={play} date={date} />
+          <PlayHeader play={play} date={date} isTop={isTop} />
           {reasons && (
             <>
               <ReasonBlock
@@ -108,35 +145,120 @@ export function BriefView({
             </>
           )}
           {form && <Numbers form={form} play={play} />}
-          <RecordBlock record={record} />
-          {otherPlays.length > 0 && (
-            <section className={styles.block}>
-              <h2 className={styles.h2}>Also on tonight</h2>
-              <ul className={styles.otherList}>
-                {otherPlays.map((o) => (
-                  <li key={o.gamePk}>
-                    <Link href={`/brief?game=${o.gamePk}`} className={styles.otherLink}>
-                      <span>
-                        {cityOf(o.away)} at {cityOf(o.home)}
-                      </span>
-                      <span className={styles.otherSide}>
-                        {o.side === "YRFI" ? "run scores" : "no run"}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <RecordBlock record={record} isTop={isTop} />
         </>
       )}
+
+      {/* RENDERED IN EVERY STATE, INCLUDING THE DEAD ENDS. A brief opened
+          on a passed game or a stale link is exactly when the operator
+          most needs the list of games that DO have one. */}
+      <OtherPlays plays={otherPlays} href={briefHref} hasPlay={play != null} />
     </main>
   );
 }
 
 /* ------------------------------------------------------------------ */
 
-function EmptyBrief({ date }: { date: string }) {
+/**
+ * The list of the slate's other picks, and the way out of any dead end.
+ *
+ * EACH ROW SAYS WHETHER IT IS A BET. The list used to be STRONG-only, so
+ * "on the list" and "wagered" were the same thing and neither needed
+ * saying. Now that leans are briefed too, an unlabelled row would read as
+ * a bet — on the one surface that gets read aloud, where the label is the
+ * only thing standing between a tracked call and somebody staking it.
+ */
+function OtherPlays({
+  plays,
+  href,
+  hasPlay,
+}: {
+  plays: BriefOtherPlay[];
+  href: (gamePk: string) => string;
+  hasPlay: boolean;
+}) {
+  if (plays.length === 0) return null;
+  const leans = plays.filter((p) => p.strength === "LEAN").length;
+  return (
+    <section className={styles.block}>
+      <h2 className={styles.h2}>
+        {hasPlay ? "Also on tonight" : "Tonight's picks"}
+        <span className={styles.count}>{plays.length}</span>
+      </h2>
+      <p className={styles.blurb}>
+        Every game the model committed to, each with its own brief. Games
+        it passed on are not here — there is no case to make for a game it
+        declined to call.
+        {leans > 0
+          ? ` ${leans === 1 ? "One of these is a lean" : `${leans} of these are leans`}: tracked and graded, never staked.`
+          : ""}
+      </p>
+      <ul className={styles.otherList}>
+        {plays.map((o) => (
+          <li key={o.gamePk}>
+            <Link href={href(o.gamePk)} className={styles.otherLink}>
+              <span>
+                {cityOf(o.away)} at {cityOf(o.home)}
+              </span>
+              <span className={styles.otherMeta}>
+                <span className={styles.otherSide}>
+                  {o.side === "YRFI" ? "run scores" : "no run"}
+                </span>
+                <span
+                  className={styles.otherTag}
+                  data-kind={o.isTop ? "top" : o.strength === "LEAN" ? "lean" : "bet"}
+                >
+                  {o.isTop ? "#1 bet" : o.strength === "LEAN" ? "lean · not bet" : "bet"}
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function EmptyBrief({ date, empty }: { date: string; empty?: BriefEmpty }) {
+  const kind = empty?.kind ?? "none";
+
+  /* THE MODEL REFUSED THIS GAME, which is a different fact from "there is
+     nothing tonight" and has to read as one. Somebody arriving here has
+     followed a link to a specific matchup, and the honest answer is that
+     there is no case to make, not that the page is broken. */
+  if (kind === "pass") {
+    const named =
+      empty?.away && empty?.home
+        ? `${cityOf(empty.away)} at ${cityOf(empty.home)}`
+        : null;
+    return (
+      <section className={styles.empty}>
+        <p className={styles.emptyLead}>The model passed on this one.</p>
+        <p className={styles.emptyBody}>
+          {named ? `${named}: the` : "The"} model looked at this game and
+          declined to call it either way, so there is nothing here to argue
+          and nothing to film. A brief exists for the plays the system
+          committed to — the strong ones it bets and the leans it tracks —
+          because those are the ones with a case behind them. Writing one
+          for a pass would mean inventing the case.
+        </p>
+      </section>
+    );
+  }
+
+  if (kind === "missing") {
+    return (
+      <section className={styles.empty}>
+        <p className={styles.emptyLead}>That game isn&rsquo;t on this slate.</p>
+        <p className={styles.emptyBody}>
+          Nothing on the {prettyDate(date)} board matches the game in this
+          link. Usually it points at a different date — open the slate for
+          that day and follow the brief link from the game&rsquo;s own row.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className={styles.empty}>
       <p className={styles.emptyLead}>No play tonight.</p>
@@ -149,14 +271,31 @@ function EmptyBrief({ date }: { date: string }) {
   );
 }
 
-function PlayHeader({ play, date }: { play: BriefPlay; date: string }) {
+function PlayHeader({
+  play,
+  date,
+  isTop,
+}: {
+  play: BriefPlay;
+  date: string;
+  isTop: boolean;
+}) {
   const meaning =
     play.side === "YRFI"
       ? "a run scores in the first inning"
       : "no run scores in the first inning";
+  /* A LEAN IS NOT A BET, AND THE PAGE SAYS SO THREE TIMES: in the tag
+     above the matchup, in the ticket where the stake would be, and in the
+     paragraph under it. That is deliberate repetition. This surface gets
+     read ALOUD, and a qualifier stated once is a qualifier that falls off
+     in the edit. */
+  const isLean = play.strength === "LEAN";
+  const tag = isTop ? "#1 play" : isLean ? "Lean · not bet" : "Strong play";
   return (
     <section className={styles.play}>
-      <div className={styles.playTag}>#1 play · {prettyDate(date)}</div>
+      <div className={styles.playTag} data-kind={isLean ? "lean" : "bet"}>
+        {tag} · {prettyDate(date)}
+      </div>
       <h1 className={styles.matchup}>
         {cityOf(play.away)} <span className={styles.at}>at</span>{" "}
         {cityOf(play.home)}
@@ -198,10 +337,12 @@ function PlayHeader({ play, date }: { play: BriefPlay; date: string }) {
         </div>
         <div className={styles.ticketRow}>
           <dt>Stake</dt>
-          <dd>
-            {play.stake != null
-              ? `${play.stake.toFixed(2)} units`
-              : "no stake, no price captured"}
+          <dd className={isLean ? styles.ticketNote : undefined}>
+            {isLean
+              ? "nothing — this one is not bet"
+              : play.stake != null
+                ? `${play.stake.toFixed(2)} units`
+                : "no stake, no price captured"}
           </dd>
         </div>
         <div className={styles.ticketRow}>
@@ -211,14 +352,24 @@ function PlayHeader({ play, date }: { play: BriefPlay; date: string }) {
           </dd>
         </div>
       </dl>
-      <p className={styles.meaning}>
-        One unit is 1% of your bankroll, so{" "}
-        {play.stake != null
-          ? `${play.stake.toFixed(2)} units is ${play.stake.toFixed(2)}%`
-          : "the stake is that percent"}{" "}
-        of whatever you are playing with, whether that is a thousand dollars or
-        ten thousand.
-      </p>
+      {isLean ? (
+        <p className={styles.leanNote}>
+          This is a lean, not a bet. The model has a side and the system
+          records it and grades it, so the call still counts toward how the
+          model is measured — but no money goes down on a lean. Only the
+          strong plays get staked. Nothing on this page is telling you to
+          bet this game.
+        </p>
+      ) : (
+        <p className={styles.meaning}>
+          One unit is 1% of your bankroll, so{" "}
+          {play.stake != null
+            ? `${play.stake.toFixed(2)} units is ${play.stake.toFixed(2)}%`
+            : "the stake is that percent"}{" "}
+          of whatever you are playing with, whether that is a thousand dollars
+          or ten thousand.
+        </p>
+      )}
     </section>
   );
 }
@@ -483,7 +634,13 @@ function PitcherBlock({
  * the scale-free answer and the one a follower on any bankroll actually
  * experienced. See the file header of lib/units.ts.
  */
-function RecordBlock({ record }: { record: TopPickReport | null }) {
+function RecordBlock({
+  record,
+  isTop,
+}: {
+  record: TopPickReport | null;
+  isTop: boolean;
+}) {
   if (!record || record.windows.length === 0) {
     return (
       <section className={styles.block}>
@@ -500,9 +657,19 @@ function RecordBlock({ record }: { record: TopPickReport | null }) {
   return (
     <section className={styles.block}>
       <h2 className={styles.h2}>The #1 play&rsquo;s record</h2>
+      {/* THE TITLE IS A CLAIM, AND ON A NON-#1 BRIEF IT IS A CLAIM ABOUT
+          A DIFFERENT GAME. This block tracks whichever play was #1 on each
+          night. On the #1's own page that reads as "this pick's record",
+          which is right. On any other brief the same words would be read
+          aloud as the record of THAT game, which is false — so the page
+          says whose record it is rather than relying on the reader to
+          remember. */}
       <p className={styles.blurb}>
         Real bets at real captured prices, not a simulation. This is the number
         to quote when somebody asks whether the top play is any good.
+        {!isTop
+          ? " It follows whichever game was the #1 play on each night, so it is the system's headline record — not a record for the game above."
+          : ""}
       </p>
       <div className={styles.recordGrid}>
         <div>

@@ -84,7 +84,24 @@ inline copy is not a type error, it is a runtime crash.
 | `/history` | how has this gone | desk, tolerates density |
 
 **`/brief`** is the explanatory surface. Bare `/brief` shows the night's
-#1; `?game=<gamePk>` briefs any game on the slate.
+#1; `?game=<gamePk>` briefs a specific game and `?date=` picks the slate.
+
+**Every committed pick has one, and only committed picks do (2026-08-03).**
+A row is briefable when `pick_strength` is `STRONG` or `LEAN` and the side
+is a real side. A LEAN is a verdict the ledger grades, so there is
+something true to explain; a PASS is the model declining to have an
+opinion, and a page arguing a case for it would be inventing the case.
+The rule is written twice and must move together: `isBriefable()` in
+`app/brief/page.tsx` and the guard in `BriefLink` (`GameDetails.tsx`),
+which renders the button at the top of each expanded row on the board.
+Note that a `LINEUP PENDING` row is a PASS in the ledger even when the
+board shows a tentative lean — it gets no brief until the pick commits.
+
+**A lean never prints a stake.** `stake` is nulled for a LEAN in the page
+before the view sees it, because quarter Kelly will happily size one and
+the tracker marks every lean `bet_placed='N'` by rule. The page says "not
+a bet" in the tag, in the ticket, and in a paragraph — this surface is
+read aloud, where a qualifier stated once falls off in the edit.
 
 - `lib/first-inning-form.ts` — per-team last-10 first-inning form,
   per-pitcher scoreless-first record, park rate + rank, head-to-head and

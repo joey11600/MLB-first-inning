@@ -7,6 +7,70 @@
 }
 
 /* ============================================================
+   BriefLink -- the door from a pick to its brief (2026-08-03).
+
+   A NAVIGATION CONTROL, SO IT TAKES NO MONEY COLOUR.  --gain / --loss /
+   --attn all mean something specific on this board and none of them is
+   "go read a page".  It works in --rule (the 3.4:1 token for a boundary
+   that MEANS something) and inverts to solid ink on hover, which is the
+   same treatment the brief page gives its own list rows -- so following
+   the link twice looks like one interaction, not two.
+
+   44px MINIMUM, IN PIXELS.  The app's root font is 15px, not 16, so rem
+   touch targets come out short: 2.75rem measured 41px on /brief.  This
+   is a fingertip, not a typographic measure.
+   ============================================================ */
+
+.briefBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--card) 85%, transparent);
+}
+
+.briefHint {
+  flex: 1 1 22ch;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  max-width: 68ch;
+}
+
+.briefLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--foreground);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.briefLink:hover,
+.briefLink:focus-visible {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
+/* ============================================================
    NoticeStack -- contextual annotations that the row used to render
    inline (tentative lean, v3 disagreement, line drift).  Stacked at
    the top of the details panel so they read as scannable callouts

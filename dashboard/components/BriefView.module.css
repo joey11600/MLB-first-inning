@@ -121,6 +121,16 @@
   margin-bottom: 0.75rem;
 }
 
+/* A lean's tag takes --attn, the token for "a decision is waiting on
+   you" -- here, the decision NOT to stake it. The colour is redundant
+   reinforcement and never the carrier: the tag reads "LEAN · NOT BET" in
+   words, which is what survives a greyscale screenshot and a red-green
+   reader, and the ticket and the paragraph below say it again. */
+.playTag[data-kind="lean"] {
+  color: var(--attn);
+  font-weight: 600;
+}
+
 .matchup {
   font-family: var(--font-display);
   font-optical-sizing: auto;
@@ -192,12 +202,36 @@
   color: var(--muted-foreground);
 }
 
+/* The ticket's one non-numeric value. Every other dd on this list is a
+   figure at 20px tabular mono weight; "nothing — this one is not bet" set
+   at that size reads as a headline rather than as the absence of one, so
+   it steps down and takes --attn instead. */
+.ticketNote {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--attn);
+}
+
 .meaning {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
   max-width: var(--measure);
   color: var(--muted-foreground);
+}
+
+/* THE LEAN DISCLAIMER SITS WHERE THE STAKE EXPLANATION SITS on a bet, and
+   it is not muted. `.meaning` is grey because it explains a number that
+   has already been read; this one is the correction to what the reader is
+   about to assume, so it takes full ink and a rule to stop the eye. */
+.leanNote {
+  margin: 0;
+  padding: 0.125rem 0 0.125rem 0.875rem;
+  border-left: 3px solid var(--attn);
+  font-size: 13px;
+  line-height: 1.65;
+  max-width: var(--measure);
+  color: var(--foreground);
 }
 
 /* ---------------- blocks ---------------- */
@@ -670,15 +704,56 @@
   background: var(--foreground);
 }
 
+.otherMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
 .otherSide {
   font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--muted-foreground);
 }
 
+/* WHETHER THE ROW IS A BET, IN WORDS. The list carries strong plays and
+   leans together now, and the only thing separating "wagered" from
+   "tracked" is this tag -- so it is a word inside a box, never a tint.
+   The tints below are reinforcement for the sighted-in-colour case and
+   carry nothing on their own. */
+.otherTag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted-foreground);
+}
+
+.otherTag[data-kind="top"] {
+  border-color: var(--rule);
+  color: var(--foreground);
+}
+
+.otherTag[data-kind="lean"] {
+  color: var(--attn);
+  border-color: color-mix(in oklab, var(--attn) 40%, var(--border));
+}
+
 .otherLink:hover .otherSide,
-.otherLink:focus-visible .otherSide {
+.otherLink:focus-visible .otherSide,
+.otherLink:hover .otherTag,
+.otherLink:focus-visible .otherTag {
   color: var(--background);
+}
+
+.otherLink:hover .otherTag,
+.otherLink:focus-visible .otherTag {
+  border-color: color-mix(in oklab, var(--background) 45%, transparent);
 }
 
 /* ---------------- empty ---------------- */
