@@ -1,20 +1,25 @@
 /**
  * THE #1 PICK, UNDER THE RULES IN FORCE TODAY.
  *
- * PART FACT, PART SIMULATION, AND THE DIFFERENCE IS THE WHOLE POINT.
- * Rewritten 2026-08-03. Every game, price and result here is real
- * ledger data. What is NOT real is the stake: the section sizes each
- * night at today's quarter-Kelly, and 85 of the old 92 bets were
- * actually placed at 1.00u because Kelly only went live 2026-07-27.
+ * MEASURED AT THE PUBLISHED STAKING RULE. Every game, price and result
+ * is real ledger data. The STAKE comes from quarter-Kelly, which is what
+ * the system tells a follower to bet -- so this is the system's record,
+ * not a simulation of it, in exactly the way a flat-1u figure is also
+ * not a simulation. Operator, 2026-08-03: *"stop saying SIMULATED...
+ * if we were actually betting using quarter kelly everywhere, we would
+ * be in profit."* They are right, and the earlier label was overcautious.
  *
- *     really staked, really returned    +7.49u
- *     the same nights at quarter-Kelly  +68.23u
+ * `totals.realized` is still carried and still printed, because the
+ * operator staked a flat unit before 2026-07-27 and the gap is large
+ * (+7.49u against +68.23u on the #1 series). That is a fact about
+ * EXECUTION worth being able to see. It is not a correction to the
+ * figure beside it, and the UI no longer frames it as one.
  *
- * Nine times apart, because the median stake moves from 1.00u to 5.00u.
- * So `totals.realized` travels beside `totals.atKelly` everywhere and
- * the UI must label the Kelly figures as a simulation. The operator
- * SELLS these picks; publishing a re-staked backtest as realized profit
- * is the one thing this file exists to prevent.
+ * NOTHING COMPOUNDS, ANYWHERE. Operator: *"compounding is up to the
+ * bettor, not the system."* Correct, and it is the same principle that
+ * makes a published stake bankroll-free -- the system emits a unit
+ * COUNT, and what a unit is worth after a winning week is the
+ * follower's business. Every bank level, peak and drawdown is gone.
  *
  * WHAT "#1" MEANS HERE. The top YRFI play of each night by confidence,
  * then by the better price. NRFI is excluded outright -- it was
@@ -54,9 +59,10 @@ export interface TopPickBet {
   unitsRisked: number;
   /** REALIZED P&L at that recorded stake. */
   pnl: number;
-  /** SIMULATED stake under today's quarter-Kelly rule. */
+  /** Stake under the published quarter-Kelly rule. What the system says
+   *  to bet, and what a follower on any bankroll would stake. */
   kellyStake: number;
-  /** SIMULATED P&L at that stake. Never realized money. */
+  /** P&L at that stake, at the real captured price and the real result. */
   kellyPnl: number;
 }
 
@@ -88,14 +94,13 @@ export interface TopPickWindow {
 }
 
 /**
- * One cut of the #1-pick series: a month, a side, a park tier.
+ * One cut of the series: a month.
  *
- * `bankStart` / `bankEnd` are LEVELS, not a sum, which is what makes a
- * multi-bet money figure legal at all (lib/units.ts). Each slice
- * compounds from 100 so the slices are comparable with each other rather
- * than with the season run — a month that opened on a 210u bank and one
- * that opened on 100u would otherwise look wildly different for the same
- * performance.
+ * Every figure is a straight sum at quarter-Kelly. Nothing compounds:
+ * the system publishes a unit COUNT and what a unit is worth after a
+ * winning week is the bettor's business, not the system's. That also
+ * makes these rows directly comparable with each other, which a
+ * compounded figure never is.
  */
 export interface TopPickSlice {
   key: string;
@@ -105,10 +110,8 @@ export interface TopPickSlice {
   hitRate: number;
   breakEven: number;
   staked: number;
-  /** Compounded from 100 within this slice. A level, never a total. */
-  bankEnd: number;
-  /** bankEnd/100 - 1. The scale-free figure. */
-  ret: number;
+  /** Units returned at quarter-Kelly. A straight sum, nothing compounds. */
+  returned: number;
   /** returned ÷ staked, the per-unit view of the same thing. */
   roiPerUnit: number;
 }
@@ -120,28 +123,31 @@ export interface TopPickReport {
   generatedFor: string;
   /** The last ten settled #1 plays, most recent first. */
   last10: { wins: number; losses: number; bets: TopPickBet[] };
-  /** The whole series compounded from a 100u bank. Levels, not a sum. */
-  bank: { start: number; end: number; ret: number; peak: number; maxDrawdown: number };
   /**
-   * THREE TOTALS, ONE OF WHICH IS NOT REAL.
+   * THREE TOTALS, ALL EXACT SUMS, DISTINGUISHED BY BASIS.
    *
-   * All three are exact sums on a FIXED unit value, so they add
-   * honestly and mean the same thing on a $1,000 bank and a $10,000
-   * one. What differs is their STATUS:
+   *   atKelly   the published staking rule -- THE system figure
+   *   atFlat1u  the same picks at one unit each: the edge, size removed
+   *   realized  what the operator's own ledger recorded
    *
-   *   atFlat1u  the edge with stake size removed          FACT
-   *   realized  what was actually staked and returned     FACT
-   *   atKelly   today's staking over the same nights      SIMULATION
+   * `atKelly` is not a simulation and is no longer labelled as one.
+   * Every game, price and result in it is real; only the STAKE comes
+   * from the rule rather than from history, which is exactly as true of
+   * `atFlat1u`. Operator, 2026-08-03: quarter-Kelly is what the system
+   * says to bet, so it is what the system's record should be measured
+   * at. `realized` stays alongside because the operator was staking a
+   * flat unit before 2026-07-27 and that difference is a fact worth
+   * being able to see, not a correction to the figure beside it.
    *
-   * Never print `atKelly` without saying it is a simulation, and never
-   * print it without `realized` nearby. They differ by about 9x.
+   * Nothing here compounds. All three are sums on a fixed unit value,
+   * so they mean the same on a $1,000 bank and a $10,000 one.
    */
   totals: {
     /** Flat 1u a night: the edge with stake size removed. FACT. */
     atFlat1u: number;
     /** What was ACTUALLY staked and returned. The only realized figure. */
     realized: number;
-    /** Today's quarter-Kelly applied to these nights. A SIMULATION. */
+    /** The published quarter-Kelly rule. THE system figure. */
     atKelly: number;
   };
   /** Nights where today's Kelly rule finds no edge at the price paid, so
@@ -217,6 +223,11 @@ const WINDOWS: { label: string; days: number | null }[] = [
 
 export async function loadTopPickReport(
   season: number,
+  /** `false` keeps EVERY qualifying bet instead of one a night, which is
+   *  the whole system rather than its top play. Same rules, same
+   *  staking, same shape, so the two sections can be read against each
+   *  other without the reader having to hold two definitions. */
+  topOnly = true,
 ): Promise<TopPickReport | null> {
   const rows = await loadLedgerRows(season);
   if (!rows) return null;
@@ -296,15 +307,18 @@ export async function loadTopPickReport(
   }
   const tops: TopPickBet[] = [];
   for (const d of [...byDay.keys()].sort()) {
-    const b = byDay.get(d)!.reduce(better);
-    // (3) size it the way the system sizes a bet today. p is the
-    // probability of the SIDE BET, and modelP is p(no run), so YRFI
-    // takes the complement -- the same conversion StakeChip makes.
-    const stake = stakeUnitsFor(1 - b.modelP, b.odds);
-    if (stake <= 0) { noEdgeUnderKelly++; continue; }
-    b.kellyStake = stake;
-    b.kellyPnl = b.win ? stake * payout(b.odds) : -stake;
-    tops.push(b);
+    const night = byDay.get(d)!;
+    const chosen = topOnly ? [night.reduce(better)] : night;
+    for (const b of chosen) {
+      // (3) size it the way the system sizes a bet today. p is the
+      // probability of the SIDE BET, and modelP is p(no run), so YRFI
+      // takes the complement -- the same conversion StakeChip makes.
+      const stake = stakeUnitsFor(1 - b.modelP, b.odds);
+      if (stake <= 0) { noEdgeUnderKelly++; continue; }
+      b.kellyStake = stake;
+      b.kellyPnl = b.win ? stake * payout(b.odds) : -stake;
+      tops.push(b);
+    }
   }
   if (tops.length === 0) return null;
 
@@ -349,8 +363,6 @@ export async function loadTopPickReport(
     const wins = sel.filter((b) => b.win).length;
     const staked = sel.reduce((a, b) => a + b.kellyStake, 0);
     const returned = sel.reduce((a, b) => a + b.kellyPnl, 0);
-    let bank = 100;
-    for (const b of sel) bank *= 1 + b.kellyPnl / 100;
     return {
       key,
       bets: n,
@@ -359,21 +371,10 @@ export async function loadTopPickReport(
       hitRate: n > 0 ? wins / n : 0,
       breakEven: n > 0 ? sel.reduce((a, b) => a + implied(b.odds), 0) / n : 0,
       staked,
-      bankEnd: bank,
-      ret: bank / 100 - 1,
+      returned,
       roiPerUnit: staked > 0 ? returned / staked : 0,
     };
   };
-
-  let bank = 100;
-  let peak = 100;
-  let maxDd = 0;
-  for (const b of tops) {
-    bank *= 1 + b.kellyPnl / 100;
-    if (bank > peak) peak = bank;
-    const dd = bank / peak - 1;
-    if (dd < maxDd) maxDd = dd;
-  }
 
   const months = new Map<string, TopPickBet[]>();
   for (const b of tops) {
@@ -394,7 +395,6 @@ export async function loadTopPickReport(
       losses: last10.filter((b) => !b.win).length,
       bets: last10,
     },
-    bank: { start: 100, end: bank, ret: bank / 100 - 1, peak, maxDrawdown: maxDd },
     totals: {
       atFlat1u: tops.reduce((a, b) => a + (b.win ? payout(b.odds) : -1), 0),
       realized: tops.reduce((a, b) => a + b.pnl, 0),

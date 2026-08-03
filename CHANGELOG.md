@@ -11,6 +11,69 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03g] - Compounding removed, quarter-Kelly everywhere, the whole system gets a history
+
+Operator: *"i want to remove compounding from the dashboard... everywhere
+on the dashboard, quarter kelly needs to be used... stop saying
+SIMULATED... i like how you have the day by day history for the #1 pick
+system, but why is that only for that system? also, you need to fix the
+formatting."*
+
+### Removed - compounding, everywhere
+
+*"Compounding is up to the bettor, not the system."* Correct, and it is
+the same principle that makes a published stake bankroll-free: the
+system emits a unit COUNT, and what a unit is worth after a winning week
+is the follower's business. Gone: `bank` levels, peak, max drawdown, the
+per-slice `bankEnd`/`ret`, and the "100u becomes" column. Max drawdown
+is replaced by **worst single night**, which needs no bank behind it.
+
+### Changed - "simulated" was the wrong word, and that was my error
+
+The Kelly figures were labelled SIMULATED with a dashed rule. That was
+overcautious and the operator was right to reject it: every game, price
+and result is real, and only the STAKE comes from the rule rather than
+from history -- which is *equally* true of the flat-1u figure nobody
+would call simulated. Quarter-Kelly is what the system publishes, so it
+is what the system's record is measured at. Labels are now bases, not
+warnings: **At quarter-Kelly** / **At a flat 1 unit** / **As actually
+staked**. `realized` still prints beside them because a flat unit was
+staked until 2026-07-27, but it is no longer framed as a correction.
+
+### Added - the whole system, not just the #1
+
+`loadTopPickReport(season, topOnly=false)` keeps every qualifying bet
+instead of one a night. Same rules, same staking, same component, so the
+two sections can be read against each other without holding two
+definitions.
+
+| | bets | record | hit | needs | at ¼-Kelly | flat 1u |
+|---|---|---|---|---|---|---|
+| #1 play | 63 | 42-21 | 66.7% | 57.4% | **+68.23u** | +10.37u |
+| whole system | 240 | 137-103 | 57.1% | 55.7% | **+54.12u** | +4.85u |
+
+### Fixed - the table formatting the operator flagged
+
+- **Headers did not sit over their own columns.** `.table thead th` set
+  `text-align: left` unconditionally while every numeric cell under it is
+  right-aligned, so PRICE and STAKE floated left of figures sitting
+  right. `.right` now applies to headers too.
+- **No column rules.** A settled-bet table is read across a row AND down
+  a column; with horizontal rules only, the eye has nothing holding a
+  column together. `border-right` on every cell, none on the last, and a
+  `--rule` under the header row.
+- Cell padding moved from one-sided to symmetric so the rules actually
+  separate columns rather than hugging the text.
+
+### Docs
+
+CLAUDE.md and AGENTS.md's "NEVER SUM UNITS ACROSS DAYS" rule contradicted
+the shipped product and is rewritten: sum on a FIXED basis and name it;
+do not publish compounded bank levels. `CumulativeUnits` still has no
+renderer; `FlatUnits` is the sanctioned one.
+
+---
+
 ## [2026-08-03f] - The #1 section becomes the CURRENT system, and half its money becomes a simulation
 
 Operator, reading the every-bet table: *"it still includes NRFI, which

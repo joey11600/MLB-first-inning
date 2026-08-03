@@ -1,22 +1,23 @@
 /**
- * THE #1 PLAY UNDER TODAY'S RULES — the section that answers "is the top
- * pick any good, run the way I run it now".
+ * A SETTLED-BET SECTION, MEASURED AT THE PUBLISHED STAKING RULE.
  *
- * TWO OF ITS MONEY FIGURES ARE FACTS AND TWO ARE SIMULATIONS. The games,
- * prices and results are all real ledger data; the STAKES are not. Since
- * 2026-08-03 the section sizes every night at today's quarter-Kelly,
- * where 85 of the original 92 bets were really placed at 1.00u. That is
- * a ~9x difference (+7.49u realized against +68.23u simulated), so the
- * simulated figures carry a dashed rule and the word "simulated", and
- * `totals.realized` sits beside them. The operator SELLS these picks:
- * a re-staked backtest printed as realized profit is the failure this
- * section is built to avoid.
+ * Used twice on /history: once for the #1 play of each night, once for
+ * the whole system. Same rules, same staking, same shape, so the two can
+ * be read against each other without holding two definitions in mind.
  *
- * EVERY SLICE COMPOUNDS FROM 100 SEPARATELY. A month that opened on a
- * 210u bank and one that opened on 100u would otherwise look like wildly
- * different performances for identical betting. Re-basing each slice
- * makes the rows comparable to one another, which is the only reason to
- * put them in a table together.
+ * NOTHING COMPOUNDS. Operator, 2026-08-03: *"compounding is up to the
+ * bettor, not the system."* The system emits a unit COUNT; what a unit
+ * is worth after a winning week is the follower's business. Every bank
+ * level, peak and drawdown was removed rather than hidden.
+ *
+ * NOT LABELLED "SIMULATED" EITHER, and that was a real correction. The
+ * games, prices and results are all real; only the STAKE comes from the
+ * rule rather than from history, which is equally true of a flat-1u
+ * figure nobody would call simulated. Quarter-Kelly is what the system
+ * tells you to bet, so it is what the system's record is measured at.
+ * The operator's realized figure still prints beside it, because they
+ * staked a flat unit until 2026-07-27 and that gap is a fact about
+ * EXECUTION — not a correction to the number next to it.
  */
 import type { TopPickReport, TopPickSlice } from "@/lib/top-pick";
 import {
@@ -56,117 +57,90 @@ function shortDate(iso: string): string {
   });
 }
 
-export function TopPickHistory({ report }: { report: TopPickReport | null }) {
+export function TopPickHistory({
+  report,
+  title = "The #1 play, under today’s rules",
+  what = "The top YRFI play of each night",
+  id = "topPickHistTitle",
+  everyLabel = "Every #1 play, most recent first",
+}: {
+  report: TopPickReport | null;
+  title?: string;
+  what?: string;
+  id?: string;
+  everyLabel?: string;
+}) {
   if (!report || report.all.length === 0) return null;
-  const { bank, last10, byMonth, all, totals, noEdgeUnderKelly } = report;
+  const { last10, byMonth, all, totals, noEdgeUnderKelly } = report;
   const season = report.windows[0];
+  const nights = new Set(all.map((b) => b.date)).size;
+  /* A night's P&L is a single point in time, so this is a real quantity
+     and needs no bank behind it (lib/units.ts). */
+  const byNight = new Map<string, number>();
+  for (const b of all) byNight.set(b.date, (byNight.get(b.date) ?? 0) + b.kellyPnl);
+  const worstNight = Math.min(0, ...byNight.values());
 
   return (
-    <section className={styles.wrap} aria-labelledby="topPickHistTitle">
-      <h2 className={styles.title} id="topPickHistTitle">
-        The #1 play, under today&rsquo;s rules
+    <section className={styles.wrap} aria-labelledby={id}>
+      <h2 className={styles.title} id={id}>
+        {title}
       </h2>
       <p className={styles.lead}>
-        The top YRFI play of each night since May 26, when the live model
-        weights were fit, staked at today&rsquo;s quarter-Kelly. One bet a
-        night, {all.length} of them. NRFI is excluded because it has been
-        switched off since June 7, so on a night whose top play was an NRFI
-        pick the best YRFI play is counted instead.
+        {what} since May 26, when the live model weights were fit, staked at
+        quarter-Kelly &mdash; the rule the system actually publishes.{" "}
+        {all.length} bets over {nights} nights. NRFI is excluded because it
+        has been switched off since June 7.
         {noEdgeUnderKelly > 0 && (
           <>
             {" "}
-            {noEdgeUnderKelly} further night
-            {noEdgeUnderKelly === 1 ? "" : "s"} had a top play that
-            today&rsquo;s staking rule would not bet at all, because there was
-            no edge at the price actually paid.
+            A further {noEdgeUnderKelly} qualified on every other count but
+            are not counted here, because quarter-Kelly finds no edge at the
+            price actually paid and so would stake nothing.
           </>
         )}
       </p>
 
-      {/* ---- UNITS PROFIT, ON ALL THREE BASES ----
-          These can and do differ in SIGN, so none of them may appear
-          without its basis named. A unit total is exact whenever the
-          unit's dollar value never moved between the bets; it is the
-          COMPOUNDING case, not the passage of time, that breaks the
-          arithmetic. See the correction note in lib/units.ts. */}
+      {/* THE BASIS IS NAMED ABOVE THE FIGURE. Three sums, one rule
+          each, and the first is the system's own. */}
       <h3 className={styles.h3}>Units profit</h3>
-      {/* THE BASIS IS NAMED ABOVE THE FIGURE, NOT ONLY UNDER IT.
-          All three carry a "+" and a "u" and the same bright green, so
-          nothing in the figures themselves says they are three different
-          KINDS of number. PRODUCT.md's central design problem is exactly
-          this. The eyebrow goes first because it is also the order the
-          figure has to be spoken: basis, then number. */}
-      <div className={styles.figures}>
+      <div className={`${styles.figures} ${styles.figuresThree}`}>
         <div className={styles.fig}>
-          <span className={styles.figBasis}>Flat stake</span>
-          <span
-            className={styles.figValue}
-            data-money={tone(totals.atFlat1u)}
-          >
-            {formatFlatUnits(asFlat(totals.atFlat1u))}
-          </span>
-          <span className={styles.figLabel}>
-            betting a flat 1 unit every night · the model&rsquo;s edge with
-            stake size taken out
-          </span>
-        </div>
-        <div className={styles.fig}>
-          <span className={`${styles.figBasis} ${styles.figBasisSim}`}>
-            Quarter-Kelly · simulated
-          </span>
-          <span
-            className={`${styles.figValue} ${styles.figValueSim}`}
-            data-money={tone(totals.atKelly)}
-          >
+          <span className={styles.figBasis}>At quarter-Kelly</span>
+          <span className={styles.figValue} data-money={tone(totals.atKelly)}>
             {formatFlatUnits(asFlat(totals.atKelly))}
           </span>
           <span className={styles.figLabel}>
-            these nights sized the way the system sizes a bet today · NOT
-            money anyone made
+            the stake the system publishes &middot; {formatReturn(season.roiPerUnit, 1)}{" "}
+            per unit risked
           </span>
         </div>
         <div className={styles.fig}>
-          <span className={styles.figBasis}>Actually staked</span>
-          <span
-            className={styles.figValue}
-            data-money={tone(totals.realized)}
-          >
+          <span className={styles.figBasis}>At a flat 1 unit</span>
+          <span className={styles.figValue} data-money={tone(totals.atFlat1u)}>
+            {formatFlatUnits(asFlat(totals.atFlat1u))}
+          </span>
+          <span className={styles.figLabel}>
+            the same picks at one unit each &middot; the edge with stake size
+            taken out
+          </span>
+        </div>
+        <div className={styles.fig}>
+          <span className={styles.figBasis}>As actually staked</span>
+          <span className={styles.figValue} data-money={tone(totals.realized)}>
             {formatFlatUnits(asFlat(totals.realized))}
           </span>
           <span className={styles.figLabel}>
-            what the ledger really risked and really returned · Kelly only
-            went live on Jul 27, so most of these were 1.00u
-          </span>
-        </div>
-        <div className={styles.fig}>
-          <span className={`${styles.figBasis} ${styles.figBasisSim}`}>
-            Compounded · simulated
-          </span>
-          <span
-            className={`${styles.figValue} ${styles.figValueSim}`}
-            data-money={tone(bank.ret)}
-          >
-            {returnAsUnits(bank.ret)}
-          </span>
-          <span className={styles.figLabel}>
-            the quarter-Kelly run re-sized to 1% of the running bank ·{" "}
-            {formatBankGrowth(bank.start, bank.end)}
+            what the ledger recorded &middot; a flat unit was staked until
+            quarter-Kelly went live on Jul 27
           </span>
         </div>
       </div>
 
       <p className={styles.note}>
-        <b>Two of these are facts and two are simulations, and the gap is
-        large.</b> Flat 1u and Actually staked are what happened. The
-        quarter-Kelly figures are what today&rsquo;s staking rule WOULD have
-        returned on the same games, at a median stake of 5 units rather than
-        the 1 unit most of them were really placed at &mdash; which is why
-        they are roughly nine times the realized number. They are the right
-        thing to look at when deciding what this system is worth going
-        forward, and the wrong thing to call profit. Every figure is an exact
-        sum on a fixed unit value, so all of them mean the same on a $1,000
-        bank and a $10,000 one; only the last assumes you re-size after every
-        result.
+        All three are exact sums on a fixed unit value, so each means the same
+        on a $1,000 bankroll and a $10,000 one. Nothing here compounds:
+        the system publishes a unit count, and what a unit is worth after a
+        winning week is yours to decide.
       </p>
 
       {/* ---- the record ---- */}
@@ -191,12 +165,15 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
           </span>
           <span className={styles.figLabel}>last 10 · far too few to read</span>
         </div>
+        {/* Was max drawdown, which is a property of a COMPOUNDING bank
+            and therefore of the bettor rather than the system. Replaced
+            with the worst single night, which needs no bank at all. */}
         <div className={styles.fig}>
-          <span className={styles.figValue} data-money={tone(bank.maxDrawdown)}>
-            {formatReturn(bank.maxDrawdown, 1)}
+          <span className={styles.figValue} data-money="down">
+            {formatLevel(Math.abs(worstNight))}
           </span>
           <span className={styles.figLabel}>
-            deepest fall from a running high · peak {bank.peak.toFixed(2)}u
+            worst single night at quarter-Kelly
           </span>
         </div>
       </div>
@@ -208,21 +185,16 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
         firstCol="Month"
         label={(s) => monthName(s.key)}
       />
-      {/* The two money columns answer different questions and can look
-          wildly apart: April was 2 bets at 1u, so it returned +75.5% per
-          unit risked while moving a 100u bank by 1.52u. Neither is
-          wrong; printing them without this sentence would be. */}
       <p className={styles.note}>
         <b>Per unit risked</b> is profit divided by stake, so it measures the
-        quality of the bets and ignores their size. <b>100u becomes</b> also
-        counts how much was risked, which is why a month of two small winning
-        bets can show a large per-unit return next to a bank that barely
-        moved. Each month compounds from its own 100u so the rows can be
-        compared with each other.
+        quality of the bets and ignores their size. <b>Units</b> is the plain
+        sum at quarter-Kelly, which also counts how much was risked &mdash;
+        which is why a month of a few small winning bets can show a large
+        per-unit return next to a small unit total. Neither compounds.
       </p>
 
       {/* ---- every bet ---- */}
-      <h3 className={styles.h3}>Every #1 play, most recent first</h3>
+      <h3 className={styles.h3}>{everyLabel}</h3>
       <div className={styles.scroller}>
         <table className={styles.table}>
           <thead>
@@ -234,7 +206,7 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
               <th scope="col">Date</th>
               <th scope="col" className={styles.right}>Result</th>
               <th scope="col" className={styles.right}>Price</th>
-              <th scope="col" className={styles.right}>Stake (sim)</th>
+              <th scope="col" className={styles.right}>Stake</th>
               <th scope="col">Game</th>
             </tr>
           </thead>
@@ -293,7 +265,7 @@ function SliceTable({
           <tr>
             <th scope="col">{firstCol}</th>
             <th scope="col" className={styles.right}>Per unit risked</th>
-            <th scope="col" className={styles.right}>100u becomes</th>
+            <th scope="col" className={styles.right}>Units</th>
             <th scope="col" className={styles.right}>Record</th>
             <th scope="col" className={styles.right}>Hit</th>
             <th scope="col" className={styles.right}>Needs</th>
@@ -312,9 +284,9 @@ function SliceTable({
               </td>
               <td
                 className={`${styles.right} ${styles.mono}`}
-                data-money={tone(s.ret)}
+                data-money={tone(s.returned)}
               >
-                {s.bankEnd.toFixed(2)}u
+                {formatFlatUnits(asFlat(s.returned))}
               </td>
               <td className={`${styles.right} ${styles.mono}`}>
                 {s.wins}

@@ -165,6 +165,7 @@ export function HistoryView({
   seasonRecord,
   divergence,
   topPick,
+  systemAll,
   liveGate,
 }: {
   initial: RoiResponse;
@@ -179,6 +180,8 @@ export function HistoryView({
   /** The #1 pick's REAL ledger record, read server-side. Optional: a
    *  null simply omits the card. */
   topPick?: TopPickReport | null;
+  /** The same shape over every qualifying bet, not just the night's #1. */
+  systemAll?: TopPickReport | null;
   /** `strongYrfiP` from thresholds.json -- the gate the predictor runs
    *  NOW, so the replay cards can flag when they were built at another. */
   liveGate?: number | null;
@@ -536,6 +539,19 @@ export function HistoryView({
           conclusion before the evidence, which is the order they will
           talk about it in. */}
       <TopPickHistory report={topPick ?? null} />
+
+      {/* THE WHOLE SYSTEM, same rules and same staking as the card above.
+          Reading them one after the other is the point: the #1 play and
+          the full slate are the same machine at two levels of
+          selectivity, and a reader should not have to hold two
+          definitions to compare them. */}
+      <TopPickHistory
+        report={systemAll ?? null}
+        id="systemHistTitle"
+        title="The whole system, under today&rsquo;s rules"
+        what="Every STRONG play, not just the night&rsquo;s top one,"
+        everyLabel="Every play, most recent first"
+      />
 
       {/* T2.42: Bankroll equity curve.  Bank level + drawdown shading +
           peak marker + stats panel.  Reads the real-priced series; the

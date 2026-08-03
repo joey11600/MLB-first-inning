@@ -142,13 +142,20 @@ quoting numbers.
   units bet. Quarter-Kelly is already bankroll-free, so "6.8u" means
   6.8% of your own bank for everyone. Caps are fixed unit numbers:
   10u per bet, 15u per day.
-  - **NEVER SUM UNITS ACROSS DAYS.** A 1u win when a unit was $100 is
-    not the same money as a 1u win when it was $150. Report **bank
-    growth (100 → X)** or a **percentage return**. Per-bet, per-night
-    and same-day-exposure figures in units are fine and should stay.
+  - **SUM UNITS ONLY ON A FIXED BASIS, AND NAME THE BASIS.** A 1u win
+    when a unit was $100 is not the same money as a 1u win when it was
+    $150 -- but that only happens if the bettor COMPOUNDS. On a fixed
+    unit value the sum is exact and means the same on any bankroll,
+    which is the whole point when you are selling picks. Operator,
+    2026-08-03: *"compounding is up to the bettor, not the system."*
+    So: publish unit totals at a named basis (quarter-Kelly, or flat
+    1u), and do NOT publish compounded bank levels, growth curves or
+    drawdowns -- those describe the bettor's money management, not the
+    system. All compounding was removed from /history on 2026-08-03.
   - This is enforced, not just documented: `dashboard/lib/units.ts`
-    brands every across-time sum as `CumulativeUnits` and
-    `formatUnits()` refuses it at COMPILE time, so `next build` fails.
+    brands a MOVING-basis sum as `CumulativeUnits` and `formatUnits()`
+    refuses it at COMPILE time, so `next build` fails. A fixed-basis
+    sum is `FlatUnits` and has its own formatter, `formatFlatUnits()`.
     `dashboard/scripts/check-units-guard.mjs` runs in `prebuild` and
     fails the deploy if that protection is ever weakened. If the
     compiler stops you here, `asCumulative()` is not an escape hatch --

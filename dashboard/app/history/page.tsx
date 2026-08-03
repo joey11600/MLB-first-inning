@@ -39,10 +39,14 @@ export default async function HistoryPage() {
      stakes) while seasonRecord is the REPLAY. Loaded side by side on
      purpose: the card that shows them apart is only honest if they come
      from genuinely different sources. Soft-fails to null. */
-  const [seasonRoi, seasonRecord, topPick, thresholds] = await Promise.all([
+  const [seasonRoi, seasonRecord, topPick, systemAll, thresholds] = await Promise.all([
     loadRoi("season"),
     loadSeasonRecord(),
     loadTopPickReport(new Date().getUTCFullYear()).catch(() => null),
+    /* The same report over EVERY qualifying bet rather than one a night.
+       Operator, 2026-08-03: "i like how you have the day by day history
+       for the #1 pick system, but why is that only for that system?" */
+    loadTopPickReport(new Date().getUTCFullYear(), false).catch(() => null),
     /* The LIVE gate, so the replay cards can say when they are behind
        it. thresholds.json is written by the predictor; season_record
        carries the gate its replay was actually run at. When the two
@@ -54,6 +58,7 @@ export default async function HistoryPage() {
       initial={seasonRoi}
       seasonRecord={seasonRecord}
       topPick={topPick}
+      systemAll={systemAll}
       liveGate={thresholds?.strongYrfiP ?? null}
     />
   );

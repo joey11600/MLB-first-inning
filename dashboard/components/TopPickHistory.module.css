@@ -160,13 +160,34 @@
   font-size: 12px;
 }
 
+/* COLUMN RULES. A settled-bet table is read across a row AND down a
+   column, and with horizontal rules only the eye has nothing to hold a
+   column together. `--rule` is the token for a boundary that means
+   something; `--border` stays the hairline between rows. */
 .table th,
 .table td {
-  padding: 0.5rem 0.75rem 0.5rem 0;
+  padding: 0.5rem 0.875rem;
   border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   white-space: nowrap;
 }
 
+.table th:first-child,
+.table td:first-child {
+  padding-left: 0;
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: 0;
+  border-right: none;
+}
+
+/* HEADERS INHERIT THEIR COLUMN'S ALIGNMENT.
+   This said `text-align: left` unconditionally while every numeric cell
+   under it is right-aligned, so "PRICE" and "STAKE" floated at the left
+   of columns whose figures sat at the right -- the misalignment the
+   operator spotted. The `.right` class now wins for headers too. */
 .table thead th {
   font-size: 11px;
   letter-spacing: 0.12em;
@@ -178,6 +199,11 @@
   /* Headers wrap; data cells do not. */
   white-space: normal;
   background: var(--background);
+  border-bottom: 1px solid var(--rule);
+}
+
+.table thead th.right {
+  text-align: right;
 }
 
 /* THE ROW LABEL SURVIVES A SIDEWAYS SWIPE.
@@ -204,7 +230,6 @@
 
 .right {
   text-align: right;
-  padding-right: 0;
 }
 
 .mono {
