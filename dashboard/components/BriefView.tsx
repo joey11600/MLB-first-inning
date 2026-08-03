@@ -29,9 +29,8 @@ import type { TopPickReport } from "@/lib/top-pick";
 import {
   asFlat,
   formatFlatUnits,
-  formatLevel,
   formatReturn,
-  EM_DASH,
+  MINUS,
 } from "@/lib/units";
 import styles from "./BriefView.module.css";
 
@@ -120,7 +119,9 @@ export function BriefView({
                       <span>
                         {cityOf(o.away)} at {cityOf(o.home)}
                       </span>
-                      <span className={styles.otherSide}>{o.side}</span>
+                      <span className={styles.otherSide}>
+                        {o.side === "YRFI" ? "run scores" : "no run"}
+                      </span>
                     </Link>
                   </li>
                 ))}
@@ -170,29 +171,53 @@ function PlayHeader({ play, date }: { play: BriefPlay; date: string }) {
         ) : null}
       </p>
 
+      {/* EVERY ROW HAS A SPOKEN FORM (2026-08-03).
+          These were machine strings: a bare "YRFI", a bare "7.00u", an
+          em dash when no price was captured, and worst, "71% likely"
+          which never named WHAT was likely. On an NRFI night that figure
+          is the chance NO run scores, while the ballpark block on the
+          same page prints a percentage meaning the opposite -- and both
+          can read "58%". The acronym survives as a trailing tag because
+          it is what the DraftKings ticket says; the sentence in front of
+          it is what gets read out. */}
       <dl className={styles.ticket}>
         <div className={styles.ticketRow}>
           <dt>Bet</dt>
-          <dd className={styles.ticketSide}>{play.side}</dd>
+          <dd className={styles.ticketSide}>
+            {meaning}
+            <span className={styles.sideTag}>{play.side}</span>
+          </dd>
         </div>
         <div className={styles.ticketRow}>
           <dt>Price</dt>
-          <dd>{play.odds != null ? formatAmerican(play.odds) : "not captured"}</dd>
+          <dd>
+            {play.odds != null
+              ? formatAmerican(play.odds)
+              : "no price captured"}
+          </dd>
         </div>
         <div className={styles.ticketRow}>
           <dt>Stake</dt>
-          <dd>{play.stake != null ? formatLevel(play.stake) : EM_DASH}</dd>
+          <dd>
+            {play.stake != null
+              ? `${play.stake.toFixed(2)} units`
+              : "no stake, no price captured"}
+          </dd>
         </div>
         <div className={styles.ticketRow}>
           <dt>Model</dt>
-          <dd>{Math.round(play.modelP * 100)}% likely</dd>
+          <dd>
+            {Math.round(play.modelP * 100)}% chance {meaning}
+          </dd>
         </div>
       </dl>
       <p className={styles.meaning}>
-        You win if {meaning}. One unit is 1% of your bankroll, so{" "}
-        {play.stake != null ? formatLevel(play.stake) : "the stake"} means{" "}
-        {play.stake != null ? `${play.stake.toFixed(2)}%` : "that percent"} of
-        whatever you are playing with.
+        One unit is 1% of your bankroll, so{" "}
+        {play.stake != null
+          ? `${play.stake.toFixed(2)} units is ${play.stake.toFixed(2)}%`
+          : "the stake is that percent"}{" "}
+        of whatever you are playing with, whether that is a thousand dollars or
+        ten thousand.
       </p>
     </section>
   );
@@ -272,10 +297,17 @@ function Numbers({ form, play }: { form: GameFiForm; play: BriefPlay }) {
         <h3 className={styles.h3}>The ballpark</h3>
         {park.nrfiRate != null ? (
           <>
+            {/* BOTH FIGURES NAME THEIR BASIS. The headline is the model's
+                park factor, shrunk over last season and this one; the
+                second is the raw count from this season alone. They can
+                sit fifteen points apart (Colorado: 58 and 73), and
+                printing them unlabelled twenty lines apart is how the
+                operator ends up contradicting himself on camera. */}
             <p className={styles.parkFigure}>
               {Math.round((1 - park.nrfiRate) * 100)}%
               <span className={styles.parkFigureSub}>
-                of first innings here have a run in them
+                of first innings here have a run, taking last season and this
+                one together
               </span>
             </p>
             <p className={styles.context}>
@@ -283,8 +315,8 @@ function Numbers({ form, play }: { form: GameFiForm; play: BriefPlay }) {
                 ? `${capitalise(parkTier(park.rank, park.parks)!)}. `
                 : ""}
               League average is {Math.round(LEAGUE.yrfi * 100)}%.
-              {park.ledger
-                ? ` ${park.ledger.yrfi} of the ${park.ledger.games} first innings actually played here this season had a run.`
+              {park.ledger && park.ledger.games > 0
+                ? ` This season alone it is ${park.ledger.yrfi} of ${park.ledger.games}, or ${Math.round((park.ledger.yrfi / park.ledger.games) * 100)}% — a smaller sample than the figure above, which is why the model shrinks it toward the league.`
                 : ""}
             </p>
           </>
@@ -495,13 +527,24 @@ function RecordBlock({ record }: { record: TopPickReport | null }) {
             hit rate, needs {Math.round(season.breakEven * 1000) / 10}%
           </span>
         </div>
+        {/* THE ONLY MONEY FIGURE ON THE FILMED PAGE, and until 2026-08-03
+            the only one with no `data-money`. `.recordFigure` sets no
+            colour, so it inherited `--foreground` #00FF41 -- byte-identical
+            to `--gain`. A losing season would have printed in the colour
+            this codebase reserves for money UP, on the surface whose whole
+            rule is that a wrong sentence is worse than a missing one. */}
         <div>
-          <span className={styles.recordFigure}>
+          <span
+            className={styles.recordFigure}
+            data-money={moneyTone(record.totals.atPublishedStakes)}
+          >
             {formatFlatUnits(asFlat(record.totals.atPublishedStakes))}
           </span>
           <span className={styles.recordLabel}>
-            units profit at the stakes published, {formatReturn(season.roiPerUnit, 1)}{" "}
-            per unit risked
+            units profit at the stakes published
+          </span>
+          <span className={styles.recordSub}>
+            {formatReturn(season.roiPerUnit, 1)} per unit risked
           </span>
         </div>
       </div>
@@ -527,8 +570,19 @@ function RecordBlock({ record }: { record: TopPickReport | null }) {
 
 /* ------------------------------------------------------------------ */
 
+/** U+2212 MINUS, not a hyphen, so a negative price reads as a number.
+ *  Matches what lib/units.ts does for every other signed figure. */
 function formatAmerican(n: number): string {
-  return n > 0 ? `+${Math.round(n)}` : `${Math.round(n)}`;
+  const v = Math.round(n);
+  return v > 0 ? `+${v}` : `${MINUS}${Math.abs(v)}`;
+}
+
+/** The sign bucket `globals.css` paints via [data-money]. Local copy:
+ *  TopPickHistory has the same three lines and does not export them. */
+function moneyTone(x: number): "up" | "down" | "flat" {
+  if (x > 0.0005) return "up";
+  if (x < -0.0005) return "down";
+  return "flat";
 }
 
 function capitalise(s: string): string {

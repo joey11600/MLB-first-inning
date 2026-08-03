@@ -49,7 +49,7 @@
   margin: 0 -0.25rem;
   color: var(--chrome-ink);
   text-decoration: none;
-  font-size: 0.75rem;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -60,7 +60,7 @@
 }
 
 .headTitle {
-  font-size: 0.75rem;
+  font-size: 11px;
   letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--muted-foreground);
@@ -73,7 +73,7 @@
 }
 
 .playTag {
-  font-size: 0.75rem;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted-foreground);
@@ -95,7 +95,7 @@
 
 .matchupSub {
   margin: 0 0 1.75rem;
-  font-size: 0.875rem;
+  font-size: 13px;
   color: var(--muted-foreground);
 }
 
@@ -117,7 +117,7 @@
 }
 
 .ticketRow dt {
-  font-size: 0.75rem;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted-foreground);
@@ -125,18 +125,33 @@
 
 .ticketRow dd {
   margin: 0;
-  font-size: 1.375rem;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .ticketSide {
   letter-spacing: 0.04em;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+/* The acronym, kept because it is what the DraftKings ticket says, and
+   demoted because it is not what gets read out. */
+.sideTag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--muted-foreground);
 }
 
 .meaning {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 13px;
   line-height: 1.6;
   max-width: 62ch;
   color: var(--muted-foreground);
@@ -152,7 +167,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 1rem;
+  font-size: 13px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   font-weight: 700;
@@ -176,7 +191,7 @@
 
 .count {
   margin-left: auto;
-  font-size: 0.8125rem;
+  font-size: 12px;
   font-weight: 400;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
@@ -184,7 +199,7 @@
 
 .blurb {
   margin: 0 0 1.75rem;
-  font-size: 0.875rem;
+  font-size: 13px;
   line-height: 1.65;
   max-width: 66ch;
   color: var(--muted-foreground);
@@ -192,7 +207,7 @@
 
 .none {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 13px;
   line-height: 1.6;
   max-width: 66ch;
   color: var(--muted-foreground);
@@ -224,14 +239,14 @@
 }
 
 .reasonLabel {
-  font-size: 0.75rem;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
 
 .reasonFigure {
-  font-size: 1.5rem;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -240,14 +255,14 @@
 /* The line meant to be said out loud. Largest body text on the page. */
 .sentence {
   margin: 0;
-  font-size: 1.0625rem;
+  font-size: 16px;
   line-height: 1.55;
   max-width: 64ch;
 }
 
 .context {
   margin: 0.5rem 0 0;
-  font-size: 0.8125rem;
+  font-size: 12px;
   line-height: 1.55;
   max-width: 66ch;
   color: var(--muted-foreground);
@@ -263,7 +278,7 @@
 }
 
 .h3 {
-  font-size: 0.8125rem;
+  font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 700;
@@ -273,7 +288,7 @@
 
 .teamLead {
   margin: 0 0 1rem;
-  font-size: 1.0625rem;
+  font-size: 16px;
   line-height: 1.55;
   max-width: 64ch;
 }
@@ -329,18 +344,18 @@
 }
 
 .cellRuns {
-  font-size: 1.125rem;
+  font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
 .cellOn .cellRuns {
-  font-size: 1.25rem;
+  font-size: 16px;
 }
 
 .cellOpp {
-  font-size: 0.6875rem;
+  font-size: 11px;
   letter-spacing: 0.02em;
   line-height: 1;
   white-space: nowrap;
@@ -365,21 +380,21 @@
 
 .pitcherFigure {
   margin: 0;
-  font-size: 2.5rem;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
 .pitcherOf {
-  font-size: 1rem;
+  font-size: 13px;
   font-weight: 400;
   color: var(--muted-foreground);
 }
 
 .pitcherSub {
   margin: 0.375rem 0 0;
-  font-size: 0.875rem;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -387,7 +402,7 @@
 
 .parkFigure {
   margin: 0 0 0.375rem;
-  font-size: 2.5rem;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -398,7 +413,7 @@
 }
 
 .parkFigureSub {
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 400;
   color: var(--muted-foreground);
   max-width: 24ch;
@@ -410,14 +425,14 @@
 .h2hTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
   margin-bottom: 0.5rem;
 }
 
 .h2hTable th {
   text-align: left;
-  font-size: 0.6875rem;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted-foreground);
@@ -467,14 +482,22 @@
 }
 
 .recordFigure {
-  font-size: 1.75rem;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
 .recordLabel {
-  font-size: 0.75rem;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+/* A ratio, kept out of the total's caption so the two are never spoken
+   as one figure. */
+.recordSub {
+  font-size: 12px;
   line-height: 1.4;
   color: var(--muted-foreground);
 }
@@ -495,7 +518,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 700;
   border: 1px solid var(--border);
 }
@@ -528,7 +551,7 @@
   border-bottom: 1px solid var(--border);
   color: var(--foreground);
   text-decoration: none;
-  font-size: 1rem;
+  font-size: 13px;
 }
 
 .otherLink:hover,
@@ -538,7 +561,7 @@
 }
 
 .otherSide {
-  font-size: 0.75rem;
+  font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--muted-foreground);
 }
@@ -555,14 +578,14 @@
 }
 
 .emptyLead {
-  font-size: 1.75rem;
+  font-size: 26px;
   font-weight: 700;
   margin: 0 0 0.75rem;
 }
 
 .emptyBody {
   margin: 0;
-  font-size: 1rem;
+  font-size: 13px;
   line-height: 1.6;
   max-width: 60ch;
   color: var(--muted-foreground);

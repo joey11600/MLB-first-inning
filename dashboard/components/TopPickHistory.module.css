@@ -19,7 +19,7 @@
 }
 
 .title {
-  font-size: 1rem;
+  font-size: 13px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   font-weight: 700;
@@ -29,7 +29,7 @@
 
 .lead {
   margin: 0 0 1.75rem;
-  font-size: 0.875rem;
+  font-size: 13px;
   line-height: 1.6;
   max-width: 62ch;
   color: var(--muted-foreground);
@@ -60,8 +60,27 @@
   min-width: 0;
 }
 
+/* The basis, above the number, because that is the order it is spoken
+   and because the three figures are otherwise indistinguishable. */
+.figBasis {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  line-height: 1.2;
+}
+
+/* The compounded figure is not a sum at all, so its basis label carries
+   a border the other two do not: a form difference, not a hue one. */
+.figBasisAlt {
+  border-bottom: 1px dashed var(--muted-foreground);
+  padding-bottom: 2px;
+  align-self: flex-start;
+}
+
 .figValue {
-  font-size: 1.625rem;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
@@ -77,21 +96,21 @@
 }
 
 .figLabel {
-  font-size: 0.6875rem;
+  font-size: 11px;
   line-height: 1.45;
   color: var(--muted-foreground);
 }
 
 .note {
   margin: 0 0 2rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   line-height: 1.6;
   max-width: 68ch;
   color: var(--muted-foreground);
 }
 
 .h3 {
-  font-size: 0.75rem;
+  font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 700;
@@ -110,11 +129,17 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* 26rem, not 34rem. At the 15px root, 34rem was 510px inside a 311px
+   box on a 375px phone: 39% of the table was off-screen on load, and
+   the off-screen part was the right-hand end, which is where the money
+   columns were. Letting the HEADERS wrap (cells still never do) turns
+   "PER UNIT RISKED" into two short lines and drops the required width
+   to ~390px, so the whole table fits without a swipe. */
 .table {
   width: 100%;
-  min-width: 34rem;
+  min-width: 26rem;
   border-collapse: collapse;
-  font-size: 0.8125rem;
+  font-size: 12px;
 }
 
 .table th,
@@ -125,21 +150,38 @@
 }
 
 .table thead th {
-  font-size: 0.625rem;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 400;
   color: var(--muted-foreground);
   text-align: left;
-  position: sticky;
-  top: 0;
+  vertical-align: bottom;
+  /* Headers wrap; data cells do not. */
+  white-space: normal;
   background: var(--background);
 }
 
+/* THE ROW LABEL SURVIVES A SIDEWAYS SWIPE.
+   Without this, the moment the reader scrolls right to reach a money
+   column the Month / Side / Date label leaves the left edge and they
+   are looking at a grid of bare numbers with no label on either axis.
+   `position: sticky` needs the background or the scrolled cells show
+   through underneath it. */
 .rowHead {
   font-weight: 700;
   text-align: left;
   color: var(--foreground);
+  position: sticky;
+  left: 0;
+  background: var(--background);
+  padding-right: 1rem;
+}
+
+.table thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
 }
 
 .right {
@@ -160,6 +202,10 @@
   max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.gameSide {
+  color: var(--muted-foreground);
 }
 
 .table td[data-money="up"] {

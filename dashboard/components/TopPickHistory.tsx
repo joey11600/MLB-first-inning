@@ -86,8 +86,15 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
           COMPOUNDING case, not the passage of time, that breaks the
           arithmetic. See the correction note in lib/units.ts. */}
       <h3 className={styles.h3}>Units profit</h3>
+      {/* THE BASIS IS NAMED ABOVE THE FIGURE, NOT ONLY UNDER IT.
+          All three carry a "+" and a "u" and the same bright green, so
+          nothing in the figures themselves says they are three different
+          KINDS of number. PRODUCT.md's central design problem is exactly
+          this. The eyebrow goes first because it is also the order the
+          figure has to be spoken: basis, then number. */}
       <div className={styles.figures}>
         <div className={styles.fig}>
+          <span className={styles.figBasis}>Flat stake</span>
           <span
             className={styles.figValue}
             data-money={tone(totals.atFlat1u)}
@@ -100,6 +107,7 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
           </span>
         </div>
         <div className={styles.fig}>
+          <span className={styles.figBasis}>Published stakes</span>
           <span
             className={styles.figValue}
             data-money={tone(totals.atPublishedStakes)}
@@ -112,6 +120,9 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
           </span>
         </div>
         <div className={styles.fig}>
+          <span className={`${styles.figBasis} ${styles.figBasisAlt}`}>
+            Compounded · a different kind of number
+          </span>
           <span className={styles.figValue} data-money={tone(bank.ret)}>
             {returnAsUnits(bank.ret)}
           </span>
@@ -269,13 +280,16 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
       <div className={styles.scroller}>
         <table className={styles.table}>
           <thead>
+            {/* RESULT SECOND, GAME LAST. The result was the rightmost
+                column and fell off a 375px screen entirely; the game name
+                is the longest column and the one whose loss costs least,
+                since the date already identifies the row. */}
             <tr>
               <th scope="col">Date</th>
-              <th scope="col">Game</th>
-              <th scope="col">Side</th>
+              <th scope="col" className={styles.right}>Result</th>
               <th scope="col" className={styles.right}>Price</th>
               <th scope="col" className={styles.right}>Stake</th>
-              <th scope="col" className={styles.right}>Result</th>
+              <th scope="col">Game</th>
             </tr>
           </thead>
           <tbody>
@@ -283,17 +297,9 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
               const [away, home] = b.game.split("@");
               return (
                 <tr key={`${b.date}-${b.game}`}>
-                  <td>{shortDate(b.date)}</td>
-                  <td className={styles.game}>
-                    {cityOf(away)} at {cityOf(home)}
-                  </td>
-                  <td>{b.side}</td>
-                  <td className={`${styles.right} ${styles.mono}`}>
-                    {b.odds > 0 ? `+${b.odds}` : b.odds}
-                  </td>
-                  <td className={`${styles.right} ${styles.mono} ${styles.dim}`}>
-                    {formatLevel(b.unitsRisked)}
-                  </td>
+                  <th scope="row" className={styles.rowHead}>
+                    {shortDate(b.date)}
+                  </th>
                   {/* One bet on one night: a single point in time, so a
                       signed unit figure is a real quantity here. */}
                   <td
@@ -301,6 +307,16 @@ export function TopPickHistory({ report }: { report: TopPickReport | null }) {
                     data-money={b.win ? "up" : "down"}
                   >
                     {b.win ? "WON" : "LOST"} {formatLevel(Math.abs(b.pnl))}
+                  </td>
+                  <td className={`${styles.right} ${styles.mono}`}>
+                    {b.odds > 0 ? `+${b.odds}` : `${MINUS}${Math.abs(b.odds)}`}
+                  </td>
+                  <td className={`${styles.right} ${styles.mono} ${styles.dim}`}>
+                    {formatLevel(b.unitsRisked)}
+                  </td>
+                  <td className={styles.game}>
+                    {cityOf(away)} at {cityOf(home)}
+                    <span className={styles.gameSide}> · {b.side}</span>
                   </td>
                 </tr>
               );
@@ -326,20 +342,34 @@ function SliceTable({
     <div className={styles.scroller}>
       <table className={styles.table}>
         <thead>
+          {/* MONEY FIRST, after the label. It used to sit in the last two
+              columns, which is exactly the part a 375px phone cut off. */}
           <tr>
             <th scope="col">{firstCol}</th>
+            <th scope="col" className={styles.right}>Per unit risked</th>
+            <th scope="col" className={styles.right}>100u becomes</th>
             <th scope="col" className={styles.right}>Record</th>
             <th scope="col" className={styles.right}>Hit</th>
             <th scope="col" className={styles.right}>Needs</th>
             <th scope="col" className={styles.right}>Staked</th>
-            <th scope="col" className={styles.right}>Per unit risked</th>
-            <th scope="col" className={styles.right}>100u becomes</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((s) => (
             <tr key={s.key}>
               <th scope="row" className={styles.rowHead}>{label(s)}</th>
+              <td
+                className={`${styles.right} ${styles.mono}`}
+                data-money={tone(s.roiPerUnit)}
+              >
+                {formatReturn(s.roiPerUnit, 1)}
+              </td>
+              <td
+                className={`${styles.right} ${styles.mono}`}
+                data-money={tone(s.ret)}
+              >
+                {s.bankEnd.toFixed(2)}u
+              </td>
               <td className={`${styles.right} ${styles.mono}`}>
                 {s.wins}
                 {MINUS}
@@ -353,18 +383,6 @@ function SliceTable({
               </td>
               <td className={`${styles.right} ${styles.mono} ${styles.dim}`}>
                 {formatLevel(s.staked)}
-              </td>
-              <td
-                className={`${styles.right} ${styles.mono}`}
-                data-money={tone(s.roiPerUnit)}
-              >
-                {formatReturn(s.roiPerUnit, 1)}
-              </td>
-              <td
-                className={`${styles.right} ${styles.mono}`}
-                data-money={tone(s.ret)}
-              >
-                {s.bankEnd.toFixed(2)}u
               </td>
             </tr>
           ))}

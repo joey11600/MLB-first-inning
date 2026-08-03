@@ -109,15 +109,35 @@ export function buildReasons(
   const out: Reason[] = [];
   const { away, home, awayTeam, homeTeam, park, h2h } = form;
 
-  /* ---------------- the ballpark ---------------- */
+  /* ---------------- the ballpark ----------------
+     TWO FIGURES, TWO BASES, AND THE SENTENCE SAYS WHICH.
+     `park.nrfiRate` is the model's park factor: a Bayesian-shrunk rate
+     over LAST SEASON PLUS THIS ONE with a 50-game prior. `park.ledger`
+     is the raw count of first innings played here THIS SEASON. For
+     Colorado on 2026-08-03 those read 58% and 73%, fifteen points
+     apart, and the page used to print them twenty lines from each
+     other with neither one naming its basis. Read consecutively into a
+     camera that is a self-contradiction, which is the exact failure
+     this surface exists to prevent. So: the shrunk figure always says
+     "across last season and this one", and when the season-alone
+     figure diverges by more than eight points it is carried in the
+     SAME sentence rather than left to ambush the reader later. */
   if (park.nrfiRate != null) {
     const yrfiHere = 1 - park.nrfiRate;
     const rankNote = parkTier(park.rank, park.parks);
+    const led = park.ledger;
+    const ledRate = led && led.games > 0 ? led.yrfi / led.games : null;
+    const diverges = ledRate != null && Math.abs(ledRate - yrfiHere) > 0.08;
     out.push({
       id: "park",
       label: "The ballpark",
       figure: pct(yrfiHere),
-      sentence: `A run scores in the first inning ${pct(yrfiHere)} of the time in ${cityOf(home)}, ${rankNote ?? "by the model's park factor"}.`,
+      sentence:
+        `Across last season and this one, a run has scored in the first inning ` +
+        `${pct(yrfiHere)} of the time in ${cityOf(home)}, ${rankNote ?? "by the model's park factor"}.` +
+        (diverges
+          ? ` This season alone it has been ${ledRate! > yrfiHere ? "higher" : "lower"}: ${led!.yrfi} of the ${led!.games} played there, ${pct(ledRate!)}.`
+          : ""),
       context: `league average is ${pct(LEAGUE.yrfi)}`,
       lean: leanOf(yrfiHere, LEAGUE.yrfi, true, pick),
       weight: 100,

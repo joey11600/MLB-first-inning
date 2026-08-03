@@ -11,6 +11,79 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-03c] - Design critique, 11 agents, and the contradiction it caught
+
+An 11-agent critique of /brief and /history: five independent lenses
+(hierarchy, number provenance, accessibility, read-aloud copy,
+responsive), each with an adversarial verifier that had to REFUTE its
+own lens's findings against the real source. 11 of 20 survived.
+
+Everything below was found by looking at the RENDERED page in a real
+browser at 1910px and 375px. None of it was visible in the DOM dumps
+the first pass relied on.
+
+### Fixed - the contradiction, which is the one that mattered
+
+**The ballpark block printed two figures fifteen points apart, twenty
+lines from each other, and neither named its basis.** The headline
+`58%` is the model's park factor: Bayesian-shrunk over LAST SEASON PLUS
+THIS ONE with a 50-game prior. The line below it, `41 of the 56 first
+innings actually played here this season`, is **73%**, raw 2026. Both
+true. Read consecutively into a camera they contradict each other, and
+the word "actually" quietly accused the first figure of being fake.
+Arizona reads 58 vs 55, Miami 54 vs 46, so the direction is not even
+consistent. Both sentences now name their basis, and when they diverge
+by more than eight points the reason sentence carries BOTH.
+
+This is precisely the failure /brief exists to prevent, and it shipped
+in the first version of it.
+
+### Fixed - the rest
+
+- **A losing season would have printed in the gain colour.**
+  `.recordFigure` set no colour, so it inherited `--foreground` #00FF41,
+  byte-identical to `--gain`, and carried no `data-money`. The one money
+  figure on the filmed page was the only one in the codebase unmarked.
+- **The bet ticket was unspeakable.** Bare `YRFI` (whose inverse is one
+  slip away), `7.00u` (no spoken form), an em dash when no price was
+  captured, and worst `Model 71% likely`, which never named WHAT was
+  likely: on an NRFI night that figure means the opposite of the
+  ballpark percentage on the same page, and both can read 58%. Now:
+  "a run scores in the first inning", "7.00 units", "71% chance a run
+  scores in the first inning", with the acronym demoted to a tag.
+- **Three different KINDS of number wore the same suffix, size and
+  hue.** The three UNITS PROFIT figures now carry a basis eyebrow ABOVE
+  the number, which is also the order they have to be spoken, and the
+  compounded one is marked as a different kind by form, not hue.
+- **On a 375px phone both money columns were off-screen and no label
+  survived the swipe.** `min-width: 34rem` resolved to 510px in a 311px
+  box; `position: sticky; top: 0` on the thead was inert because
+  `overflow-x: auto` makes the scroller its own scrollport with no
+  height constraint. Headers now wrap (cells never do), min-width drops
+  to 26rem, the row label is `sticky; left: 0`, and money moved to the
+  left of each table. 39% hidden -> 12-15%, money VISIBLE on load.
+- **20 hand-written rem font sizes against a documented px system.**
+  globals.css says verbatim "ALL PX, NEVER REM... Six px values total:
+  44 / 26 / 20 / 13 / 12 / 11" and ships role classes. BriefView had 13
+  distinct rem sizes, TopPickHistory 7, three of them BELOW the 11px
+  floor (9.38 / 10.31 / 10.31) - reintroducing by a different route the
+  exact defect that retired VT323 on 2026-07-30. Now 7 px steps, nothing
+  under 11px. The single deviation from the six is a 16px prose step for
+  the read-aloud sentence, kept deliberately because 13px is the board's
+  glance size and this is a reading surface; `.matchup` keeps its clamp
+  because a fixed 44px monospace headline wraps "Baltimore at Cleveland"
+  to three lines on a phone.
+
+### Not fixed, recorded
+
+/brief uses 690px of a 1910px viewport (36%) and its prose blocks cap at
+four different ch values that resolve to four different pixel widths
+(612 / 523 / 520 / 482), giving four ragged right edges in one column.
+Real, but the fix is a layout decision for the operator, not a defect
+to patch silently.
+
+---
+
 ## [2026-08-03b] - A real backtest of the #1 play, and the window that is not one
 
 Operator: *"what about since may when we got correct odds, and with our
