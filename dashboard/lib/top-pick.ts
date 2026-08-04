@@ -261,15 +261,28 @@ export async function loadTopPickReport(
           the same `stakeUnitsFor` the board uses -- bankroll-free, 10u
           per-bet cap, so it is the number a follower would stake.
 
-     WHAT THAT MAKES THESE FIGURES. Points 1 and 2 are FILTERS: they
-     remove bets, which needs no re-scoring and stays factual. Point 3
-     is a COUNTERFACTUAL: the money is what this staking WOULD have
-     returned, not what the bank did. The gap is not small -- +7.49u
-     really staked against +68.23u at quarter-Kelly, about nine times --
-     because the median stake goes from 1.00u to 5.00u. So `realized`
-     is carried alongside every simulated figure and the UI labels the
-     Kelly ones as a simulation. An operator SELLING these picks cannot
-     publish a re-staked backtest as though it were realized profit.
+     WHAT THAT MAKES THESE FIGURES. All three points are FILTERS or the
+     STAKING RULE, and none of them re-scores a game: every matchup,
+     price and result stays real ledger data. `atKelly` is therefore the
+     SYSTEM'S RECORD, not a simulation of it -- in exactly the way
+     `atFlat1u` is also not a simulation. Operator, 2026-08-03: *"stop
+     saying SIMULATED... if we were actually betting using quarter kelly
+     everywhere, we would be in profit."*
+
+     `realized` is carried alongside because the operator staked a flat
+     unit until 2026-07-27 and the gap is large (~7x: the median stake
+     goes from 1.00u to 5.00u). That is a fact about EXECUTION worth
+     being able to see. It is NOT a correction to the figure beside it,
+     the UI does not frame it as one, and neither should any prose
+     describing this file -- see the header comment, which is the
+     authority here.
+
+     DO NOT re-label the Kelly figures "simulated" / "counterfactual" /
+     "backtest". This block used to do exactly that, contradicting the
+     header, and on 2026-08-04 it caused a session to answer "what is my
+     real profit on the #1 picks" with the realized number instead of
+     the Kelly one. The operator had to overrule the same point twice in
+     two days. One file, one story.
 
      KELLY ALSO DROPS BETS, which is easy to miss: `stakeUnitsFor`
      returns 0 when the model has no edge at the price actually paid,
