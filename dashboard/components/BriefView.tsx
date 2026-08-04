@@ -46,6 +46,8 @@ export interface BriefPlay {
   awayPitcher: string | null;
   homePitcher: string | null;
   strength: string;
+  /** Lineups are still out, so the verdict can still move. No stake. */
+  pending: boolean;
 }
 
 /** Another pick on the same slate, with everything needed to say what it
@@ -57,6 +59,8 @@ export interface BriefOtherPlay {
   home: string;
   side: string;
   strength: "STRONG" | "LEAN";
+  /** Tentative — the lineup has not posted, so this can still change. */
+  pending: boolean;
   isTop: boolean;
   gameTimeEt: string;
 }
@@ -178,7 +182,8 @@ function OtherPlays({
   hasPlay: boolean;
 }) {
   if (plays.length === 0) return null;
-  const leans = plays.filter((p) => p.strength === "LEAN").length;
+  const leans = plays.filter((p) => !p.pending && p.strength === "LEAN").length;
+  const pending = plays.filter((p) => p.pending).length;
   return (
     <section className={styles.block}>
       <h2 className={styles.h2}>
@@ -186,11 +191,14 @@ function OtherPlays({
         <span className={styles.count}>{plays.length}</span>
       </h2>
       <p className={styles.blurb}>
-        Every game the model committed to, each with its own brief. Games
+        Every game the model has a side on, each with its own brief. Games
         it passed on are not here — there is no case to make for a game it
         declined to call.
         {leans > 0
-          ? ` ${leans === 1 ? "One of these is a lean" : `${leans} of these are leans`}: tracked and graded, never staked.`
+          ? ` ${leans === 1 ? "One is a lean" : `${leans} are leans`}: tracked and graded, never staked.`
+          : ""}
+        {pending > 0
+          ? ` ${pending === 1 ? "One is still waiting" : `${pending} are still waiting`} on a lineup, so ${pending === 1 ? "that verdict" : "those verdicts"} can still change.`
           : ""}
       </p>
       <ul className={styles.otherList}>
@@ -206,9 +214,23 @@ function OtherPlays({
                 </span>
                 <span
                   className={styles.otherTag}
-                  data-kind={o.isTop ? "top" : o.strength === "LEAN" ? "lean" : "bet"}
+                  data-kind={
+                    o.pending
+                      ? "pending"
+                      : o.isTop
+                        ? "top"
+                        : o.strength === "LEAN"
+                          ? "lean"
+                          : "bet"
+                  }
                 >
-                  {o.isTop ? "#1 bet" : o.strength === "LEAN" ? "lean · not bet" : "bet"}
+                  {o.pending
+                    ? "not locked in"
+                    : o.isTop
+                      ? "#1 bet"
+                      : o.strength === "LEAN"
+                        ? "lean · not bet"
+                        : "bet"}
                 </span>
               </span>
             </Link>
@@ -284,16 +306,30 @@ function PlayHeader({
     play.side === "YRFI"
       ? "a run scores in the first inning"
       : "no run scores in the first inning";
-  /* A LEAN IS NOT A BET, AND THE PAGE SAYS SO THREE TIMES: in the tag
-     above the matchup, in the ticket where the stake would be, and in the
-     paragraph under it. That is deliberate repetition. This surface gets
-     read ALOUD, and a qualifier stated once is a qualifier that falls off
-     in the edit. */
-  const isLean = play.strength === "LEAN";
-  const tag = isTop ? "#1 play" : isLean ? "Lean · not bet" : "Strong play";
+  /* NOT-A-BET IS SAID THREE TIMES: in the tag above the matchup, in the
+     ticket where the stake would be, and in the paragraph under it. That
+     is deliberate repetition. This surface gets read ALOUD, and a
+     qualifier stated once is a qualifier that falls off in the edit.
+
+     THREE STATES, NOT TWO (2026-08-04). A pending pick is not a lean --
+     it may well end up the night's biggest bet. What it is NOT is
+     decided, so it gets its own tag and its own explanation rather than
+     borrowing the lean's, which would be a different false statement. */
+  const isPending = play.pending;
+  const isLean = !isPending && play.strength === "LEAN";
+  const tag = isPending
+    ? "Not locked in yet"
+    : isTop
+      ? "#1 play"
+      : isLean
+        ? "Lean · not bet"
+        : "Strong play";
   return (
     <section className={styles.play}>
-      <div className={styles.playTag} data-kind={isLean ? "lean" : "bet"}>
+      <div
+        className={styles.playTag}
+        data-kind={isPending || isLean ? "lean" : "bet"}
+      >
         {tag} · {prettyDate(date)}
       </div>
       <h1 className={styles.matchup}>
@@ -337,12 +373,14 @@ function PlayHeader({
         </div>
         <div className={styles.ticketRow}>
           <dt>Stake</dt>
-          <dd className={isLean ? styles.ticketNote : undefined}>
-            {isLean
-              ? "nothing — this one is not bet"
-              : play.stake != null
-                ? `${play.stake.toFixed(2)} units`
-                : "no stake, no price captured"}
+          <dd className={isLean || isPending ? styles.ticketNote : undefined}>
+            {isPending
+              ? "nothing yet — the pick is not final"
+              : isLean
+                ? "nothing — this one is not bet"
+                : play.stake != null
+                  ? `${play.stake.toFixed(2)} units`
+                  : "no stake, no price captured"}
           </dd>
         </div>
         <div className={styles.ticketRow}>
@@ -352,7 +390,18 @@ function PlayHeader({
           </dd>
         </div>
       </dl>
-      {isLean ? (
+      {isPending ? (
+        <p className={styles.leanNote}>
+          <strong>This one is not settled yet.</strong> Both teams&rsquo;
+          batting orders are still unannounced, so the model is working off
+          each side&rsquo;s season-long hitting rather than the nine names
+          actually in the box. Everything below — the ballpark, both
+          starters&rsquo; records, both teams&rsquo; recent first innings —
+          is already final and will not change. Only the verdict can move.
+          When the lineups post, this either firms up into a bet or comes
+          off the board. Nothing is staked until it does.
+        </p>
+      ) : isLean ? (
         <p className={styles.leanNote}>
           This is a lean, not a bet. The model has a side and the system
           records it and grades it, so the call still counts toward how the

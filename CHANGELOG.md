@@ -11,6 +11,72 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-04a] - pending picks get briefs; the brief link becomes a real button
+
+Operator: *"when i click a specific brief, it just takes me to the brief
+for the #1 pick... i also want to make the brief pages look better. it
+should be an actual button too thats filled."*
+
+### The bug was coverage, not routing
+
+Routing was verified correct on production — clicking a specific brief
+navigates to that game, URL and content both. What was wrong is which
+rows HAD a brief. The rule was "STRONG or LEAN only", and on the 08-04
+slate **14 of 15 games were LINEUP PENDING**, which is a PASS in the
+ledger. So the only brief button anywhere on the board was the #1's, and
+clicking "a brief" could only ever land on the #1.
+
+### Fixed
+
+- **A LINEUP PENDING row with a clear tentative lean now gets a brief.**
+  It is not the model declining to have an opinion — it is the model
+  waiting, and the board already prints its tentative lean. Critically,
+  every figure the brief shows is ALREADY FINAL: the park rate, both
+  teams' last-10 first innings, both starters' scoreless-first records
+  and the head-to-head all come from team codes, pitcher ids and the
+  ledger. **None of them reads the lineup.** Only the verdict is
+  provisional, so the page says so and prints no stake. Tonight's board
+  went from 1 briefable game to 8.
+- **STARTER PENDING stays excluded**, and that is the line: there the
+  pitcher data is league-average fallback on BOTH sides, so the two
+  biggest figures on the page would be fabrications. A pending row whose
+  tentative is itself a PASS stays out too.
+- **The side comes from the verdict, not the row.** A pending row's
+  `pickSide` is literally `"PASS"`; reading it would have briefed the
+  wrong half of the inning and scored every reason against it. `oddsOn()`
+  takes an explicit side for the same reason — it was quoting the NRFI
+  price on a YRFI lean.
+- **`classifyTentative` + `DEFAULT_THRESHOLDS` hoisted** out of the
+  client-only `BoardRow.tsx` into `lib/classify.ts`, so the server-side
+  brief page can share the one copy. Same move `lib/top-pick-rank.ts`
+  records, same reason. `briefVerdictOf()` there is now the single
+  briefable rule, called by BOTH the page and the board's button.
+
+### Changed — the visual pass
+
+- **The brief link is a filled button**: ink fill, paper text, 15.9:1,
+  44px, the shared `--shadow` scale, arrow nudge on hover and a press
+  state that doesn't move the layout. It is the only action in the
+  drawer, so by the one-primary-CTA rule it takes the solid treatment.
+- **The ticket is a card.** Four naked rows between two hairlines made
+  the most-read block on the page — what the bet IS — the least defined
+  thing on it.
+- **The record row is four stat tiles**, so the figures the operator
+  quotes are separable at a glance while talking.
+- **The picks list is a row of lifting cards.** The old hover inverted
+  each row to solid ink, which forced every chip inside to have its
+  colour overridden back — so the "lean · not bet" marker lost its own
+  ink at the exact moment it was pointed at. Those overrides are gone.
+- **The lean / pending note is a proper callout** with a tinted surface.
+  It is load-bearing: it is what stops a tracked call being staked.
+
+No new colour: everything works through existing tokens. Verified on a
+production build in light AND dark, desktop and 375px: contrast 15.9
+(button), 14.31 (list card), 7.45–7.98 (`--attn` figures in dark), no
+horizontal overflow, pending chips carry the word plus a dashed edge.
+
+---
+
 ## [2026-08-03m] - the brief's ballpark sentence names a club, not a "city"
 
 Operator, on seeing the STL at NYY brief: *"fix the yankees ballpark

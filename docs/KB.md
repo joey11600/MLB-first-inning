@@ -86,16 +86,31 @@ inline copy is not a type error, it is a runtime crash.
 **`/brief`** is the explanatory surface. Bare `/brief` shows the night's
 #1; `?game=<gamePk>` briefs a specific game and `?date=` picks the slate.
 
-**Every committed pick has one, and only committed picks do (2026-08-03).**
-A row is briefable when `pick_strength` is `STRONG` or `LEAN` and the side
-is a real side. A LEAN is a verdict the ledger grades, so there is
-something true to explain; a PASS is the model declining to have an
-opinion, and a page arguing a case for it would be inventing the case.
-The rule is written twice and must move together: `isBriefable()` in
-`app/brief/page.tsx` and the guard in `BriefLink` (`GameDetails.tsx`),
-which renders the button at the top of each expanded row on the board.
-Note that a `LINEUP PENDING` row is a PASS in the ledger even when the
-board shows a tentative lean — it gets no brief until the pick commits.
+**Which rows have a brief: `briefVerdictOf()` in `lib/classify.ts`, and
+nowhere else (2026-08-04).** Both the page and the board's `BriefLink`
+button call it, so the button and the page cannot disagree. It returns
+`{side, strength, pending}` or null:
+
+| row | brief? | why |
+|---|---|---|
+| `STRONG` | yes, staked | the bet |
+| `LEAN` | yes, no stake | a verdict the ledger grades, never wagered |
+| `LINEUP PENDING` + clear tentative lean | yes, no stake, "not locked in" | the model waiting, not declining |
+| `LINEUP PENDING` + tentative PASS | no | genuinely no opinion |
+| `STARTER PENDING` | no | pitcher data is fallback on BOTH sides — the page's two biggest figures would be fabricated |
+| any other PASS | no | a case would have to be invented |
+
+Pending rows are in because **every figure the brief shows is already
+final**: park rate, both teams' last-10 first innings, both starters'
+scoreless-first records and the head-to-head all come from team codes,
+pitcher ids and the ledger. None reads the lineup. Only the verdict is
+provisional. This was a real bug on 2026-08-04, when 14 of 15 games were
+pending and the only brief button on the board was the #1's.
+
+**Read the verdict's side, never the row's, once pending rows are in
+scope.** A `LINEUP PENDING` row's `pickSide` is `"PASS"`; using it briefs
+the wrong half of the inning and scores every reason against it. The same
+applies to pricing — `oddsOn()` takes an explicit side.
 
 **A lean never prints a stake.** `stake` is nulled for a LEAN in the page
 before the view sees it, because quarter Kelly will happily size one and

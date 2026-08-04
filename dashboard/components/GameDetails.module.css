@@ -42,6 +42,18 @@
   max-width: 68ch;
 }
 
+/* FILLED, NOT OUTLINED (2026-08-04, operator: "it should be an actual
+   button too thats filled").
+
+   It is the only action in the drawer, so by the one-primary-CTA rule it
+   takes the solid treatment and nothing else in here competes. Ink fill
+   with paper text is 15.9:1 -- the strongest pair the palette has, and
+   the same inversion the page already used on hover, so this is the old
+   hover state promoted to the resting state rather than a new look.
+
+   Depth comes from the shared --shadow tokens, so it sits in the same
+   elevation scale as every other raised surface instead of inventing a
+   private shadow. */
 .briefLink {
   display: inline-flex;
   align-items: center;
@@ -49,25 +61,55 @@
   gap: 8px;
   flex-shrink: 0;
   min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid var(--rule);
+  padding: 0 20px;
+  border: 1px solid var(--foreground);
   border-radius: var(--radius);
-  background: transparent;
-  color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: var(--shadow-1);
   text-decoration: none;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .briefLink:hover,
 .briefLink:focus-visible {
-  background: var(--foreground);
-  border-color: var(--foreground);
-  color: var(--background);
+  background: color-mix(in oklab, var(--foreground) 86%, var(--background));
+  box-shadow: var(--shadow-2);
+}
+
+/* Press feedback without moving the surrounding layout: the button
+   settles onto the page and the shadow goes with it. */
+.briefLink:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.briefArrow {
+  transition: transform 160ms ease;
+}
+
+.briefLink:hover .briefArrow,
+.briefLink:focus-visible .briefArrow {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .briefLink,
+  .briefArrow {
+    transition: none;
+  }
+  .briefLink:hover .briefArrow,
+  .briefLink:focus-visible .briefArrow {
+    transform: none;
+  }
 }
 
 /* ============================================================

@@ -152,12 +152,21 @@
   color: var(--muted-foreground);
 }
 
-/* The ticket. Four facts, label left, value right, ruled between.
-   Deliberately not a card: it is the one place on the page where the
-   operator is reading DOWN a column of values rather than across prose. */
+/* THE TICKET IS NOW A CARD (2026-08-04).
+   Four facts, label left, value right, ruled between. It was four naked
+   rows between two hairlines, which made the single most-read block on
+   the page -- what the bet IS -- the least defined thing on it: it read
+   as a continuation of the prose above rather than as the object the
+   whole page is about. A surface, a border and one step of elevation
+   give it edges without touching the type or the colour of anything
+   inside it. Still a column of values, not a grid. */
 .ticket {
   margin: 0 0 1.25rem;
-  border-top: 1px solid var(--border);
+  padding: 0.35rem 1.125rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
 }
 
 .ticketRow {
@@ -167,6 +176,12 @@
   gap: 1rem;
   padding: 0.7rem 0;
   border-bottom: 1px solid var(--border);
+}
+
+/* The last row closes the card; a rule there would read as a dangling
+   separator with nothing under it. */
+.ticket .ticketRow:last-child {
+  border-bottom: none;
 }
 
 .ticketRow dt {
@@ -220,18 +235,27 @@
   color: var(--muted-foreground);
 }
 
-/* THE LEAN DISCLAIMER SITS WHERE THE STAKE EXPLANATION SITS on a bet, and
-   it is not muted. `.meaning` is grey because it explains a number that
-   has already been read; this one is the correction to what the reader is
-   about to assume, so it takes full ink and a rule to stop the eye. */
+/* THE LEAN / PENDING DISCLAIMER SITS WHERE THE STAKE EXPLANATION SITS on
+   a bet, and it is not muted. `.meaning` is grey because it explains a
+   number that has already been read; this one is the correction to what
+   the reader is about to assume, so it takes full ink, a tinted surface
+   and a rail to stop the eye. It is the only callout on the page and it
+   is load-bearing: it is what stops a tracked call being staked. */
 .leanNote {
   margin: 0;
-  padding: 0.125rem 0 0.125rem 0.875rem;
+  padding: 0.875rem 1rem 0.875rem 0.875rem;
+  border: 1px solid color-mix(in oklab, var(--attn) 26%, var(--border));
   border-left: 3px solid var(--attn);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--attn) 6%, var(--card));
   font-size: 13px;
   line-height: 1.65;
   max-width: var(--measure);
   color: var(--foreground);
+}
+
+.leanNote strong {
+  font-weight: 700;
 }
 
 /* ---------------- blocks ---------------- */
@@ -619,10 +643,22 @@
   }
 }
 
+/* STAT TILES, not four floating numbers (2026-08-04). Four figures at
+   26px with captions under them, sitting on the page background with
+   nothing around them, read as one run-on block -- and this is the group
+   the operator quotes on camera, so each figure has to be separable at a
+   glance while talking. A surface each gives them edges. No colour is
+   added: the money figure still carries its own [data-money] ink and
+   nothing else in the row is tinted. */
 .recordGrid > div {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  padding: 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
 }
 
 .recordFigure {
@@ -686,22 +722,53 @@
   padding: 0;
 }
 
+/* A ROW OF NAVIGABLE CARDS (2026-08-04). These were flush rows whose
+   hover INVERTED the whole row to solid ink -- which meant every chip
+   inside had to have its colour overridden back, and a list of five
+   games flashed full-black slabs as the pointer crossed it. A card that
+   lifts says "this is a link" just as clearly and survives the tags
+   keeping their own ink, so the "lean · not bet" marker stays legible in
+   the exact moment the operator is pointing at it. */
 .otherLink {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.875rem 0;
-  border-bottom: 1px solid var(--border);
+  padding: 0.875rem 1rem;
+  margin-bottom: 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
   color: var(--foreground);
   text-decoration: none;
   font-size: 13px;
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .otherLink:hover,
 .otherLink:focus-visible {
-  color: var(--background);
-  background: var(--foreground);
+  background: var(--muted);
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-1px);
+}
+
+.otherLink:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .otherLink {
+    transition: none;
+  }
+  .otherLink:hover,
+  .otherLink:focus-visible {
+    transform: none;
+  }
 }
 
 .otherMeta {
@@ -739,22 +806,22 @@
   color: var(--foreground);
 }
 
-.otherTag[data-kind="lean"] {
+.otherTag[data-kind="lean"],
+.otherTag[data-kind="pending"] {
   color: var(--attn);
   border-color: color-mix(in oklab, var(--attn) 40%, var(--border));
 }
 
-.otherLink:hover .otherSide,
-.otherLink:focus-visible .otherSide,
-.otherLink:hover .otherTag,
-.otherLink:focus-visible .otherTag {
-  color: var(--background);
+/* Pending is the weaker of the two --attn states: a lean is a settled
+   verdict that will not be bet, a pending row has not decided yet. The
+   dashed edge is the same "not final" language the board's pick pill
+   uses, so the two surfaces say it the same way. */
+.otherTag[data-kind="pending"] {
+  border-style: dashed;
 }
 
-.otherLink:hover .otherTag,
-.otherLink:focus-visible .otherTag {
-  border-color: color-mix(in oklab, var(--background) 45%, transparent);
-}
+/* No hover colour overrides any more: the row no longer inverts, so
+   every tag keeps its own ink at exactly the moment it is pointed at. */
 
 /* ---------------- empty ---------------- */
 

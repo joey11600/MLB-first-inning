@@ -8,6 +8,7 @@ import type { ReplayStake } from "@/lib/season-record";
 import { replayKey } from "@/lib/season-record";
 import { computeLockAt, formatLockTime } from "@/lib/lock";
 import { stakeUnitsFor } from "@/lib/kelly-sim";
+import { classifyTentative } from "@/lib/classify";
 import styles from "./BoardRow.module.css";
 
 /** Returns true for `durationMs` after `value` changes.  Used by Tier 1.3
@@ -98,77 +99,11 @@ function noDataReason(detail: GameDetail | undefined): string {
   return "PASS — no real prediction made because:\n• " + issues.join("\n• ");
 }
 
-/** Default classifier thresholds -- exported for GameDetails so the
- *  tentative-lean section can run the same classification as the row.
- *  Phase 1.3 (2026-05-12): LEAN tier reactivated as track-only with
- *  leanNrfiP=0.50 / leanYrfiP=0.50.  Defaults here match the values
- *  the predictor writes to data/thresholds.json on every run -- they
- *  are a fallback for the first render before the file loads. */
-export const DEFAULT_THRESHOLDS: PickThresholds = {
-  strongNrfiP:     1.01,  // NRFI betting disabled 2026-06-07 (1.01 = unreachable); audit fix
-  leanNrfiP:       0.50,
-  passLoP:         0.44,
-  leanYrfiP:       0.50,
-  lambdaYrfiFloor: 0.838,
-  lambdaNrfiCeiling: 0.52,
-  // STRONG YRFI needs pNrfi < 0.40 (0.44 -> 0.36 on 2026-07-27,
-  // 0.36 -> 0.40 on 2026-07-28 after walk-forward validation).
-  strongYrfiP:     0.40,
-};
-
-/** Mirror of mlb_first_inning_predictor.classify_pick_lr -- given an
- *  NRFI probability and combined lambda, returns what the model WOULD
- *  pick under the supplied thresholds (ignores LINEUP / STARTER
- *  PENDING guards).  Exported for GameDetails' tentative-lean section.
- *
- *  Phase 1.3 (2026-05-12): restructured to fire LEAN YRFI for
- *  passLoP < pNrfi < leanYrfiP when lambda clears the floor.  The
- *  previous structure short-circuited that band into PASS NO EDGE
- *  before the LEAN-YRFI check could fire. */
-export function classifyTentative(
-  pNrfi:       number,
-  lambdaTotal: number | null,
-  th:          PickThresholds | undefined,
-): { side: PickSide; strength: PickStrength } {
-  const t = th ?? DEFAULT_THRESHOLDS;
-
-  if (pNrfi >= t.strongNrfiP) {
-    // T1-NRFI-2026-06-01: mirror the Python NRFI lambda ceiling -- a
-    // would-be STRONG NRFI with too-high projected runs is demoted to
-    // PASS "HIGH LAMBDA".  Only fires inside the STRONG-NRFI branch, so
-    // it cannot affect any YRFI verdict.  Older deploys omit the field;
-    // skip the check when it's undefined.
-    if (t.lambdaNrfiCeiling != null && lambdaTotal != null && lambdaTotal > t.lambdaNrfiCeiling) {
-      return { side: "PASS", strength: "HIGH LAMBDA" };
-    }
-    return { side: "NRFI", strength: "STRONG" };
-  }
-  if (pNrfi >= t.leanNrfiP)   return { side: "NRFI", strength: "LEAN" };
-
-  // LEAN YRFI band: strictly above passLoP, below leanNrfiP, lambda >= floor.
-  if (pNrfi > t.passLoP) {
-    if (lambdaTotal != null && lambdaTotal >= t.lambdaYrfiFloor) {
-      return { side: "YRFI", strength: "LEAN" };
-    }
-    return { side: "PASS", strength: "NO EDGE" };
-  }
-  // p_nrfi == passLoP -- stays PASS NO EDGE to preserve the asymmetric
-  // STRONG-YRFI boundary (strict <).
-  if (pNrfi >= t.passLoP)     return { side: "PASS", strength: "NO EDGE" };
-
-  // p_nrfi < passLoP -- YRFI side, gated first by the lambda floor.
-  if (lambdaTotal != null && lambdaTotal < t.lambdaYrfiFloor) {
-    return { side: "PASS", strength: "LOW LAMBDA" };
-  }
-  // 2026-07-27 (T-SELECTIVITY): only pNrfi < strongYrfiP fires STRONG.
-  // The band between strongYrfiP and passLoP is a real YRFI lean but
-  // does not beat the market, so it tracks as LEAN. Older deploys omit
-  // the field -- fall through to the previous behaviour when undefined.
-  if (t.strongYrfiP != null && pNrfi >= t.strongYrfiP) {
-    return { side: "YRFI", strength: "LEAN" };
-  }
-  return { side: "YRFI", strength: "STRONG" };
-}
+/** MOVED to lib/classify.ts on 2026-08-04 so the SERVER-side brief page
+ *  can share it -- see that file's header. Re-exported here because
+ *  GameDetails and any future client caller import it from this module,
+ *  and a pure move would have been a silent API break for them. */
+export { DEFAULT_THRESHOLDS, classifyTentative } from "@/lib/classify";
 
 function formatGameTime(s: string): string {
   if (!s) return "—";

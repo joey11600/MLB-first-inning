@@ -42,6 +42,7 @@ import { loadGameFiForm } from "@/lib/first-inning-form";
 import { buildReasons, type ModelDriver } from "@/lib/pick-reasons";
 import { loadTopPickReport } from "@/lib/top-pick";
 import { stakeUnitsFor } from "@/lib/kelly-sim";
+import { briefVerdictOf, type BriefVerdict } from "@/lib/classify";
 import { BriefView, type BriefOtherPlay } from "@/components/BriefView";
 import type { BoardRow, GameDetail } from "@/lib/types";
 
@@ -88,12 +89,10 @@ async function loadDrivers(
   return [...(hit.top_drivers_t1 ?? []), ...(hit.top_drivers_b1 ?? [])];
 }
 
-/** A row the model committed to, either with money (STRONG) or on the
- *  record only (LEAN). See the "why lean is in" note in the file header. */
-function isBriefable(r: BoardRow): boolean {
-  if (r.pickSide !== "NRFI" && r.pickSide !== "YRFI") return false;
-  return r.pickStrength === "STRONG" || r.pickStrength === "LEAN";
-}
+/* The briefable rule lives in lib/classify.ts as `briefVerdictOf`, shared
+   with the board's BriefLink so the button and the page cannot disagree
+   about which games have one. See that file for why LINEUP PENDING rows
+   are in and STARTER PENDING rows are out. */
 
 /** The season the slate belongs to, not the season the server is having.
  *  A brief opened for an old slate must read the ledger for THAT year or
@@ -117,9 +116,12 @@ export default async function BriefPage({
     board.details[`${r.away}@${r.home}#${r.gameNumber || 1}`] ||
     board.details[`${r.away}@${r.home}`];
 
-  const oddsOn = (r: BoardRow): number | null => {
+  /** The price on ONE named side. The side is passed in rather than read
+   *  off the row because a lineup-pending row's `pickSide` is "PASS" —
+   *  reading it would quote the NRFI price on a YRFI lean. */
+  const oddsOn = (r: BoardRow, side: "NRFI" | "YRFI"): number | null => {
     const d = detailFor(r);
-    const s = r.pickSide === "YRFI" ? d?.marketYrfiOdds : d?.marketNrfiOdds;
+    const s = side === "YRFI" ? d?.marketYrfiOdds : d?.marketNrfiOdds;
     const n = s ? Number.parseFloat(String(s)) : NaN;
     return Number.isFinite(n) && n !== 0 ? n : null;
   };
@@ -138,10 +140,15 @@ export default async function BriefPage({
         name: `${r.away}@${r.home}`,
         side: r.pickSide,
         modelP: r.nrfiPct / 100,
-        odds: oddsOn(r),
+        odds: oddsOn(r, r.pickSide === "NRFI" ? "NRFI" : "YRFI"),
       })),
   );
   const topRow = top?.key ?? null;
+
+  /** The shared rule, with this row's own run projection when there is
+   *  one. Memoised per row so the fold below and the render agree. */
+  const verdictOf = (r: BoardRow): BriefVerdict | null =>
+    briefVerdictOf(r, board.thresholds, detailFor(r)?.lambdaLrTotal ?? null);
 
   /* WHICH GAME THIS PAGE IS ABOUT.
      A named game that is not briefable does NOT fall through to the #1.
@@ -149,15 +156,18 @@ export default async function BriefPage({
      failure this whole surface is built against — they would film the
      wrong matchup. Each dead end gets its own honest state instead. */
   let row: BoardRow | null = null;
+  let verdict: BriefVerdict | null = null;
   let empty: { kind: "none" | "pass" | "missing"; away?: string; home?: string } | undefined;
   const wanted = (searchParams?.game || "").trim();
   if (wanted) {
     const hit = board.rows.find((r) => r.gamePk === wanted) ?? null;
-    if (hit && isBriefable(hit)) row = hit;
+    const v = hit ? verdictOf(hit) : null;
+    if (hit && v) { row = hit; verdict = v; }
     else if (hit) empty = { kind: "pass", away: hit.away, home: hit.home };
     else empty = { kind: "missing" };
   } else {
     row = topRow;
+    verdict = row ? verdictOf(row) : null;
     if (!row) empty = { kind: "none" };
   }
 
@@ -169,18 +179,27 @@ export default async function BriefPage({
      Ordered #1, then the rest of the bets, then the leans: that is the
      order the operator works through them. */
   const otherPlays: BriefOtherPlay[] = board.rows
-    .filter((r) => isBriefable(r) && r.gamePk && r.gamePk !== (row?.gamePk ?? ""))
-    .map((r): BriefOtherPlay => ({
+    .map((r) => ({ r, v: verdictOf(r) }))
+    .filter(
+      (x): x is { r: BoardRow; v: BriefVerdict } =>
+        x.v != null && Boolean(x.r.gamePk) && x.r.gamePk !== (row?.gamePk ?? ""),
+    )
+    .map(({ r, v }): BriefOtherPlay => ({
       gamePk: r.gamePk,
       away: r.away,
       home: r.home,
-      side: r.pickSide === "NRFI" ? "NRFI" : "YRFI",
-      strength: r.pickStrength === "STRONG" ? "STRONG" : "LEAN",
+      side: v.side,
+      strength: v.strength,
+      pending: v.pending,
       isTop: topRow != null && r.gamePk === topRow.gamePk,
       gameTimeEt: r.gameTimeEt,
     }))
+    /* #1, then the settled picks, then everything still waiting on a
+       lineup. That is the order the operator works through them: what is
+       decided first, what might still move last. */
     .sort((a, b) => {
       if (a.isTop !== b.isTop) return a.isTop ? -1 : 1;
+      if (a.pending !== b.pending) return a.pending ? 1 : -1;
       if (a.strength !== b.strength) return a.strength === "STRONG" ? -1 : 1;
       return (a.gameTimeEt || "").localeCompare(b.gameTimeEt || "");
     });
@@ -204,10 +223,15 @@ export default async function BriefPage({
   }
 
   const detail = detailFor(row);
-  const side = row.pickSide === "NRFI" ? "NRFI" : "YRFI";
-  const odds = oddsOn(row);
+  /* THE SIDE COMES FROM THE VERDICT, NOT THE ROW. On a lineup-pending
+     row `row.pickSide` is literally "PASS" — the ledger has not committed
+     yet — while the verdict carries the side the model is actually
+     leaning. Reading the row here would brief the wrong half of the
+     inning and every reason on the page would be scored against it. */
+  const side = verdict!.side;
+  const odds = oddsOn(row, side);
   const modelP = (side === "NRFI" ? row.nrfiPct : row.yrfiPct) / 100;
-  const isLean = row.pickStrength === "LEAN";
+  const noStake = verdict!.pending || verdict!.strength === "LEAN";
 
   const parkFactors = await readJson<Record<string, number>>(
     "fi_park_factors.json",
@@ -247,16 +271,19 @@ export default async function BriefPage({
         side,
         modelP,
         odds,
-        /* NO STAKE ON A LEAN, EVER — not even a computed one.
-           `stakeUnitsFor` will happily quarter-Kelly a lean's
-           probability, and the figure would be plausible, printed at 20px
-           in the ticket, and read aloud. It would be an instruction to
-           risk money on a pick the tracker marks bet_placed='N' by rule.
-           Same guard the board's stake chip runs, for the same reason. */
-        stake: !isLean && odds != null ? stakeUnitsFor(modelP, odds) : null,
+        /* NO STAKE ON A LEAN OR A PENDING PICK, EVER — not even a
+           computed one. `stakeUnitsFor` will happily quarter-Kelly
+           either, and the figure would be plausible, printed at 20px in
+           the ticket, and read aloud. On a lean it would be an
+           instruction to risk money on a pick the tracker marks
+           bet_placed='N' by rule; on a pending pick it would be a stake
+           for a bet that has not been decided and can still flip when
+           the lineup posts. Same guard the board's stake chip runs. */
+        stake: !noStake && odds != null ? stakeUnitsFor(modelP, odds) : null,
         awayPitcher: detail?.away.pitcher.name ?? null,
         homePitcher: detail?.home.pitcher.name ?? null,
-        strength: row.pickStrength,
+        strength: verdict!.strength,
+        pending: verdict!.pending,
       }}
       isTop={topRow != null && row.gamePk !== "" && row.gamePk === topRow.gamePk}
       reasons={reasons}

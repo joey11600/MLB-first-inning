@@ -14,10 +14,8 @@ import type {
   PickStrength,
 } from "@/lib/types";
 import { LambdaMeter } from "./LambdaMeter";
-import {
-  classifyTentative,
-  parseAmericanToImpliedProb,
-} from "./BoardRow";
+import { parseAmericanToImpliedProb } from "./BoardRow";
+import { classifyTentative, briefVerdictOf } from "@/lib/classify";
 import styles from "./GameDetails.module.css";
 
 /** GameDetails — expanded row drawer.
@@ -47,7 +45,12 @@ export function GameDetails({
 
   return (
     <div className={styles.wrap}>
-      <BriefLink row={row} slateDate={slateDate} />
+      <BriefLink
+        row={row}
+        detail={detail}
+        thresholds={thresholds}
+        slateDate={slateDate}
+      />
 
       <NoticeStack
         row={row}
@@ -160,10 +163,11 @@ export function GameDetails({
  * would put the same control at a different height on every row, which
  * is how a control gets hunted for instead of used.
  *
- * STRONG AND LEAN ONLY.  A PASS row has no brief -- the page would have
- * to invent a case for a game the model refused to call -- so it gets no
- * button rather than a button that lands on a dead end.  Same rule as
- * the brief page's own filter; if one moves, move both.
+ * THE RULE IS SHARED, NOT COPIED.  `briefVerdictOf` in lib/classify.ts
+ * decides which rows have a brief, and the brief PAGE calls the same
+ * function.  A private copy here is how the button and the page end up
+ * disagreeing -- the operator clicks through to a dead end, or worse, a
+ * game that has a brief shows no way to reach it.
  *
  * THE DATE RIDES ALONG.  Without it a brief opened from an old slate
  * resolves against tonight's board and reports the game as missing, and
@@ -171,37 +175,40 @@ export function GameDetails({
  */
 function BriefLink({
   row,
+  detail,
+  thresholds,
   slateDate,
 }: {
   row: BoardRow;
+  detail: GameDetail | undefined;
+  thresholds?: PickThresholds;
   slateDate?: string;
 }) {
-  const briefable =
-    Boolean(row.gamePk) &&
-    (row.pickStrength === "STRONG" || row.pickStrength === "LEAN") &&
-    (row.pickSide === "NRFI" || row.pickSide === "YRFI");
-  if (!briefable) return null;
+  const verdict = briefVerdictOf(row, thresholds, detail?.lambdaLrTotal ?? null);
+  if (!verdict || !row.gamePk) return null;
 
   const href =
     `/brief?game=${encodeURIComponent(row.gamePk)}` +
     (slateDate ? `&date=${encodeURIComponent(slateDate)}` : "");
 
-  const isLean = row.pickStrength === "LEAN";
+  const hint = verdict.pending
+    ? "The lineups aren't posted, so this verdict can still move — but the ballpark, both starters and both teams' recent first innings are already final. The brief lays out the case as it stands."
+    : verdict.strength === "LEAN"
+      ? "This one is tracked, not bet — the brief says what the model saw, what argues the other way, and why it stops short of a wager."
+      : "Why this pick is on, what argues against it, and both teams' recent first innings — written in full sentences, to be read out loud.";
 
   return (
     <div className={styles.briefBar}>
-      <span className={styles.briefHint}>
-        {isLean
-          ? "This one is tracked, not bet — the brief says what the model saw, what argues the other way, and why it stops short of a wager."
-          : "Why this pick is on, what argues against it, and both teams' recent first innings — written in full sentences, to be read out loud."}
-      </span>
+      <span className={styles.briefHint}>{hint}</span>
       <Link
         href={href}
         className={styles.briefLink}
         title={`Open the brief for ${row.away} at ${row.home}`}
       >
         Read the brief
-        <span aria-hidden>→</span>
+        <span className={styles.briefArrow} aria-hidden>
+          →
+        </span>
       </Link>
     </div>
   );
