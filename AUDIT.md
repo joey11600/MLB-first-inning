@@ -12,6 +12,51 @@ Severity legend:
 
 ---
 
+## 🟠 TIER 8 — 2026-08-04 backtest-file integrity
+
+Found while chasing an unrelated question ("does a first-inning drought
+predict the next first inning?" — it does not; see CHANGELOG). No live
+bet is affected: `two_stage_model.py` reads none of these columns and
+the live ledger's own columns are healthy.
+
+- [ ] **T8.1 — 🔴 `_pit` is NOT the point-in-time fix; `_ptfix` is**
+  `2026-08-02_training_data_leakage` recorded the ERA/FIP/OBP repair as
+  landing in `*_truepit_pit.csv`. It did not. Measured on disk: share of
+  pitchers with 2+ starts whose ERA varies within the season is **0.0%**
+  in both `truepit` and `truepit_pit`, and **73.3% / 77.5%** in
+  `truepit_ptfix` and `truepit_pit_ptfix`. `away_era` is byte-identical
+  between `truepit` and `truepit_pit` in 100% of rows. `_pit` is the
+  separate `backfill_pit_pitching_stats.py` backfill (CHANGELOG
+  2026-08-03k). **The name reads as "point-in-time" and is not** — it
+  has already misled at least two analyses into auditing a still-leaked
+  file. Fix: rename the variants, or add a `README` in `data/backtests/`
+  stating which suffix means what.
+
+- [ ] **T8.2 — 🟠 verdict columns in 2024/2025 backtests are retired-Poisson artefacts**
+  In **all four** 2024/2025 variants including `_ptfix`:
+  `nrfi_prob == nrfi_prob_raw` in 100% of rows (calibrator never
+  applied), and `nrfi_prob == exp(−lambda_total)` in 100% of rows (max
+  dev 7e-05) — the old Poisson transform, not the two-stage LR that has
+  shipped for months. `lambda_total` is byte-identical between `_pit`
+  and `_ptfix`, so the point-in-time repair rebuilt era/fip/obp and
+  never recomputed λ or anything derived from it. Measured signal of
+  `lambda_total` in those files: **AUC 0.5008 (2024) / 0.4866 (2025)** —
+  a coin flip — against 0.0535 directional strength for
+  `combined_lambda` on the live 2026 ledger. This is the mechanism
+  behind the already-recorded "2024 backtest is below-chance on itself".
+  **Rule: never read `pick_side` / `pick_strength` / `nrfi_prob` /
+  `yrfi_prob` / `lambda_total` from a 2024/2025 backtest as "what the
+  model would have done" — re-score from the feature columns.**
+
+- [x] **T8.3 — row alignment is NOT corrupt** ✅ 2026-08-04
+  Ruled out explicitly, because it was the scary hypothesis:
+  `fi_park_nrfi_rate` discriminates normally in every file (0.0544 /
+  0.0497 / 0.0838 directional strength). A scrambled file could not do
+  that. The feature columns are usable; only the derived verdict
+  columns are stale.
+
+---
+
 ## 🔴 TIER 7 — 2026-07-28 money-path + dashboard audit
 
 16-agent review (6 lenses, adversarial verification). 35 raw findings,
