@@ -1284,6 +1284,30 @@
   font-variant-numeric: tabular-nums;
   color: var(--pick-ink);
 }
+/* THE PRICE LIMIT -- "bet up to -234".  Same chip shell as the stake, a
+   step quieter, because the stake is what you type in and this is the
+   guard rail around it.  --attn is the token for "pay attention to this
+   boundary"; the words "bet up to" carry the meaning on their own, so
+   nothing is lost on a greyscale screenshot or to a colourblind reader
+   (hue never carries meaning alone -- see globals.css). */
+.limitChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px dashed color-mix(in oklab, var(--attn) 45%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  white-space: nowrap;
+}
+.limitValue {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--attn);
+}
+
 .stakeChipZero .stakeValue {
   font-size: 0.7rem;
   font-weight: 500;

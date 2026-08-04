@@ -130,6 +130,15 @@ read aloud, where a qualifier stated once falls off in the edit.
   `data/diagnostics/picks/<date>.json` exists (last 7 days ship), the
   model's own contribution magnitudes order the reasons.
 - `lib/team-names.ts` — abbreviation to "Tampa Bay" / "the Rays".
+- `lib/price-ladder.ts` — "bet up to -234", plus how many units at each
+  price down to it. Pure and client-safe (BoardRow is a client
+  component); rungs come from `stakeUnitsFor` so they can never
+  contradict the stake chip. **Its limit is the worst price still worth
+  a full unit, NOT break-even, and it deliberately stops short of the
+  shipped stake rule** — `KELLY_ROUNDED_FLOOR` keeps betting 0.5u past
+  it on almost no edge, and those are exactly the bets a subscriber
+  would take at a published limit. Read the file header before changing
+  either boundary.
 
 **One rule that exists because it would be filmed:** the #1 pick is
 selected by `selectTopPick()` in `lib/top-pick-rank.ts` and nowhere else.

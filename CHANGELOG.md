@@ -11,6 +11,75 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-04b] - the card gets a price limit: "bet up to -234"
+
+Operator: *"shouldn't it be 'Bet up to -XXX' so people know to not bet
+over that number?"*
+
+### The card was half an instruction
+
+The board printed the stake and the price it was sized at, and nothing
+else. A subscriber who opened DraftKings and found a different number
+had nothing to check it against — and the stake is a FUNCTION of the
+price, so the right bet changes as the price moves. Tonight's #1 is 9u
+at -125; the same play is 3u at -200 and no play at all past -234.
+
+### Added
+
+- **`dashboard/lib/price-ladder.ts`** — pure, client-safe (BoardRow is a
+  client component, so this may never reach `node:fs`; it imports only
+  from `lib/kelly-sim`, which has no imports of its own). Builds the
+  rungs from `stakeUnitsFor`, the same function that prints the stake
+  chip, so a rung can never contradict the stake beside it.
+- **`LimitChip` on the board row** — `BET UP TO -234` next to the stake.
+  Renders on exactly the condition StakeChip's primary path uses, so the
+  limit and the stake always appear together or not at all.
+- **`PriceLadderPanel` in the expanded row** — the full ladder, a rung
+  per whole unit down to 1u, then the pass line. The row carries only
+  the limit because the row is read on a phone in ten seconds.
+
+### The limit is deliberately NOT break-even
+
+Break-even on the 07-31 CWS@TB play is -248 — the price at which the bet
+becomes worthless. Publishing that tells a subscriber to lay a number
+with nothing in it. `passAt` is instead the worst price still worth a
+FULL UNIT of quarter-Kelly, which is -234.
+
+That stops short of the shipped stake rule ON PURPOSE. `stakeUnitsFor`
+keeps betting past `passAt` because `KELLY_ROUNDED_FLOOR` lifts a
+sub-half-unit stake to 0.5u instead of discarding it (that floor recovers
+15 of 16 bets plain rounding would drop — see `tracker.py`). The
+consequence is real 0.5u money on almost no edge: at -140/-141/-142 a
+58.9% pick wants 0.34u / 0.24u / 0.13u and stakes 0.5u at all three.
+Those are precisely the bets someone would take AT a published limit, so
+the ladder ends at the last full unit. Operator's call. **Do not "align"
+the two.**
+
+`passAt` uses `Math.ceil`, not `Math.round`: the solve returns a
+fractional price (-133.6) and rounding it to -134 would publish a limit
+one cent past the full-unit line — a price we tell people to take and
+would not take ourselves.
+
+### Cards with no room are a normal state, not an error
+
+When the card price is already at or past the full-unit line the ladder
+reports `noRoom` and the UI says "take -140 or better" instead of
+printing a "bet up to" that is a BETTER price than ours. Two of ten
+plays sampled on 08-04 were like this (0.5u and 1.0u cards).
+
+### Verified
+
+Against a **production** build (`npm run start`, per the dev-cache trap),
+not dev. Tonight's #1 SD@ARI at 71.3% / -125 renders `STAKE 9.00u` +
+`BET UP TO -234`, ladder `-125 9u … -228 1u`, `-234 or worse pass`.
+LEAN rows correctly render neither. Measured at 375px: no page overflow,
+no nested scroll (the 15rem cap was putting the common case in a scroll
+box inside an already-scrolling drawer — now 24rem). Both themes clear
+contrast on `--muted`: `--attn` 5.51 light, 6.85 dark. `tsc --noEmit`
+clean, units guard passes.
+
+---
+
 ## [2026-08-04a] - pending picks get briefs; the brief link becomes a real button
 
 Operator: *"when i click a specific brief, it just takes me to the brief

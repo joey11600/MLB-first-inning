@@ -8,6 +8,7 @@ import type { ReplayStake } from "@/lib/season-record";
 import { replayKey } from "@/lib/season-record";
 import { computeLockAt, formatLockTime } from "@/lib/lock";
 import { stakeUnitsFor } from "@/lib/kelly-sim";
+import { buildPriceLadder, formatAmerican } from "@/lib/price-ladder";
 import { classifyTentative } from "@/lib/classify";
 import styles from "./BoardRow.module.css";
 
@@ -371,6 +372,7 @@ export function BoardRowItem({
           <EliteHitterChip detail={detail} />
           <OddsChip row={row} detail={detail} />
           <StakeChip row={row} detail={detail} thresholds={thresholds} replay={replayStakes} />
+          <LimitChip row={row} detail={detail} />
         </span>
 
         <DistBar row={row} />
@@ -896,6 +898,69 @@ function StakeChip({
     <span className={styles.stakeChip}>
       <span className={styles.stakeLabel}>stake up to</span>
       <span className={styles.stakeValue}>{units.toFixed(1)}u</span>
+    </span>
+  );
+}
+
+/**
+ * "BET UP TO ‑234" — the worst price this pick is still worth taking.
+ *
+ * Operator, 2026-08-04: *"shouldn't it be 'Bet up to -XXX' so people
+ * know to not bet over that number?"* The board printed the stake and
+ * the price it was sized at, but never the LIMIT, so a subscriber who
+ * opened DraftKings and found a worse number had nothing to check it
+ * against. This is the one figure that turns the card into an
+ * instruction.
+ *
+ * The full ladder — how many units at each price on the way down —
+ * lives in GameDetails, one tap away. The row carries only the limit,
+ * because the row is read on a phone in about ten seconds.
+ *
+ * ‑234 IS NOT BREAK-EVEN. It is the worst price still worth a full unit
+ * of quarter-Kelly; break-even on that play is ‑248 and is a bet with
+ * nothing in it. See lib/price-ladder for why the published limit stops
+ * short of the shipped stake rule, and do not "align" the two.
+ *
+ * Renders nothing unless there is a real captured price, which is the
+ * same condition StakeChip's primary path uses — so the limit and the
+ * stake always appear together or not at all, never one without the
+ * other.
+ */
+function LimitChip({
+  row, detail,
+}: {
+  row: BoardRow;
+  detail: GameDetail | undefined;
+}) {
+  if (row.pickStrength !== "STRONG") return null;
+  if (row.pickSide !== "NRFI" && row.pickSide !== "YRFI") return null;
+
+  const raw = (row.pickSide === "NRFI"
+    ? detail?.marketNrfiOdds : detail?.marketYrfiOdds) || "";
+  const american = Number.parseFloat(raw.trim());
+  const p = (row.pickSide === "NRFI" ? row.nrfiPct : row.yrfiPct) / 100;
+  const ladder = buildPriceLadder(p, american);
+  if (!ladder) return null;
+
+  // NO ROOM: the card price is already at or past the full-unit line, so
+  // there is nothing to chase and printing a "bet up to" WORSE than the
+  // card would be nonsense (passAt is the BETTER price in this case).
+  // Two of ten plays sampled on 2026-08-04 were like this.
+  if (ladder.noRoom) {
+    return (
+      <span className={styles.limitChip}>
+        <span className={styles.stakeLabel}>take</span>
+        <span className={styles.limitValue}>
+          {formatAmerican(ladder.cardOdds)} or better
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span className={styles.limitChip}>
+      <span className={styles.stakeLabel}>bet up to</span>
+      <span className={styles.limitValue}>{formatAmerican(ladder.passAt)}</span>
     </span>
   );
 }

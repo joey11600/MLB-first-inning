@@ -1386,3 +1386,82 @@
 .reasoningWarn {
   margin-bottom: 4px;
 }
+
+/* ============================================================
+   THE PRICE LADDER -- "what to bet at what price".
+
+   Added 2026-08-04. Operator: "shouldn't it be 'Bet up to -XXX' so
+   people know to not bet over that number?"  The row carries the limit
+   alone; this is the full instruction behind it.
+
+   Monospace and tabular figures on BOTH columns because the whole point
+   is scanning down a column of prices to find yours -- proportional
+   digits make that a hunt.  Type is split by role per the Newsprint
+   rules: the eyebrow and the note are Inter, every FIGURE is mono.
+   ============================================================ */
+.ladderPanel {
+  margin: 0.75rem 0 0;
+  padding: 0.7rem 0.85rem 0.6rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--attn);
+  background: var(--muted);
+}
+.ladder {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  /* The stake caps at 10u, so the tallest real ladder is 10 rungs plus
+     the pass line -- about 310px, which this clears.  Measured at 375px
+     wide with the app's 15px root: 15rem was 225px and put the common
+     case in a nested scroll box inside an already-scrolling drawer.
+     The cap stays only as a guard against a pathological input. */
+  max-height: 24rem;
+  overflow-y: auto;
+}
+.ladderRung {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.22rem 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
+.ladderRung:last-child { border-bottom: 0; }
+.ladderOdds {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  min-width: 7.5rem;
+  color: var(--foreground);
+}
+.ladderUnits {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+/* OUR price gets the weight; it is the row the reader is checking
+   against.  The "our price" word does the work, not the emphasis. */
+.ladderRung[data-card="1"] .ladderOdds,
+.ladderRung[data-card="1"] .ladderUnits {
+  font-weight: 700;
+}
+.ladderTag {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
+}
+/* The stop line.  --attn, plus the word "pass" -- hue never alone. */
+.ladderPass .ladderOdds,
+.ladderPass .ladderUnits {
+  color: var(--attn);
+  font-weight: 700;
+}
+.ladderNote,
+.ladderNoRoom {
+  margin: 0.55rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: color-mix(in oklab, var(--foreground) 72%, transparent);
+}

@@ -16,6 +16,7 @@ import type {
 import { LambdaMeter } from "./LambdaMeter";
 import { parseAmericanToImpliedProb } from "./BoardRow";
 import { classifyTentative, briefVerdictOf } from "@/lib/classify";
+import { buildPriceLadder, formatAmerican } from "@/lib/price-ladder";
 import styles from "./GameDetails.module.css";
 
 /** GameDetails — expanded row drawer.
@@ -57,6 +58,8 @@ export function GameDetails({
         detail={detail}
         thresholds={thresholds}
       />
+
+      <PriceLadderPanel row={row} detail={detail} />
 
       <div className={styles.topGrid}>
         <div className={styles.projCol}>
@@ -173,6 +176,88 @@ export function GameDetails({
  * resolves against tonight's board and reports the game as missing, and
  * a link followed at 11:55pm could land on tomorrow's slate mid-read.
  */
+/**
+ * THE PRICE LADDER — what to bet at every price, not just at ours.
+ *
+ * Operator asked for "bet up to ‑XXX" on 2026-08-04. A bare limit is
+ * half an instruction: the stake is a function of the price, so an 8u
+ * play at ‑130 is a 3u play at ‑200. Publishing only the limit invites
+ * someone to lay ‑200 for eight units — a bigger error than the one the
+ * limit fixes. Hence a rung per whole unit, and the limit at the bottom.
+ *
+ * WHY IT LIVES HERE AND NOT ON THE ROW. The row is read on a phone in
+ * about ten seconds, so it carries the limit alone (LimitChip). Anyone
+ * who actually found a different price at the book is already stopped
+ * and looking, and can open the row.
+ *
+ * The rungs come from `stakeUnitsFor`, the same function that prints the
+ * stake chip, so a rung can never contradict it. The bottom stops at the
+ * last FULL unit rather than at break-even — see lib/price-ladder for
+ * why, and do not extend it to match the shipped stake rule.
+ */
+function PriceLadderPanel({
+  row, detail,
+}: {
+  row: BoardRow;
+  detail: GameDetail | undefined;
+}) {
+  if (row.pickStrength !== "STRONG") return null;
+  if (row.pickSide !== "NRFI" && row.pickSide !== "YRFI") return null;
+
+  const raw = (row.pickSide === "NRFI"
+    ? detail?.marketNrfiOdds : detail?.marketYrfiOdds) || "";
+  const american = Number.parseFloat(raw.trim());
+  const p = (row.pickSide === "NRFI" ? row.nrfiPct : row.yrfiPct) / 100;
+  const ladder = buildPriceLadder(p, american);
+  if (!ladder) return null;
+
+  if (ladder.noRoom) {
+    return (
+      <section className={styles.ladderPanel}>
+        <div className="eyebrow">What to bet at what price</div>
+        <p className={styles.ladderNoRoom}>
+          This one is already priced to the edge — the model wants{" "}
+          <strong>{ladder.cardUnits}u</strong> at{" "}
+          <strong>{formatAmerican(ladder.cardOdds)}</strong>, which is under a
+          full unit&rsquo;s worth of conviction. Take it at{" "}
+          {formatAmerican(ladder.cardOdds)} or better, or pass. There is no
+          room to chase a worse number.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className={styles.ladderPanel}>
+      <div className="eyebrow">What to bet at what price</div>
+      <ol className={styles.ladder}>
+        {ladder.rungs.map((rung, i) => (
+          <li
+            key={rung.odds}
+            className={styles.ladderRung}
+            data-card={i === 0 ? "1" : undefined}
+          >
+            <span className={styles.ladderOdds}>{formatAmerican(rung.odds)}</span>
+            <span className={styles.ladderUnits}>{rung.units}u</span>
+            {i === 0 && <span className={styles.ladderTag}>our price</span>}
+          </li>
+        ))}
+        <li className={`${styles.ladderRung} ${styles.ladderPass}`}>
+          <span className={styles.ladderOdds}>
+            {formatAmerican(ladder.passAt)} or worse
+          </span>
+          <span className={styles.ladderUnits}>pass</span>
+        </li>
+      </ol>
+      <p className={styles.ladderNote}>
+        Each price is the worst you should take for that stake. Below{" "}
+        {formatAmerican(ladder.passAt)} the bet is worth under a unit and we
+        would not place it.
+      </p>
+    </section>
+  );
+}
+
 function BriefLink({
   row,
   detail,
