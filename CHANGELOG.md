@@ -11,6 +11,34 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-05c] - health badge un-pinned: the 403 wall is a notice, not an error
+
+`/api/health` said DEGRADED whenever ANY `system_errors.csv` row landed
+in the last 24h — and the IP-blocked GHA backup scrape logs ~29
+"Fetch failed: HTTP Error 403" rows every day (see [2026-08-05b]).
+Net effect: the badge was mathematically incapable of showing OK for
+months, and `/api/health-live` idled at "warn" the same way
+(`errorsLastHour ≥ 1`). An alarm that is always on protects nothing.
+
+### Fixed
+
+- **Both health routes now classify the known-blocked scrape as a
+  NOTICE, not an error** — extending the existing T3.14 notices
+  mechanism. The match is the SIGNATURE (`step == scrape-dk-odds` AND
+  terminal `Fetch failed: HTTP Error 403` line), not the step name, so
+  a scrape failure with any other ending (read timeout, the
+  [2026-08-05b] zero-markets rotation) still counts as real.
+- **`/api/health-live` now truncates messages at response time, not
+  parse time** — the terminal 403 line sits past char 200 of the
+  logged stderr tail, so the old parse-time `.slice(0, 200)` would
+  have blinded the classifier.
+- `/api/health` gains `knownNoiseCount24h` so debugging sessions can
+  still see the journal is alive. `system_errors.csv` itself is
+  untouched — the journal keeps recording everything; only the badge
+  arithmetic ignores the wall.
+
+---
+
 ## [2026-08-05b] - DK odds restored: the subcategory id rotated overnight
 
 First slate with ZERO odds captured (0/15; prior 7 days were 100%).

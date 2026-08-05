@@ -208,11 +208,15 @@ export async function GET() {
       .gte("captured_at_utc", cutoff)
       .order("captured_at_utc", { ascending: false })
       .limit(100);
+    // NOTE: keep the FULL message here -- the known-noise classifier
+    // below matches the terminal "Fetch failed: HTTP Error 403" line,
+    // which sits past char 200 of the logged stderr tail.  Truncation
+    // for display happens at response time instead.
     recentErrors = (data ?? []).map((r: Record<string, unknown>) => ({
       capturedAtUtc: String(r.captured_at_utc ?? ""),
       step:          String(r.step ?? ""),
       exitCode:      typeof r.exit_code === "number" ? r.exit_code : null,
-      message:       String(r.message ?? "").slice(0, 200),
+      message:       String(r.message ?? ""),
     }));
   } catch { /* swallow */ }
 
@@ -227,8 +231,23 @@ export async function GET() {
   //     net found drift and patched it.  Surface so the operator can
   //     see the system is repairing itself; don't count against errors.
   const INFO_STEPS = new Set<string>(["calibration-drift", "reconcile-heal"]);
-  const noticeRows  = recentErrors.filter(e => INFO_STEPS.has(e.step));
-  const errorRows   = recentErrors.filter(e => !INFO_STEPS.has(e.step));
+
+  // 2026-08-05: the GHA (backup) DK scrape has been IP-blocked by DK's
+  // CDN since ~2026-05-04 -- every hourly run logs a terminal
+  // "Fetch failed: HTTP Error 403" row (~29/day) while the Railway
+  // service does the actual capture.  Expected and routed-around, so
+  // it is a NOTICE, not an error: counting it kept this badge pinned
+  // at warn/degraded permanently.  Signature-matched (not step-matched)
+  // so a scrape failure with any OTHER ending -- read timeout, the
+  // 2026-08-05 zero-markets id rotation -- still counts as real.
+  const isKnownBlockedScrape = (e: { step: string; message: string }) =>
+    e.step === "scrape-dk-odds" &&
+    e.message.includes("Fetch failed: HTTP Error 403");
+
+  const isNotice = (e: { step: string; message: string }) =>
+    INFO_STEPS.has(e.step) || isKnownBlockedScrape(e);
+  const noticeRows  = recentErrors.filter(isNotice);
+  const errorRows   = recentErrors.filter(e => !isNotice(e));
 
   // Group error counts by step (errors only, no notices)
   const errorCountsByStep: Record<string, number> = {};
@@ -327,11 +346,16 @@ export async function GET() {
       errorsLast24h:       errorRows.length,
       errorsLastHour,
       errorCountsByStep,
-      // Cap response size; UI only shows the top-5 most recent
-      recentErrors:        errorRows.slice(0, 5),
-      // T3.14: informational notices, NOT errors.  e.g. calibration-drift.
+      // Cap response size; UI only shows the top-5 most recent.
+      // Message truncation happens HERE (not at parse time) so the
+      // known-noise classifier above saw the full stderr tail.
+      recentErrors:        errorRows.slice(0, 5)
+                             .map(e => ({ ...e, message: e.message.slice(0, 200) })),
+      // T3.14: informational notices, NOT errors.  e.g. calibration-drift,
+      // or the known-blocked GHA scrape 403 wall (see above).
       noticesLast24h:      noticeRows.length,
-      recentNotices:       noticeRows.slice(0, 5),
+      recentNotices:       noticeRows.slice(0, 5)
+                             .map(e => ({ ...e, message: e.message.slice(0, 200) })),
     },
     { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } },
   );

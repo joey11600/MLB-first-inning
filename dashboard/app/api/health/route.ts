@@ -127,6 +127,22 @@ export async function GET() {
       .slice(0, 50);
   }
 
+  // 3b. Known noise vs real errors (2026-08-05).  The GHA (backup) DK
+  // scrape has been IP-blocked by DK's CDN since ~2026-05-04: every
+  // hourly run logs a "Fetch failed: HTTP Error 403" row (~29/day)
+  // while the Railway service does the actual odds capture.  That is
+  // expected-and-routed-around, and counting it held this badge at
+  // DEGRADED permanently -- months of alarm with no signal.  Match the
+  // TERMINAL 403 line only: a scrape row with any other ending (read
+  // timeout, the 2026-08-05 zero-markets id rotation, ...) still
+  // counts as a real error.  The rows stay in system_errors.csv -- the
+  // journal is untouched, only this badge's arithmetic ignores them.
+  const isKnownBlockedScrape = (e: { step: string; message: string }) =>
+    e.step === "scrape-dk-odds" &&
+    e.message.includes("Fetch failed: HTTP Error 403");
+  const knownNoise = recentErrors.filter(isKnownBlockedScrape);
+  const realErrors = recentErrors.filter(e => !isKnownBlockedScrape(e));
+
   // 4. Compute staleness in minutes from the lastPredictAt source-of-truth.
   // We do NOT use file mtime (Vercel serverless FS unreliably resets it).
   const minutesSinceLatest = lastPredictAt
@@ -142,9 +158,9 @@ export async function GET() {
   let status: "OK" | "STALE" | "DEGRADED" | "BROKEN" = "OK";
   const reasons: string[] = [];
 
-  if (recentErrors.length > 0) {
+  if (realErrors.length > 0) {
     status = "DEGRADED";
-    reasons.push(`${recentErrors.length} error(s) in last 24h`);
+    reasons.push(`${realErrors.length} error(s) in last 24h`);
   }
   if (Number.isFinite(minutesSinceLatest)) {
     if (isPrime && minutesSinceLatest > 240) {
@@ -180,8 +196,12 @@ export async function GET() {
             sizeBytes: picksStat.size,
           }
         : null,
-      recentErrorCount24h: recentErrors.length,
-      recentErrors:        recentErrors.slice(0, 10),  // cap response size
+      recentErrorCount24h: realErrors.length,
+      recentErrors:        realErrors.slice(0, 10),  // cap response size
+      // Known-blocked GHA scrape rows (403 wall) -- excluded from the
+      // count above but reported so a debugging session can still see
+      // the journal is alive.  See 3b.
+      knownNoiseCount24h:  knownNoise.length,
       boardsAvailable:     boardsList.length,
     },
     {
