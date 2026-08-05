@@ -287,9 +287,14 @@ invalidates their bot config.
 - The user runs production from this branch. **Don't break working
   state.** When in doubt, do less.
 - The user prefers **flat 1u plays, no Kelly sizing** (asked + answered).
-- **PALETTE = NEWSPRINT (light editorial) as of 2026-08-03.** Warm paper
-  `#FBFAF7`, near-black ink `#211E1A`, deep green `#137355` for money up,
-  crimson `#A01D14` for money down, ochre `#845608` for attention.
+- **PALETTE = NEWSPRINT (light editorial) as of 2026-08-03; paper
+  DEEPENED 2026-08-05** (operator: *"the all white is really hard on the
+  eyes"*). Aged paper `#F2EDE1` (cards are LIGHTER, `#FBF8F1`, so they
+  read as sheets on the desk), near-black ink `#211E1A`, deep green
+  `#0F6A4E` for money up, crimson `#9A1B12` for money down, ochre
+  `#7A5007` for attention. All text tokens re-measured ≥4.5:1 on
+  background, muted AND card; `--rule` 3.79:1. The deepening is NOT a
+  palette change in the reversal-history sense.
   Square corners stay (`--radius: 0`). **Type is split**: Inter for
   prose, JetBrains Mono for FIGURES ONLY -- that contrast is what makes
   monospace mean "this is a number", and `--font-sans` pointing at

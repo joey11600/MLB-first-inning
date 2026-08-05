@@ -607,6 +607,18 @@ export function DashboardShell({
           To restore the old order, move the <RoiPanel> block back here.
           Nothing else depends on the position. */}
 
+      {/* ZONE 1 -- the board's section head: the front page's rule-and-
+          eyebrow grammar, carried down so the slate reads as the paper's
+          second story. */}
+      <div className={styles.boardHead}>
+        <span className="eyebrow">The board · game by game</span>
+        <span className={styles.boardHeadCount}>
+          {displayed.length === data.rows.length
+            ? `${data.rows.length} games`
+            : `${displayed.length} of ${data.rows.length} games`}
+        </span>
+      </div>
+
       {/* ZONE 1 -- the board's own controls, touching the board. */}
       <ControlPanel
         dates={data.availableDates}

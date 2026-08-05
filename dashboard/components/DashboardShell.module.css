@@ -224,3 +224,24 @@
   .slateDate    { font-size: 18px; }
   .slateMeta    { font-size: 10px; }
 }
+
+/* ── The board's section head (2026-08-05) ─────────────────────────
+   The hero opens the page with newspaper grammar (a heavy rule and an
+   eyebrow); this carries the same grammar down to the next section so
+   the board reads as the paper's second story rather than a card that
+   happens to follow. One thick rule, the section name, the count. */
+.boardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 2px solid var(--foreground);
+  padding-top: 8px;
+  margin-top: 26px;
+}
+.boardHeadCount {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}

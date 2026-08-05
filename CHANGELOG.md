@@ -11,6 +11,40 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-05e] - the paper gets ink: deepened palette + polish pass
+
+Operator: *"do all 3 polish items. i still feel like the all white is
+really hard on the eyes, and the ui should be improved."*
+
+### Changed
+
+- **Paper deepened.** `--background` #FBFAF7 → **#F2EDE1** (aged
+  newsprint, visibly not white) and — the load-bearing inversion —
+  cards are now **lighter than the page** (`--card` #FBF8F1), so a card
+  reads as a fresh sheet on a desk instead of a hairline on glare. All
+  companion tones deepened in step (muted/accent/border/rule), and the
+  money inks nudged one step darker to hold their ratios on the deeper
+  surfaces: gain #137355→#0F6A4E, loss #A01D14→#9A1B12, attn
+  #845608→#7A5007. Every text token RE-MEASURED (WCAG): ≥5.0:1 on
+  background, muted and card; `--rule` 3.79:1. Not a palette reversal —
+  same hues, darker paper; matrix/cyan-rose/warm stay retired.
+  CLAUDE.md, PRODUCT.md and the palette memory updated with the new
+  values in the same commit.
+- **The board gets a section head** — the hero's rule-and-eyebrow
+  grammar carried down: a 2px rule, "THE BOARD · GAME BY GAME", and the
+  shown/total count on the right.
+
+### Fixed (the three polish items)
+
+- Ticker's `λ̄ 0.753` — the last bare notation on the page — now reads
+  **"avg runs 0.75"** with a plain-English tooltip.
+- /history's masthead title now uses the Fraunces display serif,
+  matching the homepage hero: two pages, one voice at headline sizes.
+- Hero deck line width 62ch → 74ch, killing the orphaned "63.0%." wrap
+  on desktop.
+
+---
+
 ## [2026-08-05d] - the front page: the №1 play IS the product now
 
 Operator: *"i want the #1 pick system to be our main system. we still

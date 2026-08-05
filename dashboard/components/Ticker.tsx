@@ -61,9 +61,14 @@ export function Ticker({
         {/* Rendered verbatim, never reworded per surface. */}
         <span className={styles.metricVal}>{chainText(night)}</span>
         <span className={styles.divider} aria-hidden />
-        <span className={styles.metric}>
-          <span className={styles.metricKey}>λ̄</span>
-          <span className={styles.metricVal}>{avgLambda.toFixed(3)}</span>
+        {/* 2026-08-05: "λ̄ 0.753" was the last bare notation on the page.
+            Same figure, said in English; the tooltip carries the rest. */}
+        <span
+          className={styles.metric}
+          title="Average expected first-inning runs across tonight's slate, per the model."
+        >
+          <span className={styles.metricKey}>avg runs</span>
+          <span className={styles.metricVal}>{avgLambda.toFixed(2)}</span>
         </span>
         <span className={styles.metric}>
           <span className={styles.metricKey}>games</span>

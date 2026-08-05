@@ -95,11 +95,14 @@ losses. Numbers carry the message.
 
 ## Brand / palette
 
-**Newsprint.** Warm paper `#FBFAF7`, near-black ink `#211E1A`, square
+**Newsprint.** Aged paper `#F2EDE1`, near-black ink `#211E1A`, square
 corners. Chosen 2026-08-03 after the operator retired the matrix
 terminal palette (*"i dont really like the current green theme
-anymore"*). This is the THIRD palette in three months and the history is
-kept below on purpose.
+anymore"*); paper DEEPENED 2026-08-05 (operator: *"the all white is
+really hard on the eyes"*) -- same hues, darker paper, and cards are
+now LIGHTER than the page (`#FBF8F1`) so they read as fresh sheets on a
+desk rather than hairlines on glare. This is the THIRD palette in three
+months and the history is kept below on purpose.
 
 **Type is split**, which is most of why the page reads as editorial:
 Inter for prose, **JetBrains Mono for figures only**. That contrast is
@@ -110,11 +113,11 @@ looking like a terminal.
 
 | token | value | meaning | on paper |
 |---|---|---|---|
-| `--foreground` | `#211E1A` | body ink | 15.90:1 |
-| `--muted-foreground` | `#5F584E` | secondary ink | 6.72:1 |
-| `--gain` (`--primary`) | `#137355` | real money UP | 5.57:1 |
-| `--loss` (`--destructive`) | `#A01D14` | real money DOWN | 7.51:1 |
-| `--attn` | `#845608` | money at risk / decision waiting | 6.07:1 |
+| `--foreground` | `#211E1A` | body ink | 14.21:1 |
+| `--muted-foreground` | `#5C544A` | secondary ink | 6.37:1 |
+| `--gain` (`--primary`) | `#0F6A4E` | real money UP | 5.63:1 |
+| `--loss` (`--destructive`) | `#9A1B12` | real money DOWN | 7.08:1 |
+| `--attn` | `#7A5007` | money at risk / decision waiting | 6.04:1 |
 
 **Why it changed, and it was not only taste.** Under the matrix palette
 `--foreground` and `--gain` were the same `#00FF41`, byte-identical, so

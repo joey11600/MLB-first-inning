@@ -109,7 +109,10 @@
   font-size: 15px;
   line-height: 1.5;
   margin: 8px 0 0;
-  max-width: 62ch;
+  /* 74ch, not 62: at 62 the desktop deck wrapped with "63.0%." alone
+     on its second line. The sentence is one or two lines either way;
+     the cap only exists to stop a full-bleed line on wide screens. */
+  max-width: 74ch;
   color: var(--foreground);
 }
 

@@ -107,38 +107,53 @@
    Inter now, figures stay mono, and that contrast is most of why the
    page reads as editorial rather than as a terminal.
    ============================================================ */
+/* ============================================================
+   PAPER DEEPENED 2026-08-05. Operator: "the all white is really
+   hard on the eyes." Same palette, same hues, same rules -- the
+   PAPER got ink. #FBFAF7 was white wearing a warm name; real
+   newsprint is a grey-beige, so --background drops to #F2EDE1 and
+   -- the important inversion -- cards are now LIGHTER than the
+   page (#FBF8F1), so a card reads as a fresh sheet lying on the
+   desk instead of a hairline drawn on glare. Every text token was
+   re-measured on the new surfaces (WCAG relative luminance, not
+   eyeballed): all five clear 4.5:1 on background AND muted AND
+   card; --rule clears 3:1. Money inks nudged one step deeper to
+   hold their ratios on the deeper muted. This is NOT a palette
+   change in the sense the reversal history below means -- matrix,
+   cyan/rose and warm all stay dead.
+   ============================================================ */
 :root {
-  --background:        #FBFAF7;   /* warm paper, never pure white */
-  --card:              #FFFFFE;
-  --muted:             #F1EFE9;
-  --accent:            #E7E3D9;
-  --input:             #FFFFFE;
-  --border:            #BFB8A7;   /* 1.89:1 -- a hairline, see --rule */
-  --rule:              #8E877A;   /* 3.4:1 -- meaningful boundaries */
-  --ring:              #137355;
+  --background:        #F2EDE1;   /* aged newsprint -- not white */
+  --card:              #FBF8F1;   /* a fresh sheet ON the paper: 1.10:1 above bg */
+  --muted:             #E8E1D1;
+  --accent:            #DFD7C4;
+  --input:             #FBF8F1;
+  --border:            #B3AA95;   /* 1.98:1 -- a hairline, see --rule */
+  --rule:              #7F776A;   /* 3.79:1 -- meaningful boundaries */
+  --ring:              #0F6A4E;
   --radius-sm:         6px;    /* chips, inputs, small controls */
   --radius:            10px;   /* cards, rows, panels -- the default */
   --radius-lg:         16px;   /* the largest surfaces only */
 
-  --foreground:           #211E1A;   /* 15.90 on bg / 14.43 on muted */
-  --muted-foreground:     #5F584E;   /*  6.72 /  6.10 */
+  --foreground:           #211E1A;   /* 14.21 on bg / 12.74 on muted */
+  --muted-foreground:     #5C544A;   /*  6.37 /  5.71 */
 
-  --primary:               #137355;
-  --primary-foreground:    #FBFAF7;
-  --secondary:             #E7E3D9;
+  --primary:               #0F6A4E;
+  --primary-foreground:    #FBF8F1;
+  --secondary:             #DFD7C4;
   --secondary-foreground:  #211E1A;
-  --destructive:           #A01D14;   /*  7.51 /  6.81 */
-  --destructive-foreground:#FBFAF7;
+  --destructive:           #9A1B12;   /*  7.08 /  6.35 */
+  --destructive-foreground:#FBF8F1;
 
   /* ---- THE THREE MEANINGS.  New code uses these names, never the
      raw ones above, so the rule is readable at the call site. ---- */
-  --gain:  var(--primary);       /* real money UP   #137355  5.57 / 5.06 */
-  --loss:  var(--destructive);   /* real money DOWN #A01D14  7.51 / 6.81 */
+  --gain:  var(--primary);       /* real money UP   #0F6A4E  5.63 / 5.05 */
+  --loss:  var(--destructive);   /* real money DOWN #9A1B12  7.08 / 6.35 */
   /* --attn is its OWN ink now. Under the matrix palette it had to alias
      --muted-foreground because the spec's #003B00 was invisible; on
      paper an ochre clears AA on its own and stops "needs a decision"
      looking identical to every dimmed label on the page. */
-  --attn:  #845608;                   /*  6.07 /  5.51 */
+  --attn:  #7A5007;                   /*  6.04 /  5.41 */
 
   /* ---- SIDE INKS.  Weight, not hue.  Still banned as hue: two rounds
      of violations survived the original law and were only found when a
@@ -171,7 +186,7 @@
 
   /* 10% wash behind soft NRFI tints.  Re-derived from the CURRENT
      accent value rather than a stale one. */
-  --nrfi-soft:    rgba(19, 115, 85, 0.08);
+  --nrfi-soft:    rgba(15, 106, 78, 0.08);
 
   /* "Draft / reconstructed" as a TEXTURE, for the simulated
      surfaces (the model-replay rail, replay-only rows).  Built from
