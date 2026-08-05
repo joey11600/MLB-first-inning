@@ -581,7 +581,10 @@ function passReasonText(
              : floorN < 0.837 ? " (lowered for cold weather)"
              : "";
     return {
-      text: `λ ${row.lambda.toFixed(2)}`,
+      /* "runs 0.72", not "λ 0.72" -- the operator has asked not to be
+         handed bare notation (2026-08-05 controls cleanup). Same value,
+         said in English; the tooltip still carries the full working. */
+      text: `runs ${row.lambda.toFixed(2)}`,
       tooltip:
         `Would-be STRONG YRFI demoted to PASS.  The model's own first-inning ` +
         `run projection (${f.proj}) is below this game's ${f.floor} YRFI floor${wx}, ` +

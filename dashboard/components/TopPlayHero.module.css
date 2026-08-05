@@ -1,0 +1,267 @@
+/* ============================================================
+   TopPlayHero -- the front page.
+
+   NEWSPRINT LEAD-STORY GRAMMAR, not a card. No box, no background:
+   the story sits directly on the paper, opened by the classic
+   double rule (one thick, one thin) that newspapers use to start
+   the page. Fraunces carries the matchup because the display face
+   is the token that says "this is the thing itself" (see
+   globals.css --font-display); Inter carries the sentences; the
+   money line is JetBrains Mono because it is made of figures.
+
+   COLOUR DISCIPLINE (PRODUCT.md): hue appears exactly twice here,
+   and both are real-money meanings -- the WON/LOST stamp and the
+   units figure in the credentials row. Side is never a hue.
+   ============================================================ */
+
+.hero {
+  padding: 18px 0 22px;
+  margin-bottom: 6px;
+}
+
+/* The double rule: 3px ink, 2px gap, 1px ink. One element, no tricks. */
+.rules {
+  border-top: 3px solid var(--foreground);
+  border-bottom: 1px solid var(--foreground);
+  height: 2px;
+  margin-bottom: 14px;
+}
+
+.eyebrowRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--foreground);
+}
+
+.eyebrowDate {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.headlineRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(30px, 6vw, 52px);
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--foreground);
+}
+
+/* The quiet headline for no-play / still-forming nights. Same face,
+   smaller and calmer: an empty slate is a correct outcome and must not
+   look like an error (PRODUCT.md principle 3). */
+.headlineQuiet {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(24px, 4.5vw, 36px);
+  line-height: 1.1;
+  margin: 0;
+  color: var(--foreground);
+}
+
+.at {
+  font-weight: 400;
+  font-style: italic;
+  font-size: 0.62em;
+  color: var(--muted-foreground);
+  letter-spacing: 0;
+}
+
+/* Settled result: a rubber stamp, the one flourish on the page.
+   Real money, so it carries the money hue -- with the word and the
+   sign doing the actual work, per the hue-never-alone rule. */
+.stamp {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 12px;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  transform: rotate(-1.5deg);
+  white-space: nowrap;
+}
+.stamp[data-tone="gain"] { color: var(--gain); }
+.stamp[data-tone="loss"] { color: var(--loss); }
+
+.deck {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  max-width: 62ch;
+  color: var(--foreground);
+}
+
+.deckDim { color: var(--muted-foreground); }
+
+/* ---- The money line: label-over-figure pairs, reading order =
+   placing order (side, price, stake, limit, time). Figures are mono
+   and larger than their labels by enough that the eye lands on them
+   first at arm's length. ---- */
+.moneyLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  margin-top: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.moneyItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.moneyLabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.moneyValue {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.moneyValueStrong {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Settled plays keep the line for the record but step it back --
+   there is nothing left to do with these numbers. */
+.moneyLine[data-settled="1"] .moneyValue,
+.moneyLine[data-settled="1"] .moneyValueStrong {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.status {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  margin: 10px 0 0;
+  color: var(--attn);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 14px;
+}
+
+/* Ink button: the paper's own foreground as the fill. The one filled
+   control in the hero, because the brief is the one onward action. */
+.briefBtn {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--background);
+  background: var(--foreground);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: opacity 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.briefBtn:hover { opacity: 0.85; }
+.briefBtn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.others {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.otherPlay {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--foreground);
+}
+
+/* ---- Credentials: the record travels with the play. ---- */
+.creds {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.credsLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.credsFigs {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.credsFigs b { font-weight: 700; }
+.credsFigs b[data-money="up"] { color: var(--gain); }
+.credsFigs b[data-money="down"] { color: var(--loss); }
+
+.credsDim { color: var(--muted-foreground); }
+
+.credsLink {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.credsLink:hover { border-bottom-color: var(--foreground); }
+
+/* ---- Phone: the scene this page is designed for. ---- */
+@media (max-width: 560px) {
+  .hero { padding-top: 12px; }
+  .moneyLine { gap: 10px 20px; }
+  .moneyValue, .moneyValueStrong { font-size: 17px; }
+  .stamp { font-size: 13px; }
+  .credsLink { margin-left: 0; }
+}

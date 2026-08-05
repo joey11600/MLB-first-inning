@@ -203,8 +203,12 @@ export function HistoryView({
     }
   }
 
-  const eyebrowText = "Performance · daily breakdown";
-  const titleText   = "Bankroll history";
+  /* 2026-08-05: the #1 pick is the main system, and the page now leads
+     with its real-money record -- so the masthead says that, instead of
+     "Bankroll history" over a page whose first figure is no longer a
+     bankroll. */
+  const eyebrowText = "The record";
+  const titleText   = "The №1 pick, then the whole system";
 
   // THE PAGE'S SERIES. Replay first (see replaySeries); the realised
   // ledger survives only as a fallback for a payload with no record.
@@ -404,37 +408,40 @@ export function HistoryView({
         </div>
       </header>
 
-      {/* THE SYSTEM, for the SAME window the filters above select.
-          Added 2026-07-29: this page had the identical 7d/30d/season
-          filters as the main dashboard but answered a different
-          question with them -- it only ever showed the realised ledger,
-          which is mostly bets placed under RULES THAT NO LONGER APPLY
-          (NRFI was live then and is switched off now; the YRFI gate has
-          tightened). So the operator could pick "Last 30 days" on two
-          pages and get two unrelated numbers with nothing saying why.
+      {/* ══ 2026-08-05 REORDER: THE №1 PICK LEADS ══
+          Operator: "i want the #1 pick system to be our main system. we
+          still track the total system record and units, but the #1 pick
+          is the main system." Until today this page led with the
+          SIMULATED whole-system replay (+125u, bank levels) while the
+          real-money #1 record sat halfway down -- the inversion of what
+          the operator sells. Order now: the #1 pick's ledger record and
+          its working, THEN the whole system (replay + every-play view).
+          Nothing was deleted; everything moved. */}
 
-          This card answers "what would today's system have done over
-          this window". The ledger below answers "what actually
-          happened". Both are true, they are different questions, and
-          they are now labelled as such instead of being left to look
-          like a contradiction. */}
-      {/* ONE HERO, NOT TWO PEERS (2026-07-29 redesign pass 2).
-          These were two identically-weighted bordered tiles stacked on
-          top of each other -- the system's figure and the ledger's --
-          which is precisely the "stack of same-weight cards" PRODUCT.md
-          names as the reason nothing on this page is scannable, and it
-          also made two numbers that answer DIFFERENT questions look like
-          a contradiction.
+      {/* THE #1 PICK, REAL MONEY -- the lead. It is the ledger, so its
+          figures keep their money hues while the replay cards below
+          render dim; meeting the real one first is the teaching order
+          that matches what the page is now for. */}
+      <TopPickCard report={topPick ?? null} />
 
-          Now: the system leads at full size because that is what this
-          page is for, and what actually happened sits beneath it as a
-          subordinate line rather than a rival card. The date filter
-          drives both. */}
+      {/* THE WORKING BEHIND THAT CARD (2026-08-03). The operator films a
+          video about the night's top play and needs figures to quote:
+          the record, the last ten, the cumulative units, and the
+          month-by-month and every-play tables underneath. Conclusion
+          first, then evidence -- the order they will talk about it in. */}
+      <TopPickHistory report={topPick ?? null} />
+
+      {/* THE WHOLE SYSTEM, from here down. Same machine, lower
+          selectivity: every STRONG play rather than one a night. The
+          simulated replay hero answers "what would today's rules have
+          done over this window"; the every-play table underneath it uses
+          the same shape as the #1 section above so the two can be read
+          against each other without holding two definitions. */}
       <section className={styles.hero}>
         {sysWindow ? (
           <>
             <div className={styles.heroLabel}>
-              The system · ¼-Kelly <span className="tag">Simulated</span>
+              The whole system · ¼-Kelly <span className="tag">Simulated</span>
             </div>
             {/* THE RETURN, NOT THE SUM (2026-07-30, unit re-basing).
                 This printed `sysWindow.yrfi.pnl` -- units added across
@@ -489,7 +496,7 @@ export function HistoryView({
           </>
         ) : (
           <>
-            <div className={styles.heroLabel}>The system · ¼-Kelly</div>
+            <div className={styles.heroLabel}>The whole system · ¼-Kelly</div>
             <div className={styles.heroFig}>—</div>
             <div className={styles.heroSub}>
               No replayed bets in this window.
@@ -523,28 +530,9 @@ export function HistoryView({
           there is no record -- see the guard in the component. */}
       <WeekAtAGlance side={sysSide} stamp={stamp} />
 
-      {/* THE #1 PICK, REAL MONEY -- directly under the simulated week
-          card on purpose. One is the replay and renders dim, the other
-          is the ledger and keeps its money hues; side by side they
-          teach the convention that PRODUCT.md says must be readable
-          without a legend. It is also the answer to "how is the top
-          play actually doing", which the replay cards cannot give. */}
-      <TopPickCard report={topPick ?? null} />
-
-      {/* THE WORKING BEHIND THAT CARD (2026-08-03). The operator films a
-          video about the night's top play and needs figures to quote:
-          the record, the last ten, what a 100u bank actually became, and
-          the month-by-month and side-by-side tables underneath. Placed
-          immediately after the verdict card so the reader meets the
-          conclusion before the evidence, which is the order they will
-          talk about it in. */}
-      <TopPickHistory report={topPick ?? null} />
-
-      {/* THE WHOLE SYSTEM, same rules and same staking as the card above.
-          Reading them one after the other is the point: the #1 play and
-          the full slate are the same machine at two levels of
-          selectivity, and a reader should not have to hold two
-          definitions to compare them. */}
+      {/* Every play under today's rules -- the whole-system counterpart
+          of the #1 section that now leads the page. Same shape, same
+          staking, so the two read against each other. */}
       <TopPickHistory
         report={systemAll ?? null}
         id="systemHistTitle"

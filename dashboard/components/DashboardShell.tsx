@@ -17,8 +17,10 @@ import { Ticker } from "./Ticker";
 import type { RecFile } from "@/lib/season-record";
 import { replayStakesFor } from "@/lib/season-record";
 import { nightFromBoard, nightFromRecord } from "@/lib/reconcile";
-import { TonightsActionCard } from "./TonightsActionCard";
+import { TopPlayHero } from "./TopPlayHero";
+import type { TopPickReport } from "@/lib/top-pick";
 import { SettingsDropdown } from "./SettingsDropdown";
+import { RunJobControl } from "./RunJobControl";
 import styles from "./DashboardShell.module.css";
 
 // 2026-07-28 redesign -- SURFACES REMOVED FROM THIS SHELL.
@@ -125,7 +127,15 @@ function readPersistedFilters(): Filters {
   return DEFAULT_FILTERS;
 }
 
-export function DashboardShell({ initial }: { initial: BoardResponse }) {
+export function DashboardShell({
+  initial,
+  topPick = null,
+}: {
+  initial: BoardResponse;
+  /** The #1 system's real-money report (server-loaded). Drives the
+   *  front-page hero's credentials row. */
+  topPick?: TopPickReport | null;
+}) {
   const [data, setData] = useState<BoardResponse>(initial);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -501,7 +511,10 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
             <span className={styles.navLinkIcon} aria-hidden>▤</span>
             History
           </a>
-          <SettingsDropdown notifyToggle={<NotifyToggle />} />
+          <SettingsDropdown
+            notifyToggle={<NotifyToggle />}
+            opsControls={<RunJobControl />}
+          />
         </div>
       </header>
 
@@ -525,19 +538,22 @@ export function DashboardShell({ initial }: { initial: BoardResponse }) {
           moves down for the mirror-image reason -- a record is not a
           thing you act on tonight. */}
 
-      {/* ZONE 1 -- the hero.  `date` is passed now (it was not before, so
-          the eyebrow read a bare "Tonight" even over a slate from three
-          weeks ago).  `replayStakes` is passed so the card's "at risk"
-          figure is the SUM OF THE STAKE CHIPS the operator can see on the
-          rows below -- previously it added up the ledger's units, which
-          are a flat 1.00 on every bet placed before Kelly sizing went
-          live, so the two disagreed on any older slate. */}
-      <TonightsActionCard
+      {/* ZONE 1 -- THE FRONT PAGE (2026-08-05 redesign).
+          The #1 pick is the main system now, so the lead is one story:
+          the night's №1 play in display type, its four placing numbers
+          (side / price / stake / limit), and the #1 system's real-money
+          record as standing credentials.  This replaces
+          TonightsActionCard, which counted things (flagged / placed /
+          settled / at-risk) and needed a paragraph to explain its own
+          chips -- those totals still live in the ticker, and the other
+          STRONG plays appear as the hero's "Also on the card" line.
+          The file stays on disk; remount it here if the counting view
+          is ever wanted back. */}
+      <TopPlayHero
         rows={data.rows}
         details={data.details}
         date={data.date}
-        night={night}
-        replayStakes={replayStakes}
+        report={topPick}
       />
 
       {/* ZONE 1 -- the alerts rail.  All three of these render nothing

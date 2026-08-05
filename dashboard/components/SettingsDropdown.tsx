@@ -28,9 +28,15 @@ interface SettingsDropdownProps {
    *  dropdown can host whatever the parent passes without taking on
    *  a hard dependency on the notify code path. */
   notifyToggle?: React.ReactNode;
+  /** Ops machinery (the Run-job predict/grade dispatch buttons).
+   *  2026-08-05: moved here from the board's filter row -- these re-run
+   *  the pipeline, not the view, so they belong with the
+   *  touch-once-and-forget controls rather than between the sort select
+   *  and the search box. */
+  opsControls?: React.ReactNode;
 }
 
-export function SettingsDropdown({ notifyToggle }: SettingsDropdownProps) {
+export function SettingsDropdown({ notifyToggle, opsControls }: SettingsDropdownProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef   = useRef<HTMLButtonElement>(null);
@@ -111,6 +117,15 @@ export function SettingsDropdown({ notifyToggle }: SettingsDropdownProps) {
               <ThemeToggle />
             </span>
           </div>
+
+          {opsControls && (
+            <>
+              <div className={styles.menuEyebrow}>Run the pipeline</div>
+              <div className={styles.menuRow} role="none">
+                <span className={styles.menuControl}>{opsControls}</span>
+              </div>
+            </>
+          )}
 
           <div className={styles.menuFoot}>
             <a

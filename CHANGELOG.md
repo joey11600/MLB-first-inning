@@ -11,6 +11,67 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-05d] - the front page: the №1 play IS the product now
+
+Operator: *"i want the #1 pick system to be our main system. we still
+track the total system record and units, but the #1 pick is the main
+system. the current dashboard is just so bland, so many confusing
+things, the ui seems broken, the controls are all weird."*
+
+### Added
+
+- **`TopPlayHero`** — the homepage lead is now one story, newspaper
+  front-page grammar: double rule, "THE №1 PLAY" eyebrow, the matchup
+  in Fraunces display type ("Tampa Bay at Colorado"), a plain-English
+  deck ("The bet: a run scores in the first inning"), and the money
+  line as label-over-figure pairs — side · price · stake · bet-up-to ·
+  first pitch. Settled nights get a WON/LOST rubber stamp with the
+  realized units; pending nights show the lock countdown; a no-play
+  night renders calm and intentional per PRODUCT.md. The #1 system's
+  REAL-money record rides under it as a credentials row (45–21 ·
+  hit% vs needs% · units at ¼-Kelly · last 10), from the same
+  `loadTopPickReport` /history uses, so the two surfaces cannot quote
+  different records. Other STRONG plays appear as one "Also on the
+  card" line. Which game is #1 comes from `selectTopPick` — the same
+  rule as the board badge and /brief.
+- **`RunJobControl`** — the GitHub Actions predict/grade dispatch
+  buttons, extracted from the board's filter row into the Settings
+  menu under "Run the pipeline". Ops machinery is not a view control.
+
+### Changed
+
+- **`TonightsActionCard` unmounted** (file kept). It counted things and
+  needed a paragraph to explain its own chips; its totals live in the
+  ticker and its play list is the hero now.
+- **ControlPanel speaks English**: sort options are "Best YRFI chance
+  first / Most expected runs first / …" instead of "P(YRFI) high → low"
+  and "λ high → low" (keys unchanged, so persisted filters survive).
+  Side order is All · NRFI · YRFI · Pass (Pass sat between the two
+  sides it is not one of). Date options render "Wed · Aug 5" instead of
+  raw ISO. The board row's visible "λ 0.72" chip is now "runs 0.72".
+- **/history leads with the #1 pick system**: the real-money record
+  card and its full working (cumulative units, month-by-month, every
+  play) moved above the simulated whole-system replay, which is
+  retitled "The whole system · ¼-Kelly · Simulated" and keeps the
+  total record + units the operator still wants tracked. Masthead:
+  "The №1 pick, then the whole system".
+
+### Fixed
+
+- **The permanent "Not enough data yet — the calibration figures could
+  not be read" card** on the homepage now renders nothing when the
+  file is unreadable or too thin to plot. A missing diagnostic is a
+  zero-pixel outcome, not an error surface that makes the UI look
+  broken.
+
+Verified on a local production build (`next build` + `next start`,
+per the dashboard-verification-trap rule): hero + credentials render
+with real figures, Fraunces at 52px desktop / 30px at 375px wide, no
+horizontal overflow at phone width, Settings menu hosts Predict/Grade,
+history section order confirmed by text position, zero console errors.
+
+---
+
 ## [2026-08-05c] - health badge un-pinned: the 403 wall is a notice, not an error
 
 `/api/health` said DEGRADED whenever ANY `system_errors.csv` row landed

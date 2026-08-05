@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { loadBoard } from "@/lib/board";
+import { loadTopPickReport } from "@/lib/top-pick";
 import { DashboardShell } from "@/components/DashboardShell";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,14 @@ export default async function HomePage({
   if (searchParams?.date) {
     redirect("/");
   }
-  const initial = await loadBoard(null);
-  return <DashboardShell initial={initial} />;
+  /* The #1 system's real-money report rides along for the front-page
+     hero's credentials row -- the SAME loader /history's lead section
+     uses, so the two surfaces cannot quote different records.
+     Soft-fails to null: a missing ledger costs the credentials row,
+     never the page. */
+  const [initial, topPick] = await Promise.all([
+    loadBoard(null),
+    loadTopPickReport(new Date().getUTCFullYear()).catch(() => null),
+  ]);
+  return <DashboardShell initial={initial} topPick={topPick} />;
 }

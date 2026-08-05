@@ -236,19 +236,12 @@ export function ReliabilityCurve({
   // the ops panel earned.
   if (!injected && (state === "idle" || state === "loading")) return null;
 
-  if (!data || !Array.isArray(data.bins)) {
-    return (
-      <section className={styles.card}>
-        <Head
-          eyebrow="Calibration"
-          title="Model probability vs what actually happened · YRFI"
-        />
-        <EmptyLine>
-          Not enough data yet — the calibration figures could not be read.
-        </EmptyLine>
-      </section>
-    );
-  }
+  /* 2026-08-05 redesign: when the calibration file cannot be read there
+     is nothing to say, so say nothing.  The previous behaviour rendered
+     a permanent "could not be read" card on the homepage, which the
+     operator (correctly) read as the UI being broken.  A missing
+     diagnostic is a zero-pixel outcome, not an error surface. */
+  if (!data || !Array.isArray(data.bins)) return null;
 
   return <ReliabilityCurveBody data={data} />;
 }
@@ -287,19 +280,10 @@ function ReliabilityCurveBody({ data }: { data: CalibrationData }) {
     return { n, pred, actual, wLo: w?.lo ?? null, wHi: w?.hi ?? null };
   }, [data.betRegion, bins, gate]);
 
-  if (bins.length === 0) {
-    return (
-      <section className={styles.card}>
-        <Head
-          eyebrow="Calibration"
-          title="Model probability vs what actually happened · YRFI"
-        />
-        <EmptyLine>
-          Not enough data yet — no probability band has enough graded games to plot.
-        </EmptyLine>
-      </section>
-    );
-  }
+  /* Same rule as the unreadable-file case above: too little data to
+     plot is a zero-pixel outcome, not a card announcing its own
+     emptiness. */
+  if (bins.length === 0) return null;
 
   /* ---- layout, EquityCurveChart idiom ---- */
   const W = 720, H = 380;
