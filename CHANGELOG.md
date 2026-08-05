@@ -11,6 +11,47 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-05f] - the last two rooms: record zone + expanded row join the redesign
+
+Operator: *"do the performance panel and expanded row view too."*
+
+### Changed
+
+- **The record zone speaks the page's grammar.** RoiPanel's head gains
+  the heavy-rule-and-eyebrow treatment and is retitled **"The record ·
+  the whole system"** (was "Performance") — with the №1 pick leading
+  the page, this zone is explicitly the whole system's book. The "Why
+  the system did that" zone's hairline was promoted to the same 2px
+  rule. No money math touched anywhere in this commit — labels, rules
+  and copy only.
+- **DayReconcile speaks English**: "not replayed yet" → "replay
+  pending" (same claim, stops reading as breakage; still distinct from
+  "the replay passed"), "λ below the YRFI run floor" → "expected runs
+  below the YRFI floor", ticker-strip "MODEL REPLAY not replayed yet"
+  → "MODEL REPLAY pending".
+- **Expanded row plain-English pass** (GameDetails):
+  - "Blended inputs 3/4" → **"Inputs with real data 3/4"** with a
+    tooltip; meaning verified against the predictor (how many of the
+    two starters + two lineups carried real data vs league-average
+    fallback). Park factor gains a tooltip.
+  - Pick diagnostics translated: sub-line "T4.2 priors-pooling status,
+    pitcher data quality, calibrator band" → "The data-quality checks
+    the model ran on this game"; "xera shrinkage (T4.2)" → "thin
+    pitcher data" with a sentence ("too few innings to take his 2.71
+    at face value, so the model blended it toward the league norm");
+    "pitcher_q tag: ltd" → "pitcher sample size: limited" (codes
+    mapped at render, unknown codes pass through); calibrator flat-zone
+    paragraph rewritten as "confidence band"; footer drops the tool
+    name and ticket number.
+  - LambdaMeter's screen-reader label now says "Chance a run scores in
+    the first inning: 71.3%" instead of "P(YRFI) 0.713".
+
+Verified on a local prod build with headless screenshots: both zones
+carry the rule grammar, "Inputs with real data 4/4" renders in the
+expanded row, replay strip reads "pending".
+
+---
+
 ## [2026-08-05e] - the paper gets ink: deepened palette + polish pass
 
 Operator: *"do all 3 polish items. i still feel like the all white is

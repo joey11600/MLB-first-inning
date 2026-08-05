@@ -50,6 +50,12 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  /* The front page's section grammar (2026-08-05): a heavy rule opens
+     each story. Same treatment as the board's head, so the page reads
+     front page -> the board -> the record, in one voice. */
+  border-top: 2px solid var(--foreground);
+  padding-top: 8px;
+  margin-top: 14px;
 }
 
 .headLeft {

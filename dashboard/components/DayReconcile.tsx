@@ -157,13 +157,18 @@ function gateText(g: RecGame): string {
 
 function whyText(g: RecGame): string {
   const r = g.record;
-  if (!r) return "not replayed yet";
+  /* "replay pending", not "not replayed yet" (2026-08-05): same claim,
+     but the old phrasing read as the UI being broken. Still distinct
+     from "the replay passed" -- never swap those two meanings. */
+  if (!r) return "replay pending";
   if (r.action === "BET") return "both agree";
 
   switch (r.code || codeFromReason(r.reason)) {
     case "gate":           return gateText(g);
-    case "lambda_floor":   return "λ below the YRFI run floor";
-    case "lambda_ceiling": return "λ above the NRFI run ceiling";
+    /* "expected runs", not "λ" -- no bare notation in operator-facing
+       text (2026-08-05 plain-English pass). */
+    case "lambda_floor":   return "expected runs below the YRFI floor";
+    case "lambda_ceiling": return "expected runs above the NRFI ceiling";
     case "no_price":       return "no DK price captured — the replay can't size it";
     case "daily_cap":      return "the replay's daily risk budget was already spent";
     case "kelly_no_edge":  return "no edge at that price";
@@ -220,7 +225,7 @@ function ReplayCell({ g }: { g: RecGame }) {
 
   // Absent record = this date was never replayed. NOT the same claim as
   // "the replay passed"; never swap these two strings.
-  if (!r) return <span className={styles.words}>not replayed yet</span>;
+  if (!r) return <span className={styles.words}>replay pending</span>;
   if (r.action !== "BET") return <span className={styles.words}>no bet</span>;
 
   const stake = isNum(r.stake) ? `${r.stake.toFixed(2)}u` : "staked";

@@ -605,8 +605,10 @@ body::before {
    the sentence "these counts are ALLOWED to differ". */
 .zoneWhy {
   margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  /* 2026-08-05: promoted from a 1px hairline to the section grammar the
+     rest of the page now uses -- a heavy rule opens each story. */
+  border-top: 2px solid var(--foreground);
   background: transparent;
 }
 .zoneHead {

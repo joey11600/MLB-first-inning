@@ -89,15 +89,21 @@ export function GameDetails({
               k="Park factor"
               v={detail?.parkFactor ? detail.parkFactor.toFixed(3) : "—"}
               mono
+              title="How this ballpark changes first-inning scoring. 1.000 is neutral; higher means runs come easier here."
             />
+            {/* "Inputs with real data", not "Blended inputs" (2026-08-05
+                plain-English pass). Verified meaning: of the four team
+                inputs -- two starting pitchers, two lineups -- how many
+                carried real data rather than a league-average fallback. */}
             <KV
-              k="Blended inputs"
+              k="Inputs with real data"
               v={
                 detail?.blendedInputs !== null && detail?.blendedInputs !== undefined
                   ? `${detail.blendedInputs}/4`
                   : "—"
               }
               mono
+              title="Of the four team inputs (two starting pitchers, two lineups), how many had real data instead of a league-average fallback."
             />
             <KV k="Pick" v={row.pickLabel} />
           </div>
@@ -429,8 +435,13 @@ function PickReasoningPanel({
     <section className={styles.reasoningPanel}>
       <div className={styles.whyHead}>
         <span className="eyebrow">Pick diagnostics</span>
+        {/* 2026-08-05 plain-English pass: this sub-line read
+            "T4.2 priors-pooling status, pitcher data quality, calibrator
+            band" -- three internal codenames in a row, on a surface the
+            operator reads. The information below is unchanged; only the
+            words face the reader now. */}
         <span className={styles.whySub}>
-          T4.2 priors-pooling status, pitcher data quality, calibrator band.
+          The data-quality checks the model ran on this game.
         </span>
         <span className={styles.modelVersionPill} title="Model version recorded at predict time">
           {modelVersion}
@@ -439,26 +450,34 @@ function PickReasoningPanel({
 
       {!hasConcerns && (
         <div className={`${styles.reasoningPill} ${styles.reasoningOk}`}>
-          No concerns -- inputs within expected ranges, no calibrator clamping.
+          No concerns — every input looked normal for this game.
         </div>
       )}
 
       {(homeShrunk || awayShrunk) && (
         <div className={styles.reasoningRow}>
-          <span className={styles.reasoningLabel}>xera shrinkage (T4.2)</span>
+          {/* Was "xera shrinkage (T4.2)". Same numbers, said in English:
+              a pitcher with too few innings gets his figure blended
+              toward the league norm so one hot month can't fool the
+              model. */}
+          <span className={styles.reasoningLabel}>thin pitcher data</span>
           <div className={styles.reasoningStack}>
             {homeShrunk && (
               <div className={`${styles.reasoningSubrow} ${styles.shrunkHigh}`}>
-                Home pitcher: raw cache <strong className="num">{homeRaw!.toFixed(2)}</strong>{" "}
-                → priors-pooled <strong className="num">{homePooled!.toFixed(2)}</strong>{" "}
-                (drift {(homePooled! - homeRaw!).toFixed(2)})
+                Home pitcher: too few innings to take his{" "}
+                <strong className="num">{homeRaw!.toFixed(2)}</strong> at face
+                value, so the model blended it toward the league norm →{" "}
+                <strong className="num">{homePooled!.toFixed(2)}</strong>{" "}
+                (moved {(homePooled! - homeRaw!).toFixed(2)})
               </div>
             )}
             {awayShrunk && (
               <div className={`${styles.reasoningSubrow} ${styles.shrunkHigh}`}>
-                Away pitcher: raw cache <strong className="num">{awayRaw!.toFixed(2)}</strong>{" "}
-                → priors-pooled <strong className="num">{awayPooled!.toFixed(2)}</strong>{" "}
-                (drift {(awayPooled! - awayRaw!).toFixed(2)})
+                Away pitcher: too few innings to take his{" "}
+                <strong className="num">{awayRaw!.toFixed(2)}</strong> at face
+                value, so the model blended it toward the league norm →{" "}
+                <strong className="num">{awayPooled!.toFixed(2)}</strong>{" "}
+                (moved {(awayPooled! - awayRaw!).toFixed(2)})
               </div>
             )}
           </div>
@@ -467,11 +486,15 @@ function PickReasoningPanel({
 
       {(pq.home_pitcher_q || pq.away_pitcher_q) && (
         <div className={styles.reasoningRow}>
-          <span className={styles.reasoningLabel}>pitcher_q tag</span>
+          {/* Was "pitcher_q tag" printing raw codes (sm/ltd/full).
+              Codes translated at the render, never restated upstream --
+              an unknown code passes through untranslated rather than
+              guessed at. */}
+          <span className={styles.reasoningLabel}>pitcher sample size</span>
           <div className={styles.reasoningStack}>
             <span className={styles.reasoningInline}>
-              away: <strong>{pq.away_pitcher_q ?? "—"}</strong> ·
-              home: <strong>{pq.home_pitcher_q ?? "—"}</strong>
+              away: <strong>{pitcherQWord(pq.away_pitcher_q)}</strong> ·
+              home: <strong>{pitcherQWord(pq.home_pitcher_q)}</strong>
             </span>
           </div>
         </div>
@@ -479,12 +502,13 @@ function PickReasoningPanel({
 
       {flatZone && (
         <div className={styles.reasoningRow}>
-          <span className={styles.reasoningLabel}>calibrator</span>
+          <span className={styles.reasoningLabel}>confidence band</span>
           <div className={styles.reasoningStack}>
             <div className={`${styles.reasoningSubrow} ${styles.flatZone}`}>
-              Flat zone detected: {flatSize} bins map to the same rate. Multiple
-              distinct raw probs collapse here -- predictions correlate with
-              other picks in this band.
+              The model&rsquo;s confidence lands in a band it cannot split
+              finely — {flatSize} nearby readings share one effective
+              probability, so picks in this band tend to rise and fall
+              together.
             </div>
           </div>
         </div>
@@ -502,12 +526,23 @@ function PickReasoningPanel({
       )}
 
       <div className={styles.whyFoot}>
-        Source: <code>data/diagnostics/picks/{date}.json</code> ·
-        {" "}generated by <code>tools/pick_reasoning_log.py</code> (T4.6) ·
-        {" "}{matchup}
+        From the model&rsquo;s nightly reasoning log ({date}) · {matchup}
       </div>
     </section>
   );
+}
+
+/** Raw pitcher-quality codes -> words. Unknown codes pass through
+ *  untranslated rather than being guessed at. */
+function pitcherQWord(q: string | null | undefined): string {
+  if (!q) return "—";
+  const map: Record<string, string> = {
+    full: "full season",
+    ltd:  "limited",
+    sm:   "small",
+    avg:  "league-average fallback",
+  };
+  return map[q] ?? q;
 }
 
 function WhyThisPickPanel({
@@ -953,9 +988,9 @@ function ProbBar({
   );
 }
 
-function KV({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+function KV({ k, v, mono, title }: { k: string; v: string; mono?: boolean; title?: string }) {
   return (
-    <div className={styles.kvRow}>
+    <div className={styles.kvRow} title={title}>
       <span className={styles.kvKey}>{k}</span>
       <span className={`${styles.kvVal} ${mono ? "num" : ""}`}>{v}</span>
     </div>

@@ -144,7 +144,10 @@ export function chainText(n: NightCounts | null): string {
 /** The replay count, kept deliberately OFF the chain above. */
 export function replayText(n: NightCounts | null): string {
   if (!n) return "";
-  if (n.replay == null) return "MODEL REPLAY  not replayed yet";
+  /* "pending", not "not replayed yet" (2026-08-05): the sub-line below
+     it already explains WHEN it fills in; this phrasing just read as
+     broken. */
+  if (n.replay == null) return "MODEL REPLAY  pending";
   // Quarter-Kelly, matching the footer and the record card. Quoting the
   // flat figure here while the footer led with Kelly put two different
   // replay numbers on one screen -- the exact defect this file exists

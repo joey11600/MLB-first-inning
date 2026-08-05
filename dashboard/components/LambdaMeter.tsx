@@ -37,7 +37,7 @@ export function LambdaMeter({
   return (
     <span
       className={`${styles.meter} ${compact ? styles.compact : ""}`}
-      aria-label={`P(YRFI) ${yrfiProb.toFixed(3)}`}
+      aria-label={`Chance a run scores in the first inning: ${(yrfiProb * 100).toFixed(1)}%`}
       role="img"
     >
       <span className={styles.track}>

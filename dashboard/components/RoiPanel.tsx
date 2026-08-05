@@ -187,7 +187,10 @@ export function RoiPanel({ initialDate, rows, details, seasonRecord, night: nigh
     <section className={styles.wrap}>
       <header className={styles.head}>
         <div className={styles.headLeft}>
-          <span className="eyebrow">Performance</span>
+          {/* 2026-08-05: renamed from "Performance" and given the page's
+              rule-and-eyebrow grammar. With the №1 pick leading the page,
+              this zone is explicitly the WHOLE system's record. */}
+          <span className="eyebrow">The record · the whole system</span>
           {view && (
             <span className={styles.range}>
               {window === "today"
