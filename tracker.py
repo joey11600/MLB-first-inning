@@ -1865,6 +1865,102 @@ def _format_flip_message(*, iso_date: str, away_team: str, home_team: str,
     return "\n".join(parts)
 
 
+# ---------------------------------------------------------------------------
+# THE №1-ONLY NOTIFICATION POLICY (operator, 2026-08-05: "it should only
+# be sending out the #1 pick now").
+# ---------------------------------------------------------------------------
+#
+# The dashboard redesign made the night's №1 play the product's main
+# system; per-pick Telegram alerts follow.  Every PICK-FACING notifier
+# (flip / locked / graded / voided / pending-resolved / pregame / CLV /
+# weather / scratch) now passes through `_row_is_nights_top_pick` and
+# stays silent for any STRONG play that is not the night's №1.
+#
+# OPS ALERTS ARE DELIBERATELY UNGATED: strong_orphan_no_odds (the
+# operator's manual-odds heal workflow depends on it), the bankroll
+# milestone, the daily digest, the heartbeat and the loss-cluster
+# monitor are about running the system, not selling a pick.
+#
+# WHICH GAME IS №1 IS THE DASHBOARD'S RULE, ON PURPOSE.  This mirrors
+# dashboard/lib/top-pick-rank.ts (rankOf + compareForTopPick +
+# selectTopPick): among STRONG side picks, rank by confidence in the
+# side actually bet (smaller = stronger), break ties on the better
+# price (a missing price cannot win a tie-break), then on the game
+# name.  Two surfaces disagreeing about which game is №1 is the class
+# of contradiction this repo keeps being cleared of — if you change
+# the rule there, change it here.
+#
+# FAIL-OPEN.  If the ledger cannot be read or a field will not parse,
+# the gate returns True and the alert sends.  A wrongly-silenced №1
+# alert costs the product's one notification; a stray extra alert
+# costs an eye-roll.
+
+
+def _top_pick_rank_tuple(side: str, nrfi_prob: float,
+                         odds_str: str | None, name: str) -> tuple:
+    """(rank, implied, name) — smaller tuple = stronger №1 candidate.
+    Mirrors top-pick-rank.ts exactly: rank is p(no run) for YRFI and
+    1−p(no run) for NRFI; implied is the price's break-even rate, 1.0
+    when the price is missing so it cannot win a tie-break."""
+    rank = nrfi_prob if side == "YRFI" else 1.0 - nrfi_prob
+    implied = 1.0
+    try:
+        o = float((odds_str or "").strip())
+        if o != 0:
+            implied = (-o / (-o + 100.0)) if o < 0 else (100.0 / (o + 100.0))
+    except (TypeError, ValueError):
+        pass
+    return (rank, implied, name)
+
+
+def _row_is_nights_top_pick(row: dict) -> bool:
+    """True when `row` is (or outranks everything else and so becomes)
+    the night's №1 play.  `row` is trusted as the FRESH state of its own
+    game; rivals come from the ledger on disk, with this game excluded,
+    so a mid-run flip is compared against the field rather than against
+    its own stale line."""
+    try:
+        iso_date = (row.get("date") or "").strip()
+        side = (row.get("pick_side") or "").strip().upper()
+        if side not in ("NRFI", "YRFI"):
+            return True
+        p = float(row.get("nrfi_prob"))
+        name = (f"{(row.get('away_team') or '').strip().upper()}"
+                f"@{(row.get('home_team') or '').strip().upper()}")
+        odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+        mine = _top_pick_rank_tuple(side, p, row.get(odds_col), name)
+
+        season = int(iso_date[:4])
+        best_rival: tuple | None = None
+        for r in _read_rows(_csv_path(season)):
+            if (r.get("date") or "").strip() != iso_date:
+                continue
+            if (r.get("pick_strength") or "").strip().upper() != "STRONG":
+                continue
+            r_side = (r.get("pick_side") or "").strip().upper()
+            if r_side not in ("NRFI", "YRFI"):
+                continue
+            r_name = (f"{(r.get('away_team') or '').strip().upper()}"
+                      f"@{(r.get('home_team') or '').strip().upper()}")
+            if r_name == name:
+                continue   # self: the passed row is fresher than the disk
+            try:
+                r_p = float(r.get("nrfi_prob"))
+            except (TypeError, ValueError):
+                continue
+            r_odds_col = ("market_nrfi_odds" if r_side == "NRFI"
+                          else "market_yrfi_odds")
+            t = _top_pick_rank_tuple(r_side, r_p, r.get(r_odds_col), r_name)
+            if best_rival is None or t < best_rival:
+                best_rival = t
+
+        return best_rival is None or mine < best_rival
+    except Exception as exc:  # noqa: BLE001 — fail-open, see policy note
+        print(f"  [telegram] №1 gate failed open ({exc!r}); sending anyway.",
+              file=sys.stderr)
+        return True
+
+
 def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
                                 game_time: str, old_label: str, new_label: str,
                                 game_pk: str = "",
@@ -1890,6 +1986,17 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
     if not _is_inside_lock_window(game_time, iso_date):
         # Quiet pre-lock STRONG transitions on the dashboard side only.
         # The canonical lock-time alert comes from _apply_odds_to_row.
+        return
+    # №1-only policy (2026-08-05): the synthetic row carries this game's
+    # FRESH state (the CSV on disk may predate this very flip); the gate
+    # compares it against the rest of the field from the ledger.
+    if not _row_is_nights_top_pick({
+        "date":       iso_date,
+        "pick_side":  "NRFI" if "NRFI" in (new_label or "").upper() else "YRFI",
+        "nrfi_prob":  (row_context or {}).get("nrfi_prob"),
+        "away_team":  away_team,
+        "home_team":  home_team,
+    }):
         return
     body = _format_flip_message(
         iso_date    = iso_date,
@@ -1924,6 +2031,8 @@ def _notify_strong_locked_telegram(row: dict) -> None:
     glance.  Dedup is per-game per-day via notifications_log, so a
     re-run of import_odds after lock doesn't re-ping."""
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if not _row_is_nights_top_pick(row):   # №1-only policy, 2026-08-05
         return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
         return
@@ -1982,6 +2091,8 @@ def _notify_strong_graded_telegram(row: dict, today_record: tuple[int, int, int]
     grades and for LEAN bets (those don't ping)."""
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
         return
+    if not _row_is_nights_top_pick(row):   # №1-only policy, 2026-08-05
+        return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
         return
     grade = (row.get("graded_result") or "").strip().upper()
@@ -2036,6 +2147,8 @@ def _notify_strong_voided_telegram(row: dict, reason: str) -> None:
     inning completed.  Bet is voided; stake returned at DK.  Fires once
     per game."""
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if not _row_is_nights_top_pick(row):   # №1-only policy, 2026-08-05
         return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
         return
@@ -2121,6 +2234,11 @@ def _notify_lineup_pending_resolved_telegram(row: dict) -> None:
     the tentative lean is itself PASS (no signal to report) or when the
     row didn't actually grade to a real outcome (POSTPONED / SUSPENDED /
     no actual_result yet)."""
+    # №1-only policy (2026-08-05, operator: "it should only be sending
+    # out the #1 pick now"): these are PASS rows — games the system did
+    # not bet — so they can never be the night's №1 play and no longer
+    # ping.  Delete this return to restore the tentative-lean recaps.
+    return
     strength = (row.get("pick_strength") or "").strip().upper()
     if strength not in ("LINEUP PENDING", "STARTER PENDING"):
         return
@@ -2265,6 +2383,8 @@ def _notify_strong_pregame_telegram(row: dict, minutes_to_first_pitch: int) -> N
     for filtering to bets in the right time window before invoking."""
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
         return
+    if not _row_is_nights_top_pick(row):   # №1-only policy, 2026-08-05
+        return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
         return
     side       = (row.get("pick_side") or "").upper()
@@ -2307,6 +2427,8 @@ def _notify_strong_clv_telegram(row: dict, opened_implied: float, closing_implie
     means we beat the close → leading indicator of long-run +EV."""
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
         return
+    if not _row_is_nights_top_pick(row):   # №1-only policy, 2026-08-05
+        return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
         return
     side     = (row.get("pick_side") or "").upper()
@@ -2340,6 +2462,8 @@ def _notify_strong_weather_telegram(row: dict, change_summary: str) -> None:
     Informational — bet is locked at the original prediction, but the
     underlying environment shifted.  Fires once per game per ~6h window."""
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return
+    if not _row_is_nights_top_pick(row):   # №1-only policy, 2026-08-05
         return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
         return
@@ -2392,6 +2516,8 @@ def _notify_strong_scratch_telegram(row: dict,
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
         return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
+        return
+    if not _row_is_nights_top_pick(row):   # №1-only policy, 2026-08-05
         return
     side       = (row.get("pick_side") or "").upper()
     away       = (row.get("away_team") or "").upper()

@@ -11,6 +11,41 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-05g] - Telegram follows the redesign: №1-only notifications
+
+Operator: *"we need to fix the telegram notifications. it should only
+be sending out the #1 pick now."*
+
+### Changed
+
+- **All nine pick-facing Telegram notifiers now pass through one gate,
+  `tracker._row_is_nights_top_pick`**, and stay silent for any STRONG
+  play that is not the night's №1: flip-to-strong, bet-locked,
+  graded WIN/LOSS (both the tracker path and end_of_day_check's),
+  voided, pregame reminder, CLV move, weather change, starter scratch.
+  The tentative-lean recap (`_notify_lineup_pending_resolved_telegram`)
+  is disabled outright behind a commented early return — those are
+  PASS rows, never the №1.
+- **The №1 rule is the dashboard's rule, verbatim**: mirrors
+  `dashboard/lib/top-pick-rank.ts` (confidence in the side bet, then
+  the better price, then the game name; a missing price cannot win a
+  tie-break). The gate treats the passed row as the FRESH state of its
+  own game and ranks it against the rest of the field from the ledger,
+  so a mid-run flip is judged correctly even before the CSV write.
+- **Fail-open**: if the ledger is unreadable or a field won't parse,
+  the alert sends (a wrongly-silenced №1 alert costs the product's one
+  notification; a stray extra costs an eye-roll) and logs to stderr.
+- **Ops alerts deliberately untouched**: strong_orphan_no_odds (the
+  manual-odds heal workflow depends on it), bankroll milestone, daily
+  digest, heartbeat, loss-cluster monitor.
+
+Tested against the live ledger (tonight's №1 TB@COL passes; garbage
+fails open) and synthetic fields: stronger rival silences the weaker,
+an exact confidence tie is decided by the better price, an unpriced
+rival cannot win the tie, LEAN rivals are ignored.
+
+---
+
 ## [2026-08-05f] - the last two rooms: record zone + expanded row join the redesign
 
 Operator: *"do the performance panel and expanded row view too."*

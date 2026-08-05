@@ -268,6 +268,17 @@ just the big ones:
 
 ## Notifications
 
+**№1-ONLY POLICY (operator, 2026-08-05): pick-facing Telegram alerts
+fire ONLY for the night's №1 play.** The gate is
+`tracker._row_is_nights_top_pick` — it mirrors the dashboard's
+`dashboard/lib/top-pick-rank.ts` rule exactly (confidence, then better
+price, then game name; change one → change both) and FAILS OPEN so a
+broken gate spams rather than silences. Gated: flip / locked / graded /
+voided / pregame / CLV / weather / scratch; the tentative-lean recap
+(`_notify_lineup_pending_resolved_telegram`) is disabled behind an
+early return. NOT gated (ops, keep them): strong_orphan_no_odds,
+bankroll milestone, daily digest, heartbeat, loss-cluster monitor.
+
 The cron pings `@nrfi_terminal_bot` (Telegram) when picks flip to/from
 actionable states (T2.22). Configured via `TELEGRAM_BOT_TOKEN` +
 `TELEGRAM_CHAT_ID` GHA secrets; silent no-op without them. Code lives
