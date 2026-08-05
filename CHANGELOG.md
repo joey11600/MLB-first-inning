@@ -11,6 +11,54 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-05b] - DK odds restored: the subcategory id rotated overnight
+
+First slate with ZERO odds captured (0/15; prior 7 days were 100%).
+`bet_placed` blank on all 15 rows — the day's STRONG pick had no price,
+no stake, no bet. Diagnosis unpicked three layers:
+
+1. **The GHA scrape's 403 is old news, not the cause.** DK's CDN has
+   rejected GitHub-hosted runner IPs on effectively every run since
+   ~2026-05-04 (last committed `data/odds/dk_*.csv` is 05-04; ~27-30
+   logged failures/day for weeks). The workflow itself calls its scrape
+   step "(backup)".
+2. **The real odds source is the Railway `MLB-first-inning` service**
+   (`PREDICTOR_SCRAPE_DK=enabled`, 5-min loop; the `worker` service is
+   scoreboard-only). It is not IP-blocked — and on 2026-08-05 its
+   fetches started returning **200 with zero runs markets**.
+3. **DraftKings retired subcategory 11024 ("Runs - 1st Inning")
+   overnight** and replaced it with **20150 ("1st Inning Runs")**. Same
+   market name, same O/U 0.5 selection schema, new id. Bonus trap: the
+   category-1024 endpoint now returns only its default subcategory's
+   markets (Hits Exact), so filtering the category response can never
+   find runs again — the subcategory endpoint must be fetched directly.
+
+### Fixed
+
+- **`scrape_dk_odds.py`: `RUNS_1ST_SUB` 11024 → 20150**, and both fetch
+  paths now hit `.../categories/1024/subcategories/<id>` via
+  `_dk_market_url()`. Verified live from a residential IP: 12/15 games
+  priced (3 already locked — first pitch pulls the market, expected).
+- **Self-heal for the next rotation**: when a fetch parses 0 runs
+  markets during prime hours (9am-5pm ET) with nothing captured yet
+  today, `discover_runs_subcategory()` reads DK's own subcategory
+  catalog, finds the category-1024 entry named like "Runs", and retries
+  once with that id — logging the new id loudly. Guards keep the extra
+  fetch pair off overnight/post-lock/off-season ticks. Tested by
+  forcing the dead id through `main()`: WARNING fired, discovery
+  returned 20150, healed run wrote 12 games in 2 fetches.
+
+### Notes
+
+- Railway auto-redeploys this branch on push, so the fix reaches the
+  odds loop with no extra ops. GHA stays 403'd either way; Railway
+  remains the capture path.
+- The 3 already-started games of 2026-08-05 are permanently un-priced
+  (never captured before lock). Do not backfill — `manual_odds_overrides
+  .csv` is the only sanctioned heal if the operator has the numbers.
+
+---
+
 ## [2026-08-05] - deploys un-bricked: the backup prune that never pruned
 
 Every Vercel production deploy errored from 11:11 UTC (the daily backup
@@ -58,10 +106,9 @@ Two stacked causes:
   are (a) this DK odds 403 (see below) surfaced by the error logger and
   (b) a Node 20 deprecation warning on `actions/checkout@v4` /
   `actions/setup-python@v5` (harmless until GitHub drops the fallback).
-- **Separate, unresolved:** DraftKings began hard-403ing the real odds
-  API call on 2026-08-05 (0/15 games priced vs 100% capture the prior
-  7 days; all `bet_placed` blank). Not touched by this change — needs
-  its own investigation.
+- **Separate:** odds capture also died on 2026-08-05 (0/15 games
+  priced). Root cause turned out to be a DK subcategory-id rotation,
+  not the 403 — fixed the same day, see [2026-08-05b] below.
 
 ---
 

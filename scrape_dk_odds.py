@@ -18,16 +18,25 @@ DraftKings API notes (undocumented, public, no auth):
   Base URL : https://sportsbook-nash.draftkings.com/api/sportscontent/dkusin/v1
   League   : MLB = 84240
   Category : 1024 (1st Inning)
-  Subcat   : 11024 (Runs - 1st Inning)  -- contains O/U 0.5 selections
+  Subcat   : 20150 (1st Inning Runs)  -- contains O/U 0.5 selections
+             (was 11024 "Runs - 1st Inning" until 2026-08-05, when DK
+              retired that id overnight and odds capture went 0/15)
+
+  We fetch the SUBCATEGORY endpoint (.../categories/1024/subcategories/
+  20150) rather than the category endpoint: since the 2026-08-05
+  rotation, the category endpoint returns only its default subcategory's
+  markets (Hits Exact), not the runs market.
 
   Schema is denormalized: events / markets / selections are sibling
   arrays joined by IDs.  Each event has its market_id; each market has
   its selection_ids; each selection has displayOdds.american.
 
   Stability: DK has changed this URL pattern roughly once per year.  If
-  this breaks, look at the Network tab on sportsbook.draftkings.com when
-  viewing the 1st Inning section -- the request structure usually still
-  exists, just with different category/subcategory IDs.
+  the configured subcategory returns 0 runs markets, this script now
+  self-heals: it pulls the category's subcategory catalog, finds the
+  entry named like "1st Inning Runs", and retries with that id (see
+  discover_runs_subcategory).  If even that fails, look at the Network
+  tab on sportsbook.draftkings.com when viewing the 1st Inning section.
 
 This script handles:
   - DK's en-dash minus sign in odds (replaces with ASCII '-')
@@ -45,11 +54,26 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-# DraftKings MLB league + 1st Inning category IDs (current as of 2026-04-29)
+# DraftKings MLB league + 1st Inning category IDs (current as of 2026-08-05)
 DK_BASE        = "https://sportsbook-nash.draftkings.com/api/sportscontent/dkusin/v1"
 MLB_LEAGUE_ID  = 84240
 INNING_1_CAT   = 1024     # parent category "1st Inning"
-RUNS_1ST_SUB   = 11024    # subcategory "Runs - 1st Inning" (Over/Under 0.5)
+# Subcategory carrying the Over/Under 0.5 first-inning-runs market.
+# History: 11024 "Runs - 1st Inning" from 2026-04-29 until 2026-08-05,
+# when DK retired it overnight (fetch kept returning 200 but with zero
+# runs markets -- a full day of odds capture silently lost).  The
+# replacement is 20150 "1st Inning Runs"; its markets are still named
+# "Runs - 1st Inning" and the selection schema (points 0.5, Over/Under
+# outcomeType, displayOdds.american) is unchanged.
+RUNS_1ST_SUB   = 20150
+
+
+def _dk_market_url(sub_id: int) -> str:
+    """API URL for one subcategory's markets.  We must hit the
+    subcategory endpoint: since 2026-08-05 the category endpoint returns
+    only its DEFAULT subcategory's markets (Hits Exact), not runs."""
+    return (f"{DK_BASE}/leagues/{MLB_LEAGUE_ID}"
+            f"/categories/{INNING_1_CAT}/subcategories/{sub_id}")
 
 # T2.55: full Chrome 123 browser fingerprint.  DK's CDN (sportsbook-nash)
 # previously accepted any UA with "Mozilla" in it, but on 2026-05-03 we
@@ -112,7 +136,8 @@ def parse_american_odds(s: str) -> str:
     return s.replace("−", "-").strip()
 
 
-def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
+def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0,
+                               sub_id: int = RUNS_1ST_SUB) -> dict:
     """Hit the DK API for the entire MLB slate's 1st-inning-runs market.
 
     T2.55: switched from urllib to `requests` (already a transitive
@@ -156,9 +181,10 @@ def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
             requests_mod = _std_requests
         except ImportError:
             # Fall back to urllib if neither is available.
-            return _fetch_dk_via_urllib(retries=retries, backoff=backoff)
+            return _fetch_dk_via_urllib(retries=retries, backoff=backoff,
+                                        sub_id=sub_id)
 
-    url = f"{DK_BASE}/leagues/{MLB_LEAGUE_ID}/categories/{INNING_1_CAT}"
+    url = _dk_market_url(sub_id)
     last_exc: Exception | None = None
     # Session = connection reuse across retries.  TLS handshake amortizes;
     # gzip/deflate handled automatically.  curl_cffi.Session takes an
@@ -222,12 +248,13 @@ def fetch_dk_first_inning_runs(retries: int = 3, backoff: float = 2.0) -> dict:
     raise last_exc if last_exc else RuntimeError("DK fetch failed (no exception captured)")
 
 
-def _fetch_dk_via_urllib(retries: int = 3, backoff: float = 2.0) -> dict:
+def _fetch_dk_via_urllib(retries: int = 3, backoff: float = 2.0,
+                         sub_id: int = RUNS_1ST_SUB) -> dict:
     """T2.55 fallback: original urllib path.  Used only when `requests`
     isn't importable -- mirrors the pre-T2.55 behavior exactly so older
     deploys still work."""
     import time
-    url = f"{DK_BASE}/leagues/{MLB_LEAGUE_ID}/categories/{INNING_1_CAT}"
+    url = _dk_market_url(sub_id)
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
@@ -468,10 +495,49 @@ def utc_iso_to_et_date(utc_iso: str) -> str:
     return et_dt.strftime("%Y-%m-%d")
 
 
-def extract_odds(data: dict) -> list[dict]:
+def discover_runs_subcategory() -> int | None:
+    """Self-heal for DK's periodic id rotations (2026-08-05: 11024 ->
+    20150 overnight, silently zeroing a full day of odds capture).
+
+    Fetches the 1st Inning CATEGORY endpoint -- its response carries the
+    full subcategory catalog -- and returns the id of the entry that (a)
+    belongs to category 1024 and (b) is named like the runs market
+    ("1st Inning Runs" / "Runs - 1st Inning"), excluding lookalikes
+    ("1st Inning Run Line", "1st Inning Odd/Even" don't contain "runs").
+    Returns None when nothing matches (caller logs and gives up)."""
+    url = f"{DK_BASE}/leagues/{MLB_LEAGUE_ID}/categories/{INNING_1_CAT}"
+    try:
+        try:
+            from curl_cffi import requests as _r
+            resp = _r.get(url, impersonate="chrome120", headers=HEADERS,
+                          timeout=30)
+            data = resp.json()
+        except ImportError:
+            req = urllib.request.Request(url, headers=HEADERS)
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                data = json.loads(resp.read())
+    except Exception as exc:  # noqa: BLE001 -- discovery is best-effort
+        print(f"  Subcategory discovery fetch failed ({type(exc).__name__}); "
+              f"cannot self-heal.", file=sys.stderr)
+        return None
+    for sub in data.get("subcategories", []) or []:
+        if sub.get("categoryId") != INNING_1_CAT:
+            continue
+        name = (sub.get("name") or "").lower()
+        # "1st inning runs" matches; "1st inning run line" does not
+        # ("runs" != "run "), nor do hits/strikeouts/odd-even subs.
+        if "runs" in name:
+            try:
+                return int(sub.get("id"))
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+def extract_odds(data: dict, runs_sub_id: int = RUNS_1ST_SUB) -> list[dict]:
     """Walk the DK response and emit one CSV row per game.
 
-    Looks at every market under subcategoryId=RUNS_1ST_SUB (the Runs -
+    Looks at every market under subcategoryId=runs_sub_id (the Runs -
     1st Inning O/U).  For each, finds the Over 0.5 (= YRFI) and Under 0.5
     (= NRFI) selections."""
     events_by_id    = {e["id"]: e for e in data.get("events", [])}
@@ -481,7 +547,7 @@ def extract_odds(data: dict) -> list[dict]:
     # Filter markets to only those in the Runs-1st-Inning subcategory
     runs_markets = [
         m for m in markets
-        if m.get("subcategoryId") == RUNS_1ST_SUB and m.get("eventId")
+        if m.get("subcategoryId") == runs_sub_id and m.get("eventId")
     ]
 
     out: list[dict] = []
@@ -604,6 +670,34 @@ def main() -> None:
         out_path = Path("data/odds") / f"dk_{et_today}.csv"
 
     existing_rows = read_existing_csv(out_path)
+
+    # Self-heal (2026-08-05): zero parsed runs markets during prime hours
+    # with NOTHING captured yet today is the signature of DK rotating the
+    # subcategory id out from under us (11024 -> 20150 did exactly this:
+    # 200 responses all day, 0 odds, a full slate un-priced).  Ask DK's
+    # own catalog what the runs subcategory is now and retry once.  The
+    # no-existing-rows + prime-window guards keep the extra fetch pair
+    # off the overnight / post-lock / off-season ticks.
+    if not fresh_rows and not existing_rows:
+        from zoneinfo import ZoneInfo as _ZI0
+        _et = datetime.now(_ZI0("America/New_York"))
+        if 9 <= _et.hour < 17:
+            found = discover_runs_subcategory()
+            if found and found != RUNS_1ST_SUB:
+                print(
+                    f"  WARNING: configured subcategory {RUNS_1ST_SUB} "
+                    f"returned 0 runs markets; DK catalog now lists {found}. "
+                    f"Retrying with {found} -- update RUNS_1ST_SUB in "
+                    f"scrape_dk_odds.py.",
+                    file=sys.stderr,
+                )
+                try:
+                    data = fetch_dk_first_inning_runs(sub_id=found)
+                    fresh_rows = extract_odds(data, runs_sub_id=found)
+                except Exception as exc:  # noqa: BLE001 -- keep empty result
+                    print(f"  Self-heal refetch failed "
+                          f"({type(exc).__name__}: {exc}); "
+                          f"continuing with 0 markets.", file=sys.stderr)
 
     if not fresh_rows:
         # Distinguish between:
