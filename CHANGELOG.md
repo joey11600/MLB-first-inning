@@ -11,6 +11,60 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-05] - deploys un-bricked: the backup prune that never pruned
+
+Every Vercel production deploy errored from 11:11 UTC (the daily backup
+snapshot commit) to 18:19 UTC — 10 consecutive ERROR builds — while the
+live site kept serving the 07:42 build. `/api/health` said it plainly:
+`"No data refresh in 649 min (prime hours)"`. The build compiled fine;
+the failure was at packaging:
+
+> The Vercel Function "api/active-demotions" is 251.15mb uncompressed
+> which exceeds the maximum uncompressed size limit of 250mb.
+
+Two stacked causes:
+
+1. **The 30-day backup prune never fired once.** `backup.yml` pruned
+   with `find -mtime +30`, but `actions/checkout` stamps every file with
+   the clone time, so no file ever *looked* older than 30 days. 94 daily
+   snapshots accumulated (2026-05-02 → 2026-08-04), 217+ MB tracked.
+2. **The whole tracked `data/` tree ships inside every serverless
+   function.** Route handlers probe `../data` at request time
+   (`dataDir()`), so Next's file tracer conservatively pulls the entire
+   repo data dir into each function bundle. Wanted for picks CSVs and
+   `cluster_demotions.json`; fatal once backups pushed tracked `data/`
+   to ~245 MB. The 2026-08-05 snapshot (+4.25 MB) was the straw.
+
+### Fixed
+
+- **Pruned 64 stale snapshots** (2026-05-02 → 2026-07-05, ~108 MB,
+  4,358 files) via `git rm` — recoverable from git history. 31 daily
+  snapshots (2026-07-06 → 2026-08-05) + the 6 named model-weight
+  backups remain.
+- **`backup.yml` prune now compares the snapshot's date-named directory
+  against a `date -u -d '30 days ago'` cutoff** (ISO dates compare as
+  strings) instead of mtimes. The existing `git add data/backups`
+  commit step already stages deletions, so prunes reach the repo.
+- **`dashboard/next.config.mjs` gains `outputFileTracingExcludes` for
+  `data/backups/**`** (both `../`-relative and `**/`-anchored
+  spellings), so backups never enter a function bundle again regardless
+  of how large the directory grows. Verified on a local prod build:
+  0 `data/backups` entries across all `.nft.json` trace manifests,
+  boards/picks entries still present.
+
+### Notes
+
+- GitHub Actions itself had **zero failed runs** — the red annotations
+  are (a) this DK odds 403 (see below) surfaced by the error logger and
+  (b) a Node 20 deprecation warning on `actions/checkout@v4` /
+  `actions/setup-python@v5` (harmless until GitHub drops the fallback).
+- **Separate, unresolved:** DraftKings began hard-403ing the real odds
+  API call on 2026-08-05 (0/15 games priced vs 100% capture the prior
+  7 days; all `bet_placed` blank). Not touched by this change — needs
+  its own investigation.
+
+---
+
 ## [2026-08-04b] - the card gets a price limit: "bet up to -234"
 
 Operator: *"shouldn't it be 'Bet up to -XXX' so people know to not bet

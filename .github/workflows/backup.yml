@@ -60,11 +60,29 @@ jobs:
           ls -la "$BACKUP_DIR" || true
 
       - name: Prune snapshots older than 30 days
+        # Compare the snapshot's DATE-NAMED directory against a cutoff
+        # instead of file mtimes: a fresh `actions/checkout` stamps every
+        # file with the clone time, so `find -mtime +30` never matched
+        # anything and 94 snapshots piled up (2026-05-02..08-04) until the
+        # tracked data/ tree pushed the Vercel function bundle past the
+        # 250MB uncompressed limit and every deploy errored (2026-08-05).
+        # ISO dates compare correctly as strings.
         run: |
+          CUTOFF=$(date -u -d '30 days ago' +%Y-%m-%d)
+          echo "Pruning snapshots dated before $CUTOFF"
           if [ -d data/backups ]; then
-            find data/backups -mindepth 1 -maxdepth 1 -type d \
-              -regex '.*/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}$' \
-              -mtime +30 -exec rm -rf {} + || true
+            for d in data/backups/*/; do
+              [ -d "$d" ] || continue
+              base=$(basename "$d")
+              case "$base" in
+                [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9])
+                  if [ "$base" \< "$CUTOFF" ]; then
+                    echo "  pruning $base"
+                    rm -rf "$d"
+                  fi
+                  ;;
+              esac
+            done
           fi
 
       - name: Commit + push snapshot
