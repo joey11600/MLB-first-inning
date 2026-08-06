@@ -1,7 +1,7 @@
 {
   "date": "2026-08-06",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-06T22:05:17Z",
+  "fitted_at": "2026-08-06T22:34:09Z",
   "n_picks": 11,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,10 +11,10 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.358,
-      "raw_p_run_b1": 0.4603,
-      "raw_p_nrfi": 0.3465,
-      "calibrated_p_nrfi": 0.324,
+      "raw_p_run_t1": 0.3579,
+      "raw_p_run_b1": 0.461,
+      "raw_p_nrfi": 0.3461,
+      "calibrated_p_nrfi": 0.3229,
       "calibrator_band": {
         "band": "bin_0-1",
         "is_flat": false,
@@ -73,14 +73,6 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_slg",
-          "value": 0.3955,
-          "z": -0.701,
-          "weight": -0.398,
-          "contribution": 0.2789,
-          "outlier": false
-        },
-        {
           "name": "away_whiff_pct_rank",
           "value": 15.0,
           "z": -1.489,
@@ -89,11 +81,11 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_obp",
-          "value": 0.3151,
-          "z": -0.871,
-          "weight": 0.1015,
-          "contribution": -0.0884,
+          "name": "home_top3c_slg",
+          "value": 0.4242,
+          "z": -0.253,
+          "weight": -0.398,
+          "contribution": 0.1006,
           "outlier": false
         },
         {
@@ -102,6 +94,14 @@
           "z": 1.508,
           "weight": 0.055,
           "contribution": 0.0829,
+          "outlier": false
+        },
+        {
+          "name": "wx_is_dome",
+          "value": 1.0,
+          "z": 1.695,
+          "weight": -0.0447,
+          "contribution": -0.0758,
           "outlier": false
         }
       ],
@@ -122,7 +122,7 @@
       "game_pk": "823430",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.2126,
       "raw_p_run_b1": 0.4647,
       "raw_p_nrfi": 0.4215,
