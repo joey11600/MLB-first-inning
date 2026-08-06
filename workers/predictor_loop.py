@@ -492,10 +492,32 @@ def main() -> None:
             time.sleep(QUIET_INTERVAL_S)
             continue
 
+        # FIXED-PERIOD SCHEDULE, NOT FIXED-SLEEP (2026-08-06).
+        #
+        # This used to be `cycle(); time.sleep(INTERVAL_S)`, which makes
+        # the real period `cycle_duration + INTERVAL_S`, not INTERVAL_S.
+        # The cycle does predict + grade + scrape + import + reconcile
+        # with subprocess timeouts up to 300s each, so on a slow night
+        # the "5-minute loop" silently became a 10-minute loop -- and
+        # every step that got slower pushed every downstream alert
+        # later. Operator, 2026-08-06: "the telegram notifications for
+        # some reason are all lagged."
+        #
+        # Sleeping the REMAINDER keeps the cadence honest: a cycle that
+        # takes 90s sleeps 210s, and the next cycle still starts on the
+        # 5-minute mark. A cycle that overruns the whole interval starts
+        # the next one immediately rather than compounding the debt.
+        started_at = time.monotonic()
         cycle()
         if args.once:
             break
-        time.sleep(INTERVAL_S)
+        elapsed = time.monotonic() - started_at
+        remaining = INTERVAL_S - elapsed
+        if remaining > 0:
+            time.sleep(remaining)
+        else:
+            print(f"[predictor] cycle took {elapsed:.0f}s (> {INTERVAL_S}s "
+                  f"interval); starting next immediately", flush=True)
 
     print("[predictor] shutdown clean", flush=True)
 
