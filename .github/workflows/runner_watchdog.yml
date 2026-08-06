@@ -1,0 +1,194 @@
+# ============================================================
+# RUNNER WATCHDOG -- the alarm that lives OUTSIDE the building.
+# ============================================================
+#
+# WHY THIS EXISTS. On 2026-08-06 the self-hosted runner (Contabo box
+# vmi3065305) stopped answering GitHub at ~16:10 UTC.  Run #3184 was
+# addressed to that machine, waited 16m57s, and GitHub gave up:
+#
+#     "The job was not acquired by Runner of type self-hosted even
+#      after multiple attempts."
+#
+# It surfaced as conclusion=failure with ZERO steps and no log to read,
+# and NOTHING alerted.  The operator found it by chance, an hour later.
+#
+# The reason nothing alerted is structural: daily.yml's only failure
+# ping ("Ping Healthchecks.io (failure)", daily.yml ~L925) is a STEP
+# INSIDE THE JOB THAT NEVER STARTED -- a smoke alarm bolted to the
+# inside of a door that never opened.  It is also wired to a secret
+# (HEALTHCHECKS_URL) that does not exist in this repo.
+#
+# THE ONE RULE FOR THIS FILE: `runs-on` is HARDCODED to ubuntu-latest.
+# It must NEVER use `vars.RUNNER_LABEL`.  A watchdog that runs on the
+# machine it is watching cannot report that machine's death -- that is
+# the exact failure it exists to catch.  If you are tempted to "make it
+# consistent" with daily.yml, don't.
+#
+# WHY THE SCHEDULE HAS HOLES.  daily.yml runs hourly from 12:00 UTC
+# through 03:30 UTC, then 05:00 and 06:00, then NOTHING until 12:00 --
+# a six-hour silence that is completely normal.  A naive "no run in 90
+# minutes" alarm would fire ~12 times every night for no reason, and an
+# alarm that cries wolf nightly gets muted, which would leave us exactly
+# where we started.  So this watchdog is awake only 13:00-03:59 UTC:
+# the dense window, starting one hour in so the 12:00 run has landed
+# before we judge anything.  The isolated 05:00/06:00 runs (opener
+# capture, priors cache) are deliberately unwatched -- low stakes, and
+# watching them would need special-case logic for a 6-hour gap.
+#
+# ESCALATING, STATELESS DEDUPE.  A workflow cannot remember what it
+# alerted about last time, and firing every 30 minutes through a long
+# outage would send 30 messages.  Instead each alert type fires only
+# when its measurement first crosses a threshold, inside one 30-minute
+# check window (e.g. stale for 90-119 min).  Thresholds escalate
+# (90m, 3h, 6h, 12h), so a full-day outage sends 4 messages, not 30.
+# ============================================================
+
+name: Runner watchdog
+
+on:
+  schedule:
+    # Awake only while daily.yml is expected to run hourly. See header.
+    - cron: "*/30 13-23 * * *"   # 9am-7pm ET
+    - cron: "*/30 0-3 * * *"     # 8pm-11pm ET (covers the nightly grade)
+  workflow_dispatch:              # manual run
+    inputs:
+      force_test:
+        description: "Send a test alert to Telegram even if everything is healthy"
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: runner-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    # HARDCODED ON PURPOSE -- see "THE ONE RULE" in the header above.
+    # Do not replace with ${{ vars.RUNNER_LABEL }}.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check daily.yml health and alert on Telegram
+        env:
+          GH_TOKEN:           ${{ github.token }}
+          REPO:               ${{ github.repository }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -uo pipefail
+
+          WATCHED="daily.yml"
+          NOW=$(date -u +%s)
+          # One check window. Thresholds fire inside a band this wide so
+          # each escalation step alerts exactly once. Must match the cron.
+          WINDOW_MIN=30
+
+          # Pull recent runs of the watched workflow. `gh` is preinstalled
+          # on ubuntu-latest; actions:read covers this endpoint.
+          if ! gh api "repos/${REPO}/actions/workflows/${WATCHED}/runs?per_page=30" \
+                 > runs.json 2>api_err.log; then
+            echo "::warning::could not read workflow runs; skipping this check"
+            cat api_err.log
+            exit 0        # never fail the watchdog on a transient API blip
+          fi
+
+          # ---- measurement 1: how stale is the last SUCCESS? ----------
+          LAST_OK=$(jq -r '[.workflow_runs[]
+                            | select(.status=="completed" and .conclusion=="success")]
+                           | sort_by(.updated_at) | last | .updated_at // empty' runs.json)
+          if [ -n "$LAST_OK" ]; then
+            STALE_MIN=$(( (NOW - $(date -u -d "$LAST_OK" +%s)) / 60 ))
+          else
+            STALE_MIN=-1     # nothing to measure; stay quiet rather than guess
+          fi
+
+          # ---- measurement 2: a job nobody picked up ------------------
+          # THE signature of this outage: a run sitting queued/in_progress
+          # far longer than a healthy run takes (~1-6 min, worst ~10).
+          # Catches an offline runner ~an hour before staleness would.
+          STUCK_MIN=$(jq -r --argjson now "$NOW" '
+            [.workflow_runs[] | select(.status!="completed")
+             | ($now - (.created_at | fromdateiso8601)) / 60] | max // -1' runs.json)
+          STUCK_MIN=${STUCK_MIN%.*}
+
+          # ---- measurement 3: newest completed run failed -------------
+          NEWEST=$(jq -r '[.workflow_runs[] | select(.status=="completed")]
+                          | sort_by(.updated_at) | last' runs.json)
+          NEWEST_CONC=$(echo "$NEWEST" | jq -r '.conclusion // ""')
+          NEWEST_NUM=$(echo "$NEWEST"  | jq -r '.run_number // 0')
+          NEWEST_URL=$(echo "$NEWEST"  | jq -r '.html_url // ""')
+          NEWEST_AGE=-1
+          NEWEST_AT=$(echo "$NEWEST" | jq -r '.updated_at // empty')
+          [ -n "$NEWEST_AT" ] && NEWEST_AGE=$(( (NOW - $(date -u -d "$NEWEST_AT" +%s)) / 60 ))
+
+          echo "stale_min=$STALE_MIN stuck_min=$STUCK_MIN newest=#$NEWEST_NUM/$NEWEST_CONC age=${NEWEST_AGE}m"
+
+          # ---- decide ------------------------------------------------
+          # `in_band` is the stateless dedupe: true only on the first
+          # check after a measurement crosses a threshold.
+          in_band() { [ "$1" -ge "$2" ] && [ "$1" -lt $(( $2 + WINDOW_MIN )) ]; }
+
+          ALERT=""
+
+          if [ "$STUCK_MIN" -ge 0 ]; then
+            for T in 20 60 180; do
+              if in_band "$STUCK_MIN" "$T"; then
+                ALERT="${ALERT}🔴 <b>Job not picked up</b> — a run has been waiting ${STUCK_MIN} min with no machine to run it. The self-hosted runner is probably offline.%0A%0A"
+              fi
+            done
+          fi
+
+          if [ "$STALE_MIN" -ge 0 ]; then
+            for T in 90 180 360 720; do
+              if in_band "$STALE_MIN" "$T"; then
+                H=$(( STALE_MIN / 60 )); M=$(( STALE_MIN % 60 ))
+                ALERT="${ALERT}🟠 <b>Predictions have stopped</b> — no successful run for ${H}h ${M}m.%0A%0A"
+              fi
+            done
+          fi
+
+          if [ "$NEWEST_CONC" = "failure" ] && [ "$NEWEST_AGE" -ge 0 ] \
+             && [ "$NEWEST_AGE" -lt "$WINDOW_MIN" ]; then
+            ALERT="${ALERT}🔴 <b>Run #${NEWEST_NUM} failed</b>%0A${NEWEST_URL}%0A%0A"
+          fi
+
+          # An alarm nobody has ever heard is an alarm nobody trusts.
+          # `force_test` proves the whole chain (API -> logic -> Telegram)
+          # on demand, without waiting for a real outage.
+          if [ "${{ github.event.inputs.force_test }}" = "true" ]; then
+            ALERT="${ALERT}✅ <b>Test alert</b> — the watchdog is alive and can reach you. Measured just now: last success ${STALE_MIN}m ago, longest waiting job ${STUCK_MIN}m, newest run #${NEWEST_NUM} ${NEWEST_CONC}.%0A%0A"
+          fi
+
+          if [ -z "$ALERT" ]; then
+            echo "healthy — no alert"
+            exit 0
+          fi
+
+          # ---- send --------------------------------------------------
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "::warning::Telegram secrets missing; alert not delivered"
+            echo "$ALERT"
+            exit 0
+          fi
+
+          BODY="🐕 <b>NRFI WATCHDOG</b>%0A%0A${ALERT}Runner: check https://github.com/${REPO}/settings/actions/runners%0AKill switch: Settings → Secrets and variables → Actions → Variables → set <code>RUNNER_LABEL</code> to <code>ubuntu-latest</code>"
+
+          # TELEGRAM_CHAT_ID may be comma-separated (operator + channel),
+          # same convention tracker.py uses.
+          IFS=',' read -ra CHATS <<< "$TELEGRAM_CHAT_ID"
+          for CHAT in "${CHATS[@]}"; do
+            CHAT=$(echo "$CHAT" | tr -d '[:space:]')
+            [ -z "$CHAT" ] && continue
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d "chat_id=${CHAT}" \
+              -d "parse_mode=HTML" \
+              -d "disable_web_page_preview=true" \
+              --data-urlencode "text=$(printf '%b' "${BODY//%0A/\\n}")")
+            echo "telegram -> ${CHAT}: HTTP ${CODE}"
+          done

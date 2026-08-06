@@ -109,11 +109,30 @@ concurrency:
 jobs:
   run:
     # T4.16: runner is selected by the repo variable RUNNER_LABEL (set
-    # at /settings/variables/actions).  Default fallback is ubuntu-latest
-    # so workflows still work if the variable is unset OR if the
-    # self-hosted runner is offline -- in the latter case the operator
-    # should delete the variable to roll back to GH-hosted, see
-    # docs/SELF_HOSTED_RUNNER.md.
+    # at /settings/variables/actions).
+    #
+    # THERE IS NO AUTOMATIC FAILOVER HERE.  CORRECTED 2026-08-06 -- this
+    # comment used to claim workflows "still work ... if the self-hosted
+    # runner is offline", and that is FALSE.  `||` tests whether the
+    # VARIABLE IS EMPTY, never whether the machine is ALIVE.  RUNNER_LABEL
+    # is currently set to "self-hosted", so the fallback can never fire:
+    # if the runner goes offline, every job queues against a dead machine
+    # for up to 24 hours and then reports conclusion=failure with ZERO
+    # steps and no log ("The job was not acquired by Runner of type
+    # self-hosted even after multiple attempts").  That is exactly what
+    # happened to run #3184 on 2026-08-06.
+    #
+    # RECOVERY IS MANUAL: set RUNNER_LABEL to `ubuntu-latest` (or delete
+    # it) at /settings/variables/actions -- see docs/SELF_HOSTED_RUNNER.md.
+    # Note GitHub bills for hosted minutes, so it is a lever, not a
+    # default.  The only TRUE failover GitHub offers is registering a
+    # second runner carrying the same `self-hosted` label; `runs-on` with
+    # two labels means "must have BOTH", so failover cannot be expressed
+    # here in the workflow file.
+    #
+    # `.github/workflows/runner_watchdog.yml` (pinned to ubuntu-latest so
+    # it survives this machine dying) now Telegrams the operator when a
+    # job goes unpicked or predictions stop.
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Checkout
