@@ -16,17 +16,42 @@ section captures actual picks accuracy on/around the change date.
 Run #3184 reported `failure` with ZERO steps and no log. The operator
 found it by chance an hour later, because nothing alerted.
 
-### What happened
+### What happened — CORRECTED after SSH forensics on the runner host
 
-The self-hosted runner (Contabo box `vmi3065305`) stopped answering
-GitHub at ~16:10 UTC. The 16:44 job was addressed to that machine,
-waited 16m57s, and GitHub gave up — annotation: *"The job was not
-acquired by Runner of type self-hosted even after multiple attempts."*
-Job record confirms it: `runner_id: 0`, no runner name, 0 steps, 22-byte
-log. **It was NOT the concurrency rule** (an early theory): #3185 was
-created 4 seconds AFTER #3184 was already dead. The runner recovered on
-its own; #3185 succeeded at 17:19:44Z. Cost: one lost run out of 20,
-and a 69-minute gap in GitHub-side refreshes. No pick lost.
+**IT WAS A GITHUB ACTIONS OUTAGE. The VPS did nothing wrong.** Two
+earlier theories were both WRONG and are recorded here so nobody
+re-derives them: (1) the concurrency rule superseding a pending run —
+refuted, #3185 was created 4s AFTER #3184 was already dead; (2) "the
+Contabo box stopped answering GitHub" — refuted, it is the reverse.
+
+githubstatus.com: **"Incident with Actions", impact CRITICAL, opened
+2026-08-06T15:22Z**, still investigating at 18:20Z. GitHub's own
+wording: *"Some workflow runs are failing to start or failing partway
+through."* #3184 is "failing to start".
+
+Mechanically, from the runner's own `_diag` listener log: GitHub's
+backend returned **HTTP 503 ServiceUnavailable** to the runner's
+`acquirejob` and `renewjob` calls — **152 of them between 16:00 and
+18:00 UTC**, against a baseline of ~35 in the PREVIOUS MONTH. Session
+renewal exhausted its 4 retries repeatedly (~once a minute, 17:01-17:19),
+so GitHub's control plane could not keep the runner's session alive and
+marked its own runner offline (`status=offline, busy=true` — busy
+because it still thought a job was assigned). Job #3184 then had no
+live session to be handed to, waited 16m57s, and GitHub gave up:
+*"The job was not acquired by Runner of type self-hosted even after
+multiple attempts"* (`runner_id: 0`, 0 steps, 22-byte log). Both
+`run-actions-1-azure-eastus` and `run-actions-3-azure-eastus` 503'd, so
+it was not one bad backend.
+
+The host was provably healthy throughout, measured over SSH: **uptime
+181 days (no reboot), zero OOM-killer events in the entire journal,
+disk 27%, 8.4 GiB RAM available, runner service `NRestarts=0` running
+continuously since Aug 1, api.github.com 200 in 31 ms, 0% packet loss.**
+There is nothing to fix on that box.
+
+Cost: one lost run out of 20, a 69-minute gap in GitHub-side refreshes
+(16:10:49 → 17:09:32 per the runner's journal). No pick lost. The money
+path (Railway) was unaffected throughout.
 
 Root cause of the *invisibility*: `runs-on: ${{ vars.RUNNER_LABEL ||
 'ubuntu-latest' }}` is not a failover. `||` tests whether the VARIABLE
@@ -72,13 +97,27 @@ started, wired to a `HEALTHCHECKS_URL` secret that does not exist here.
   **Fix: update the `TELEGRAM_CHAT_ID` repo secret to
   `5285688562,-1003953933618`.**
 
+### KNOWN LIMIT OF THE WATCHDOG — read before trusting it
+
+**The watchdog runs ON GitHub Actions, so it cannot alert you about a
+GitHub Actions outage.** It is pinned to `ubuntu-latest`, which makes it
+survive the *runner box* dying — the case it was built for — but during
+an Actions-wide outage the watchdog's own scheduled run may never start
+either. Today's incident is precisely that case, so the alarm shipped
+in this entry would NOT have caught today's failure.
+
+Truly outage-proof alerting has to live somewhere GitHub does not
+control. This system already has two such places: the **Railway**
+service (independent, already running a 5-min loop, already holds the
+Telegram credentials) and **cron on the runner VPS**. Either can poll
+the GitHub API and ping Telegram when runs stop. Not built yet.
+
 ### Still open
 
-- **Why the Contabo box stopped answering is UNKNOWN.** A runner
-  self-update is ruled out (v2.336.0 before and after) and in-job network
-  was fast, which points at the runner↔GitHub channel or host resource
-  pressure. Needs logs from the box itself. Three consecutive runs showed
-  connection stalls beforehand, so recurrence is plausible.
+- **Why the Contabo box "went offline" is now ANSWERED** (GitHub's
+  outage, above) — but note the runner self-heals and needs no
+  intervention. Do NOT flip `RUNNER_LABEL` to `ubuntu-latest` during an
+  Actions outage: GitHub-hosted runners are affected too, usually worse.
 - **The "backup" DraftKings scrape is fiction** — 403 for 90 consecutive
   days, no odds file written since 2026-05-04. Railway is the ONLY odds
   source, with no backup. Unrelated to this outage; the bigger risk.
