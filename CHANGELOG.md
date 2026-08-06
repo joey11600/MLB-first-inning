@@ -11,6 +11,80 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-06] - the alarm outside the building (run #3184 post-mortem)
+
+Run #3184 reported `failure` with ZERO steps and no log. The operator
+found it by chance an hour later, because nothing alerted.
+
+### What happened
+
+The self-hosted runner (Contabo box `vmi3065305`) stopped answering
+GitHub at ~16:10 UTC. The 16:44 job was addressed to that machine,
+waited 16m57s, and GitHub gave up — annotation: *"The job was not
+acquired by Runner of type self-hosted even after multiple attempts."*
+Job record confirms it: `runner_id: 0`, no runner name, 0 steps, 22-byte
+log. **It was NOT the concurrency rule** (an early theory): #3185 was
+created 4 seconds AFTER #3184 was already dead. The runner recovered on
+its own; #3185 succeeded at 17:19:44Z. Cost: one lost run out of 20,
+and a 69-minute gap in GitHub-side refreshes. No pick lost.
+
+Root cause of the *invisibility*: `runs-on: ${{ vars.RUNNER_LABEL ||
+'ubuntu-latest' }}` is not a failover. `||` tests whether the VARIABLE
+is empty, never whether the machine is ALIVE — and `RUNNER_LABEL` is
+set to `self-hosted`, so jobs queue against a dead box for up to 24h.
+The one failure ping in daily.yml is a step INSIDE the job that never
+started, wired to a `HEALTHCHECKS_URL` secret that does not exist here.
+
+### Added
+
+- **`.github/workflows/runner_watchdog.yml`** — `runs-on` HARDCODED to
+  `ubuntu-latest` (a watchdog on the machine it watches cannot report
+  that machine's death). Three signals from the runs API: a job unpicked
+  20m+ (**this outage's exact signature — would have fired ~40 min
+  before the operator noticed**), no success in 90m+, newest run failed.
+  Schedule-aware (awake 13:00–03:59 UTC only): daily.yml is silent
+  06:00–12:00 UTC by design, so a naive staleness alarm would cry wolf
+  ~12× nightly and get muted. Stateless escalating dedupe (20/60/180m
+  stuck; 90m/3h/6h/12h stale) → a day-long outage sends ~4 messages, not
+  30. `force_test` dispatch input proves the chain end-to-end on demand.
+
+### Fixed
+
+- **The false comment** at `daily.yml:111`, which claimed workflows
+  "still work … if the self-hosted runner is offline". Replaced with the
+  real behaviour, the manual recovery, the hosted-minutes billing
+  caveat, and the note that the only true failover is a second runner
+  sharing the `self-hosted` label (`runs-on` with two labels means
+  "must have BOTH").
+
+### Found while testing — UNFIXED, needs the operator
+
+- **GitHub-side Telegram alerts to the "Backfist Bets" channel have been
+  failing silently for months.** The `force_test` run delivered
+  `HTTP 200` to the operator's DM and **`HTTP 400`** to the channel.
+  Cause: the group was upgraded to a supergroup, which CHANGES its
+  chat id. Railway's env has the new id (`-1003953933618`, type
+  `supergroup`); the GitHub secret still holds the old one
+  (`-5115372935`, type `group`, `can_send_messages: false`) and was last
+  updated 2026-05-02. Nothing logged it — `system_errors.csv` has 0
+  `telegram-send` rows. Railway-sent alerts (BET LOCKED, pre-game) reach
+  the channel fine; GitHub-sent ones (results, digest) never have.
+  **Fix: update the `TELEGRAM_CHAT_ID` repo secret to
+  `5285688562,-1003953933618`.**
+
+### Still open
+
+- **Why the Contabo box stopped answering is UNKNOWN.** A runner
+  self-update is ruled out (v2.336.0 before and after) and in-job network
+  was fast, which points at the runner↔GitHub channel or host resource
+  pressure. Needs logs from the box itself. Three consecutive runs showed
+  connection stalls beforehand, so recurrence is plausible.
+- **The "backup" DraftKings scrape is fiction** — 403 for 90 consecutive
+  days, no odds file written since 2026-05-04. Railway is the ONLY odds
+  source, with no backup. Unrelated to this outage; the bigger risk.
+
+---
+
 ## [2026-08-05g] - Telegram follows the redesign: №1-only notifications
 
 Operator: *"we need to fix the telegram notifications. it should only
