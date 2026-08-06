@@ -79,6 +79,9 @@ jobs:
           REPO:               ${{ github.repository }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Optional explicit override. When unset, the sign filter below
+          # keeps ops alerts out of the subscriber channel automatically.
+          TELEGRAM_OPS_CHAT_ID: ${{ secrets.TELEGRAM_OPS_CHAT_ID }}
         run: |
           set -uo pipefail
 
@@ -178,12 +181,42 @@ jobs:
 
           BODY="🐕 <b>NRFI WATCHDOG</b>%0A%0A${ALERT}Runner: check https://github.com/${REPO}/settings/actions/runners%0AKill switch: Settings → Secrets and variables → Actions → Variables → set <code>RUNNER_LABEL</code> to <code>ubuntu-latest</code>"
 
-          # TELEGRAM_CHAT_ID may be comma-separated (operator + channel),
-          # same convention tracker.py uses.
-          IFS=',' read -ra CHATS <<< "$TELEGRAM_CHAT_ID"
+          # ══ OPS ALERTS NEVER GO TO THE SUBSCRIBER CHANNEL ══
+          #
+          # TELEGRAM_CHAT_ID is comma-separated and contains BOTH the
+          # operator's personal thread AND "Backfist Bets", the channel
+          # PAYING SUBSCRIBERS read.
+          #
+          # tracker.py gates that channel deliberately:
+          # `_chat_should_receive_event` (T3.15) lets it receive only
+          # bet-facing event types, and `_SUPERGROUP_THREAD_ID` posts
+          # them into the "1st Inning Model" topic. A raw shell loop
+          # over every id has NEITHER protection, so this watchdog
+          # would have published "Job not picked up on self-hosted
+          # runner... set RUNNER_LABEL to ubuntu-latest" straight into
+          # a paid channel. Server troubleshooting is not the product.
+          #
+          # It is only harmless today because the GitHub copy of the
+          # secret still holds the pre-supergroup id and 400s. THAT BUG
+          # IS THE ONLY THING STOPPING THIS. The moment the secret is
+          # corrected, an unguarded loop starts spamming subscribers.
+          #
+          # THE RULE: ops alerts go to PERSONAL threads only. Telegram
+          # ids are negative for groups/channels and positive for
+          # people, so filtering on the sign is a structural guarantee
+          # rather than a hardcoded number that drifts. Set
+          # TELEGRAM_OPS_CHAT_ID to override explicitly.
+          TARGETS="${TELEGRAM_OPS_CHAT_ID:-$TELEGRAM_CHAT_ID}"
+          IFS=',' read -ra CHATS <<< "$TARGETS"
+          SENT=0
           for CHAT in "${CHATS[@]}"; do
             CHAT=$(echo "$CHAT" | tr -d '[:space:]')
             [ -z "$CHAT" ] && continue
+            case "$CHAT" in
+              -*) echo "skipping group/channel ${CHAT} (ops alerts are operator-only)"
+                  continue ;;
+            esac
+            SENT=$((SENT + 1))
             CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
               "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d "chat_id=${CHAT}" \
@@ -192,3 +225,6 @@ jobs:
               --data-urlencode "text=$(printf '%b' "${BODY//%0A/\\n}")")
             echo "telegram -> ${CHAT}: HTTP ${CODE}"
           done
+          if [ "$SENT" -eq 0 ]; then
+            echo "::warning::no personal chat id available; alert not delivered. Set TELEGRAM_OPS_CHAT_ID."
+          fi
