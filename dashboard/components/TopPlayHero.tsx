@@ -137,7 +137,24 @@ export function TopPlayHero({ rows, details, date, report }: TopPlayHeroProps) {
   const d = lookupDetail(row, details);
   const sideP = row.pickSide === "NRFI" ? row.nrfiPct / 100 : row.yrfiPct / 100;
   const odds = pick.odds;
-  const stake = odds != null ? stakeUnitsFor(sideP, odds) : null;
+  /* THE LEDGER IS THE AUTHORITY ON THE STAKE. Read what the system
+     actually booked; only fall back to recomputing for a row it has not
+     staked yet.
+
+     WHY (live contradiction, 2026-08-06): this hero showed 3u for
+     SD@ARI while the Discord post showed 4u -- same bet, same -135,
+     same formula. The raw quarter-Kelly stake was 3.4975 units, a hair
+     under the 3.5 rounding boundary, and the two surfaces fed it
+     probabilities of different PRECISION: this hero uses `yrfiPct`
+     (63.4, one decimal) while Discord used implied(price)+edge
+     (0.6343). 0.0003 of probability moved the published stake by a
+     whole unit. Rounding boundaries are dense, so ANY surface that
+     recomputes will eventually land on the wrong side of one. The fix
+     is not better rounding -- it is that every surface prints the SAME
+     STORED NUMBER. */
+  const stake = d?.unitsRisked != null && d.unitsRisked > 0
+    ? d.unitsRisked
+    : (odds != null ? stakeUnitsFor(sideP, odds) : null);
   const ladder = odds != null ? buildPriceLadder(sideP, odds) : null;
   const graded = (d?.gradedResult || "").trim().toUpperCase();
   const placed = d?.betPlaced === "Y";
@@ -284,7 +301,10 @@ function OtherPlays({
           r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds,
         );
         const p = r.pickSide === "NRFI" ? r.nrfiPct / 100 : r.yrfiPct / 100;
-        const stake = odds != null ? stakeUnitsFor(p, odds) : null;
+        // Same rule as the hero above: booked stake wins over a recompute.
+        const stake = d?.unitsRisked != null && d.unitsRisked > 0
+          ? d.unitsRisked
+          : (odds != null ? stakeUnitsFor(p, odds) : null);
         return (
           <span key={`${r.away}@${r.home}#${r.gameNumber}`} className={styles.otherPlay}>
             {i > 0 && " · "}

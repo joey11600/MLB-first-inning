@@ -140,7 +140,35 @@ def published_probability(row: dict) -> tuple[float | None, bool]:
 
 
 def stake_for(row: dict) -> float | None:
-    """Units, straight from the ledger's own staking function."""
+    """Units to publish.
+
+    THE LEDGER IS THE AUTHORITY -- read `units_risked`, do not recompute.
+
+    WHY, and it cost a live contradiction on 2026-08-06: the dashboard
+    showed 3u for SD@ARI while Discord showed 4u for the same bet at the
+    same price. Neither was a formula bug -- both implementations are
+    identical. The raw quarter-Kelly stake was **3.4975 units**, sitting
+    a hair under the 3.5 rounding boundary, and the two surfaces fed it
+    probabilities of different PRECISION:
+
+        dashboard  yrfiPct 63.4   (1 decimal)  -> 3.4975 -> 3u
+        discord    0.6343         (full)       -> 3.5151 -> 4u
+
+    A difference of 0.0003 in the input moved the published stake by a
+    whole unit. Any surface that recomputes will keep landing on the
+    wrong side of some boundary, forever, because rounding boundaries
+    are dense. The only stable answer is for every surface to PRINT THE
+    SAME STORED NUMBER -- the one the system actually staked.
+
+    Recomputation stays as a fallback ONLY for a row the ledger has not
+    priced yet (so a pre-lock board can still show an indicative size),
+    and that path is the one place a boundary disagreement can still
+    appear. It is bounded to rows carrying no committed stake.
+    """
+    booked = _f(row.get("units_risked"))
+    if booked is not None and booked > 0:
+        return booked
+
     p, _ = published_probability(row)
     odds = side_price(row)
     if p is None or odds is None:
@@ -350,18 +378,12 @@ def build_board(date_iso: str, rows: list[dict]) -> str:
                 else:
                     L.append(f"Model **{p*100:.1f}%** · price not captured yet")
                 stake = stake_for(r)
+                pa = pass_price(p)
                 if stake:
-                    L.append(f"**Stake {stake:.0f}u** at the price above.")
-                rungs = price_ladder(p)
-                if rungs:
-                    L.append("Your book's price → your stake:")
-                    L.append("```")
-                    for o, u in rungs:
-                        L.append(f"  {fmt_odds(o):>5} or better   {u:.0f}u")
-                    pa = pass_price(p)
+                    line = f"**Stake {stake:.0f}u**"
                     if pa is not None:
-                        L.append(f"  worse than {fmt_odds(pa)}   no bet")
-                    L.append("```")
+                        line += f" · don't take worse than **{fmt_odds(pa)}**"
+                    L.append(line)
     else:
         L.append("")
         L.append("## NO PLAY TONIGHT")
@@ -422,17 +444,10 @@ def build_top_pick(date_iso: str, r: dict) -> str:
                      f"use the ladder below at your own book.")
         if stake:
             L.append(f"### Stake {stake:.0f} units")
-        rungs = price_ladder(p)
-        if rungs:
-            L.append("```")
-            for o, u in rungs:
-                L.append(f"  {fmt_odds(o):>5} or better   {u:.0f}u")
-            pa = pass_price(p)
-            if pa is not None:
-                L.append(f"  worse than {fmt_odds(pa)}   no bet")
-            L.append("```")
-    L.append("_1 unit = 1% of your bankroll. Bet the stake matching the "
-             "price YOUR book shows._")
+        pa = pass_price(p)
+        if pa is not None:
+            L.append(f"Don't take worse than **{fmt_odds(pa)}**.")
+    L.append("_1 unit = 1% of your bankroll._")
     L.append(f"<{DASH}/brief>")
     return "\n".join(L)
 

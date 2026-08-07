@@ -18,6 +18,25 @@
 # inside of a door that never opened.  It is also wired to a secret
 # (HEALTHCHECKS_URL) that does not exist in this repo.
 #
+# 2026-08-06, SECOND JOB: THIS ALSO WATCHES RAILWAY.
+#
+# A monitor cannot report its own death.  Railway now runs its own
+# watchdog (watchdog.py) covering GitHub, Vercel, the odds pipeline and
+# the nightly No.1 -- but nothing there can notice Railway itself dying,
+# because if that process stops, so do its checks.
+#
+# The textbook answer is a third-party dead-man's switch, and
+# HEALTHCHECKS_URL is still the right thing to add.  But the operator
+# already owns a second, independent failure domain: THIS one.  Railway
+# writes a heartbeat to Supabase every 5-minute cycle, the dashboard
+# exposes it as `minutesSincePredict`, and that number is readable from
+# anywhere.  So GitHub watches Railway, Railway watches GitHub, and each
+# covers the blind spot the other structurally cannot.
+#
+# Not equivalent to an external switch -- a SIMULTANEOUS outage of both
+# GitHub and Railway is still silent -- but it closes the gap that
+# actually bit this week, with no new account, credential or bill.
+#
 # THE ONE RULE FOR THIS FILE: `runs-on` is HARDCODED to ubuntu-latest.
 # It must NEVER use `vars.RUNNER_LABEL`.  A watchdog that runs on the
 # machine it is watching cannot report that machine's death -- that is
@@ -131,6 +150,25 @@ jobs:
 
           echo "stale_min=$STALE_MIN stuck_min=$STUCK_MIN newest=#$NEWEST_NUM/$NEWEST_CONC age=${NEWEST_AGE}m"
 
+          # ---- measurement 4: IS RAILWAY ALIVE? -----------------------
+          # Railway's loop writes a heartbeat every 5 minutes; the
+          # dashboard surfaces its age. This workflow runs 13:00-03:59
+          # UTC, inside Railway's own active window (9am-2am ET), so a
+          # long gap here means the loop is genuinely down rather than
+          # idling through its overnight quiet period.
+          #
+          # THE MONEY IS HERE, NOT IN THE PAPERWORK: Railway owns
+          # predict, odds capture, the 60-minute bet lock and the Discord
+          # broadcasts. GitHub going down costs bookkeeping; RAILWAY
+          # going down costs the night's pick.
+          RAIL_MIN=-1
+          if curl -s --max-time 15 "https://nrfi-terminal.vercel.app/api/health-live"                > health.json 2>/dev/null; then
+            RAIL_MIN=$(jq -r '.minutesSincePredict // -1' health.json)
+            RAIL_MIN=${RAIL_MIN%.*}
+            [ -z "$RAIL_MIN" ] && RAIL_MIN=-1
+          fi
+          echo "railway_stale_min=$RAIL_MIN"
+
           # ---- decide ------------------------------------------------
           # `in_band` is the stateless dedupe: true only on the first
           # check after a measurement crosses a threshold.
@@ -155,6 +193,14 @@ jobs:
             done
           fi
 
+          if [ "$RAIL_MIN" -ge 0 ]; then
+            for T in 45 120 360; do
+              if in_band "$RAIL_MIN" "$T"; then
+                ALERT="${ALERT}<b>RAILWAY IS DOWN</b> - no predictor heartbeat for ${RAIL_MIN} min. This service captures odds, locks the bet and posts to Discord. Tonight's pick is at risk.%0A%0A"
+              fi
+            done
+          fi
+
           if [ "$NEWEST_CONC" = "failure" ] && [ "$NEWEST_AGE" -ge 0 ] \
              && [ "$NEWEST_AGE" -lt "$WINDOW_MIN" ]; then
             ALERT="${ALERT}🔴 <b>Run #${NEWEST_NUM} failed</b>%0A${NEWEST_URL}%0A%0A"
@@ -164,7 +210,7 @@ jobs:
           # `force_test` proves the whole chain (API -> logic -> Telegram)
           # on demand, without waiting for a real outage.
           if [ "${{ github.event.inputs.force_test }}" = "true" ]; then
-            ALERT="${ALERT}✅ <b>Test alert</b> — the watchdog is alive and can reach you. Measured just now: last success ${STALE_MIN}m ago, longest waiting job ${STUCK_MIN}m, newest run #${NEWEST_NUM} ${NEWEST_CONC}.%0A%0A"
+            ALERT="${ALERT}✅ <b>Test alert</b> — the watchdog is alive and can reach you. Measured just now: last success ${STALE_MIN}m ago, longest waiting job ${STUCK_MIN}m, newest run #${NEWEST_NUM} ${NEWEST_CONC}, Railway heartbeat ${RAIL_MIN}m ago.%0A%0A"
           fi
 
           if [ -z "$ALERT" ]; then
