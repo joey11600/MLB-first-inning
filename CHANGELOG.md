@@ -11,6 +11,35 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07] - the dead-man's switch could have been held green by the wrong host
+
+### Fixed — Railway's heartbeat now uses its own env var (`watchdog.heartbeat`)
+
+`daily.yml` pings `HEALTHCHECKS_URL` after every successful GitHub run,
+and `watchdog.heartbeat()` read THE SAME NAME. Pasting one check URL
+into both places would have made GitHub's hourly ping hold the check
+green while Railway lay dead -- which is the single failure the
+dead-man's switch exists to detect. Two hosts sharing one switch means it
+reports "at least one of them is alive", which is not a useful sentence.
+
+Railway now reads `HEALTHCHECKS_URL_PREDICTOR`. Different name, so the
+two cannot be pasted into the same box by accident. It still falls back
+to the old name rather than going silent, but prints why that is weaker
+than the operator thinks.
+
+### Corrected — the watchdog docstring overstated the gap
+
+It claimed "an outage of Railway itself is currently undetected". Not
+true: `runner_watchdog.yml` already polls /api/health-live and alerts
+"RAILWAY IS DOWN" on a stale predict. The real gap is narrower and worth
+stating precisely -- that check reaches Railway THROUGH VERCEL, so a
+failed curl leaves `RAIL_MIN=-1` and the check is skipped SILENTLY. It
+cannot tell "Railway is fine" from "I could not look." The dead-man's
+switch is the answer to that specific blind spot, because it depends on
+neither Vercel nor GitHub.
+
+---
+
 ## [2026-08-06e] - the No.1 settle ping, and it reports losses too
 
 ### Added — BROADCAST 5: THE No.1 SETTLED (`build_top_pick_settled`)

@@ -16,13 +16,21 @@ up through that outage and which owns the money path anyway. It watches
 GitHub, Vercel, the odds pipeline and the broadcasts -- all of which are
 in different failure domains from Railway.
 
-WHAT WATCHES RAILWAY? Nothing here can. A process cannot report its own
-death, and every check below is silent if this file never runs. That is
-what `heartbeat()` is for: it pings an EXTERNAL dead-man's-switch
-service on every healthy cycle, and that service alerts when the pings
-STOP. Until HEALTHCHECKS_URL is set, the honest statement is: **an
-outage of Railway itself is currently undetected.** `daily.yml:917-923`
-already has the same ping wired to the same unset secret.
+WHAT WATCHES RAILWAY? Two things, and neither lives here.
+
+1. `.github/workflows/runner_watchdog.yml` polls the dashboard's
+   /api/health-live and alerts "RAILWAY IS DOWN" on a stale predict.
+   Real coverage, with one blind spot worth naming: it reaches Railway
+   THROUGH VERCEL, so if Vercel is unreachable the curl fails, RAIL_MIN
+   stays -1 and the check is SKIPPED silently. It cannot distinguish
+   "Railway is fine" from "I could not look."
+
+2. `heartbeat()` below, the dead-man's switch, which is the answer to
+   that blind spot precisely because it depends on neither Vercel nor
+   GitHub: an external service alerts when the pings STOP.
+
+Until HEALTHCHECKS_URL_PREDICTOR is set, only (1) is live, so a Railway
+outage that coincides with a Vercel outage is undetected.
 
 THE ANTI-NOISE CONTRACT, which matters as much as the coverage.
 This system's documented failure mode is alarm fatigue, not blindness:
@@ -185,11 +193,35 @@ def check_top_pick_locked(rows: list[dict], date_iso: str) -> tuple[str, str] | 
 
 def heartbeat() -> None:
     """Ping the EXTERNAL dead-man's switch. The only check that can
-    catch Railway itself dying, because it is the absence of this ping
-    that raises the alarm, not its presence."""
-    url = (os.environ.get("HEALTHCHECKS_URL", "") or "").strip()
+    catch Railway itself dying, because it is the ABSENCE of this ping
+    that raises the alarm, not its presence.
+
+    IT MUST BE ITS OWN CHECK, NOT THE ONE daily.yml PINGS.
+    `.github/workflows/daily.yml` pings `HEALTHCHECKS_URL` on every
+    successful GitHub run. If Railway pinged that same check, GitHub's
+    hourly ping would keep it green while Railway lay dead -- which is
+    the single failure this function exists to detect. Two hosts sharing
+    one dead-man's switch means the switch reports "at least one of them
+    is alive", and that is not a useful sentence.
+
+    So Railway reads HEALTHCHECKS_URL_PREDICTOR. Different name, so the
+    two cannot be pasted into the same place by accident.
+
+    The fallback below is deliberate but noisy: an operator who sets only
+    the old name still gets SOMETHING rather than silence, and is told
+    once per cycle why that something is weaker than they think.
+    """
+    url = (os.environ.get("HEALTHCHECKS_URL_PREDICTOR", "") or "").strip()
     if not url:
-        return
+        legacy = (os.environ.get("HEALTHCHECKS_URL", "") or "").strip()
+        if not legacy:
+            return
+        url = legacy
+        print("  [watchdog] using HEALTHCHECKS_URL for the Railway "
+              "heartbeat. If daily.yml pings the same check, GitHub will "
+              "hold it green while Railway is down. Set "
+              "HEALTHCHECKS_URL_PREDICTOR to a SEPARATE check.",
+              file=sys.stderr)
     try:
         urllib.request.urlopen(url, timeout=8).read()
     except Exception:  # noqa: BLE001
