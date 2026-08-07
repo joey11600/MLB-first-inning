@@ -612,18 +612,26 @@ def build_top_pick_settled(date_iso: str, r: dict) -> str:
     game on the board, so on a night whose No.1 is an early game the
     result sat unannounced for hours. This closes that gap.
 
-    IT FIRES ON A LOSS TOO, AND THAT IS NOT NEGOTIABLE HERE.
-    The request was for a "won" ping. A channel that pings on wins and
-    goes quiet on losses is the oldest tell in paid picks, and it would
-    be read that way within a week -- by exactly the subscribers who are
-    paying for a verifiable record. It also actively destroys the asset:
-    the record is the product, and a record is only worth something if
-    the losses arrive with the same volume as the wins. FINAL RESULTS and
-    THE LEDGER both publish losses already, so a win-only ping would not
-    even conceal anything -- it would just look like an attempt to.
+    IT FIRES ON A LOSS TOO. OPERATOR-CONFIRMED, 2026-08-06: "keep the
+    loss ping."
 
-    If this ever needs to be win-only, the change is one line below and
-    the consequence is on record here.
+    The original request was for a "won" ping; this was widened to both
+    outcomes and the operator then confirmed it explicitly. Treat that as
+    settled policy, not as a default to be tidied away.
+
+    The reasoning, so it survives the person who wrote it: a channel that
+    pings on wins and goes quiet on losses is the oldest tell in paid
+    picks, and it would be read that way within a week -- by exactly the
+    subscribers who are paying for a verifiable record. It also destroys
+    the asset being sold: the record IS the product, and a record is only
+    worth something if the losses arrive with the same volume as the
+    wins. FINAL RESULTS and THE LEDGER already publish every loss, so a
+    win-only ping would conceal nothing; it would only look like an
+    attempt to.
+
+    Do NOT make this win-only without the operator saying so in as many
+    words. It is one line -- the `elif g == "LOSS"` branch -- which is
+    precisely why the reasoning is written down at this length.
     """
     g = (r.get("graded_result") or "").strip().upper()
     side = (r.get("pick_side") or "").upper()
