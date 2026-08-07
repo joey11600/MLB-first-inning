@@ -1,20 +1,20 @@
 {
   "date": "2026-08-07",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-07T22:26:06Z",
+  "fitted_at": "2026-08-07T22:34:34Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
     {
       "matchup": "LAD@ARI",
       "game_pk": "825051",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "YRFI",
+      "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.353,
+      "raw_p_run_t1": 0.3375,
       "raw_p_run_b1": 0.3739,
-      "raw_p_nrfi": 0.4051,
-      "calibrated_p_nrfi": 0.4323,
+      "raw_p_nrfi": 0.4148,
+      "calibrated_p_nrfi": 0.4384,
       "calibrator_band": {
         "band": "bin_1-2",
         "is_flat": false,
@@ -22,6 +22,14 @@
         "flat_rate": null
       },
       "top_drivers_t1": [
+        {
+          "name": "away_top3c_slg",
+          "value": 0.4953,
+          "z": 0.853,
+          "weight": -0.3266,
+          "contribution": -0.2787,
+          "outlier": false
+        },
         {
           "name": "fi_park_nrfi_rate",
           "value": 0.4239,
@@ -31,27 +39,19 @@
           "outlier": false
         },
         {
+          "name": "away_top3c_iso",
+          "value": 0.2043,
+          "z": 0.526,
+          "weight": 0.3454,
+          "contribution": 0.1818,
+          "outlier": false
+        },
+        {
           "name": "home_fip",
           "value": 5.234,
           "z": 2.401,
           "weight": 0.0587,
           "contribution": 0.1409,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_slg",
-          "value": 0.4291,
-          "z": -0.173,
-          "weight": -0.3266,
-          "contribution": 0.0566,
           "outlier": false
         },
         {
