@@ -326,10 +326,10 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   with NRFI_KELLY_ROUNDING=0.5: a real stake moved 4.0u -> 3.5u while the guard
   printed "ok". `tools/parity_fixtures.py --check` now closes the loop in CI.
   OK 2026-08-07
-- [ ] **T8.13** ORANGE `_row_is_nights_top_pick` self-excludes by AWAY@HOME
+- [x] **T8.13** ORANGE `_row_is_nights_top_pick` self-excludes by AWAY@HOME
   name, not game_pk, so BOTH halves of a doubleheader are called No.1 -- two
   alerts under a No.1-only policy. Pinned xfail in tests/test_selection.py.
-- [ ] **T8.14** ORANGE The No.1 rival scan never checks `bet_placed`, so a
+- [x] **T8.14** ORANGE The No.1 rival scan never checks `bet_placed`, so a
   cluster-demoted no-bet row competes for No.1 and wins, silencing the alert for
   the game the money is on. Live on 1 of 123 slates (2026-04-29 TB@CLE). Pinned
   xfail in tests/test_selection.py.
@@ -343,3 +343,9 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   4 mismatches) is the operator's 2026-08-03 rule and is KEPT -- but the Discord
   ledger claimed "every night's top play" without disclosing the re-pick, and now
   states the population. OK 2026-08-07
+
+  T8.13/T8.14 FIXED 2026-08-07: identity is now game_pk (falling back to
+  name#game_number), and rows explicitly bet_placed='N' are excluded as both
+  rivals and candidates -- empty is NOT excluded, since every row is pending
+  before the odds import. Exactly one No.1 on all 123 real slates; suite 37
+  passing, 0 xfailed.

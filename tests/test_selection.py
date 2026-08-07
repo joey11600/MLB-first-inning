@@ -127,16 +127,11 @@ def test_gate_fails_open_on_unparseable_input(ledger):
 
 
 # ---------------------------------------------------------------------------
-# KNOWN DEFECTS -- xfail(strict) so fixing one turns this file RED and forces
-# the marker to be removed. They are NOT pinned as correct behaviour.
+# Both of these were DEFECTS pinned xfail on 2026-08-07 and fixed the same day
+# (T8.13, T8.14). The strict marker did its job: fixing them turned the suite
+# red and forced the markers off, which is why these now assert plainly.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason=(
-    "DEFECT: self-exclusion is by 'AWAY@HOME' name, not game_pk, so on a "
-    "doubleheader each half excludes the OTHER as 'self' and both are called "
-    "№1 -- two 'tonight's №1 play' alerts under a №1-only policy. Not yet "
-    "triggered live (no real slate has two STRONG rows sharing a name) but "
-    "18 slate+name keys already carry more than one row."))
 def test_doubleheader_halves_do_not_both_become_number_one(ledger):
     a = _row("NYY", "BOS", 0.30, game_pk="777001")
     b = _row("NYY", "BOS", 0.35, game_pk="777002")
@@ -146,11 +141,6 @@ def test_doubleheader_halves_do_not_both_become_number_one(ledger):
     assert called.count(True) == 1
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "DEFECT: the rival scan filters on pick_strength only and never checks "
-    "bet_placed, so a row demoted to no-bet by tools/apply_cluster_demotion.py "
-    "still competes for №1 and wins -- silencing the alert for the game the "
-    "money is actually on. Live on 1 of 123 slates (2026-04-29 TB@CLE)."))
 def test_a_demoted_no_bet_row_cannot_take_the_number_one_slot(ledger):
     demoted = _row("NYY", "BOS", 0.30, bet_placed="N")
     real = _row("LAD", "SFG", 0.35)

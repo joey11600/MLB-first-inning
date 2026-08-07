@@ -1989,9 +1989,25 @@ def _row_is_nights_top_pick(row: dict) -> bool:
         side = (row.get("pick_side") or "").strip().upper()
         if side not in ("NRFI", "YRFI"):
             return True
+        # T8.14: a row the system has DECIDED not to bet is not a
+        # candidate for "tonight's №1 play". bet_placed='N' is set by the
+        # edge gate and by tools/apply_cluster_demotion.py, which
+        # deliberately leaves pick_strength alone -- so a demoted row
+        # stayed STRONG and kept competing. Empty is NOT excluded: before
+        # the odds import runs, every row is pending, and treating
+        # "unknown" as "no bet" would silence the whole slate.
+        if (row.get("bet_placed") or "").strip().upper() == "N":
+            return False
+
         p = float(row.get("nrfi_prob"))
         name = (f"{(row.get('away_team') or '').strip().upper()}"
                 f"@{(row.get('home_team') or '').strip().upper()}")
+        # T8.13: identity is the GAME, not the matchup name. Both halves
+        # of a doubleheader share "AWAY@HOME", so a name-keyed self-check
+        # made each half exclude the OTHER as itself -- and both fired the
+        # №1 alert. game_pk is unique per game; fall back to the name plus
+        # game number for pre-2026-04 rows that carry no game_pk.
+        ident = (row.get("game_pk") or "").strip() or             f"{name}#{(row.get('game_number') or '1').strip()}"
         odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
         mine = _top_pick_rank_tuple(side, p, row.get(odds_col), name)
 
@@ -2005,9 +2021,12 @@ def _row_is_nights_top_pick(row: dict) -> bool:
             r_side = (r.get("pick_side") or "").strip().upper()
             if r_side not in ("NRFI", "YRFI"):
                 continue
+            if (r.get("bet_placed") or "").strip().upper() == "N":
+                continue   # T8.14: not a bet, so not a candidate
             r_name = (f"{(r.get('away_team') or '').strip().upper()}"
                       f"@{(r.get('home_team') or '').strip().upper()}")
-            if r_name == name:
+            r_ident = (r.get("game_pk") or "").strip() or                 f"{r_name}#{(r.get('game_number') or '1').strip()}"
+            if r_ident == ident:
                 continue   # self: the passed row is fresher than the disk
             try:
                 r_p = float(r.get("nrfi_prob"))

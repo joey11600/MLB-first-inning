@@ -11,6 +11,69 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07i] - the No.1 gate: doubleheaders and demoted rows (T8.13, T8.14)
+
+Both were found by the test suite written hours earlier, pinned `xfail(strict)`,
+and are now fixed -- so the strict marker did its job: fixing them turned the
+suite red and forced the markers off.
+
+### Fixed - a doubleheader crowned BOTH halves No.1 (T8.13)
+
+`_row_is_nights_top_pick` excluded "self" by `AWAY@HOME` name. Both halves of a
+doubleheader share that name, so each excluded the OTHER as itself and both
+returned True -- two "tonight's No.1 play" alerts under a No.1-ONLY policy.
+
+Identity is now `game_pk`, falling back to `name#game_number` for pre-2026-04
+rows that carry no game_pk. Not yet triggered live (no real slate has two STRONG
+rows sharing a name) but 18 slate+name keys already carry more than one row, so
+it was one doubleheader away.
+
+### Fixed - a demoted no-bet row could take the No.1 slot (T8.14)
+
+The rival scan filtered on `pick_strength` and never looked at `bet_placed`,
+while `tools/apply_cluster_demotion.py` deliberately sets `bet_placed='N'`
+WITHOUT touching strength. So a row the system had decided not to bet still
+competed for No.1 -- and won, silencing the alert for the game the money was
+actually on. Live on 1 of 123 slates (2026-04-29 TB@CLE).
+
+Rows explicitly marked `bet_placed='N'` are now excluded, both as rivals and as
+candidates. **Empty is NOT excluded** and that distinction matters: before the
+odds import runs every row is pending, and treating "unknown" as "no bet" would
+silence the entire slate.
+
+Verified on the real ledger: **exactly one No.1 on all 123 slates**, unchanged.
+Suite is 37 passing, 0 xfailed.
+
+### Measured, not fixed - is NRFI actually being judged unfairly?
+
+Prompted by a fair question: if NRFI No.1s were being excluded from the record,
+were they being written off wrongly? Checked, and the answer is no -- the
+premise inverts:
+
+* The three nights whose overall top play was NRFI went **0W-3L**. The wins in
+  the earlier comparison were the YRFI *substitutes*, not the NRFI picks.
+* Headline STRONG NRFI looks fine: 57W-39L, 59.4%, +8.53u -- a HIGHER hit rate
+  than STRONG YRFI's 58.6%. But split by whether a real book price was ever
+  captured:
+
+| | record | hit | units |
+|---|---|---|---|
+| STRONG NRFI, **real** price | 22W-27L | **44.9%** | **-11.29u** |
+| STRONG NRFI, invented -110 | 35W-12L | 74.5% | +19.82u |
+| STRONG YRFI, **real** price | 186W-131L | 58.7% | +30.73u |
+| STRONG YRFI, invented -110 | 76W-54L | 58.5% | +15.08u |
+
+Every unit of NRFI's apparent profit sits on bets **no book ever priced**. On
+the 49 where a real price existed it hit 44.9% -- against a 52.4% break-even at
+-110. YRFI reads the same in both buckets (58.7 vs 58.5), which is what a real
+edge looks like; NRFI's 44.9-vs-74.5 split is the signature of an artefact.
+
+Consistent with the prior work (`2026-07-28_nrfi_deep_dive`): ~300 selection
+rules tested and refuted 12-of-12, and stripping ALL the vig still leaves NRFI
+at -4.68%. The 2026-06-07 decision to switch STRONG NRFI off stands.
+
+---
+
 ## [2026-08-07h] - the published record now counts the night's actual No.1 (T8.15)
 
 ### Fixed - a postponed No.1 was silently replaced by the runner-up
