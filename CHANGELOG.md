@@ -11,6 +11,71 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-06b] - the notification lag: two causes, one fixed, one reverted
+
+Operator: *"the telegram notifications for some reason are all lagged."*
+Two independent causes. One is fixed; the other was attempted, FAILED
+VERIFICATION, and was reverted — recorded here so the next attempt
+starts from evidence instead of the same wrong guess.
+
+### Fixed — the loop drifted (`ee51746e`)
+
+`workers/predictor_loop.py` ran `cycle(); time.sleep(300)`, making the
+real period `cycle_duration + 300s` rather than 300s. `cycle()` runs
+predict + grade + scrape + import + reconcile with subprocess timeouts
+of up to 300s EACH, so a slow night silently turned the "5-minute loop"
+into a 10-minute one and the drift compounded through the evening. Now
+sleeps the REMAINDER: a 90s cycle sleeps 210s and the next still starts
+on the 5-minute mark; an overrun starts immediately and logs it.
+
+### The bigger cause, still OPEN — Railway rebuilds on every data commit
+
+Railway's **Watch Paths were empty**, so every push rebuilds the
+predictor service. The GitHub cron commits `data/` ~20-25x/day, and
+each one tears down the container, reinstalls dependencies and restarts
+the loop from zero — so the loop never establishes a cadence, and every
+restart also resets the container CSV back to git (which is why
+`step_sync_csv_from_supabase` has to exist at all). Deployment history
+showed six rebuilds in five hours, all from `auto: predict` commits.
+
+### ATTEMPTED AND REVERTED — `/**` does not match root-level files
+
+Set Watch Paths to:
+
+    /**
+    !/data/**
+
+reasoning it was fail-safe (if the negation were ignored we would fall
+back to deploy-on-everything). **The verification proved otherwise and
+the config was reverted within minutes.** Evidence from Railway's own
+deployment list:
+
+| commit | files touched | result |
+|---|---|---|
+| `47e47775` FINAL RESULTS | `discord_broadcasts.py` (ROOT) | **SKIPPED** — "No changes to watched files" |
+| `auto: predict` | `data/**` (NESTED) | **Deployed** |
+
+Exactly backwards. **`/**` matched the nested `data/` path but NOT a
+root-level file**, so the one thing the config had to protect — code
+reaching production — was the thing it broke. This matters here more
+than in most repos: **11 of the system's Python entry points live at
+the repository root**, including `tracker.py`,
+`mlb_first_inning_predictor.py`, `scrape_dk_odds.py` and both new
+`discord_*.py` modules.
+
+**Lesson for the next attempt:** do not trust a glob's semantics on
+this setting without testing BOTH directions, and prefer
+`railway.json`'s `build.watchPatterns` (version-controlled, reviewable)
+over the dashboard field. A correct allowlist must name root files
+explicitly, e.g. `/*.py` alongside `/workers/**`, `/db/**`, `/tools/**`,
+`/requirements.txt`, `/Procfile`, `/railway.json` — and must be proven
+with a root-file commit before being trusted.
+
+Watch Paths are empty again: deploys are noisy but correct, which is
+the right way round to be wrong.
+
+---
+
 ## [2026-08-06] - the alarm outside the building (run #3184 post-mortem)
 
 Run #3184 reported `failure` with ZERO steps and no log. The operator
