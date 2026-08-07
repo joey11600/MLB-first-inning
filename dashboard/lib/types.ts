@@ -21,8 +21,28 @@ export interface BoardRow {
   pickSide: PickSide;
   pickStrength: PickStrength;
   pickLabel: string;
+  /** DISPLAY ONLY -- rounded to one decimal (0.5823 -> 58.2).
+   *  Never rank, size, or classify from these; see `nrfiP`. */
   nrfiPct: number;
   yrfiPct: number;
+  /** p(no run in the 1st) at FULL PRECISION, exactly as the predictor
+   *  wrote it.
+   *
+   *  WHY A SECOND FIELD FOR THE SAME NUMBER. `nrfiPct` is rounded to one
+   *  decimal for the screen, and every surface that needed a probability
+   *  reached for it because it was the one on hand. That is fine for
+   *  printing and wrong for deciding, and it has now cost twice:
+   *
+   *    - the stake: 3.4975u sat a hair under a rounding boundary, so the
+   *      board published 3u where Discord published 4u (2026-08-06);
+   *    - the №1 PICK ITSELF: ranking on 1dp made the dashboard name a
+   *      DIFFERENT GAME than Discord, Telegram and the published record
+   *      on 3 of 114 slates -- 2026-06-15, 06-20 and 07-08 (2026-08-07).
+   *
+   *  Python ranks on the full-precision value, and Python's answer is
+   *  what gates the alerts and the record. So the dashboard must rank on
+   *  the same number, not on the one it happens to be showing. */
+  nrfiP: number;
   // Doubleheader disambiguation (added later -- old CSVs may not have these)
   gamePk: string;        // empty when row is from a pre-2026-04 board CSV
   gameNumber: number;    // 1 by default

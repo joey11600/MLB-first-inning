@@ -88,7 +88,7 @@ export function BoardTable({
             key: r.gamePk || `${r.away}@${r.home}#${r.rank}`,
             name: `${r.away}@${r.home}`,
             side: r.pickSide,
-            modelP: r.nrfiPct / 100,
+            modelP: r.nrfiP,   // FULL precision -- never nrfiPct (display, 1dp)
             odds: Number.isFinite(odds) && odds !== 0 ? odds : null,
           };
         }),

@@ -23,7 +23,14 @@
  *  whose odds have not been captured yet. */
 export interface RankableBet {
   side: string;
-  /** p(no run in the 1st) as the system printed it. */
+  /** p(no run in the 1st) at FULL PRECISION.
+   *
+   *  NOT "as the system printed it" -- that phrasing used to be here and
+   *  it invited exactly the bug it should have prevented. Every board
+   *  caller reached for `nrfiPct`, which is rounded to one decimal for
+   *  display, and ranking on it made this dashboard name a DIFFERENT
+   *  GAME as №1 than Discord, Telegram and the published record on 3 of
+   *  114 slates (2026-06-15, 06-20, 07-08). Pass `BoardRow.nrfiP`. */
   modelP: number;
   odds: number | null;
 }

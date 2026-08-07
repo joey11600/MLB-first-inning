@@ -209,46 +209,82 @@ def stake_for(row: dict) -> float | None:
 # the price ladder -- book-free, so it works at ANY sportsbook
 # ---------------------------------------------------------------------------
 
-def price_ladder(p: float, max_rungs: int = 6) -> list[tuple[int, float]]:
-    """[(american_price, units)] walking the price worse until the stake
-    falls under a unit, then the pass line.
-
-    Mirrors dashboard/lib/price-ladder.ts. This is THE thing to publish
-    to subscribers: it is computed from the model probability alone, so a
-    reader on any book can look up their own number. That is why the
-    board can be useful even on the 85% of games with no captured price.
-    """
-    tracker = _tracker()
-    if tracker is None:
-        return []
-    out: list[tuple[int, float]] = []
-    seen: set[float] = set()
-    o = -100
-    while o > -600 and len(out) < max_rungs:
-        u = tracker.kelly_stake_units(p, str(o))
-        if u is None or u < 1.0:
-            break
-        if u not in seen:
-            out.append((o, u))
-            seen.add(u)
-        o -= 5
-    return out
+# THE PRICE LADDER LIVED HERE AND IS GONE (2026-08-07).
+#
+# `price_ladder()` built the rung table for the Discord board. The
+# operator had the ladder removed from the messages on 2026-08-06, which
+# left this function defined and called by nothing -- while its docstring
+# still claimed to mirror dashboard/lib/price-ladder.ts.
+#
+# It did not mirror it, and that was the whole problem: it walked -100
+# downward in 5-cent steps against the ROUNDED stake, where the
+# dashboard solves analytically on the raw quarter-Kelly. Dead code that
+# advertises a guarantee it does not keep is worse than no code, because
+# the next person to need a ladder here would have reached for it.
+#
+# `pass_price` below is the survivor, and it now mirrors the TypeScript
+# for real -- verified over 2,497 (probability, price) pairs.
 
 
 def pass_price(p: float) -> int | None:
-    """Worst price still worth a full unit; below this, no bet."""
+    """Worst price still worth a full unit; below this, no bet.
+
+    MIRRORS dashboard/lib/price-ladder.ts `worstPriceFor(p, 1)` — the
+    analytic solve, then CEIL. It has to, because both numbers are
+    published for the same bet and a subscriber reads whichever reaches
+    them first.
+
+    IT DID NOT, UNTIL 2026-08-07, AND THE GAP FAVOURED THE WRONG SIDE.
+    This walked -100 downward in 5-cent steps against the ROUNDED
+    `kelly_stake_units`, so it stopped at the coarsest grid point where
+    the rounded stake was still >= 1u. That includes prices whose RAW
+    quarter-Kelly is already under a unit and only reaches 1u by
+    rounding — exactly the bets price-ladder.ts documents the operator
+    deciding not to publish (2026-08-04: "the ladder ends at the last
+    full unit"). Measured on the same bets:
+
+        p=0.6343 card -135   here -165   dashboard -162
+        p=0.62   card -150   here -155   dashboard -152
+        p=0.70   card -200   here -225   dashboard -219
+
+    Every one of those told a subscriber they could lay a worse price
+    than the dashboard would allow. SD@ARI on 2026-08-07 published both
+    numbers on the same night.
+
+    The solve:  raw = 100 * f/4  and  f = p - (1-p)/b
+                =>  b = (1-p) / (p - units/25)
+
+    CEIL, NEVER ROUND: the solve returns a fractional price (-133.6) and
+    rounding to -134 publishes a limit one cent PAST the full-unit line
+    — the worst price we tell people to take would be one we would not
+    take ourselves. ceil lands on the worst ACCEPTABLE integer in both
+    directions: ceil(-133.6) = -133, ceil(120.4) = 121.
+    """
+    import math
+
     tracker = _tracker()
     if tracker is None:
         return None
-    o = -100
-    last = None
-    while o > -600:
-        u = tracker.kelly_stake_units(p, str(o))
-        if u is None or u < 1.0:
-            return last
-        last = o
-        o -= 5
-    return last
+    try:
+        fraction = float(tracker.KELLY_FRACTION)
+        max_units = float(tracker.KELLY_MAX_STAKE_FRAC) * 100.0
+    except (Exception, SystemExit):  # noqa: BLE001
+        return None
+    if not (0.0 < p < 1.0) or fraction <= 0:
+        return None
+
+    # A stake bigger than the per-bet cap can never be "wanted", so the
+    # one-unit solve is only meaningful below it.
+    if 1.0 > max_units:
+        return None
+    denom = p - 1.0 / (100.0 * fraction)
+    if denom <= 0:
+        return None                      # p too low to ever want a full unit
+    b = (1.0 - p) / denom
+    if b <= 0 or not math.isfinite(b):
+        return None
+    exact = (100.0 * b) if b >= 1.0 else (-100.0 / b)
+    return int(math.ceil(exact))
 
 
 # ---------------------------------------------------------------------------

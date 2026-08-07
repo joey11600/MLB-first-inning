@@ -215,6 +215,11 @@ function rowToBoardRow(r: PickRow, rank: number): BoardRow {
     pickLabel:      str(r.pick_label),
     nrfiPct:        Math.round(num(r.nrfi_prob) * 1000) / 10,   // 0.582 -> 58.2
     yrfiPct:        Math.round(num(r.yrfi_prob) * 1000) / 10,
+    // FULL PRECISION, for ranking/sizing. The two lines above are for
+    // the screen; anything that DECIDES must use this one. See
+    // BoardRow.nrfiP -- ranking on the rounded value named a different
+    // game as №1 than Discord did on 3 of 114 slates.
+    nrfiP:          num(r.nrfi_prob),
     gamePk:         str(r.game_pk),
     gameNumber:     Number(r.game_number) || 1,
     doubleHeader:   str(r.double_header) || "N",

@@ -300,3 +300,17 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   `_ESCALATION_MIN` was defined and never read; deleted and the docstring
   corrected to the mechanism that exists. Simulated 12 cycles: 1 send.
   `transport_check` registered explicitly. ✅ 2026-08-07
+
+- [x] **T8.9** The dashboard ranked the №1 on `nrfiPct` (1 decimal, for
+  display) while Python ranks at full precision — so the board, hero and
+  /brief named a DIFFERENT GAME than Discord, Telegram and the published
+  record on 3 of 114 slates (2026-06-15, 06-20, 07-08). `BoardRow.nrfiP`
+  added for deciding; `nrfiPct` documented display-only. Verified with the
+  compiled `top-pick-rank.ts` over every slate: 3 → 0. ✅ 2026-08-07
+- [x] **T8.10** "Don't take worse than" disagreed between surfaces: Discord
+  −165, dashboard −162 for the same bet. Python walked a 5-cent grid on the
+  ROUNDED stake and published limits past the full-unit line the operator
+  decided not to cross; it now uses the dashboard's analytic solve. Swept
+  2,497 pairs: 0 mismatches. Dead `price_ladder()` removed. Parity guard
+  extended to the pass price and verified to catch a ceil→round
+  regression. ✅ 2026-08-07

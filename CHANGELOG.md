@@ -11,6 +11,106 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07f] - the two subscriber-facing contradictions (T8.9, T8.10)
+
+Both are the disease we fixed this morning, found by going looking for it
+rather than by waiting for it to be reported: one rule implemented twice,
+and a decision taken from a display value.
+
+### Fixed — the №1 pick could be a DIFFERENT GAME on the dashboard (T8.9)
+
+`board-supabase.ts:216` rounds the model probability to one decimal for
+the screen, and every dashboard caller fed `nrfiPct / 100` into
+`selectTopPick`. Python ranks at full precision. The formula matched; the
+**inputs** did not — cause (2) of the Kelly bug, applied to pick
+selection instead of sizing.
+
+Replayed over all 114 slates with ≥2 STRONG picks, **3 named a different
+game**:
+
+| date | Python → Discord, Telegram, record | Dashboard showed |
+|---|---|---|
+| 2026-06-15 | PIT@OAK | LAA@ARI |
+| 2026-06-20 | PIT@COL | CIN@NYY |
+| 2026-07-08 | COL@LAD | NYY@TB |
+
+Python's answer gates every pick-facing alert and the published win-loss
+record, so on those nights the record counted one game while the board,
+the hero card and `/brief` named another.
+
+`BoardRow` now carries `nrfiP` — full precision, for deciding — beside
+`nrfiPct`, which is documented as display-only. The three callers switched.
+`RankableBet.modelP`'s doc said "as the system printed it", which is
+precisely the phrasing that invited the bug; it now says full precision
+and names the field.
+
+**Verified with the REAL compiled module**, not a re-implementation:
+`tsc` on `lib/top-pick-rank.ts`, driven over every slate against Python's
+own `_row_is_nights_top_pick`. **Before: 3 disagreements. After: 0.**
+
+Two honest limits recorded in code: the CSV fallback path still ranks at
+1dp because the board CSV stores `nrfi_pct` already rounded — there is no
+full-precision value on disk to recover, and that branch only runs during
+a Supabase outage. And `DashboardShell.breakTie` is left alone: it orders
+the board FOR DISPLAY and is not the №1 rule, so it is now labelled as
+such rather than "unified" into something it is not. Its sort keys did
+move to full precision, since two games printing "58.2" were being treated
+as tied when the model had separated them.
+
+### Fixed — "don't take worse than" disagreed between surfaces (T8.10)
+
+Published for the same bet on 2026-08-07:
+
+| surface | said |
+|---|---|
+| Discord | don't take worse than **−165** |
+| Dashboard | BET UP TO **−162** |
+
+`price-ladder.ts` solves analytically on the RAW quarter-Kelly and ceils;
+`discord_broadcasts.pass_price` walked −100 downward in 5-cent steps
+against the ROUNDED stake. Python's docstring claimed to mirror the
+TypeScript. It did not.
+
+**Python was the wrong side, and the plan for this fix had it backwards.**
+The 5-cent grid stops at the coarsest point where the *rounded* stake is
+still ≥1u, which includes prices whose raw quarter-Kelly is already under
+a unit — exactly the bets `price-ladder.ts` documents the operator
+deciding not to publish (2026-08-04: "the ladder ends at the last full
+unit"). Every divergence told a subscriber they could lay a WORSE price
+than the dashboard allowed:
+
+    p=0.6343  python -165  dashboard -162
+    p=0.62    python -155  dashboard -152
+    p=0.70    python -225  dashboard -219
+
+`pass_price` is now the same analytic solve with the same ceil.
+**Swept 2,497 (probability, card-price) pairs against the compiled
+TypeScript: 0 mismatches.** Tonight's bet now reads −162 on both.
+
+Also removed `price_ladder()` — 26 lines, called by nothing since the
+ladder came out of the messages on 2026-08-06, while still advertising
+that it mirrored the TypeScript. Dead code that claims a guarantee it does
+not keep is worse than none, because the next person needing a ladder
+would have reached for it.
+
+### Added — the parity guard now covers the SECOND published number
+
+`check-kelly-parity.mjs` compiled only `kelly-sim.ts`. The ladder built on
+top of it drifted independently and invisibly. It now compiles
+`price-ladder.ts` too and checks `passAt` against a Python-generated
+fixture, and its failure message names WHICH mirror broke — a message that
+blamed `kelly-sim.ts` for a ladder drift would send the reader to the
+wrong file, which is its own small version of this bug.
+
+Verified by reintroducing the exact mistake the code comment warns about
+(`Math.ceil` → `Math.round`): 60 failures, correctly attributed to
+`price-ladder.ts`, green again on restore. The first version of the check
+reported 11 failures that were the harness's own fault — it used −110 as a
+universal card price, which has no edge at p≈0.50, so the ladder was
+correctly null. Fixed before shipping.
+
+---
+
 ## [2026-08-07e] - two ops defects: a false page waiting to fire, and a spammer (T8.7, T8.8)
 
 ### Fixed — /api/health was measuring BUILD age, not data age (T8.7)

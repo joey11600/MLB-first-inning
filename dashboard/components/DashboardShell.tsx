@@ -902,7 +902,14 @@ function filterAndSort(
     return Number.isFinite(n) && n !== 0 ? n : null;
   };
   /** Better price first, then game name, so the order is fully
-   *  determined. Mirrors lib/top-pick-rank.compareForTopPick's tail. */
+   *  determined. Mirrors lib/top-pick-rank.compareForTopPick's tail.
+   *
+   *  SCOPE: this orders the BOARD FOR DISPLAY. It does not choose the
+   *  №1 -- `selectTopPick` does, and that is deliberately the only
+   *  definition. Kept separate because a list sort and a winner pick
+   *  want different things from a tie (`localeCompare` reads better in
+   *  a table; `selectTopPick` needs the byte-order `<` that Python
+   *  uses). Do not "unify" them without checking both call sites. */
   const breakTie = (a: BoardRow, b: BoardRow): number => {
     const ao = oddsFor(a), bo = oddsFor(b);
     const ai = ao == null ? 1 : impliedFromOdds(ao);
@@ -914,10 +921,15 @@ function filterAndSort(
   const cmp = {
     "lambda-desc": (a: BoardRow, b: BoardRow) => b.lambda - a.lambda,
     "lambda-asc": (a: BoardRow, b: BoardRow) => a.lambda - b.lambda,
+    // Sort on the FULL-PRECISION probability, not the 1dp display
+    // value: two games at 58.23% and 58.19% both print "58.2" and were
+    // being treated as tied, so the price tiebreak decided an order the
+    // model had actually separated. YRFI descending is NRFI ascending —
+    // one field, no second rounded copy to drift.
     "nrfi-desc": (a: BoardRow, b: BoardRow) =>
-      (b.nrfiPct - a.nrfiPct) || breakTie(a, b),
+      (b.nrfiP - a.nrfiP) || breakTie(a, b),
     "yrfi-desc": (a: BoardRow, b: BoardRow) =>
-      (b.yrfiPct - a.yrfiPct) || breakTie(a, b),
+      (a.nrfiP - b.nrfiP) || breakTie(a, b),
     "rank": (a: BoardRow, b: BoardRow) => a.rank - b.rank,
   }[f.sort];
   out = [...out].sort(cmp);

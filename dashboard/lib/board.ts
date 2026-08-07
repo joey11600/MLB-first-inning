@@ -375,6 +375,18 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     pickStrength: normalizePickStrength(r.pick_strength),
     pickLabel: r.pick_label,
     nrfiPct: Number(r.nrfi_pct) || 0,
+    // KNOWN LIMIT OF THIS PATH, stated rather than hidden: the board
+    // CSV stores `nrfi_pct` already rounded to one decimal, so there is
+    // no full-precision value on disk to recover. This fallback
+    // therefore still ranks at 1dp and can, on a slate where two STRONG
+    // picks round to the same tenth, name a different №1 than Supabase
+    // and Discord. Measured frequency: 3 of 114 slates.
+    //
+    // Acceptable because this branch runs ONLY when Supabase is
+    // unreachable (see loadBoard), and the fix -- emitting full
+    // precision into the board CSV -- is a predictor-side format change
+    // that would not help the 126 historical files anyway.
+    nrfiP: (Number(r.nrfi_pct) || 0) / 100,
     yrfiPct: Number(r.yrfi_pct) || 0,
     // Doubleheader fields (empty for pre-fix board CSVs)
     gamePk:       r.game_pk ?? "",
