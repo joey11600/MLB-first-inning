@@ -313,6 +313,40 @@ def step_reconcile() -> int:
     )
 
 
+
+def step_discord_broadcasts() -> int:
+    """SUBSCRIBER BROADCASTS (2026-08-06).  Evaluate the four nightly
+    Discord posts and send whichever is due.  Soft-fail, in-process.
+
+    WHY IN-PROCESS RATHER THAN A SUBPROCESS like every other step: the
+    triggers need the slate and the No.1 rule, which are already loaded
+    here, and a subprocess would pay full interpreter + tracker import
+    on every 5-minute cycle for a job that is a no-op ~95% of the time.
+
+    SAFETY, BECAUSE THIS SHARES THE MONEY PATH'S PROCESS:
+      * discord_broadcasts.run_broadcasts() catches (Exception,
+        SystemExit) internally and returns 0.  The extra try here is
+        belt-and-braces, not the primary guard.
+      * The import itself is inside the try: a syntax error or a missing
+        module in the marketing code must not stop predict/grade/odds.
+      * Dedupe lives in Supabase (notifications_log), so the ~20 Railway
+        redeploys a day cannot re-post a board.
+      * Default mode is `preview`: it renders to the log and sends
+        NOTHING until DISCORD_BROADCASTS=live is set.
+    """
+    try:
+        sys.path.insert(0, str(REPO_ROOT))
+        import discord_broadcasts
+        n = discord_broadcasts.run_broadcasts()
+        if n:
+            print(f"[predictor] [discord] {n} broadcast(s) handled", flush=True)
+        return 0
+    except (Exception, SystemExit) as exc:   # noqa: BLE001
+        print(f"[predictor] [discord] step failed ({exc!r}); continuing",
+              file=sys.stderr, flush=True)
+        return 0    # NEVER surface as a cycle failure -- marketing is not money
+
+
 def step_pregame_alert_check() -> int:
     """T2.38 #2: scan today's STRONG bets for any whose first pitch is
     inside the pre-game alert window (25-35 min from now in ET).  Ping
@@ -449,6 +483,11 @@ def cycle() -> None:
     rc = step_reconcile()
     if rc != 0:
         _record_step_failure("reconcile", rc)
+
+    # 8: subscriber Discord broadcasts.  LAST on purpose -- everything
+    # above it owns money or data, this owns marketing, and it must
+    # never be able to delay them.  Always returns 0.
+    step_discord_broadcasts()
 
     dur = time.time() - started
     print(f"[predictor] === cycle end ({dur:.1f}s) ===", flush=True)

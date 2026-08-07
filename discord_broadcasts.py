@@ -552,3 +552,171 @@ def build_ledger(date_iso: str) -> str | None:
              "on any bank. Nothing compounds._")
     L.append(f"<{DASH}/history>")
     return "\n".join(L)
+
+
+# ---------------------------------------------------------------------------
+# THE SCHEDULER -- which broadcast is due right now
+# ---------------------------------------------------------------------------
+#
+# MODE, and why the default is not "live". DISCORD_BROADCASTS:
+#     off      do nothing
+#     preview  evaluate every trigger and LOG the exact message, send
+#              nothing  <-- DEFAULT
+#     live     actually post
+# A broadcast that has never been seen is not finished. This repo has
+# shipped code that never fired more than once (tools/fetch_odds_api.py,
+# the Healthchecks ping), and the failure mode here is worse because it
+# is in front of paying subscribers. Preview runs the whole path -- real
+# slate, real triggers, real rendering -- into the Railway logs first.
+#
+# DEDUPE KEYS ARE PER-SLATE AND SUPABASE-BACKED. Railway redeploys
+# mid-evening (it did on 2026-08-06, twice). An in-process "already
+# sent" set would re-post the entire board after every restart, so the
+# key must be derived only from the slate, never from process state.
+
+def _mode() -> str:
+    m = (os.environ.get("DISCORD_BROADCASTS", "") or "preview").strip().lower()
+    return m if m in ("off", "preview", "live") else "preview"
+
+
+def _terminal(r: dict) -> bool:
+    """Has this row reached a state that will not change tonight?"""
+    return (r.get("graded_result") or "").strip().upper() in (
+        "WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED", "CANCELLED", "VOID")
+
+
+def due_broadcasts(date_iso: str, rows: list[dict],
+                   now: datetime) -> list[tuple[str, str, str]]:
+    """[(event_type, event_key, body)] for everything due at `now` (ET).
+
+    Order matters: FINAL RESULTS must be recorded before THE LEDGER, so
+    the record message can never appear above the results it summarises.
+    """
+    out: list[tuple[str, str, str]] = []
+    if not rows:
+        return out
+
+    fp = first_pitch_of_slate(rows, date_iso)
+
+    # 1 -- THE BOARD, at T-60 before the FIRST game. Also gated on the
+    # slate having actually started forming: a board posted before the
+    # predictor has run would be an empty table with our name on it.
+    if fp is not None and now >= fp - timedelta(minutes=LOCK_MINUTES_PREGAME):
+        if any((r.get("pick_strength") or "").strip() for r in rows):
+            out.append(("discord_board", f"board:{date_iso}",
+                        build_board(date_iso, rows)))
+
+    # 2 -- THE No.1 PLAY, at ITS OWN lock (60 min before ITS game), which
+    # is a different time from (1) unless the No.1 IS the first game.
+    # Keyed on the GAME, not just the date: if the No.1 flips during the
+    # afternoon the new game gets its own announcement rather than being
+    # silently swallowed by an already-used date key.
+    tp = top_pick(rows)
+    if tp is not None:
+        st = game_start_et(date_iso, tp.get("game_time_et", ""))
+        if st is not None and now >= st - timedelta(minutes=LOCK_MINUTES_PREGAME):
+            gid = (tp.get("game_pk") or
+                   f"{tp.get('away_team','')}@{tp.get('home_team','')}")
+            out.append(("discord_toppick", f"toppick:{date_iso}:{gid}",
+                        build_top_pick(date_iso, tp)))
+
+    # 3 -- FINAL RESULTS, once every row on the board is terminal.
+    # NOT when the last game ends: every pick is decided in the 1st, so
+    # results are final hours earlier (2026-08-05: last row graded 21:57
+    # ET, last out ~00:45 ET).
+    #
+    # THE TIME BACKSTOP IS NOT REDUNDANT. "All rows terminal" is normally
+    # reached only after play, but it is also trivially true for a
+    # degenerate slate -- every game POSTPONED, or a stale/re-read board.
+    # Replaying 2026-08-05 in the simulator, FINAL and LEDGER came due at
+    # 11:00 AM, three hours before first pitch, because the historical
+    # rows were already graded. In production that shape means "results
+    # before the games", which is the single most damaging thing this
+    # surface could publish. So it must ALSO be past the first pitch plus
+    # one inning (~20 min) before results can be announced.
+    if (rows and fp is not None
+            and now >= fp + timedelta(minutes=20)
+            and all(_terminal(r) for r in rows)):
+        out.append(("discord_final", f"final:{date_iso}",
+                    build_final_results(date_iso, rows)))
+
+        # 4 -- THE LEDGER, immediately after. Separate message, separate
+        # key, so a failure of one cannot suppress the other.
+        led = build_ledger(date_iso)
+        if led:
+            out.append(("discord_ledger", f"ledger:{date_iso}", led))
+
+    return out
+
+
+def run_broadcasts(date_iso: str | None = None,
+                   now: datetime | None = None,
+                   mode: str | None = None) -> int:
+    """Evaluate and dispatch. Returns how many were sent (or previewed).
+
+    NEVER RAISES. This runs inside workers/predictor_loop.py, in the
+    same process as predict / grade / odds / lock.
+    """
+    try:
+        mode = (mode or _mode())
+        if mode == "off":
+            return 0
+        now = now or datetime.now(ET)
+        date_iso = date_iso or now.strftime("%Y-%m-%d")
+        rows = load_slate(date_iso)
+        due = due_broadcasts(date_iso, rows, now)
+        if not due:
+            return 0
+
+        import discord_notify
+        sent = 0
+        for event_type, event_key, body in due:
+            if not body:
+                continue
+            ok = discord_notify.send(
+                body, event_type=event_type, event_key=event_key,
+                preview=(mode == "preview"),
+            )
+            if ok:
+                sent += 1
+                print(f"  [discord] {mode}: {event_type} ({event_key})",
+                      flush=True)
+        return sent
+    except (Exception, SystemExit) as exc:  # noqa: BLE001
+        print(f"  [discord] broadcast run failed ({exc!r})", file=sys.stderr)
+        return 0
+
+
+if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser(description="Discord broadcast preview / send")
+    ap.add_argument("--date", help="Slate date (default: today ET)")
+    ap.add_argument("--at", help="Pretend it is this ET time, e.g. '18:30'")
+    ap.add_argument("--mode", choices=["off", "preview", "live"],
+                    help="Override DISCORD_BROADCASTS")
+    ap.add_argument("--which", choices=["board", "toppick", "final", "ledger"],
+                    help="Render one message regardless of its trigger")
+    a = ap.parse_args()
+
+    d = a.date or datetime.now(ET).strftime("%Y-%m-%d")
+    slate = load_slate(d)
+
+    if a.which:
+        body = {
+            "board":   lambda: build_board(d, slate),
+            "toppick": lambda: (build_top_pick(d, top_pick(slate))
+                                if top_pick(slate) else "(no No.1 play)"),
+            "final":   lambda: build_final_results(d, slate),
+            "ledger":  lambda: build_ledger(d) or "(no ledger)",
+        }[a.which]()
+        print(body)
+        raise SystemExit(0)
+
+    when = datetime.now(ET)
+    if a.at:
+        hh, mm = (int(x) for x in a.at.split(":"))
+        when = when.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    print(f"[discord] slate {d}, {len(slate)} games, evaluating at "
+          f"{when.strftime('%I:%M %p ET').lstrip('0')}, mode={a.mode or _mode()}")
+    n = run_broadcasts(d, when, a.mode)
+    print(f"[discord] {n} broadcast(s) due")
