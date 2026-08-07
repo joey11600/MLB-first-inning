@@ -81,6 +81,36 @@ Discord published "4 units" on tonight's No.1 while the board printed
    and mid-July rows read 5.97u, which is what was staked on those
    nights.
 
+### Changed — THE BOARD now leads with the №1 (operator request)
+
+Operator, 2026-08-06: *"the #1 pick needs to be highlighted most
+importantly."* The board printed both strong plays as equal bullets
+under "THE PLAYS (2)". But the №1 is not merely the first item in a
+list -- it is the tracked product: the published record, the dashboard
+hero and the separate lock-time broadcast are all ABOUT that one play,
+so listing it as one of N under-sells the only number the service is
+judged on.
+
+It now gets its own `# ⭐ THE №1 PLAY` section at the top with the same
+shape as the lock-time message, and the remaining strong plays move to
+"ALSO PLAYING". User-facing headings across all four messages now say
+"№1", matching the dashboard.
+
+THE №1 IS RESOLVED FROM THE WHOLE SLATE, NOT FROM WHAT IS STILL
+UNSTARTED. `top_pick` applies `tracker._row_is_nights_top_pick`, the
+same gate the dashboard and the record use. Running it over the
+not-yet-started subset would crown the best REMAINING play on a late
+board, and "№1" would then mean something different in the channel than
+it means in the record -- the same class of quiet divergence that
+produced the 3u/4u contradiction. If the true №1 has already started,
+the headline section is simply omitted.
+
+Also corrected two stale docs in the same file: the module header still
+advertised price "ladders" that were removed earlier tonight, and
+`stake_for`'s docstring asserted the dashboard and Discord staking
+implementations were "identical" -- which the parity work disproved.
+Both now describe what the code actually does.
+
 ### Fixed — two blockers found by adversarial review before they shipped
 
 Both were caught by a red-team pass over the retraction change, not by

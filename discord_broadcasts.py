@@ -3,8 +3,8 @@
 discord_broadcasts.py -- the four subscriber messages, and the rules
 that keep them honest.
 
-    1. THE BOARD        slate T-60   every game, model probability, ladders
-    2. THE No.1 PLAY    its own lock the one bet, priced, with its ladder
+    1. THE BOARD        slate T-60   the No.1 first, then every game
+    2. THE No.1 PLAY    its own lock the one bet, priced
     3. FINAL RESULTS    all graded    how every pick did
     4. THE No.1 LEDGER  after (3)     record + units at quarter-Kelly
 
@@ -154,19 +154,33 @@ def stake_for(row: dict) -> float | None:
 
     WHY, and it cost a live contradiction on 2026-08-06: the dashboard
     showed 3u for SD@ARI while Discord showed 4u for the same bet at the
-    same price. Neither was a formula bug -- both implementations are
-    identical. The raw quarter-Kelly stake was **3.4975 units**, sitting
-    a hair under the 3.5 rounding boundary, and the two surfaces fed it
-    probabilities of different PRECISION:
+    same price. TWO independent causes, and an earlier version of this
+    docstring named only the second and asserted "both implementations
+    are identical" -- which was wrong, so it is corrected here:
 
-        dashboard  yrfiPct 63.4   (1 decimal)  -> 3.4975 -> 3u
-        discord    0.6343         (full)       -> 3.5151 -> 4u
+      1. THE FORMULAS DID NOT MATCH. `tracker.kelly_stake_units` rounds
+         TWICE (round(x, 2) then to whole units), so 3.4975 -> 3.5 -> 4.
+         `dashboard/lib/kelly-sim.ts` rounded once: Math.round(3.4975)
+         -> 3. Every stake in [x.495, x.5) diverged, as did every exact
+         half, because Python rounds half-to-EVEN and JavaScript rounds
+         half UP. kelly-sim.ts is now a verified mirror (0 disagreements
+         over 396,622 probability/price pairs) and a prebuild guard
+         fails the build if that ever drifts again.
 
-    A difference of 0.0003 in the input moved the published stake by a
-    whole unit. Any surface that recomputes will keep landing on the
-    wrong side of some boundary, forever, because rounding boundaries
-    are dense. The only stable answer is for every surface to PRINT THE
-    SAME STORED NUMBER -- the one the system actually staked.
+      2. THE INPUTS DID NOT MATCH EITHER. The raw stake was 3.4975u,
+         a hair under a rounding boundary, and the surfaces fed it
+         probabilities of different PRECISION:
+
+             dashboard  yrfiPct 63.4   (1 decimal)  -> 3.4975
+             discord    0.6343         (full)       -> 3.5151
+
+    Fixing (1) alone would not have been enough: a 0.0003 difference in
+    the input still moves the published stake by a whole unit, and no
+    amount of formula parity repairs a lossy input. Any surface that
+    recomputes will keep landing on the wrong side of some boundary,
+    forever, because rounding boundaries are dense. The only stable
+    answer is for every surface to PRINT THE SAME STORED NUMBER -- the
+    one the system actually staked.
 
     Recomputation stays as a fallback ONLY for a row the ledger has not
     priced yet (so a pre-lock board can still show an indicative size),
@@ -396,40 +410,92 @@ def build_board(date_iso: str, rows: list[dict],
     leans  = [r for r in live if (r.get("pick_strength") or "").upper() == "LEAN"]
     others = [r for r in live if r not in plays and r not in leans]
 
+    # THE №1 LEADS THE BOARD. (operator, 2026-08-06: "the #1 pick needs
+    # to be highlighted most importantly")
+    #
+    # The №1 is not merely the first item in a list -- it is the tracked
+    # product. The published record, the dashboard hero and the separate
+    # lock-time broadcast are all ABOUT this one play, so a board that
+    # prints it as one of N equal bullets is under-selling the only
+    # number the service is judged on.
+    #
+    # IT IS CHOSEN FROM THE WHOLE SLATE, NOT FROM WHAT IS STILL
+    # UNSTARTED. `top_pick` applies tracker._row_is_nights_top_pick, the
+    # same gate the dashboard and the record use. Running it over `live`
+    # instead would crown the best REMAINING play on a late board, and
+    # "№1" would then mean something different in the channel than it
+    # means in the record -- which is precisely the kind of quiet
+    # divergence that produced tonight's 3u/4u incident. So: resolve the
+    # true №1, and only headline it if it has not started.
+    number_one = top_pick(rows)
+    no1_live = number_one is not None and number_one in live
+    rest = [r for r in plays if not (no1_live and r is number_one)]
+
     L: list[str] = []
-    L.append(f"# THE BOARD · {_long_date(date_iso)}")
+    L.append(f"## THE BOARD · {_long_date(date_iso)}")
     L.append(f"{len(rows)} games · first pitch {_hm(fp) if fp else '--'} ET")
     if gone:
         # Say it plainly rather than silently showing a short slate.
         L.append(f"_{gone} game{'s' if gone != 1 else ''} already underway "
                  f"— not listed below._")
 
-    if plays:
+    def _play_block(r: dict, headline: bool) -> None:
+        p, _ = published_probability(r)
+        side = (r.get("pick_side") or "").upper()
+        st = game_start_et(date_iso, r.get("game_time_et", ""))
+        away = (r.get("away_team") or "").upper()
+        home = (r.get("home_team") or "").upper()
+        odds = side_price(r)
+        stake = stake_for(r)
+        pa = pass_price(p) if p is not None else None
         L.append("")
-        L.append("## " + ("THE PLAY" if len(plays) == 1 else f"THE PLAYS ({len(plays)})"))
-        for r in plays:
-            p, _ = published_probability(r)
-            side = (r.get("pick_side") or "").upper()
-            st = game_start_et(date_iso, r.get("game_time_et", ""))
+        if headline:
+            # Same shape as build_top_pick's lock-time message, so the
+            # two read as one product rather than two formats. Discord
+            # sizes # > ## > ###, so the matchup is a bold label and the
+            # SIDE is the headline -- the side is the instruction.
+            L.append(f"**{away} @ {home}** · {_hm(st) if st else '--'} ET")
             L.append("")
-            L.append(f"**{(r.get('away_team') or '').upper()} @ "
-                     f"{(r.get('home_team') or '').upper()}** · "
-                     f"{_hm(st) if st else '--'} ET · **{side}** — {_side_words(side)}")
-            if p is not None:
-                odds = side_price(r)
-                if odds is not None:
-                    L.append(f"Model **{p*100:.1f}%** · price {fmt_odds(odds)} "
-                             f"needs {american_to_implied(odds)*100:.1f}%")
+            L.append(f"## {side} — {_side_words(side)}")
+        else:
+            L.append(f"**{away} @ {home}** · {_hm(st) if st else '--'} ET · "
+                     f"**{side}** — {_side_words(side)}")
+        if p is not None:
+            if odds is not None:
+                L.append(f"Model **{p*100:.1f}%** · price {fmt_odds(odds)} "
+                         f"needs {american_to_implied(odds)*100:.1f}%")
+            else:
+                L.append(f"Model **{p*100:.1f}%** · price not captured yet")
+            if stake:
+                if headline:
+                    L.append(f"### Stake {stake:.0f} units")
+                    if pa is not None:
+                        L.append(f"Don't take worse than **{fmt_odds(pa)}**.")
                 else:
-                    L.append(f"Model **{p*100:.1f}%** · price not captured yet")
-                stake = stake_for(r)
-                pa = pass_price(p)
-                if stake:
                     line = f"**Stake {stake:.0f}u**"
                     if pa is not None:
                         line += f" · don't take worse than **{fmt_odds(pa)}**"
                     L.append(line)
-    else:
+
+    if no1_live:
+        L.append("")
+        L.append("# ⭐ THE №1 PLAY")
+        L.append("_The highest-conviction play on the card, and the one "
+                 "the tracked record is built on._")
+        _play_block(number_one, headline=True)
+
+    if rest:
+        L.append("")
+        if no1_live:
+            L.append("## " + ("ALSO PLAYING" if len(rest) == 1
+                              else f"ALSO PLAYING ({len(rest)})"))
+        else:
+            L.append("## " + ("THE PLAY" if len(rest) == 1
+                              else f"THE PLAYS ({len(rest)})"))
+        for r in rest:
+            _play_block(r, headline=False)
+
+    if not plays:
         L.append("")
         L.append("## NO PLAY TONIGHT")
         L.append("The model looked at every game and declined them all. "
@@ -475,7 +541,7 @@ def build_top_pick(date_iso: str, r: dict) -> str:
     stake = stake_for(r)
 
     L: list[str] = []
-    L.append("# 🔒 TONIGHT'S No.1 PLAY")
+    L.append("# 🔒 TONIGHT'S №1 PLAY")
     L.append(f"**{(r.get('away_team') or '').upper()} @ "
              f"{(r.get('home_team') or '').upper()}** · "
              f"{_hm(st) if st else '--'} ET")
@@ -526,7 +592,7 @@ def build_final_results(date_iso: str, rows: list[dict]) -> str:
         stake = _f(tp.get("units_risked"))
         mark = "✅ WON" if g == "WIN" else ("❌ LOST" if g == "LOSS" else g or "—")
         L.append("")
-        L.append("## The No.1 play")
+        L.append("## The №1 play")
         line = (f"**{(tp.get('away_team') or '').upper()} @ "
                 f"{(tp.get('home_team') or '').upper()}** · "
                 f"{(tp.get('pick_side') or '').upper()} — **{mark}**")
@@ -593,7 +659,7 @@ def build_ledger(date_iso: str) -> str | None:
         return None
 
     L: list[str] = []
-    L.append("# THE No.1 PICK — RUNNING RECORD")
+    L.append("# THE №1 PICK — RUNNING RECORD")
     L.append(f"_Every night's top play since {plc.CURRENT_SYSTEM_FROM}, "
              f"when the live model was fit._")
     L.append("")
