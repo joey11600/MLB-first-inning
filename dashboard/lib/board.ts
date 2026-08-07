@@ -323,7 +323,7 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
           }
         }
         merged.sort().reverse();
-        return { ...sb, availableDates: merged };
+        return { ...sb, availableDates: merged, source: "supabase" };
       }
     } catch (err) {
       // Log + fall through.  Matches the existing CSV path's "best
@@ -338,6 +338,11 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     ? requestedIso
     : available[0] ?? "";
 
+  // Everything below this point is the FILESYSTEM fallback: the copy of
+  // data/ that scripts/copy-data.mjs baked into the build. Tagging it
+  // "csv" is the whole point of this branch existing separately -- see
+  // BoardResponse.source. Reaching here means either Supabase is not
+  // configured (local dev) or it failed and we swallowed the error.
   const empty: BoardResponse = {
     date: iso,
     availableDates: available,
@@ -345,6 +350,7 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     details: {},
     generatedAt: null,
     pickChanges: [],
+    source: "csv",
   };
 
   if (!iso) return empty;
@@ -397,6 +403,7 @@ export async function loadBoard(requestedIso: string | null): Promise<BoardRespo
     generatedAt,
     pickChanges,
     thresholds,
+    source: "csv",
   };
 }
 

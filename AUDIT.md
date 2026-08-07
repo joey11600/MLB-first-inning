@@ -266,3 +266,14 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   at 6s against 43s for a real build. Also added
   `.gitattributes` (`*.sh text eol=lf`) so a Windows CRLF checkout cannot
   kill the script on Vercel's Linux runner. ✅ 2026-08-07
+
+- [x] **T8.5** After T8.4 stopped rebuilding on data
+  commits, the build-time CSV fallback could go days stale AND was
+  served silently — a Supabase outage looked identical to a healthy
+  dashboard. Rejected "rebuild on the daily backup commit" after
+  measuring that it lands 05:51-08:12 ET with every game LINEUP PENDING,
+  i.e. it would bundle a pick-less board for a build a day. Shipped
+  visibility instead: `BoardResponse.source`, `boardSource` in
+  /api/health with a DEGRADED reason, and `watchdog.check_board_source()`
+  paging during game hours. Verified by rebuilding with the Supabase env
+  blanked. ✅ 2026-08-07

@@ -196,4 +196,17 @@ export interface BoardResponse {
    *  for back-compat with cached responses; the BoardRow tentative
    *  classifier falls back to hardcoded defaults if missing. */
   thresholds?: PickThresholds;
+  /** WHICH DATA SOURCE ACTUALLY SERVED THIS.  "supabase" = live database.
+   *  "csv" = the copy baked into the Vercel build by
+   *  scripts/copy-data.mjs.
+   *
+   *  This exists because the CSV path is a SILENT fallback: if Supabase
+   *  is unreachable, `loadBoard` swallows the error and serves the
+   *  bundle, so a stale board looks exactly like a live one. That was
+   *  tolerable while every push rebuilt the site and the bundle was
+   *  minutes old. Since 2026-08-07 data commits no longer trigger a
+   *  build (T8.4), the bundle can be days old — so the fallback needs to
+   *  announce itself rather than be inferred. Optional for back-compat
+   *  with cached responses. */
+  source?: "supabase" | "csv";
 }

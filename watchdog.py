@@ -113,6 +113,42 @@ def check_dashboard() -> tuple[str, str] | None:
     return None
 
 
+def check_board_source() -> tuple[str, str] | None:
+    """Is the dashboard serving live Supabase data, or the stale bundle?
+
+    `loadBoard()` is Supabase-first and falls back to the CSVs baked into
+    the Vercel build. That fallback is SILENT by design -- a Supabase
+    outage is swallowed and the bundle is served, so the page renders
+    normally and nothing looks wrong. The numbers are simply old.
+
+    That was tolerable while every push rebuilt the site and the bundle
+    was minutes behind. Since T8.4 (2026-08-07) data-only commits no
+    longer trigger a build, so the bundle is refreshed only when code
+    ships -- it can be days old. The staleness is not the hazard; the
+    SILENCE is. This check is the thing that ends the silence.
+
+    Deliberately NOT the mirror image of "make the fallback fresher".
+    Chasing a fresher stale copy would cost a build a day and still
+    serve wrong numbers during an outage; saying so out loud costs
+    nothing and is the truth.
+    """
+    et = datetime.now(ET)
+    if not (9 <= et.hour < 21):      # matches the endpoint's prime window
+        return None
+    try:
+        h = _get_json(f"{DASH}/api/health")
+    except Exception:  # noqa: BLE001
+        return None   # check_dashboard already pages on an unreachable endpoint
+    src = (h.get("boardSource") or "").lower()
+    if src == "csv":
+        return (PAGE,
+                "Dashboard is serving the BUILD-TIME CSV fallback, not "
+                "Supabase — the board on screen may be days stale. "
+                "Supabase is likely unreachable from Vercel. Discord "
+                "broadcasts are unaffected (they read Railway's own files).")
+    return None
+
+
 def check_github_actions() -> tuple[str, str] | None:
     """Has the bookkeeping cron stopped? This is the check the OLD
     watchdog could not make honestly, because it lived on the thing it
@@ -273,6 +309,7 @@ def run(date_iso: str | None = None) -> int:
 
         results = [
             ("dashboard", check_dashboard()),
+            ("board_source", check_board_source()),
             ("github", check_github_actions()),
             ("odds", check_odds_coverage(rows)),
             ("toppick", check_top_pick_locked(rows, date_iso)),

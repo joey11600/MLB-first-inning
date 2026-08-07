@@ -11,6 +11,71 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07c] - the stale fallback now announces itself (T8.5)
+
+Follow-on to T8.4. Since data commits no longer rebuild the site, the
+CSVs baked into the Vercel build are refreshed only when code ships, so
+the Supabase-outage fallback can be days stale.
+
+### Rejected — "rebuild on the daily backup commit to keep it fresh"
+
+The obvious fix, and it does not work. `auto: daily backup snapshot`
+lands at **05:51-08:12 ET**, and at that hour the board reads:
+
+    1,LAD,ARI,...,PASS,LINEUP PENDING,...
+    2,HOU,SD, ...,PASS,LINEUP PENDING,...
+
+Every game LINEUP PENDING, no picks, no odds. Building on that commit
+would cost a build a day and bundle a board with ZERO actionable picks
+— so during an evening outage the fallback would confidently serve an
+empty slate while real picks existed. Measured, not assumed.
+
+### Shipped instead — make the fallback visible
+
+The hazard was never the staleness; it was the SILENCE. `loadBoard()`
+swallows a Supabase failure and serves the bundle, so a stale board is
+pixel-identical to a live one.
+
+* `BoardResponse.source` is now `"supabase" | "csv"`, set at all three
+  exits of `loadBoard`.
+* `/api/health` reports `boardSource` and goes **DEGRADED** with
+  "Board served from the build-time CSV fallback, not Supabase —
+  figures may be stale" when the fallback is live during game hours.
+* `watchdog.check_board_source()` PAGES on it, so the operator is told
+  rather than left to notice.
+
+Costs zero build minutes, and unlike a fresher-stale-copy it addresses
+the actual failure.
+
+### Verified by forcing the branch, not by reading it
+
+`NEXT_PUBLIC_*` vars are inlined at BUILD time, so blanking the env file
+and restarting proved nothing — the first attempt still reported
+`supabase`. Rebuilt with the vars blank:
+
+    boardSource : csv
+    status      : DEGRADED
+    reason      : Board served from the build-time CSV fallback...
+    board       : still renders, 15 rows (graceful, not an error)
+
+and `generatedAt` came back as `...464Z` — millisecond precision with a
+trailing Z, the filesystem `toISOString()` signature, versus the
+microsecond `+00:00` Postgres form on the live path. The same tell that
+proved Supabase was serving production in T8.4, observed from the other
+side.
+
+Watchdog predicate unit-checked in all three states: supabase/game-hours
+silent, csv/game-hours PAGE, csv/3am silent.
+
+### Blast radius, for the record
+
+The Vercel bundle backs ONLY the operator dashboard.
+`discord_broadcasts.load_slate()` reads `picks_<year>.csv` from
+Railway's own checkout, so the subscriber product is unaffected by
+bundle staleness entirely.
+
+---
+
 ## [2026-08-07b] - stop rebuilding the site for data commits (T8.4)
 
 ### Added — `ignoreCommand` skips builds on data-only commits

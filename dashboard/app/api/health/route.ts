@@ -22,6 +22,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCsv } from "@/lib/csv";
+import { loadBoard } from "@/lib/board";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -154,9 +155,40 @@ export async function GET() {
   const etHour = etNow.getHours();
   const isPrime = etHour >= 9 && etHour < 21;
 
+  // 5b. WHICH SOURCE IS ACTUALLY SERVING THE BOARD?
+  //
+  // loadBoard() is Supabase-first and falls back to the CSVs baked into
+  // the build, SILENTLY -- a Supabase outage is swallowed and the stale
+  // bundle is served, which from outside looks identical to a healthy
+  // response. That was survivable while every push rebuilt the site and
+  // the bundle was minutes old. Since T8.4 (2026-08-07) data commits no
+  // longer build, so the bundle can be days stale and the fallback has
+  // to announce itself.
+  //
+  // Best-effort: a failure to determine the source must never turn the
+  // health endpoint itself into an error, because this endpoint is what
+  // the watchdog reads.
+  let boardSource: "supabase" | "csv" | "unknown" = "unknown";
+  try {
+    const b = await loadBoard(null);
+    boardSource = b.source ?? "unknown";
+  } catch {
+    /* leave as unknown */
+  }
+
   // 6. Status determination
   let status: "OK" | "STALE" | "DEGRADED" | "BROKEN" = "OK";
   const reasons: string[] = [];
+
+  // Serving the build-time bundle during game hours means Supabase is
+  // unreachable and the picks on screen may be days old. DEGRADED, not
+  // BROKEN: the page still renders and the numbers were true once.
+  if (boardSource === "csv" && isPrime) {
+    if (status === "OK") status = "DEGRADED";
+    reasons.push(
+      "Board served from the build-time CSV fallback, not Supabase — " +
+      "figures may be stale");
+  }
 
   if (realErrors.length > 0) {
     status = "DEGRADED";
@@ -203,6 +235,10 @@ export async function GET() {
       // the journal is alive.  See 3b.
       knownNoiseCount24h:  knownNoise.length,
       boardsAvailable:     boardsList.length,
+      // "supabase" = live DB. "csv" = the build-time bundle, i.e.
+      // the silent fallback. watchdog.check_board_source() pages on
+      // "csv" during game hours.
+      boardSource,
     },
     {
       status: 200,
