@@ -195,6 +195,139 @@ def fmt_pl(value: float | None) -> str:
     return f"{value:+.3f}u"
 
 
+# ---------------------------------------------------------------------------
+# THE No.1 PICK SERIES  (--top-pick)
+# ---------------------------------------------------------------------------
+#
+# WHY THIS LIVES HERE. CLAUDE.md: "Before stating any P&L figure to the
+# user ... run tools/pl_calc.py and copy the number it prints."  The
+# dashboard publishes a No.1-pick record (45-21, +81.76u at quarter-
+# Kelly) that this tool could NOT reproduce, because it had no way to
+# reduce the ledger to one bet a night.  A published figure the
+# canonical calculator cannot check is exactly the setup that produced
+# three contradictory numbers for one slate on 2026-05-05.
+#
+# THE RULES ARE COPIED FROM dashboard/lib/top-pick.ts, deliberately and
+# explicitly, because the two must agree:
+#   1. YRFI only          -- STRONG NRFI was switched off 2026-06-07
+#   2. from 2026-05-26    -- when the live model weights were fit
+#   3. placed AND graded  -- with a real captured price
+#   4. one per night      -- best by confidence, then the better price,
+#                            then the game name (top-pick-rank.ts)
+#
+# TWO BASES, BOTH PRINTED. `realized` is what the ledger recorded;
+# `atKelly` restates every night at the published quarter-Kelly rule.
+# They differ a lot (+21.86u vs +81.76u) because Kelly only went live
+# 2026-07-27 and 356 of 377 placed bets were logged at a flat 1u.  Per
+# the unit memory, the AT-KELLY figure is the system's record and the
+# realized one is carried beside it, never as a correction.
+
+CURRENT_SYSTEM_FROM = "2026-05-26"
+
+
+def _implied(odds: float) -> float:
+    return (-odds / (-odds + 100.0)) if odds < 0 else (100.0 / (odds + 100.0))
+
+
+def _payout(odds: float) -> float:
+    return odds / 100.0 if odds > 0 else 100.0 / -odds
+
+
+def select_top_picks(rows: list[dict]) -> list[dict]:
+    """One row per night: the No.1 play, under the dashboard's rule."""
+    by_day: dict[str, list[dict]] = {}
+    for r in rows:
+        date = (r.get("date") or "").strip()
+        if date < CURRENT_SYSTEM_FROM:
+            continue
+        if (r.get("pick_side") or "").strip().upper() != "YRFI":
+            continue
+        if (r.get("bet_placed") or "").strip().upper() != "Y":
+            continue
+        if (r.get("graded_result") or "").strip().upper() not in ("WIN", "LOSS"):
+            continue
+        try:
+            p_nrfi = float((r.get("nrfi_prob") or "").strip())
+            odds = float((r.get("market_yrfi_odds") or "").strip())
+            float((r.get("units_risked") or "").strip())
+            float((r.get("profit_loss_units") or "").strip())
+        except (TypeError, ValueError):
+            continue          # unpriced / unsettled -- excluded, never guessed
+        if odds == 0:
+            continue
+        r = dict(r)
+        r["_rank"] = p_nrfi                      # YRFI: lower p(no run) = stronger
+        r["_implied"] = _implied(odds)
+        r["_odds"] = odds
+        by_day.setdefault(date, []).append(r)
+
+    out: list[dict] = []
+    for date in sorted(by_day):
+        night = by_day[date]
+        night.sort(key=lambda x: (
+            x["_rank"],
+            x["_implied"],
+            f"{x.get('away_team','')}@{x.get('home_team','')}",
+        ))
+        out.append(night[0])
+    return out
+
+
+def top_pick_summary(picks: list[dict]) -> dict:
+    """Record + the two unit bases. Kelly stakes come from
+    tracker.kelly_stake_units, never a local re-implementation."""
+    try:
+        import tracker          # already on sys.path -- see REPO_ROOT above
+    except Exception:                                    # noqa: BLE001
+        tracker = None                                   # type: ignore
+
+    realized = at_kelly = at_flat = staked_kelly = 0.0
+    wins = 0
+    counted: list[dict] = []
+    no_edge = 0
+    for r in picks:
+        odds = r["_odds"]
+        won = (r.get("graded_result") or "").upper() == "WIN"
+
+        # KELLY ALSO DROPS BETS, and the record must drop them too.
+        # `stakeUnitsFor` returns 0 when the model has no edge at the
+        # price actually paid -- today's rule would not place that bet at
+        # all, so counting it in the win-loss line would credit the
+        # system for a night it declines. dashboard/lib/top-pick.ts does
+        # exactly this (`if (stake <= 0) { noEdgeUnderKelly++; continue }`).
+        #
+        # This is not academic: including them printed 47-21 against the
+        # published 45-21 while the MONEY matched to the cent (+81.76u,
+        # 329.00u staked) -- because those nights stake zero and so
+        # contribute nothing but a win. Money agreeing while the record
+        # disagrees is precisely the shape of bug this tool exists to catch.
+        k = None
+        if tracker is not None:
+            k = tracker.kelly_stake_units(1.0 - r["_rank"], str(int(odds)))
+        if not k or k <= 0:
+            no_edge += 1
+            continue
+
+        counted.append(r)
+        wins += 1 if won else 0
+        realized += float(r.get("profit_loss_units") or 0.0)
+        at_flat += _payout(odds) if won else -1.0
+        staked_kelly += k
+        at_kelly += (k * _payout(odds)) if won else -k
+
+    picks = counted
+    n = len(picks)
+    return {
+        "bets": n, "wins": wins, "losses": n - wins,
+        "hit": (wins / n * 100.0) if n else 0.0,
+        "realized": realized, "atKelly": at_kelly, "atFlat1u": at_flat,
+        "stakedKelly": staked_kelly,
+        "roiKelly": (at_kelly / staked_kelly * 100.0) if staked_kelly else 0.0,
+        "noEdgeUnderKelly": no_edge,
+        "from": picks[0]["date"] if picks else "", "to": picks[-1]["date"] if picks else "",
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -225,6 +358,13 @@ def main() -> int:
         default=None,
         help="Season override.  Defaults to year of the queried date(s).",
     )
+    parser.add_argument(
+        "--top-pick",
+        action="store_true",
+        help="Only the No.1 play of each night (the published series). "
+             "Reports the record plus BOTH unit bases: realized (what the "
+             "ledger booked) and at quarter-Kelly (the published rule).",
+    )
     args = parser.parse_args()
 
     if args.date and args.window:
@@ -253,6 +393,55 @@ def main() -> int:
     # cron's CSV write doesn't reflect.  Fall back to CSV when Supabase
     # env vars are unset (offline / local dev) or the query errors.
     rows, source = _load_rows(season)
+
+    # --top-pick short-circuits the normal report: it is a different
+    # POPULATION (one bet a night, YRFI only, from the weights-fit date),
+    # so mixing it into the per-row table would invite reading two
+    # different books as one.
+    if args.top_pick:
+        if not args.date and not args.window:
+            start_iso, end_iso = CURRENT_SYSTEM_FROM, today_et_iso()
+            title = f"the No.1 series ({start_iso} to {end_iso})"
+        picks = [p for p in select_top_picks(rows)
+                 if start_iso <= p["date"] <= end_iso]
+        s = top_pick_summary(picks)
+        print(f"P&L Calculator -- THE No.1 PICK -- {title}")
+        print(f"Source: {source}")
+        print(f"Rules:  YRFI only, from {CURRENT_SYSTEM_FROM}, placed + graded "
+              f"+ really priced, one per night (dashboard/lib/top-pick.ts)")
+        print()
+        if not picks:
+            print("No qualifying No.1 plays in range.")
+            return 0
+        hdr = f"{'Date':<11} {'Game':<10} {'Odds':>7} {'Result':<7} {'Realized':>10} {'Kelly':>8}"
+        print(hdr); print("-" * len(hdr))
+        for p in picks:
+            won = (p.get("graded_result") or "").upper() == "WIN"
+            k = None
+            try:
+                import tracker as _t
+                k = _t.kelly_stake_units(1.0 - p["_rank"], str(int(p["_odds"])))
+            except Exception:                            # noqa: BLE001
+                pass
+            kpl = ((k * _payout(p["_odds"])) if won else -k) if k else None
+            print(f"{p['date']:<11} "
+                  f"{(p.get('away_team') or '')+'@'+(p.get('home_team') or ''):<10} "
+                  f"{int(p['_odds']):>7} {'WIN' if won else 'LOSS':<7} "
+                  f"{float(p.get('profit_loss_units') or 0):>+9.2f}u "
+                  f"{(f'{kpl:+.2f}u' if kpl is not None else '-'):>8}")
+        print("-" * len(hdr))
+        print(f"Record:              {s['wins']}-{s['losses']}  ({s['hit']:.1f}% hit)  "
+              f"over {s['bets']} nights")
+        print(f"Units AT QUARTER-KELLY: {s['atKelly']:+.2f}u   "
+              f"(staked {s['stakedKelly']:.2f}u, {s['roiKelly']:+.1f}% per unit risked)")
+        print(f"Units at a flat 1u:     {s['atFlat1u']:+.2f}u")
+        print(f"Units AS REALIZED:      {s['realized']:+.2f}u   "
+              f"(what the ledger booked; a flat unit was staked until "
+              f"quarter-Kelly went live 2026-07-27)")
+        print()
+        print("All three are exact sums on a FIXED unit basis, so each means "
+              "the same on any bankroll.  1 unit = 1% of bank.")
+        return 0
 
     target = filter_rows(rows, start_iso, end_iso, args.include_lean, args.verbose)
 

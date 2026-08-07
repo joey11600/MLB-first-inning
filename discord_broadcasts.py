@@ -477,3 +477,56 @@ def build_final_results(date_iso: str, rows: list[dict]) -> str:
     L.append("")
     L.append("_1 unit = 1% of your bankroll · quarter-Kelly._")
     return "\n".join(L)
+
+
+def build_ledger(date_iso: str) -> str | None:
+    """BROADCAST 4 -- the No.1 pick's running record, straight after
+    FINAL RESULTS.
+
+    EVERY FIGURE COMES FROM tools/pl_calc.py --top-pick, which is
+    gated to reproduce the dashboard exactly (45-21 / +81.76u / 329.00u
+    staked / +21.86u realized as of 2026-08-05). CLAUDE.md forbids
+    quoting a P&L number from anywhere else, and this is the message
+    where that rule matters most: it is the one subscribers judge.
+
+    Returns None when the series cannot be computed, so the caller can
+    skip the post rather than publish a zero.
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_plc", str(ROOT / "tools" / "pl_calc.py"))
+        plc = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(spec and plc)  # type: ignore[arg-type]
+        rows, _src = plc._load_rows(int(date_iso[:4]))
+        picks = [p for p in plc.select_top_picks(rows) if p["date"] <= date_iso]
+        if not picks:
+            return None
+        s = plc.top_pick_summary(picks)
+    except Exception:  # noqa: BLE001 -- never break the night's posts
+        return None
+    if not s or not s.get("bets"):
+        return None
+
+    L: list[str] = []
+    L.append("# THE No.1 PICK — RUNNING RECORD")
+    L.append(f"_Every night's top play since {plc.CURRENT_SYSTEM_FROM}, "
+             f"when the live model was fit._")
+    L.append("")
+    L.append(f"## {s['wins']}—{s['losses']}  ·  {s['hit']:.1f}%")
+    L.append(f"**{s['atKelly']:+.2f} units** at quarter-Kelly — "
+             f"the stake the system publishes")
+    L.append(f"{s['roiKelly']:+.1f}% per unit risked "
+             f"({s['stakedKelly']:.0f}u staked over {s['bets']} plays)")
+    L.append("")
+    L.append(f"_At a flat 1 unit a night: {s['atFlat1u']:+.2f}u — the same "
+             f"picks with stake size taken out._")
+    if s.get("noEdgeUnderKelly"):
+        n = s["noEdgeUnderKelly"]
+        L.append(f"_{n} night{'s' if n != 1 else ''} excluded: the price "
+                 f"moved past the point where the rule stakes anything._")
+    L.append("")
+    L.append("_1 unit = 1% of your bankroll, so these numbers mean the same "
+             "on any bank. Nothing compounds._")
+    L.append(f"<{DASH}/history>")
+    return "\n".join(L)
