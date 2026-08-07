@@ -254,3 +254,13 @@ These can corrupt picks, lose data, or silently mis-grade.
 9. **T1.9** verify T1.1 + add 5s sleep before push. ~10 min.
 
 Total estimated effort: ~3.5 hours of focused work plus testing.
+
+- [x] **T8.4** Vercel rebuilt the entire site on every `auto:` data push
+  — 188 of 242 commits since 2026-08-01 (78%), 99h 28m of Build CPU
+  Minutes (51.6% of plan). Added `ignoreCommand` +
+  `dashboard/scripts/should-build.sh`, which fails toward BUILDING on any
+  uncertainty. Gated on proving Supabase (not the build bundle) serves
+  the board: `generatedAt` advanced twice with no deployment. Replay over
+  25 commits: 14 SKIP / 11 BUILD, 0 misclassifications. Also added
+  `.gitattributes` (`*.sh text eol=lf`) so a Windows CRLF checkout cannot
+  kill the script on Vercel's Linux runner. ✅ 2026-08-07

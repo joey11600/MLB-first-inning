@@ -17,6 +17,7 @@ Companion to:
 
 | item | shipped | what |
 |---|---|---|
+| **Stop rebuilding on data commits** | 2026-08-07 | Vercel `ignoreCommand` skips `next build` for commits touching only `data/`. 188 of 242 commits since 08-01 (78%) were `auto:` data pushes, each running a full build; this project was at 51.6% of the Build-CPU plan. Verified FIRST that Supabase — not the build bundle — serves the board, by watching `generatedAt` advance with no deploy. Replay over 25 commits: 14 SKIP / 11 BUILD, 0 misclassifications. |
 | **A brief for every pick** | 2026-08-03 | `/brief` now briefs any STRONG **or LEAN** row, not just the #1, and every expanded row on the board carries a "Read the brief" button into it. Passes get neither — writing a case for a game the model declined to call would mean inventing it. A lean's page says it is not a bet three times and never prints a stake. |
 | **THE BRIEF — the #1 play, explained** | 2026-08-03 | New `/brief` surface written to be read ALOUD: the bet, the case for it, a first-class "what cuts against it" block, then team last-10 first-inning form, both starters' scoreless-first records, park rate and rank, and head-to-head. Model features translated into sentences; the model's own contribution magnitudes order them. |
 | First-inning form data layer | 2026-08-03 | `lib/first-inning-form.ts` derives complete per-team and per-pitcher first-inning history from the existing ledger. No new scraper, no new cron, no new failure mode. |

@@ -1,0 +1,11 @@
+# Shell scripts MUST be committed with LF endings.
+#
+# The repo is worked on from Windows, where git would otherwise check
+# these out (and commit them) with CRLF. A .sh file carrying CRLF runs
+# fine locally and then dies on a Linux runner with the famously
+# unhelpful ": command not found" -- which reads like a broken script
+# rather than a line-ending problem. Vercel's ignoreCommand runs one of
+# these on every push, so a CRLF slip there would fail the check and,
+# because the check fails toward BUILDING, quietly restore the very
+# build storm this repo added it to stop.
+*.sh text eol=lf

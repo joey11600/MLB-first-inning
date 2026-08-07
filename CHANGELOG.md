@@ -11,6 +11,110 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07b] - stop rebuilding the site for data commits (T8.4)
+
+### Added — `ignoreCommand` skips builds on data-only commits
+
+Vercel rebuilt the whole site on every push, and this repo's automation
+pushes constantly. Measured over 2026-08-01..07 on the deploy branch:
+**242 commits, of which 188 (78%) were `auto:` data commits.** Each one
+ran a full `next build`. This project burned **99h 28m of Build CPU
+Minutes, 51.6% of the plan** for the cycle; with the sibling strikeouts
+project at 40.5%, the two accounted for 92% of the allowance.
+
+`dashboard/vercel.json` now carries
+`"ignoreCommand": "bash scripts/should-build.sh"`. The 16 `crons`
+entries are untouched — crons are not builds and thinning them would
+break the pipeline while saving nothing.
+
+### Verified FIRST — the board really is served from Supabase
+
+This is NOT the sibling static-export project, so the safety of skipping
+builds is not obvious. `dashboard/lib/board.ts:loadBoard()` is
+Supabase-first with a filesystem fallback onto the build-time copy that
+`scripts/copy-data.mjs` bakes in. If production were on the filesystem
+branch, skipping builds would silently freeze the picks on a live money
+system.
+
+Settled empirically, not by reading env vars — watching whether served
+data moves without a deploy:
+
+| time | `generatedAt` | last deployment |
+|---|---|---|
+| 14:59:30 | 14:58:16.722598 | 14:55:53 `9859b163` |
+| 15:01:02 | 14:58:16.722598 | 14:55:53 `9859b163` |
+| **15:02:33** | **15:01:52.965955** | 14:55:53 `9859b163` *(unchanged)* |
+
+The data advanced twice with no new deployment, which a file baked into
+the bundle cannot do. Corroborating: `generatedAt` carries microseconds
+and a `+00:00` offset (Postgres `timestamptz`), while the filesystem
+branch renders `stat.mtime.toISOString()` — milliseconds and a trailing
+`Z`. Different producer. **Supabase is serving the board; the change is
+safe.**
+
+### The pathspec trap, measured rather than guessed
+
+The Vercel Root Directory is `dashboard/`, so `ignoreCommand` runs from
+there and git pathspecs resolve against THAT directory. A bare
+`:(exclude)data` means `dashboard/data`, which is gitignored and appears
+in zero commits. The initial assumption was that this would skip
+everything. **It does the opposite:**
+
+    from dashboard/, ':(exclude)data'      auto: predict -> BUILD
+    from dashboard/, ':(exclude,top)data'  auto: predict -> SKIP
+
+Excluding the non-existent `dashboard/data` leaves the real `data/`
+files in the diff, so every commit looks like it has code changes. That
+is worse than an error: the deploy succeeds, the site is fine, and the
+only symptom is that the bill never falls. The script therefore both
+`cd`s to the repo root AND uses `:(exclude,top)data`.
+
+### Proven before pushing
+
+- **Classifier replay, last 25 commits: 14 SKIP / 11 BUILD, 0
+  misclassifications.** Every `auto:` SKIP, every code commit BUILD.
+- **All 188 `auto:` commits touch ONLY `data/`** — 1,875 file changes,
+  zero outside it. The single exclusion covers `auto: predict`
+  (boards, diagnostics, picks, pick_changes, system_errors, thresholds),
+  `auto: grade`, and `auto: daily backup snapshot` (`data/backups/**`).
+- Fails toward BUILDING on every uncertainty: no git root, no parent
+  commit (shallow clone), or any git error.
+- `bash scripts/...` rather than `./scripts/...`, because the executable
+  bit does not survive a Windows checkout reliably.
+
+### Added — `.gitattributes` with `*.sh text eol=lf`
+
+The repo had none. A shell script committed from Windows with CRLF runs
+locally and dies on Vercel's Linux runner with `: command not found`.
+Verified the committed blob contains 0 CR bytes.
+
+### Honest accounting — what this actually saves
+
+| date | total | `auto:` | code |
+|---|---|---|---|
+| 2026-08-07 | 26 | 23 | 3 |
+| 2026-08-06 | 49 | **27** | **22** |
+| 2026-08-05 | 40 | 32 | 8 |
+| 2026-08-04 | 35 | 32 | 3 |
+| 2026-08-03 | 51 | 33 | 18 |
+| 2026-08-02 | 32 | 32 | 0 |
+
+The 49-commit spike on 08-06 was 22 real code commits from a
+development push — legitimate rebuilds this change would NOT have
+prevented. It removes 27 of those 49. What it really fixes is the
+permanent floor: ~30 `auto:` commits every day forever, including days
+like 08-02 that were 32 commits and 100% automation. Expect ~78%
+fewer builds on average, approaching 100% on days with no development.
+
+### Accepted consequence, recorded rather than discovered later
+
+The bundled CSVs now refresh only when a code commit lands, so the
+Supabase-outage fallback degrades from "as fresh as the last build"
+(minutes) to "possibly days stale". Supabase is the primary and that
+fallback was always best-effort, but it is a real change.
+
+---
+
 ## [2026-08-07] - the dead-man's switch could have been held green by the wrong host
 
 ### Done — the dead-man's switch is live, on Telegram, and verified
