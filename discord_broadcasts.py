@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-discord_broadcasts.py -- the four subscriber messages, and the rules
+discord_broadcasts.py -- the five subscriber messages, and the rules
 that keep them honest.
 
     1. THE BOARD        slate T-60   the No.1 first, then every game
     2. THE No.1 PLAY    its own lock the one bet, priced
-    3. FINAL RESULTS    all graded    how every pick did
-    4. THE No.1 LEDGER  after (3)     record + units at quarter-Kelly
+    3. THE No.1 SETTLED that row grades  win or lose, the moment it lands
+    4. FINAL RESULTS    all graded    how every pick did
+    5. THE No.1 LEDGER  after (4)     record + units at quarter-Kelly
 
 MEASURED FACTS THAT SHAPED THESE (re-run them before changing anything):
 
@@ -577,6 +578,101 @@ def build_top_pick(date_iso: str, r: dict) -> str:
     return "\n".join(L)
 
 
+def _top_pick_record_line(date_iso: str) -> str | None:
+    """One line of running record, or None. Same source as THE LEDGER --
+    tools/pl_calc.py --top-pick -- because CLAUDE.md forbids a P&L number
+    from anywhere else, and a settle ping quoting a different record from
+    the ledger posted an hour later is the 3u/4u contradiction again.
+
+    Filtered to `date <= date_iso` exactly as build_ledger does, so the
+    two messages cannot disagree on which nights are counted.
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_plc", str(ROOT / "tools" / "pl_calc.py"))
+        plc = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(spec and plc)  # type: ignore[arg-type]
+        rows, _src = plc._load_rows(int(date_iso[:4]))
+        picks = [p for p in plc.select_top_picks(rows) if p["date"] <= date_iso]
+        s = plc.top_pick_summary(picks)
+        if not s or not s.get("bets"):
+            return None
+        return (f"Record: **{s['wins']}—{s['losses']}** "
+                f"({s['hit']:.1f}%) · "
+                f"**{s['atKelly']:+.2f}u** at quarter-Kelly")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def build_top_pick_settled(date_iso: str, r: dict) -> str:
+    """BROADCAST 5 -- fires the moment the No.1 settles, win OR lose.
+
+    WHY IT EXISTS (operator, 2026-08-06): FINAL RESULTS waits for every
+    game on the board, so on a night whose No.1 is an early game the
+    result sat unannounced for hours. This closes that gap.
+
+    IT FIRES ON A LOSS TOO, AND THAT IS NOT NEGOTIABLE HERE.
+    The request was for a "won" ping. A channel that pings on wins and
+    goes quiet on losses is the oldest tell in paid picks, and it would
+    be read that way within a week -- by exactly the subscribers who are
+    paying for a verifiable record. It also actively destroys the asset:
+    the record is the product, and a record is only worth something if
+    the losses arrive with the same volume as the wins. FINAL RESULTS and
+    THE LEDGER both publish losses already, so a win-only ping would not
+    even conceal anything -- it would just look like an attempt to.
+
+    If this ever needs to be win-only, the change is one line below and
+    the consequence is on record here.
+    """
+    g = (r.get("graded_result") or "").strip().upper()
+    side = (r.get("pick_side") or "").upper()
+    away = (r.get("away_team") or "").upper()
+    home = (r.get("home_team") or "").upper()
+    pnl = _f(r.get("profit_loss_units"))
+    stake = _f(r.get("units_risked"))
+    odds = side_price(r)
+
+    L: list[str] = []
+    if g == "WIN":
+        L.append("# ✅ THE №1 WON")
+        happened = ("a run scored in the 1st" if side == "YRFI"
+                    else "no run scored in the 1st")
+    elif g == "LOSS":
+        L.append("# ❌ THE №1 LOST")
+        happened = ("no run scored in the 1st" if side == "YRFI"
+                    else "a run scored in the 1st")
+    else:
+        # POSTPONED / SUSPENDED / VOID / PASS -- no bet stands. Say so
+        # plainly rather than dressing it as a result.
+        L.append("# THE №1 — NO ACTION")
+        L.append("")
+        L.append(f"**{away} @ {home}** · {side} — **{g.title() or 'no result'}**. "
+                 f"No bet stands, and nothing is added to the record.")
+        return "\n".join(L)
+
+    L.append("")
+    L.append(f"**{away} @ {home}** · **{side}** — {happened}")
+    L.append("")
+    bits = []
+    if odds is not None:
+        bits.append(f"price **{fmt_odds(odds)}**")
+    if stake:
+        bits.append(f"staked **{stake:.0f}u**")
+    if pnl is not None:
+        bits.append(f"**{pnl:+.2f}u**")
+    if bits:
+        L.append(" · ".join(bits))
+
+    rec = _top_pick_record_line(date_iso)
+    if rec:
+        L.append("")
+        L.append(f"_{rec}._")
+    L.append("")
+    L.append("_Full slate results to follow once every first inning is in._")
+    return "\n".join(L)
+
+
 def build_final_results(date_iso: str, rows: list[dict]) -> str:
     """BROADCAST 3 -- fires once every first inning on the board is graded.
 
@@ -767,6 +863,21 @@ def due_broadcasts(date_iso: str, rows: list[dict],
             out.append(("discord_toppick", f"toppick:{date_iso}:{gid}",
                         build_top_pick(date_iso, tp)))
 
+    # 2b -- THE No.1 SETTLED, the moment that ONE row grades. Ordered
+    # BEFORE final so that on a night whose No.1 is also the last game,
+    # the headline lands above the summary rather than under it.
+    #
+    # No time backstop is needed and none is wanted: unlike FINAL
+    # RESULTS this makes no claim about the rest of the slate, so it
+    # cannot say "everything is complete" while games are pending. Its
+    # only gate is that this row reached a terminal state, which is the
+    # event being announced.
+    if tp is not None and _terminal(tp):
+        gid = (tp.get("game_pk") or
+               f"{tp.get('away_team','')}@{tp.get('home_team','')}")
+        out.append(("discord_settled", f"settled:{date_iso}:{gid}",
+                    build_top_pick_settled(date_iso, tp)))
+
     # 3 -- FINAL RESULTS, once every row on the board is terminal.
     # NOT when the last game ends: every pick is decided in the 1st, so
     # results are final hours earlier (2026-08-05: last row graded 21:57
@@ -858,9 +969,9 @@ if __name__ == "__main__":
     ap.add_argument("--at", help="Pretend it is this ET time, e.g. '18:30'")
     ap.add_argument("--mode", choices=["off", "preview", "live"],
                     help="Override DISCORD_BROADCASTS")
-    ap.add_argument("--which", choices=["board", "toppick", "final", "ledger"],
+    ap.add_argument("--which", choices=["board", "toppick", "settled", "final", "ledger"],
                     help="Render one message regardless of its trigger")
-    ap.add_argument("--resend", choices=["board", "toppick", "final", "ledger"],
+    ap.add_argument("--resend", choices=["board", "toppick", "settled", "final", "ledger"],
                     help="Deliberately re-publish one broadcast, bypassing "
                          "the 24h dedupe. For replacing a post you have "
                          "already retracted -- never for routine sending.")
@@ -879,12 +990,14 @@ if __name__ == "__main__":
         body = {
             "board":   lambda: build_board(d, slate),
             "toppick": lambda: build_top_pick(d, tp) if tp else "",
+            "settled": lambda: build_top_pick_settled(d, tp) if tp else "",
             "final":   lambda: build_final_results(d, slate),
             "ledger":  lambda: build_ledger(d) or "",
         }[a.resend]()
         key = {
             "board":   f"board:{d}",
             "toppick": f"toppick:{d}:{tp.get('game_pk') if tp else '?'}",
+            "settled": f"settled:{d}:{tp.get('game_pk') if tp else '?'}",
             "final":   f"final:{d}",
             "ledger":  f"ledger:{d}",
         }[a.resend]
@@ -908,6 +1021,8 @@ if __name__ == "__main__":
         body = {
             "board":   lambda: build_board(d, slate),
             "toppick": lambda: (build_top_pick(d, top_pick(slate))
+                                if top_pick(slate) else "(no No.1 play)"),
+            "settled": lambda: (build_top_pick_settled(d, top_pick(slate))
                                 if top_pick(slate) else "(no No.1 play)"),
             "final":   lambda: build_final_results(d, slate),
             "ledger":  lambda: build_ledger(d) or "(no ledger)",

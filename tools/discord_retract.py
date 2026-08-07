@@ -52,6 +52,7 @@ ET = ZoneInfo("America/New_York")
 _EVENTS = {
     "board":   "discord_board",
     "toppick": "discord_toppick",
+    "settled": "discord_settled",
     "final":   "discord_final",
     "ledger":  "discord_ledger",
 }
@@ -62,6 +63,7 @@ def _resolve_key(event: str, date_iso: str) -> str | None:
     date alone -- look up whichever key was actually recorded."""
     if event in ("board", "final", "ledger"):
         return f"{event}:{date_iso}"
+    # toppick and settled both carry the gamePk, so they must be looked up
     try:
         from db.supabase_writer import _get_client
         client = _get_client()

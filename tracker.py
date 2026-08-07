@@ -1294,6 +1294,7 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # If you add a new discord_* event, ADD IT HERE IN THE SAME COMMIT.
     "discord_board":        24 * 60,
     "discord_toppick":      24 * 60,
+    "discord_settled":      24 * 60,
     "discord_final":        24 * 60,
     "discord_ledger":       24 * 60,
     "flip_to_strong":       24 * 60,

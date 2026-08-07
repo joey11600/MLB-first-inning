@@ -7,7 +7,7 @@ internal use and errors and for the watchdog when problems occurr...
 everything is going to be sent to our discord."
 
     TELEGRAM  = internal.  Errors, ops, the watchdog.  Never subscribers.
-    DISCORD   = the product.  Four broadcasts a night, one channel.
+    DISCORD   = the product.  Five broadcasts a night, one channel.
 
 WHY A SEPARATE MODULE RATHER THAN MORE OF tracker.py.  tracker.py is the
 LEDGER: it grades bets, computes P&L and owns money invariants.  A

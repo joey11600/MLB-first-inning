@@ -11,6 +11,53 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-06e] - the No.1 settle ping, and it reports losses too
+
+### Added — BROADCAST 5: THE No.1 SETTLED (`build_top_pick_settled`)
+
+Operator request: an instant ping the moment the No.1 lands, rather than
+waiting for the end-of-night summary. FINAL RESULTS is gated on EVERY
+game on the board grading, so on a night whose No.1 is an early game the
+result sat unannounced for hours. This closes that gap: it fires on the
+one row grading and makes no claim about the rest of the slate, so it
+needs no time backstop.
+
+Fires BEFORE final in `due_broadcasts`, so on a night where the No.1 is
+also the last game the headline lands above the summary rather than
+under it. Dedupe key `settled:{date}:{gamePk}` at 24h -- and
+`discord_settled` was added to `_DEDUP_WINDOW_M` IN THE SAME COMMIT,
+because the fallback is 5 minutes and the loop runs every 5 minutes,
+which is exactly how THE BOARD published three times earlier today.
+
+**IT FIRES ON A LOSS TOO.** The request was for a "won" ping. A channel
+that pings on wins and goes quiet on losses is the oldest tell in paid
+picks and would be read that way within a week -- by exactly the
+subscribers paying for a verifiable record. It also destroys the asset
+being sold: a record is only worth something if the losses arrive with
+the same volume as the wins. FINAL RESULTS and THE LEDGER already
+publish losses, so a win-only ping would conceal nothing and merely look
+like an attempt to. The one-line change and its consequence are recorded
+in the function docstring.
+
+POSTPONED / SUSPENDED / VOID render as "NO ACTION -- no bet stands, and
+nothing is added to the record" rather than being dressed as a result.
+
+The running-record line comes from `tools/pl_calc.py --top-pick`, the
+same source as THE LEDGER and filtered to the same date bound, so the
+two messages cannot disagree about the record an hour apart.
+
+Wired into `--which`, `--resend` and `tools/discord_retract.py`.
+
+### Note — tonight's ping was deliberately suppressed
+
+2026-08-06's No.1 had already settled and FINAL RESULTS had announced
+the win before this shipped. A suppression record was written for
+`settled:2026-08-06:825053` so the deploy could not announce the same
+result a second time, out of order, to a paying channel. It starts clean
+on the next slate.
+
+---
+
 ## [2026-08-06d] - a bad post can now be un-posted; the stake agrees everywhere
 
 ### Added — message-id capture and retraction (`discord_notify.py`, `tools/discord_retract.py`)
