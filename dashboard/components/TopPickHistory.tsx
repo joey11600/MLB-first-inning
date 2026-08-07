@@ -61,7 +61,14 @@ function shortDate(iso: string): string {
 export function TopPickHistory({
   report,
   title = "The #1 play, under today’s rules",
-  what = "The top YRFI play of each night",
+  // Says WHICH population, not just which arithmetic. "The top play of
+  // each night" would be true of the maths and misleading about the set:
+  // NRFI is excluded outright (switched off 2026-06-07 for losing), so on
+  // 15 of 92 nights the overall top play was an NRFI pick and the best
+  // YRFI play stands in its place. That is a defensible modelled record --
+  // it is what today's rules would have produced -- but a reader is
+  // entitled to know it is not a transcript of what was alerted.
+  what = "The top YRFI play of each night — NRFI excluded, switched off 2026-06-07",
   id = "topPickHistTitle",
   everyLabel = "Every #1 play, most recent first",
   splitAgainst,

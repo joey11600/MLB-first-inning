@@ -223,6 +223,11 @@ def fmt_pl(value: float | None) -> str:
 # realized one is carried beside it, never as a correction.
 
 CURRENT_SYSTEM_FROM = "2026-05-26"
+# The date STRONG NRFI was switched off for losing in every band. Named here
+# rather than inlined because the subscriber-facing ledger message discloses
+# it -- the record is the top YRFI play of each night, and a reader is
+# entitled to know which population that is.
+NRFI_OFF_FROM = "2026-06-07"
 
 
 def _implied(odds: float) -> float:
@@ -234,7 +239,30 @@ def _payout(odds: float) -> float:
 
 
 def select_top_picks(rows: list[dict]) -> list[dict]:
-    """One row per night: the No.1 play, under the dashboard's rule."""
+    """One row per night: the No.1 play, under the dashboard's rule.
+
+    RANK FIRST, THEN REQUIRE A RESULT. The order matters and it used to be
+    the other way round: unsettled rows were filtered out BEFORE ranking, so
+    a night whose top play was POSTPONED silently promoted the second-best
+    game and counted ITS result as the No.1's.
+
+    Measured on the live ledger, 2026-06-11: the most confident YRFI play was
+    ATL@CWS (p_nrfi 0.3219) and it was postponed; the record counted CHC@COL
+    (0.3543), which LOST. A game the system would never have graded that
+    night contributed a loss to the published record.
+
+    The system would have bet the postponed game. A postponement is NO
+    ACTION -- not a result, and not a licence to substitute a different
+    game. Such nights are now EXCLUDED and counted, so the exclusion is
+    visible rather than silent (same discipline as `noEdgeUnderKelly`).
+
+    NRFI IS STILL EXCLUDED, AND THAT IS DELIBERATE -- see the header of
+    dashboard/lib/top-pick.ts. STRONG NRFI was switched off 2026-06-07 for
+    losing in every band, and the operator's instruction (2026-08-03) is that
+    showing those nights as the record of a system that would not place them
+    is wrong. This series is therefore a CURRENT-RULES REPLAY, not a log of
+    what was alerted at the time; every surface that publishes it says so.
+    """
     by_day: dict[str, list[dict]] = {}
     for r in rows:
         date = (r.get("date") or "").strip()
@@ -244,15 +272,13 @@ def select_top_picks(rows: list[dict]) -> list[dict]:
             continue
         if (r.get("bet_placed") or "").strip().upper() != "Y":
             continue
-        if (r.get("graded_result") or "").strip().upper() not in ("WIN", "LOSS"):
-            continue
+        # Ranking needs only the probability and the price. Settlement is
+        # checked AFTER the winner is chosen -- see the docstring.
         try:
             p_nrfi = float((r.get("nrfi_prob") or "").strip())
             odds = float((r.get("market_yrfi_odds") or "").strip())
-            float((r.get("units_risked") or "").strip())
-            float((r.get("profit_loss_units") or "").strip())
         except (TypeError, ValueError):
-            continue          # unpriced / unsettled -- excluded, never guessed
+            continue          # unpriced -- excluded, never guessed
         if odds == 0:
             continue
         r = dict(r)
@@ -269,7 +295,15 @@ def select_top_picks(rows: list[dict]) -> list[dict]:
             x["_implied"],
             f"{x.get('away_team','')}@{x.get('home_team','')}",
         ))
-        out.append(night[0])
+        top = night[0]
+        if (top.get("graded_result") or "").strip().upper() not in ("WIN", "LOSS"):
+            continue          # the night's No.1 never settled -> no result
+        try:
+            float((top.get("units_risked") or "").strip())
+            float((top.get("profit_loss_units") or "").strip())
+        except (TypeError, ValueError):
+            continue
+        out.append(top)
     return out
 
 

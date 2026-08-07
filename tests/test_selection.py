@@ -188,3 +188,51 @@ def test_grade_check_ignores_case_and_whitespace(ledger):
 
 def test_an_empty_row_does_not_lock(ledger):
     assert tracker._pick_is_locked({}, "2026-08-06") is False
+
+
+# ---------------------------------------------------------------------------
+# the published record must count the night's actual No.1
+# ---------------------------------------------------------------------------
+
+def test_an_unsettled_top_play_excludes_the_night_rather_than_promoting_the_runner_up():
+    """THE 2026-06-11 DEFECT. `select_top_picks` used to filter unsettled rows
+    out BEFORE ranking, so a postponed №1 silently promoted the second-best
+    game and counted ITS result as the №1's.
+
+    Live: the top YRFI play was ATL@CWS (p_nrfi 0.3219) and it was POSTPONED;
+    the record counted CHC@COL (0.3543), which LOST. A game the system would
+    never have graded that night contributed a loss to the published record.
+
+    A postponement is NO ACTION -- not a result, and not a licence to
+    substitute a different game."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("plc", "tools/pl_calc.py")
+    plc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(plc)
+
+    def row(away, home, p, graded, odds="-135"):
+        return {
+            "date": "2026-06-11", "away_team": away, "home_team": home,
+            "nrfi_prob": str(p), "pick_side": "YRFI", "pick_strength": "STRONG",
+            "market_yrfi_odds": odds, "bet_placed": "Y",
+            "graded_result": graded,
+            "units_risked": "" if graded == "POSTPONED" else "1",
+            "profit_loss_units": "" if graded == "POSTPONED" else "-1",
+        }
+
+    # The most confident play is postponed; a weaker one lost.
+    picks = plc.select_top_picks([
+        row("ATL", "CWS", 0.3219, "POSTPONED"),
+        row("CHC", "COL", 0.3543, "LOSS"),
+    ])
+    assert picks == [], (
+        "the night's №1 did not settle, so the night must contribute NO "
+        "result -- not the runner-up's loss")
+
+    # Sanity: when the top play DOES settle, it is the one counted.
+    picks = plc.select_top_picks([
+        row("ATL", "CWS", 0.3219, "WIN"),
+        row("CHC", "COL", 0.3543, "LOSS"),
+    ])
+    assert len(picks) == 1
+    assert picks[0]["away_team"] == "ATL"

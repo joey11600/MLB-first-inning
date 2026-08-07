@@ -59,6 +59,11 @@ export interface TopPickBet {
   unitsRisked: number;
   /** REALIZED P&L at that recorded stake. */
   pnl: number;
+  /** Did this row reach WIN or LOSS? Carried so the settlement check can
+   *  happen AFTER the night's #1 is ranked -- filtering unsettled rows out
+   *  before ranking is what let a postponed top play promote the
+   *  runner-up into the published record (2026-06-11). */
+  settled: boolean;
   /** Stake under the published quarter-Kelly rule. What the system says
    *  to bet, and what a follower on any bankroll would stake. */
   kellyStake: number;
@@ -291,10 +296,18 @@ export async function loadTopPickReport(
      ============================================================ */
   const all: TopPickBet[] = [];
   const unpricedNights = new Set<string>();
+  const unsettledTopNights = new Set<string>();
   let noEdgeUnderKelly = 0;
+  // RANK FIRST, THEN REQUIRE A RESULT. `graded` is deliberately NOT a
+  // filter here any more -- it is checked after the night's #1 is chosen.
+  // Filtering unsettled rows out up front silently promoted the
+  // second-best game on a night whose top play was postponed, and counted
+  // ITS result as the #1's. Live example, 2026-06-11: the top YRFI play
+  // ATL@CWS (p 0.3219) was POSTPONED and the record counted CHC@COL
+  // (0.3543), which LOST. A postponement is NO ACTION, not a licence to
+  // substitute a different game. Mirrors tools/pl_calc.select_top_picks.
   for (const r of rows) {
     const graded = (r.graded_result || "").trim().toUpperCase();
-    if (graded !== "WIN" && graded !== "LOSS") continue;
     if ((r.bet_placed || "").trim().toUpperCase() !== "Y") continue;
     const side = (r.pick_side || "").trim();
     if (side !== "YRFI") continue;                       // (1) NRFI is off
@@ -305,14 +318,22 @@ export async function loadTopPickReport(
     const odds = num(r.market_yrfi_odds);
     const unitsRisked = num(r.units_risked);
     const pnl = num(r.profit_loss_units);
-    if (odds == null || odds === 0 || unitsRisked == null || pnl == null) {
+    // RANKING NEEDS ONLY THE PRICE. `unitsRisked` and `pnl` are empty on
+    // an unsettled row, so requiring them here would filter the night's
+    // real #1 out before it could be ranked -- which is exactly how a
+    // postponed top play promoted the runner-up. They are folded into
+    // `settled` below and checked AFTER ranking.
+    if (odds == null || odds === 0) {
       unpricedNights.add(date);
       continue;
     }
     all.push({
       date,
       game: `${(r.away_team || "").trim()}@${(r.home_team || "").trim()}`,
-      side, modelP, odds, win: graded === "WIN", unitsRisked, pnl,
+      side, modelP, odds, win: graded === "WIN",
+      unitsRisked: unitsRisked ?? 0, pnl: pnl ?? 0,
+      settled: (graded === "WIN" || graded === "LOSS")
+               && unitsRisked != null && pnl != null,
       // Placeholders; the real values are set once the night's #1 is known.
       kellyStake: 0, kellyPnl: 0,
     });
@@ -333,6 +354,11 @@ export async function loadTopPickReport(
     const night = byDay.get(d)!;
     const chosen = topOnly ? [night.reduce(better)] : night;
     for (const b of chosen) {
+      // THE NIGHT'S #1 MUST HAVE SETTLED. Checked here, after ranking, so
+      // an unsettled top play excludes the night instead of promoting the
+      // runner-up into the record. In `topOnly` mode this is the whole
+      // point; in full mode it just drops the unsettled rows as before.
+      if (!b.settled) { unsettledTopNights.add(b.date); continue; }
       // (3) size it the way the system sizes a bet today. p is the
       // probability of the SIDE BET, and modelP is p(no run), so YRFI
       // takes the complement -- the same conversion StakeChip makes.

@@ -812,8 +812,25 @@ def build_ledger(date_iso: str) -> str | None:
 
     L: list[str] = []
     L.append("# THE №1 PICK — RUNNING RECORD")
-    L.append(f"_Every night's top play since {plc.CURRENT_SYSTEM_FROM}, "
-             f"when the live model was fit._")
+    # DISCLOSE THE BASIS. "Every night's top play" was true of the
+    # arithmetic and misleading about the population: this series is the
+    # top YRFI play of each night since the live weights were fit, and
+    # STRONG NRFI is excluded outright because it was switched off
+    # 2026-06-07 for losing in every band. On 15 of 92 nights the overall
+    # top play was an NRFI pick and the best YRFI play stands in its
+    # place, so the record is what TODAY'S rules would have produced --
+    # not a transcript of what was alerted at the time.
+    #
+    # The operator's reasoning for the rule is sound (2026-08-03:
+    # "showing them as the record of a system that would not place them
+    # is simply wrong") and it is not being changed. What changes is that
+    # a subscriber can now tell which of the two they are reading, which
+    # is the difference between a modelled record and a misrepresented
+    # one.
+    L.append(f"_The top YRFI play of every night since "
+             f"{plc.CURRENT_SYSTEM_FROM}, when the live model was fit, "
+             f"sized by today's rules. NRFI is excluded — it was switched "
+             f"off {plc.NRFI_OFF_FROM} for losing._")
     L.append("")
     L.append(f"## {s['wins']}—{s['losses']}  ·  {s['hit']:.1f}%")
     L.append(f"**{s['atKelly']:+.2f} units** at quarter-Kelly — "

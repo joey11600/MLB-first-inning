@@ -333,3 +333,13 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   cluster-demoted no-bet row competes for No.1 and wins, silencing the alert for
   the game the money is on. Live on 1 of 123 slates (2026-04-29 TB@CLE). Pinned
   xfail in tests/test_selection.py.
+
+- [x] **T8.15** The published No.1 record substituted the runner-up when the
+  night's top play did not settle: 2026-06-11 ATL@CWS (p 0.3219) was POSTPONED
+  and the record counted CHC@COL (0.3543), which LOST. Both pl_calc and
+  lib/top-pick.ts now rank FIRST and require the winner to have settled;
+  unsettled nights are excluded and counted. 46-21/+84.72u -> 46-20/+87.72u,
+  verified identical from Python and the dashboard. The NRFI exclusion (3 of the
+  4 mismatches) is the operator's 2026-08-03 rule and is KEPT -- but the Discord
+  ledger claimed "every night's top play" without disclosing the re-pick, and now
+  states the population. OK 2026-08-07

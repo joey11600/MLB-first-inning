@@ -11,6 +11,73 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07h] - the published record now counts the night's actual No.1 (T8.15)
+
+### Fixed - a postponed No.1 was silently replaced by the runner-up
+
+Both `tools/pl_calc.select_top_picks` and `dashboard/lib/top-pick.ts` filtered
+unsettled rows out BEFORE ranking the night. So when the top play did not
+settle, the second-best game was promoted and ITS result was counted as the
+No.1's.
+
+Live, 2026-06-11: the most confident YRFI play was **ATL@CWS (p_nrfi 0.3219)
+and it was POSTPONED**. The record counted **CHC@COL (0.3543), which LOST**. A
+game the system would never have graded that night contributed a loss to the
+published record.
+
+A postponement is NO ACTION -- not a result, and not a licence to substitute a
+different game. Both surfaces now rank first and require the winner to have
+settled; a night whose No.1 never settled is excluded and counted, so the
+exclusion is visible rather than silent.
+
+| | record | hit | units |
+|---|---|---|---|
+| before | 46-21 | 68.7% | +84.72u |
+| after | **46-20** | **69.7%** | **+87.72u** |
+
+The correction REMOVES a loss that was never the No.1, so the number moves in
+the operator's favour -- which is a reason to be careful about it, not a reason
+to enjoy it. It was verified from both ends: `pl_calc --top-pick` and the
+dashboard now print the same 46-20 / +87.72u.
+
+Fixing the Python alone would have recreated the disease this session has been
+clearing all day, so `lib/top-pick.ts` got the same reordering. It needed TWO
+changes, not one: the `graded` check AND the `unitsRisked`/`pnl` null check both
+sat in front of the ranking, and a postponed row has an empty `profit_loss_units`.
+Moving only the first left the number unchanged, which is how the mistake was
+caught -- the dashboard still said 46-21 after the "fix".
+
+### Kept, and now disclosed - NRFI is excluded from the record
+
+The other 3 of the 4 announced-vs-recorded mismatches are the operator's own
+rule (2026-08-03): *"STRONG NRFI was switched off 2026-06-07 for losing in every
+band, and showing them as the record of a system that would not place them is
+simply wrong."* That reasoning holds and the rule is unchanged. Reverting it
+would have cost 15.59u and 2 wins (44-22 / 66.7% / +69.14u).
+
+What was wrong was the LABEL, on one surface. Discord said *"Every night's top
+play since 2026-05-26"* -- true of the arithmetic, misleading about the
+population, because on 15 of 92 nights the overall top play was an NRFI pick and
+the best YRFI play stands in its place. It now reads:
+
+> _The top YRFI play of every night since 2026-05-26, when the live model was
+> fit, sized by today's rules. NRFI is excluded — it was switched off
+> 2026-06-07 for losing._
+
+The dashboard already said "under today's rules" and "the top YRFI play of each
+night"; it now also names the exclusion. The distinction being drawn is between
+a MODELLED record -- what today's rules would have produced, which is legitimate
+and useful -- and a transcript of what was alerted. Both are defensible; only
+one of them was being claimed.
+
+### Added - a regression test
+
+`tests/test_selection.py` pins the 2026-06-11 shape directly: a night whose top
+play is POSTPONED must contribute NO result, and when the top play does settle
+it is the one counted. 35 passing, 2 xfailed.
+
+---
+
 ## [2026-08-07g] - the money path gets tests, and CI, and the guard stops trusting itself (T8.11, T8.12)
 
 ### Added - the first tests on the money path (T8.11)
