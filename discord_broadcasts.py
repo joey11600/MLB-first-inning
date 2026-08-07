@@ -413,3 +413,67 @@ def build_top_pick(date_iso: str, r: dict) -> str:
              "price YOUR book shows._")
     L.append(f"<{DASH}/brief>")
     return "\n".join(L)
+
+
+def build_final_results(date_iso: str, rows: list[dict]) -> str:
+    """BROADCAST 3 -- fires once every first inning on the board is graded.
+
+    NOT when the last game ends. Every pick here is decided in the FIRST
+    INNING, so the results are known hours before the last out. Waiting
+    for the final out on 2026-08-05 would have delayed this message from
+    ~22:00 ET to ~00:45 ET and changed not one number in it.
+    """
+    plays = [r for r in rows if is_strong(r)]
+    tp = top_pick(rows)
+
+    def graded(r: dict) -> str:
+        return (r.get("graded_result") or "").strip().upper()
+
+    settled = [r for r in plays if graded(r) in ("WIN", "LOSS")]
+    wins = [r for r in settled if graded(r) == "WIN"]
+
+    L: list[str] = []
+    L.append(f"# FINAL RESULTS · {_long_date(date_iso)}")
+    L.append("_Every first inning on the board is complete._")
+
+    if tp is not None:
+        g = graded(tp)
+        pnl = _f(tp.get("profit_loss_units"))
+        stake = _f(tp.get("units_risked"))
+        mark = "✅ WON" if g == "WIN" else ("❌ LOST" if g == "LOSS" else g or "—")
+        L.append("")
+        L.append("## The No.1 play")
+        line = (f"**{(tp.get('away_team') or '').upper()} @ "
+                f"{(tp.get('home_team') or '').upper()}** · "
+                f"{(tp.get('pick_side') or '').upper()} — **{mark}**")
+        if pnl is not None and g in ("WIN", "LOSS"):
+            line += f"  ({pnl:+.2f}u on {stake:.0f}u)" if stake else f"  ({pnl:+.2f}u)"
+        L.append(line)
+
+    if len(plays) > 1:
+        L.append("")
+        L.append("## Every play")
+        for r in plays:
+            g = graded(r)
+            mark = "✅" if g == "WIN" else ("❌" if g == "LOSS" else "·")
+            pnl = _f(r.get("profit_loss_units"))
+            tail = f"  {pnl:+.2f}u" if pnl is not None and g in ("WIN", "LOSS") else f"  {g.title() or 'pending'}"
+            L.append(f"{mark} `{(r.get('away_team') or '').upper():>3} @ "
+                     f"{(r.get('home_team') or '').upper():<3}` "
+                     f"{(r.get('pick_side') or '').upper():<4}{tail}")
+
+    if settled:
+        day_pnl = sum(_f(r.get("profit_loss_units")) or 0.0 for r in settled)
+        L.append("")
+        L.append(f"**Tonight: {len(wins)}-{len(settled)-len(wins)} · "
+                 f"{day_pnl:+.2f}u**")
+    elif plays:
+        L.append("")
+        L.append("_No play settled tonight._")
+    else:
+        L.append("")
+        L.append("_No play tonight. The model declined every game._")
+
+    L.append("")
+    L.append("_1 unit = 1% of your bankroll · quarter-Kelly._")
+    return "\n".join(L)
