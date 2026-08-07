@@ -219,10 +219,15 @@ def send(body: str, *, event_type: str, event_key: str,
         # Reuse the ledger's dedupe so both channels share one memory.
         # Test sends bypass it: a rehearsal must be repeatable.
         if not test:
+            # (Exception, SystemExit): tracker.py guards optional deps
+            # with sys.exit(), which raises SystemExit -- a BaseException
+            # that sails straight through `except Exception`. Observed
+            # live 2026-08-06. This module shares a process with the
+            # money path and must never be able to kill it.
             try:
                 from tracker import (_notify_event_dedup_check,
                                      _notify_event_record)
-            except Exception:  # noqa: BLE001
+            except (Exception, SystemExit):  # noqa: BLE001
                 _notify_event_dedup_check = None       # type: ignore
                 _notify_event_record = None            # type: ignore
             if _notify_event_dedup_check and _notify_event_dedup_check(event_type, event_key):
@@ -234,10 +239,10 @@ def send(body: str, *, event_type: str, event_key: str,
             try:
                 from tracker import _notify_event_record as _rec
                 _rec(event_type, event_key, body, ok)
-            except Exception:  # noqa: BLE001
+            except (Exception, SystemExit):  # noqa: BLE001
                 pass
         return ok
-    except Exception as exc:  # noqa: BLE001 -- NEVER raise into the money path
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 -- NEVER raise into the money path
         print(f"  [discord] send failed unexpectedly ({exc!r})", file=sys.stderr)
         return False
 

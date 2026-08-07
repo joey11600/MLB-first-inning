@@ -63,6 +63,29 @@ DASH = "https://nrfi-terminal.vercel.app"
 LOCK_MINUTES_PREGAME = 60
 
 
+def _tracker():
+    """Import tracker, or return None. NEVER let its failure escape.
+
+    CATCHES SystemExit, NOT JUST Exception, and that distinction is the
+    whole point: tracker.py guards its optional dependencies with
+    `sys.exit("Missing dependency: pip install mlb-statsapi")`, which
+    raises SystemExit -- a BaseException that sails straight through
+    `except Exception`. Found live on 2026-08-06 running the transport
+    check in Railway's console, where the shell's default `python` is
+    not the app venv: the process died instead of degrading.
+
+    That was a harmless console artifact, but the same import runs
+    INSIDE workers/predictor_loop.py, which owns the money path. A
+    marketing module must never be able to kill predict/grade/odds/lock
+    because a dependency went missing.
+    """
+    try:
+        import tracker
+        return tracker
+    except (Exception, SystemExit):  # noqa: BLE001
+        return None
+
+
 # ---------------------------------------------------------------------------
 # odds / probability helpers
 # ---------------------------------------------------------------------------
@@ -122,10 +145,12 @@ def stake_for(row: dict) -> float | None:
     odds = side_price(row)
     if p is None or odds is None:
         return None
+    tracker = _tracker()
+    if tracker is None:
+        return None
     try:
-        import tracker
         return tracker.kelly_stake_units(p, str(int(odds)))
-    except Exception:  # noqa: BLE001
+    except (Exception, SystemExit):  # noqa: BLE001
         return None
 
 
@@ -142,9 +167,8 @@ def price_ladder(p: float, max_rungs: int = 6) -> list[tuple[int, float]]:
     reader on any book can look up their own number. That is why the
     board can be useful even on the 85% of games with no captured price.
     """
-    try:
-        import tracker
-    except Exception:  # noqa: BLE001
+    tracker = _tracker()
+    if tracker is None:
         return []
     out: list[tuple[int, float]] = []
     seen: set[float] = set()
@@ -162,9 +186,8 @@ def price_ladder(p: float, max_rungs: int = 6) -> list[tuple[int, float]]:
 
 def pass_price(p: float) -> int | None:
     """Worst price still worth a full unit; below this, no bet."""
-    try:
-        import tracker
-    except Exception:  # noqa: BLE001
+    tracker = _tracker()
+    if tracker is None:
         return None
     o = -100
     last = None
@@ -231,9 +254,8 @@ def is_strong(row: dict) -> bool:
 def top_pick(rows: list[dict]) -> dict | None:
     """The night's No.1, using the ledger's own rule so the board badge,
     the dashboard hero and this message cannot disagree."""
-    try:
-        import tracker
-    except Exception:  # noqa: BLE001
+    tracker = _tracker()
+    if tracker is None:
         return None
     best = None
     for r in rows:
