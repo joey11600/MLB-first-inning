@@ -56,7 +56,15 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 ET = ZoneInfo("America/New_York")
-DASH = "https://nrfi-terminal.vercel.app"
+
+# THE DASHBOARD URL IS NEVER PUBLISHED. Operator, 2026-08-06: "you need
+# to never send the link to the actual dashboard ever. that is only for
+# me." It is an internal operator surface -- it exposes leans, passes,
+# pass reasons, model diagnostics, the full ledger and the replay. The
+# subscriber product is these messages, and nothing in them should
+# invite a reader to the console behind them. Do NOT reintroduce a link
+# here for "convenience"; if a message needs more context, put the
+# context IN the message.
 
 # How long before first pitch a pick locks. Mirrors dashboard/lib/lock.ts
 # LOCK_MINUTES_PREGAME; if that changes, change this.
@@ -414,7 +422,6 @@ def build_board(date_iso: str, rows: list[dict]) -> str:
              f"most books post first-inning lines close to game time. "
              f"The ladder above needs no price: look up your own book's "
              f"number and bet the matching stake._")
-    L.append(f"_1 unit = 1% of your bankroll. <{DASH}/>_")
     return "\n".join(L)
 
 
@@ -448,7 +455,6 @@ def build_top_pick(date_iso: str, r: dict) -> str:
         if pa is not None:
             L.append(f"Don't take worse than **{fmt_odds(pa)}**.")
     L.append("_1 unit = 1% of your bankroll._")
-    L.append(f"<{DASH}/brief>")
     return "\n".join(L)
 
 
@@ -565,7 +571,6 @@ def build_ledger(date_iso: str) -> str | None:
     L.append("")
     L.append("_1 unit = 1% of your bankroll, so these numbers mean the same "
              "on any bank. Nothing compounds._")
-    L.append(f"<{DASH}/history>")
     return "\n".join(L)
 
 

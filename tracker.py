@@ -1284,6 +1284,18 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # day — even if the pick demotes and re-commits hours later, the
     # bet is already locked at the first commit so the re-ping adds
     # no value.
+    # ---- DISCORD SUBSCRIBER BROADCASTS -------------------------------
+    # 24h, ONE PER SLATE. These MUST be listed here: the fallback below
+    # is 5 MINUTES and the Railway loop runs every 5 minutes, so an
+    # unlisted broadcast re-posts to paying subscribers on every single
+    # cycle, all night. That is exactly what happened on 2026-08-06 --
+    # THE BOARD went out repeatedly, and a suppression record written to
+    # silence it expired 5 minutes later and let it fire again.
+    # If you add a new discord_* event, ADD IT HERE IN THE SAME COMMIT.
+    "discord_board":        24 * 60,
+    "discord_toppick":      24 * 60,
+    "discord_final":        24 * 60,
+    "discord_ledger":       24 * 60,
     "flip_to_strong":       24 * 60,
     "strong_locked":        24 * 60,  # T2.58 -- bet lock alert, once per game per slate
     "strong_graded":        24 * 60,  # at most one grade ping per day per game
