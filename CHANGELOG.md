@@ -85,8 +85,29 @@ only symptom is that the bill never falls. The script therefore both
 ### Added — `.gitattributes` with `*.sh text eol=lf`
 
 The repo had none. A shell script committed from Windows with CRLF runs
-locally and dies on Vercel's Linux runner with `: command not found`.
+locally and dies on Vercel's Linux runner with `
+: command not found`.
 Verified the committed blob contains 0 CR bytes.
+
+### VERIFIED IN PRODUCTION — first `auto:` commit after the fix was skipped
+
+| commit | Vercel status | duration | sha |
+|---|---|---|---|
+| `auto: predict 2026-08-07` | **Canceled** | **6s** | `ccf19bb` |
+| `perf(vercel): skip builds for data-only commits` | Ready | 43s | `68faa78` |
+
+6 seconds is the ignoreCommand running and exiting 0; 43s is a real
+build. The code commit still builds, the data commit does not.
+
+MEASUREMENT TRAP, recorded because it produced a false alarm: the first
+check counted GitHub *deployment records* for the sha and found 1,
+which read as "still building". **Vercel creates a deployment record
+even when it skips, and marks it Canceled** — and the Vercel dashboard
+hides Canceled behind a status filter that defaults to 6 of 7, so the
+skipped deployment is invisible until that filter is turned on. Counting
+records answers "did Vercel react to the push", not "did it build".
+The correct instrument is the deployment STATE (Canceled vs Ready), or
+simply the duration.
 
 ### Honest accounting — what this actually saves
 

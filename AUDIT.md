@@ -261,6 +261,8 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   `dashboard/scripts/should-build.sh`, which fails toward BUILDING on any
   uncertainty. Gated on proving Supabase (not the build bundle) serves
   the board: `generatedAt` advanced twice with no deployment. Replay over
-  25 commits: 14 SKIP / 11 BUILD, 0 misclassifications. Also added
+  25 commits: 14 SKIP / 11 BUILD, 0 misclassifications. VERIFIED IN
+  PRODUCTION: first auto: commit after the fix (`ccf19bb`) shows Canceled
+  at 6s against 43s for a real build. Also added
   `.gitattributes` (`*.sh text eol=lf`) so a Windows CRLF checkout cannot
   kill the script on Vercel's Linux runner. ✅ 2026-08-07
