@@ -489,6 +489,19 @@ def cycle() -> None:
     # never be able to delay them.  Always returns 0.
     step_discord_broadcasts()
 
+    # 9: the watchdog.  Runs HERE, on Railway, because a monitor must not
+    # share a failure domain with what it watches -- the GitHub-hosted
+    # watchdog went down with GitHub Actions on 2026-08-06 and could not
+    # report the very outage it existed for.  Watches GitHub, Vercel, the
+    # odds pipeline and tonight's No.1; pings an external dead-man's
+    # switch so Railway's OWN death is detectable.  Always returns 0.
+    try:
+        import watchdog as _wd
+        _wd.run()
+    except (Exception, SystemExit) as exc:   # noqa: BLE001
+        print(f"[predictor] [watchdog] step failed ({exc!r}); continuing",
+              file=sys.stderr, flush=True)
+
     dur = time.time() - started
     print(f"[predictor] === cycle end ({dur:.1f}s) ===", flush=True)
 

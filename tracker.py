@@ -1394,6 +1394,30 @@ _TELEGRAM_EVENT_ROUTES: dict[str, dict] = {
 }
 
 
+def _discord_owns_subscribers() -> bool:
+    """True once Discord is actually broadcasting to subscribers.
+
+    THE HANDOVER SWITCH (operator, 2026-08-06): "we're going to only use
+    telegram for internal use and errors and for the watchdog...
+    everything is going to be sent to our discord."
+
+    Reading the SAME env var the broadcaster reads makes the migration
+    self-sequencing, which is the only way to get this ordering right:
+
+        DISCORD_BROADCASTS unset/preview -> Discord sends nothing, so
+                                            Telegram MUST keep serving
+                                            subscribers. No gap.
+        DISCORD_BROADCASTS=live          -> Discord is serving them, so
+                                            Telegram goes quiet in the
+                                            same instant. No overlap.
+
+    One variable flips both halves atomically. A hand-managed pair of
+    switches is how you get either a silent night or a double-notified
+    one, and both are visible to paying subscribers.
+    """
+    return (os.environ.get("DISCORD_BROADCASTS", "") or "").strip().lower() == "live"
+
+
 def _chat_should_receive_event(chat_id: str, event_type: str | None) -> bool:
     """Return True if this chat_id should receive the given event_type.
     Chats without a route entry default to "receive everything"
@@ -1403,8 +1427,19 @@ def _chat_should_receive_event(chat_id: str, event_type: str | None) -> bool:
     of event_type (including the legacy `event_type=None` callers that
     used to bypass routing entirely).  This is the code-level kill for
     stale chat_ids that lingered in TELEGRAM_CHAT_ID after groups were
-    archived / bots removed."""
+    archived / bots removed.
+
+    2026-08-06: once Discord owns subscribers, the Backfist Bets
+    supergroup receives NOTHING -- it is being retired with a pinned
+    pointer to Discord. Personal chats are unaffected: Telegram remains
+    the operator's internal channel for errors, ops and the watchdog,
+    which is exactly what was asked for."""
     if chat_id in _DENIED_CHAT_IDS:
+        return False
+    # Group/channel ids are negative; personal threads are positive. The
+    # sign test means a NEW subscriber channel added to the env var is
+    # silenced by default rather than by remembering to route it.
+    if _discord_owns_subscribers() and str(chat_id).strip().startswith("-"):
         return False
     if event_type is None:
         return True    # legacy callers that don't pass event_type get everything
