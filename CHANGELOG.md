@@ -13,6 +13,25 @@ section captures actual picks accuracy on/around the change date.
 
 ## [2026-08-07d] - the skip check compares against the last BUILD, not the last commit (T8.6)
 
+### Confirmed on the real runner
+
+Build log for `fd9c42d`:
+
+    Running "bash scripts/should-build.sh"
+    should-build: invoked from scripts, operating at /vercel/path0
+    should-build: comparing against LAST BUILD 80086205
+    should-build: non-data changes since 80086205 — BUILDING
+    AUDIT.md
+    CHANGELOG.md
+    dashboard/scripts/should-build.sh
+
+Four things measured that had only been inferred: `VERCEL_GIT_PREVIOUS_SHA`
+IS populated and resolved to `80086205`, which really was the last
+successful build; `ignoreCommand` really does run from the Root
+Directory (`invoked from scripts` ⇒ cwd was `dashboard/`), which is the
+assumption the whole pathspec trap hangs on; the `cd` to the repo root
+landed at `/vercel/path0`; and the comparison named the right files.
+
 ### Fixed — a code commit could be silently skipped
 
 T8.4 shipped with a real hole, found by reading the sibling strikeouts
