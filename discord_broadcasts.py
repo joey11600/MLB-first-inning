@@ -730,8 +730,16 @@ def due_broadcasts(date_iso: str, rows: list[dict],
     # predictor has run would be an empty table with our name on it.
     if fp is not None and now >= fp - timedelta(minutes=LOCK_MINUTES_PREGAME):
         if any((r.get("pick_strength") or "").strip() for r in rows):
+            # Pass `now` THROUGH. build_board is time-aware (it refuses
+            # to list games that already started) and defaults to
+            # wall-clock, so omitting it here made the trigger and the
+            # CONTENT read two different clocks. In production they
+            # coincide and nothing looked wrong, which is exactly why
+            # this is worth being explicit about: it made `--at` render a
+            # board for the wrong moment, so every dry run of a past or
+            # future trigger silently rehearsed the wrong message.
             out.append(("discord_board", f"board:{date_iso}",
-                        build_board(date_iso, rows)))
+                        build_board(date_iso, rows, now)))
 
     # 2 -- THE No.1 PLAY, at ITS OWN lock (60 min before ITS game), which
     # is a different time from (1) unless the No.1 IS the first game.
