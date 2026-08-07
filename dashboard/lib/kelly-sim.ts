@@ -256,6 +256,37 @@ export const UNIT_RULE = {
   roundedFloor: 0.5,     // KELLY_ROUNDED_FLOOR
 };
 
+/**
+ * Python's `round()`, which is BANKER'S rounding (half-to-even), not
+ * JavaScript's `Math.round` (half-up). They disagree at every exact .5:
+ * Python round(2.5) is 2, Math.round(2.5) is 3.
+ *
+ * This exists so this file can reproduce `tracker.kelly_stake_units`
+ * EXACTLY. See stakeUnitsFor for why "exactly" is the requirement.
+ */
+function roundHalfEven(value: number, digits = 0): number {
+  const m = 10 ** digits;
+  const v = value * m;
+  const floor = Math.floor(v);
+  const diff = v - floor;
+  // EXACT comparison, no tolerance. A tolerance here is not a safety
+  // margin, it is a bug: quarter-Kelly constantly produces values like
+  // 3.4949999999999997, which Python rounds to 3.49 (and thence to 3u),
+  // but which any epsilon wide enough to "absorb float dust" reads as a
+  // tie and bumps to 3.50 -- and thence to 4u, a whole unit of real
+  // money. Measured over 396,622 (probability, price) pairs, a 1e-9
+  // tolerance produced 18 disagreements with tracker; exact comparison
+  // produces none. Halves are exactly representable in binary, so the
+  // tie case this needs to catch is caught exactly.
+  let r: number;
+  if (diff === 0.5) {
+    r = floor % 2 === 0 ? floor : floor + 1;
+  } else {
+    r = Math.round(v);
+  }
+  return r / m;
+}
+
 /** Units to stake, or 0 when the model has no edge at that price. */
 export function stakeUnitsFor(p: number, american: number): number {
   if (!Number.isFinite(p) || p <= 0 || p >= 1) return 0;
@@ -265,14 +296,40 @@ export function stakeUnitsFor(p: number, american: number): number {
   );
   let stake = f * 100;
   if (stake < UNIT_RULE.minStakeUnits) return 0;   // no edge -> no bet
+
+  // THIS FUNCTION IS A MIRROR, NOT AN INDEPENDENT IMPLEMENTATION.
+  // `tracker.kelly_stake_units` is what actually SIZES THE BET -- the
+  // number that gets typed into a sportsbook, recorded as
+  // units_risked, and published to subscribers. Everything here only
+  // DISPLAYS. So where the two disagree, the display is wrong by
+  // definition, and the fix is always to match tracker.
+  //
+  // 2026-08-06: they disagreed by a whole unit on the night's No.1.
+  // SD@ARI at p=0.6343, -135 sizes to 3.4975u exactly. tracker rounds
+  // TWICE -- round(3.4975, 2) -> 3.5, then round(3.5) -> 4 -- and bet
+  // 4u. This file rounded once, Math.round(3.4975) -> 3, and the board
+  // printed "STAKE 3.00u" beside a bet that was placed at 4u and
+  // published to Discord at 4u. Any stake landing in [x.495, x.5)
+  // diverges the same way, plus every exact .5 via half-up vs
+  // half-even.
+  //
+  // The intermediate round-to-2dp below is therefore DELIBERATE and
+  // load-bearing, even though it is the very thing that makes 3.4975
+  // become 4. It is not a tidy-up and removing it "because
+  // double-rounding is a code smell" silently re-breaks parity.
+  // Double-rounding IS arguably wrong -- but that is a question about
+  // tracker's sizing rule, i.e. about real money, and it has to be
+  // answered there and with the operator, never by quietly making the
+  // display say something the bet did not.
+  stake = roundHalfEven(stake, 2);
   if (UNIT_RULE.rounding > 0) {
-    let r = Math.round(stake / UNIT_RULE.rounding) * UNIT_RULE.rounding;
+    let r = roundHalfEven(stake / UNIT_RULE.rounding) * UNIT_RULE.rounding;
     if (r < UNIT_RULE.roundedFloor) r = UNIT_RULE.roundedFloor;
     // Rounding up must never breach the per-bet cap.
     if (r > UNIT_RULE.maxStakeUnits) r = stake;
     stake = r;
   }
-  return Math.round(stake * 100) / 100;
+  return roundHalfEven(stake, 2);
 }
 
 /** P&L in units for a settled bet under the same rule. */

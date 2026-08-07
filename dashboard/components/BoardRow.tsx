@@ -795,15 +795,48 @@ function StakeChip({
   if (row.pickStrength !== "STRONG") return null;
   if (row.pickSide !== "NRFI" && row.pickSide !== "YRFI") return null;
 
-  // THE NEW SYSTEM'S STAKE (2026-07-30). Computed from the model
-  // probability and the price, because 1 unit = 1% of bankroll makes
-  // sizing bankroll-free -- so this chip shows the SAME number every
-  // other surface shows, and the same number a subscriber would bet.
+  // THE RECORDED STAKE WINS OVER A RECOMPUTED ONE. (2026-08-06)
   //
-  // It deliberately no longer prints detail.unitsRisked. That is what
-  // the ledger RECORDED, and anything placed before today was sized the
-  // old way (bankroll x Kelly%), which is why 2026-07-29 read 5.97u here
-  // and 7u on /history for one bet.
+  // This chip used to always recompute from the model probability and
+  // the price, on the reasoning that 1u = 1% of bankroll makes sizing
+  // bankroll-free, so every surface would independently arrive at the
+  // same number. Three surfaces did exactly that -- and did NOT arrive
+  // at the same number.
+  //
+  // Tonight's No.1, SD@ARI: Discord published 4u, the ledger recorded
+  // 4u, the operator saw "STAKE 3.00u" here. Two independent causes,
+  // both invisible:
+  //   1. lib/kelly-sim.ts rounded once where tracker.kelly_stake_units
+  //      rounds twice, so 3.4975u became 3u here and 4u there. Fixed in
+  //      kelly-sim.ts, which is now a verified mirror -- 0 disagreements
+  //      over 396,622 (probability, price) pairs.
+  //   2. `row.yrfiPct` is rounded to ONE DECIMAL at
+  //      board-supabase.ts:217, so this recomputed from 0.634 where
+  //      tracker sized from 0.6343. On the real ledger that alone
+  //      changes the stake on 5 of 372 rows.
+  //
+  // Cause 2 cannot be fixed by making the arithmetic agree, because the
+  // INPUT is already lossy. So stop recomputing a number we already
+  // have: units_risked is what the bet was actually placed at, it is
+  // what Discord published, and it is the only value that cannot drift
+  // from itself. Recompute ONLY when nothing was recorded -- a pre-lock
+  // row that has not been sized yet.
+  //
+  // Pre-Kelly rows now read "1.00u" and mid-July rows read odd figures
+  // like 5.97u. That was the objection to ledger-first when it was
+  // reverted on 2026-07-30 -- but 1.00u and 5.97u are what was staked on
+  // those nights, so they are the true answer, and a board that prints a
+  // stake nobody placed is the worse failure.
+  const recorded = detail?.unitsRisked;
+  if (recorded != null && recorded > 0) {
+    return (
+      <span className={styles.stakeChip}>
+        <span className={styles.stakeLabel}>stake</span>
+        <span className={styles.stakeValue}>{recorded.toFixed(2)}u</span>
+      </span>
+    );
+  }
+
   const stakePriceRaw = (row.pickSide === "NRFI"
     ? detail?.marketNrfiOdds : detail?.marketYrfiOdds) || "";
   const stakeAmerican = Number.parseFloat(stakePriceRaw.trim());

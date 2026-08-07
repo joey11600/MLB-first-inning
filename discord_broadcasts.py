@@ -716,10 +716,49 @@ if __name__ == "__main__":
                     help="Override DISCORD_BROADCASTS")
     ap.add_argument("--which", choices=["board", "toppick", "final", "ledger"],
                     help="Render one message regardless of its trigger")
+    ap.add_argument("--resend", choices=["board", "toppick", "final", "ledger"],
+                    help="Deliberately re-publish one broadcast, bypassing "
+                         "the 24h dedupe. For replacing a post you have "
+                         "already retracted -- never for routine sending.")
+    ap.add_argument("--yes", action="store_true",
+                    help="Required by --resend: confirms you mean to post "
+                         "to the live subscriber channel")
     a = ap.parse_args()
 
     d = a.date or datetime.now(ET).strftime("%Y-%m-%d")
     slate = load_slate(d)
+
+    if a.resend:
+        # A human replacing a retracted post. The scheduler never reaches
+        # this branch; run_broadcasts() has no way to set force=True.
+        tp = top_pick(slate)
+        body = {
+            "board":   lambda: build_board(d, slate),
+            "toppick": lambda: build_top_pick(d, tp) if tp else "",
+            "final":   lambda: build_final_results(d, slate),
+            "ledger":  lambda: build_ledger(d) or "",
+        }[a.resend]()
+        key = {
+            "board":   f"board:{d}",
+            "toppick": f"toppick:{d}:{tp.get('game_pk') if tp else '?'}",
+            "final":   f"final:{d}",
+            "ledger":  f"ledger:{d}",
+        }[a.resend]
+        event_type = f"discord_{a.resend}"
+        if not body:
+            print(f"[discord] nothing to send for {a.resend}")
+            raise SystemExit(1)
+        if not a.yes:
+            print(f"=== would re-send {event_type} / {key} "
+                  f"({len(body)} chars) ===\n")
+            print(body)
+            print("\n=== re-run with --yes to publish to the LIVE channel ===")
+            raise SystemExit(0)
+        import discord_notify
+        ok = discord_notify.send(body, event_type=event_type, event_key=key,
+                                 force=True)
+        print(f"[discord] re-sent {event_type}: delivered={ok}")
+        raise SystemExit(0 if ok else 1)
 
     if a.which:
         body = {

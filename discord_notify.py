@@ -110,12 +110,21 @@ def split_message(body: str, limit: int = _SPLIT_BUDGET) -> list[str]:
     return parts
 
 
-def _post_once(url: str, payload: dict) -> tuple[bool, int, float]:
-    """One POST. Returns (ok, status, retry_after_seconds).
+def _post_once(url: str, payload: dict) -> tuple[bool, int, float, dict]:
+    """One POST. Returns (ok, status, retry_after_seconds, created).
 
     `?wait=true` makes Discord return the created message object rather
     than an empty 204, so a 200 here means the message really exists in
-    the channel -- not merely that the request was accepted."""
+    the channel -- not merely that the request was accepted. `created` is
+    that object; its `id` is the ONLY handle that can ever delete the
+    message again, and throwing it away is why four posts carrying the
+    dashboard URL had to be deleted by hand on 2026-08-06.
+
+    `created` is {} whenever the id could not be read -- a 204, an
+    unparseable body, a network failure. Callers must treat a missing id
+    as "delivered but not retractable", never as "not delivered": the
+    message is in the channel either way and a retry would double-post.
+    """
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url + ("&" if "?" in url else "?") + "wait=true",
@@ -132,7 +141,18 @@ def _post_once(url: str, payload: dict) -> tuple[bool, int, float]:
     )
     try:
         with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
-            return (200 <= resp.status < 300), resp.status, 0.0
+            ok = 200 <= resp.status < 300
+            created: dict = {}
+            try:
+                raw = resp.read().decode("utf-8")
+                parsed = json.loads(raw) if raw.strip() else {}
+                if isinstance(parsed, dict) and parsed.get("id"):
+                    created = parsed
+            except Exception:  # noqa: BLE001
+                # A delivered message we cannot address. Deliberately NOT
+                # an error: see the docstring -- retrying would post twice.
+                created = {}
+            return ok, resp.status, 0.0, created
     except urllib.error.HTTPError as exc:
         # 429 = rate limited. Discord tells us exactly how long to wait.
         retry_after = 0.0
@@ -141,40 +161,61 @@ def _post_once(url: str, payload: dict) -> tuple[bool, int, float]:
                 retry_after = float(json.loads(exc.read().decode()).get("retry_after", 1.0))
             except Exception:  # noqa: BLE001
                 retry_after = 2.0
-        return False, exc.code, retry_after
+        return False, exc.code, retry_after, {}
     except Exception:  # noqa: BLE001 -- network, DNS, timeout
-        return False, 0, 0.0
+        return False, 0, 0.0, {}
 
 
-def _send_raw(body: str, *, test: bool = False) -> bool:
-    """Post `body`, split if needed. True only if EVERY part delivered.
+def _send_raw(body: str, *, test: bool = False) -> tuple[bool, list[dict]]:
+    """Post `body`, split if needed. Returns (all_parts_delivered, posted).
 
-    A partially-delivered board is a product defect, so the caller is
-    told the truth and the dedupe record stores delivered=False -- which
-    lets the next cycle retry rather than marking the night done."""
+    `posted` lists every message that REACHED THE CHANNEL, even when the
+    overall result is False. That asymmetry is the point: a board that
+    dies on part 3 of 4 has already published parts 1 and 2, and those
+    are exactly the messages someone may need to retract. Returning only
+    a bool is how the orphans became unaddressable before.
+
+    A partially-delivered board is still a product defect, so the caller
+    is told the truth and the dedupe record stores delivered=False --
+    which lets the next cycle retry rather than marking the night done.
+    """
     url = _webhook_url(test)
     if not url:
-        return False
+        return False, []
 
     parts = split_message(body)
     if not parts:
-        return False
+        return False, []
     total = len(parts)
+    posted: list[dict] = []
 
     for idx, part in enumerate(parts, start=1):
         content = part if total == 1 else f"{part}\n\n*({idx}/{total})*"
         delivered = False
         for attempt in range(_MAX_ATTEMPTS):
-            ok, status, retry_after = _post_once(url, {"content": content})
+            ok, status, retry_after, created = _post_once(url, {"content": content})
             if ok:
                 delivered = True
+                if created.get("id"):
+                    posted.append({
+                        "message_id": str(created["id"]),
+                        "channel_id": str(created.get("channel_id") or "") or None,
+                        "part_index": idx,
+                        "part_total": total,
+                    })
+                else:
+                    # Delivered but unaddressable. Say so loudly -- it is
+                    # the only state where retraction silently cannot help.
+                    print(f"  [discord] part {idx}/{total} delivered but "
+                          f"returned no message id; NOT retractable",
+                          file=sys.stderr)
                 break
             # 4xx other than 429 is a permanent error (bad webhook, bad
             # payload). Retrying it just burns time and log noise.
             if 400 <= status < 500 and status != 429:
                 print(f"  [discord] permanent error HTTP {status}; giving up",
                       file=sys.stderr)
-                return False
+                return False, posted
             wait = retry_after if retry_after else (2.0 ** attempt)
             if attempt < _MAX_ATTEMPTS - 1:
                 print(f"  [discord] part {idx}/{total} HTTP {status}; "
@@ -183,14 +224,143 @@ def _send_raw(body: str, *, test: bool = False) -> bool:
         if not delivered:
             print(f"  [discord] part {idx}/{total} FAILED after "
                   f"{_MAX_ATTEMPTS} attempts", file=sys.stderr)
-            return False
+            return False, posted
         if idx < total:
             time.sleep(0.6)   # stay under the per-webhook burst limit
-    return True
+    return True, posted
+
+
+# ---------------------------------------------------------------------------
+# retraction index -- how a bad post gets taken down
+# ---------------------------------------------------------------------------
+
+def _record_message_ids(event_type: str, event_key: str,
+                        posted: list[dict]) -> None:
+    """Index delivered messages in `discord_messages` so they can be
+    deleted later.
+
+    FAIL-SILENT, AND IN ITS OWN TABLE ON PURPOSE. The dedupe record in
+    notifications_log is what stops a broadcast repeating; on 2026-08-06
+    a gap there published THE BOARD three times to a paying channel. If
+    id-capture shared that write, a failure here could resurrect exactly
+    that bug. Losing the index costs the ability to UN-send. Losing the
+    dedupe row costs the ability to NOT DOUBLE-send. Those are not
+    equally bad, so they do not share a failure.
+    """
+    if not posted:
+        return
+    try:
+        from db.supabase_writer import _get_client
+        client = _get_client()
+        if client is None:
+            return
+        client.table("discord_messages").insert([
+            {
+                "event_type": event_type,
+                "event_key": event_key,
+                "message_id": p["message_id"],
+                "part_index": p.get("part_index", 1),
+                "part_total": p.get("part_total", 1),
+                "channel_id": p.get("channel_id"),
+            }
+            for p in posted
+        ]).execute()
+    except Exception:  # noqa: BLE001 -- never break a send over bookkeeping
+        print(f"  [discord] could not index {len(posted)} message id(s) for "
+              f"{event_type}/{event_key}; they are live but not retractable",
+              file=sys.stderr)
+
+
+def _delete_message(url: str, message_id: str) -> tuple[bool, int]:
+    """DELETE one webhook message. Returns (gone, status).
+
+    404 counts as GONE, not as failure: the operator may already have
+    deleted it by hand (they did, on 2026-08-06), and a retract tool that
+    reports failure for an already-absent message trains people to
+    ignore it."""
+    req = urllib.request.Request(
+        f"{url.split('?')[0].rstrip('/')}/messages/{message_id}",
+        headers={"User-Agent": "NRFI-Terminal/1.0"},
+        method="DELETE",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
+            return (200 <= resp.status < 300), resp.status
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return True, 404
+        if exc.code == 429:
+            try:
+                time.sleep(float(json.loads(exc.read().decode()).get("retry_after", 2.0)))
+            except Exception:  # noqa: BLE001
+                time.sleep(2.0)
+            return _delete_message(url, message_id)
+        return False, exc.code
+    except Exception:  # noqa: BLE001
+        return False, 0
+
+
+def retract(event_type: str, event_key: str, *, test: bool = False) -> int:
+    """Delete every message posted for one broadcast. Returns how many
+    are now gone from the channel.
+
+    Deletes in REVERSE part order so a split board never sits in the
+    channel showing "(2/3)" with its opening part already removed.
+    """
+    url = _webhook_url(test)
+    if not url:
+        print("  [discord] no webhook configured; nothing to retract",
+              file=sys.stderr)
+        return 0
+    try:
+        from db.supabase_writer import _get_client
+        client = _get_client()
+        if client is None:
+            print("  [discord] Supabase unavailable; cannot look up ids",
+                  file=sys.stderr)
+            return 0
+        res = (client.table("discord_messages")
+                     .select("*")
+                     .eq("event_type", event_type)
+                     .eq("event_key", event_key)
+                     .is_("retracted_at_utc", "null")
+                     .execute())
+        rows = sorted(res.data or [],
+                      key=lambda r: r.get("part_index") or 1, reverse=True)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  [discord] id lookup failed ({exc!r})", file=sys.stderr)
+        return 0
+
+    if not rows:
+        print(f"  [discord] no live messages indexed for "
+              f"{event_type}/{event_key}")
+        return 0
+
+    gone = 0
+    for r in rows:
+        ok, status = _delete_message(url, r["message_id"])
+        if ok:
+            gone += 1
+            try:
+                from datetime import datetime, timezone
+                client.table("discord_messages").update({
+                    "retracted_at_utc": datetime.now(timezone.utc).isoformat()
+                }).eq("id", r["id"]).execute()
+            except Exception:  # noqa: BLE001
+                pass
+            print(f"  [discord] retracted part {r.get('part_index')}"
+                  f"/{r.get('part_total')}"
+                  + (" (was already gone)" if status == 404 else ""))
+        else:
+            print(f"  [discord] FAILED to delete part {r.get('part_index')} "
+                  f"(HTTP {status})", file=sys.stderr)
+        time.sleep(0.4)
+    return gone
 
 
 def send(body: str, *, event_type: str, event_key: str,
-         preview: bool = False, test: bool = False) -> bool:
+         preview: bool = False, test: bool = False,
+         force: bool = False) -> bool:
     """THE entry point for every subscriber broadcast.
 
     dedupe -> send -> record, mirroring tracker._notify_event_telegram so
@@ -222,7 +392,7 @@ def send(body: str, *, event_type: str, event_key: str,
 
         # Reuse the ledger's dedupe so both channels share one memory.
         # Test sends bypass it: a rehearsal must be repeatable.
-        if not test:
+        if not test and not force:
             # (Exception, SystemExit): tracker.py guards optional deps
             # with sys.exit(), which raises SystemExit -- a BaseException
             # that sails straight through `except Exception`. Observed
@@ -237,14 +407,31 @@ def send(body: str, *, event_type: str, event_key: str,
             if _notify_event_dedup_check and _notify_event_dedup_check(event_type, event_key):
                 return False   # already announced; another cycle beat us
 
-        ok = _send_raw(body, test=test)
+        # `force` exists for ONE situation: a human decided a already-sent
+        # broadcast was wrong, retracted it, and is deliberately replacing
+        # it. It is never passed by workers/predictor_loop.py or by
+        # discord_broadcasts.run_broadcasts -- only by a person at a CLI.
+        # It bypasses the dedupe CHECK but still writes the dedupe RECORD
+        # below, so the 24h window re-arms and the scheduler will not pick
+        # the broadcast up again on its next 5-minute cycle.
+        if force and not test:
+            print(f"  [discord] FORCED re-send of {event_type}/{event_key} "
+                  f"-- dedupe check bypassed by explicit request",
+                  file=sys.stderr)
+
+        ok, posted = _send_raw(body, test=test)
 
         if not test:
+            # Dedupe record FIRST. If this process dies between the two
+            # writes, losing the id index costs retractability; losing the
+            # dedupe row costs a duplicate post to paying subscribers.
+            # Only one of those is tonight's incident.
             try:
                 from tracker import _notify_event_record as _rec
                 _rec(event_type, event_key, body, ok)
             except (Exception, SystemExit):  # noqa: BLE001
                 pass
+            _record_message_ids(event_type, event_key, posted)
         return ok
     except (Exception, SystemExit) as exc:  # noqa: BLE001 -- NEVER raise into the money path
         print(f"  [discord] send failed unexpectedly ({exc!r})", file=sys.stderr)

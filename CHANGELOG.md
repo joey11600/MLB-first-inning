@@ -11,6 +11,90 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-06d] - a bad post can now be un-posted; the stake agrees everywhere
+
+### Added — message-id capture and retraction (`discord_notify.py`, `tools/discord_retract.py`)
+
+Discord returns the created message object on every `?wait=true` post,
+and the transport was throwing it away. Its `id` is the only handle that
+can ever delete the message again, so the four posts carrying the
+dashboard URL on 2026-08-06 had to be deleted by hand.
+
+`_post_once` now returns that object, `_send_raw` collects one id per
+DELIVERED PART (a split board is N messages, not one) and returns them
+even when the overall send FAILED -- a board that dies on part 3 has
+already published parts 1 and 2, and those are exactly the orphans
+someone needs to retract.
+
+Ids live in a NEW Supabase table `discord_messages`, deliberately not a
+column on `notifications_log`. That table's write is what stops a
+broadcast repeating; if id-capture shared it, a failure here could
+resurrect the 5-minute-window bug from earlier today. Losing the index
+costs the ability to UN-send; losing the dedupe row costs the ability to
+NOT DOUBLE-send. Those are not equally bad, so they do not share a
+failure domain.
+
+    python tools/discord_retract.py --list --date 2026-08-06
+    python tools/discord_retract.py --event toppick --date 2026-08-06 --yes
+
+A 404 counts as success -- the operator may already have deleted it by
+hand, and a tool that cries failure over an absent message trains people
+to ignore it. Retraction deliberately does NOT clear the dedupe record,
+so retract-then-replace stays a two-step human decision; an automatic
+replacement is how a formatting bug becomes a post loop.
+
+`send(..., force=True)` bypasses the dedupe CHECK for a deliberate
+replacement but still writes the dedupe RECORD, so the 24h window
+re-arms. `run_broadcasts` cannot set it; only `--resend <which> --yes`
+can, which prints the full body first.
+
+### Fixed — the dashboard and Discord disagreed about the stake (`kelly-sim.ts`, `BoardRow.tsx`)
+
+Discord published "4 units" on tonight's No.1 while the board printed
+"STAKE 3.00u" for the same bet. TWO independent causes, both silent:
+
+1. **The Kelly implementations diverged.** `tracker.kelly_stake_units`
+   rounds TWICE -- `round(x, 2)` then round to whole units -- so
+   SD@ARI's exact 3.4975u became 3.5 became 4. `lib/kelly-sim.ts`
+   rounded once: `Math.round(3.4975)` = 3. Every stake in [x.495, x.5)
+   diverged, as did every exact half, because Python rounds
+   half-to-EVEN and `Math.round` rounds half UP.
+   `kelly-sim.ts` is now an exact mirror, including a `roundHalfEven`
+   helper. Verified over **396,622 (probability, price) pairs across
+   p=0.20-0.85 and prices -400..+400: 0 disagreements.** An early
+   attempt using a 1e-9 tie tolerance still failed 18 of them --
+   quarter-Kelly constantly produces values like 3.4949999999999997,
+   which any such tolerance misreads as a tie and bumps by a whole
+   unit. The comparison must be exact.
+   **No published history moves: 0 of 372 historical STRONG rows
+   change.**
+
+2. **The board sized from a rounded probability.** `yrfiPct` is
+   1-decimal (`board-supabase.ts:217`), so the chip recomputed from
+   0.634 where tracker sized from 0.6343. On the real ledger that alone
+   changes the stake on 5 of 372 rows, and no amount of arithmetic
+   parity can fix it because the INPUT is lossy.
+   `StakeChip` now prints `units_risked` -- what the bet was actually
+   placed at, and what Discord published -- and recomputes only for a
+   pre-lock row that has not been sized yet. This reverses the
+   2026-07-30 decision to always recompute; pre-Kelly rows read 1.00u
+   and mid-July rows read 5.97u, which is what was staked on those
+   nights.
+
+### Added — build-time parity guard (`dashboard/scripts/check-kelly-parity.mjs`)
+
+Two implementations of one money rule will drift, and when they do
+nothing complains -- both keep returning a plausible number. The guard
+COMPILES the real `lib/kelly-sim.ts` (a hand-copied duplicate would pass
+while the shipped file was broken) and checks it against 5,398 cases
+generated from `tracker.kelly_stake_units`, densest around the rounding
+edges where they actually disagreed. Wired into `prebuild` beside
+`check-units-guard.mjs`, so a drift fails `next build` rather than
+reaching a subscriber. Verified it catches a reintroduced
+single-rounding regression (310 failures) and passes on the fix.
+
+---
+
 ## [2026-08-06c] - the Discord broadcasts repeated, and published the console URL
 
 Two subscriber-facing defects on the first live night of the Discord
