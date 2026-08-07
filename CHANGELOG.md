@@ -13,6 +13,25 @@ section captures actual picks accuracy on/around the change date.
 
 ## [2026-08-07] - the dead-man's switch could have been held green by the wrong host
 
+### Done — the dead-man's switch is live, on Telegram, and verified
+
+Two healthchecks.io checks, each pinged by a DIFFERENT host so neither
+can mask the other:
+
+| check | period / grace | pinged by | env var |
+|---|---|---|---|
+| NRFI Railway predictor | 15 min / 10 min | `watchdog.heartbeat()` | `HEALTHCHECKS_URL_PREDICTOR` |
+| NRFI predict cron | 1 day / 1 hour | `daily.yml` | `HEALTHCHECKS_URL` |
+
+Both alert to Telegram (direct message, not a group — ops alerts must
+never land in a group per the standing rule) AND email. Both delivery
+paths were TESTED, not assumed: "Delivered, now" on each. Both checks
+are receiving real pings from their own host.
+
+Verification note: the Railway ping was confirmed by watching the
+service's own heartbeat arrive after a redeploy, not by hitting the ping
+URL by hand -- which would have proved nothing about the code path.
+
 ### Fixed — Railway's heartbeat now uses its own env var (`watchdog.heartbeat`)
 
 `daily.yml` pings `HEALTHCHECKS_URL` after every successful GitHub run,
