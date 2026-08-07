@@ -122,7 +122,11 @@ def _post_once(url: str, payload: dict) -> tuple[bool, int, float]:
         data=data,
         headers={
             "Content-Type": "application/json",
-            "User-Agent": "NRFI-Terminal (https://nrfi-terminal.vercel.app, 1.0)",
+            # No dashboard URL, not even here. Discord requires a
+            # User-Agent but nothing about this transport should carry
+            # the operator console's address -- see the module docstring
+            # in discord_broadcasts.py.
+            "User-Agent": "NRFI-Terminal/1.0",
         },
         method="POST",
     )

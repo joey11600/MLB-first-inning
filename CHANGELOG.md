@@ -11,6 +11,64 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-06c] - the Discord broadcasts repeated, and published the console URL
+
+Two subscriber-facing defects on the first live night of the Discord
+product. Both were found from the operator's own report; neither had any
+alarm attached to it, which is its own finding.
+
+### Fixed — a 5-minute dedupe window let every broadcast repeat (`49bc7682`)
+
+`tracker._notify_event_dedup_check` ends in
+
+    window_m = _DEDUP_WINDOW_M.get(event_type, 5)
+
+and none of `discord_board` / `discord_toppick` / `discord_final` /
+`discord_ledger` were in that dict, so all four inherited the FIVE
+MINUTE fallback. The Railway loop runs every five minutes. Result, from
+`notifications_log`: THE BOARD and TONIGHT'S No.1 each delivered at
+8:43, 8:49 and 8:58 PM ET — three sends apiece to a paying channel, and
+a suppression record written by hand to silence the board expired five
+minutes later and let it publish anyway. All four now sit at 24h.
+
+The dict now carries a comment saying why, because the next `discord_*`
+event added without an entry reproduces this exactly.
+
+### Fixed — the dashboard URL was published to subscribers (`49bc7682`, `d0e1a2b3`)
+
+Operator: *"you need to never send the link to the actual dashboard
+ever. that is only for me."* It was in three messages — the board
+footer, the No.1 pointing at `/brief`, and the ledger pointing at
+`/history` — and shipped in four delivered posts before it was caught.
+The dashboard is an OPERATOR CONSOLE: it shows leans, passes with their
+reasons, model diagnostics, the full ledger and the replay. The
+subscriber product is the message itself.
+
+The `DASH` constant is deleted outright rather than left unused, and the
+transport's User-Agent header no longer carries the host either, so
+there is nothing in the Discord path to reach for.
+
+### Fixed — the stake printed from the ledger, not a re-derivation (`21c847c3`)
+
+Discord said 4 units where the dashboard said 3 on the same play. Both
+were recomputing Kelly instead of reading it: the raw stake was 3.4975u,
+sitting on the 3.5 rounding boundary, and the dashboard fed the rounded
+1-decimal probability (63.4%) where Discord fed full precision
+(0.6343...). Rounding fell in opposite directions. Both surfaces now
+print `units_risked` from the ledger, which is the number the bet was
+actually placed at. The price ladder was dropped from Discord in the
+same commit at the operator's request.
+
+### Not fixed — the messages already in the channel
+
+Four delivered posts contain the URL and cannot be retracted from here:
+`?wait=true` returns the created message object, but the transport
+discards it, so no message IDs were ever stored. They need deleting by
+hand in Discord. Storing the returned ID would make a bad broadcast
+retractable and is the obvious follow-up.
+
+---
+
 ## [2026-08-06b] - the notification lag: two causes, one fixed, one reverted
 
 Operator: *"the telegram notifications for some reason are all lagged."*
