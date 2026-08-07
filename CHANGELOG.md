@@ -11,6 +11,63 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07d] - the skip check compares against the last BUILD, not the last commit (T8.6)
+
+### Fixed — a code commit could be silently skipped
+
+T8.4 shipped with a real hole, found by reading the sibling strikeouts
+project's history, where a follow-up commit reads "Compare the
+build-skip against the last BUILD, not the last commit (A-023a)".
+
+**Vercel builds once per PUSH, at the tip — not once per commit.** So
+`git diff HEAD^ HEAD` asks the wrong question. Push a code commit and a
+data commit together and Vercel evaluates only the tip, sees data-only,
+skips — and the code commit never deploys. It is the worst shape of
+failure this file exists to prevent: a skip that reports success while
+shipping nothing.
+
+Reproduced against real history rather than argued. Last build
+`34167933`, push = [`de272431` (code), `aa21ba8a` (data)], tip
+`aa21ba8a`:
+
+| comparison | verdict |
+|---|---|
+| old, `HEAD^ HEAD` | **SKIP** — `de272431` never deploys |
+| new, vs last build | **BUILD** — catches `watchdog.py`, `CHANGELOG.md` |
+
+### How
+
+`VERCEL_GIT_PREVIOUS_SHA` — "the git SHA of the last successful
+deployment for the project and branch", exposed ONLY when an Ignored
+Build Step is configured, i.e. precisely here. Diffing from it covers
+every commit since the last real build, however many pushes that spans.
+
+**The shallow-clone interaction gets WORSE as the skipping gets
+better.** Vercel clones shallow, and every skip pushes the last
+*successful* build further back. At ~30 skipped data commits a day the
+previous build will routinely sit outside the fetched history — sha
+present, object missing. Handled with a targeted
+`git fetch --depth=1 origin <sha>`: `git diff A B` needs both objects,
+not the path between them.
+
+### Edge cases, all exercised
+
+| case | verdict |
+|---|---|
+| last build precedes a buried code commit | **BUILD** (the fix) |
+| last build IS that code commit | SKIP (saving preserved) |
+| `PREV` == HEAD (redeploy of same commit) | **BUILD** |
+| `PREV` unset (first run with an ignore step) | narrow fallback, logged |
+| `PREV` unreachable after fetch | narrow fallback, logged |
+
+The narrow fallback keeps today's behaviour — correct for the
+single-commit push that is the norm here — but it cannot see a buried
+code commit, so it says so in the build log rather than passing
+silently. Replay over the last 25 commits still gives 0
+misclassifications.
+
+---
+
 ## [2026-08-07c] - the stale fallback now announces itself (T8.5)
 
 Follow-on to T8.4. Since data commits no longer rebuild the site, the

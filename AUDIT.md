@@ -277,3 +277,12 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   /api/health with a DEGRADED reason, and `watchdog.check_board_source()`
   paging during game hours. Verified by rebuilding with the Supabase env
   blanked. ✅ 2026-08-07
+
+- [x] **T8.6** T8.4's skip check compared `HEAD^ HEAD`, but Vercel builds
+  once per PUSH at the tip — so a code commit pushed together with a
+  later data commit would be silently skipped and never deploy.
+  Reproduced on real history (last build `34167933`, tip `aa21ba8a`:
+  old=SKIP, new=BUILD). Now compares against `VERCEL_GIT_PREVIOUS_SHA`,
+  with a targeted `git fetch --depth=1` for the shallow-clone case, which
+  gets more likely the more builds we skip. Five edge cases exercised;
+  replay still 0 misclassifications. ✅ 2026-08-07

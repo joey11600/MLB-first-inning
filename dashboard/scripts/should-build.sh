@@ -94,24 +94,79 @@ DATA_ONLY_PATHS=(
   ':(exclude,top)data'
 )
 
-# No parent commit -> cannot classify -> build.  Happens on a shallow
-# clone (Vercel clones with depth=10 by default, but a force-push or the
-# very first commit can still leave HEAD parentless) and on the initial
-# commit.
-if ! git rev-parse --verify --quiet HEAD^ >/dev/null 2>&1; then
-  echo "should-build: no parent commit available — BUILDING"
+# --------------------------------------------------------------------
+# COMPARE AGAINST THE LAST BUILD, NOT THE LAST COMMIT.
+#
+# Vercel builds ONCE PER PUSH, at the tip -- not once per commit. So
+# `HEAD^ HEAD` asks the wrong question. Push a code commit and a data
+# commit together and Vercel evaluates only the tip, sees data-only,
+# skips, and THE CODE COMMIT NEVER DEPLOYS. That is the failure this
+# whole file is written to avoid: a skip that looks successful while
+# shipping nothing. The sibling strikeouts project hit it for real and
+# fixed it the same way ("compare the build-skip against the last BUILD,
+# not the last commit").
+#
+# VERCEL_GIT_PREVIOUS_SHA is documented as "the git SHA of the last
+# successful deployment for the project and branch", and is exposed
+# ONLY when an Ignored Build Step is configured -- i.e. exactly here.
+# Diffing from it covers every commit since the last real build, however
+# many pushes that spans.
+#
+# THE SHALLOW-CLONE INTERACTION, which gets WORSE as this script gets
+# better: Vercel clones shallow, and every skip pushes the last
+# SUCCESSFUL build further into the past. At ~30 skipped data commits a
+# day the previous build can easily sit outside the fetched history, so
+# the sha is set but the object is missing. `git fetch --depth=1` for
+# that one commit is enough -- `git diff A B` needs both objects, not
+# the path between them.
+PREV="${VERCEL_GIT_PREVIOUS_SHA:-}"
+BASE=""
+
+if [ -n "$PREV" ]; then
+  if ! git cat-file -e "${PREV}^{commit}" 2>/dev/null; then
+    echo "should-build: previous build $PREV not in the shallow clone; fetching it"
+    git fetch --quiet --depth=1 origin "$PREV" 2>/dev/null || true
+  fi
+  if git cat-file -e "${PREV}^{commit}" 2>/dev/null; then
+    BASE="$PREV"
+    echo "should-build: comparing against LAST BUILD ${PREV:0:8}"
+  else
+    echo "should-build: previous build $PREV still unreachable after fetch"
+  fi
+else
+  echo "should-build: VERCEL_GIT_PREVIOUS_SHA is empty (first run with an ignore step, or no prior success)"
+fi
+
+if [ -z "$BASE" ]; then
+  # Narrow fallback. Correct for the single-commit push that is the norm
+  # here, and strictly better than building unconditionally -- but it
+  # cannot see a code commit buried under a data commit in the same
+  # push, so say so rather than let it pass silently.
+  if ! git rev-parse --verify --quiet HEAD^ >/dev/null 2>&1; then
+    echo "should-build: no parent commit either — BUILDING"
+    exit 1
+  fi
+  BASE="$(git rev-parse HEAD^)"
+  echo "should-build: NARROW COMPARISON against parent ${BASE:0:8} — a code"
+  echo "  commit pushed together with a later data commit would be missed here."
+fi
+
+# A redeploy of the same commit diffs to nothing and would skip forever.
+# Somebody asked for this deploy explicitly; give it to them.
+if [ "$(git rev-parse "$BASE")" = "$(git rev-parse HEAD)" ]; then
+  echo "should-build: base == HEAD (redeploy of the same commit) — BUILDING"
   exit 1
 fi
 
 # --quiet exits 0 when the filtered diff is EMPTY (i.e. nothing outside
 # data/ changed) and 1 when it is not.  It exits 128 on error, which
 # falls through to the build branch below -- deliberately.
-if git diff --quiet HEAD^ HEAD -- "${DATA_ONLY_PATHS[@]}" 2>/dev/null; then
-  echo "should-build: data-only commit — SKIPPING build"
-  echo "  $(git log -1 --format='%h %s')"
+if git diff --quiet "$BASE" HEAD -- "${DATA_ONLY_PATHS[@]}" 2>/dev/null; then
+  echo "should-build: data-only since ${BASE:0:8} — SKIPPING build"
+  git log --oneline "$BASE..HEAD" 2>/dev/null | head -10
   exit 0
 fi
 
-echo "should-build: non-data changes present — BUILDING"
-git diff --name-only HEAD^ HEAD -- "${DATA_ONLY_PATHS[@]}" 2>/dev/null | head -20
+echo "should-build: non-data changes since ${BASE:0:8} — BUILDING"
+git diff --name-only "$BASE" HEAD -- "${DATA_ONLY_PATHS[@]}" 2>/dev/null | head -20
 exit 1
