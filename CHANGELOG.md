@@ -11,6 +11,95 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07g] - the money path gets tests, and CI, and the guard stops trusting itself (T8.11, T8.12)
+
+### Added - the first tests on the money path (T8.11)
+
+`tests/test_money.py` + `tests/test_selection.py`: **34 passing, 2 xfailed**,
+covering `kelly_stake_units`, `_calc_pnl`, the caps, `_top_pick_rank_tuple`,
+`_row_is_nights_top_pick` and `_pick_is_locked`.
+
+Before this there were ZERO. The ~40 files named `test_*.py` under `tools/` and
+`scripts/archive/` are model experiments that assert nothing, which is why
+`pytest.ini` sets `testpaths = tests` -- pointing pytest at the repo root would
+re-run a season of research instead of the money tests.
+
+**Every expected value was EXECUTED against the real code**, never hand-derived.
+That distinction is the point: a suite built from the author's own arithmetic
+pins the author, not the system. Four parallel agents ran 91 candidate
+invariants through the live functions; the ones kept are the ones that
+reproduced.
+
+Weighted toward regressions, because each is a night that already cost money:
+the 3.4975 -> 4u double-round (2026-08-06), half-to-even at 2.4975,
+`KELLY_ROUNDED_FLOOR` lifting a sub-half-unit to 0.5 rather than dropping it (it
+silently dropped 16 of 301 bets once), the daily-cap double-count that made
+stakes oscillate every 5 minutes, and bankroll-independence (the 5.97u vs 17.00u
+same-bet discrepancy).
+
+Also pinned because they are semantics people get wrong: **`0.0` and `None` mean
+different things.** `0.0` is "Kelly forbids this bet"; `None` is "cannot size,
+fall back to flat". If a missing DK price ever returned `0.0`, a scrape miss
+would silently CANCEL the bet instead of falling back -- picks appearing to
+vanish, the failure mode the operator gets burned by most.
+
+### Added - CI on every push (T8.11)
+
+`.github/workflows/tests.yml`, two jobs, `ubuntu-latest` so it still runs when
+the self-hosted VPS is down -- which is exactly when someone is pushing a fix.
+Skips `data/**` for the same reason Vercel does.
+
+Until now the repo had **no automated check on any push at all**. The only
+enforcement anywhere was Vercel `prebuild`, which since T8.4 does not even run
+on a data-only push.
+
+### Fixed - the parity guard was a frozen oracle (T8.12)
+
+`check-kelly-parity.mjs` compares the dashboard to a **committed fixture** and
+never invokes Python. So changing `tracker.kelly_stake_units` left the fixture
+still, left the TypeScript still, and the guard compared them to each other and
+printed `ok` -- while the number that stakes the real bet had walked away from
+the number published. It proved the dashboard matched THE FIXTURE, not today's
+tracker.
+
+Demonstrated rather than argued. Setting `NRFI_KELLY_ROUNDING=0.5` -- an env
+var, **no file changes at all**, exactly what a Railway config edit looks like:
+
+| | result |
+|---|---|
+| real stake, tonight's bet | **4.0u -> 3.5u** |
+| old guard (dashboard vs fixture) | **"ok"** |
+| new check (fixture vs live Python) | **6,950 value changes, exit 1** |
+
+`tools/parity_fixtures.py` is now the ONE generator for both fixtures, with
+`--check` (CI) and `--write` (after a deliberate rule change). The loop closes
+across two places because neither can do both halves: **Vercel** checks
+TypeScript against the fixture (no Python on that builder), **CI** checks the
+fixture against Python.
+
+Regenerating revealed the original fixture was a one-off of 5,369 cases against
+the canonical generator's 21,328 -- with **0 value conflicts**, so no money rule
+had drifted, only coverage. Fixture and generator are now locked together.
+
+### Found while writing the tests - two real defects, NOT fixed here
+
+Both marked `xfail(strict=True)`, so the suite goes RED the moment either is
+fixed and the marker must be removed. Deliberately **not** pinned as correct:
+
+* **A doubleheader crowns BOTH halves No.1.** Self-exclusion in
+  `_row_is_nights_top_pick` is by `AWAY@HOME` name, not `game_pk`, so each half
+  excludes the other as "self". Under the No.1-only policy that is two
+  "tonight's No.1 play" alerts. Not yet triggered live -- no real slate has two
+  STRONG rows sharing a name -- but 18 slate+name keys already carry more than
+  one row.
+* **A cluster-demoted no-bet row can take the No.1 slot.** The rival scan
+  filters on `pick_strength` and never checks `bet_placed`, while
+  `tools/apply_cluster_demotion.py` deliberately sets `bet_placed='N'` without
+  touching strength. The demoted row wins and silences the alert for the game
+  the money is actually on. Live on 1 of 123 slates (2026-04-29 TB@CLE).
+
+---
+
 ## [2026-08-07f] - the two subscriber-facing contradictions (T8.9, T8.10)
 
 Both are the disease we fixed this morning, found by going looking for it

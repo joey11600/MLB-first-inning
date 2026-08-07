@@ -314,3 +314,22 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   2,497 pairs: 0 mismatches. Dead `price_ladder()` removed. Parity guard
   extended to the pass price and verified to catch a ceil→round
   regression. ✅ 2026-08-07
+
+- [x] **T8.11** The money path had no tests and the repo had no CI on push.
+  Added `tests/` (34 passing, 2 xfailed) covering kelly_stake_units, _calc_pnl,
+  the caps, the No.1 rank tuple, the gate and the locks -- every expected value
+  EXECUTED against the real code, weighted toward regressions of shipped bugs.
+  Added `.github/workflows/tests.yml` (pytest + fixture parity + both dashboard
+  guards) on every non-data push. OK 2026-08-07
+- [x] **T8.12** `check-kelly-parity.mjs` never invoked Python, so it proved the
+  dashboard matched a frozen FIXTURE rather than today's tracker. Demonstrated
+  with NRFI_KELLY_ROUNDING=0.5: a real stake moved 4.0u -> 3.5u while the guard
+  printed "ok". `tools/parity_fixtures.py --check` now closes the loop in CI.
+  OK 2026-08-07
+- [ ] **T8.13** ORANGE `_row_is_nights_top_pick` self-excludes by AWAY@HOME
+  name, not game_pk, so BOTH halves of a doubleheader are called No.1 -- two
+  alerts under a No.1-only policy. Pinned xfail in tests/test_selection.py.
+- [ ] **T8.14** ORANGE The No.1 rival scan never checks `bet_placed`, so a
+  cluster-demoted no-bet row competes for No.1 and wins, silencing the alert for
+  the game the money is on. Live on 1 of 123 slates (2026-04-29 TB@CLE). Pinned
+  xfail in tests/test_selection.py.

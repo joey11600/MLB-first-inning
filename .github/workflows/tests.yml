@@ -1,0 +1,93 @@
+# Tests + parity guards, ON EVERY PUSH.
+#
+# WHY THIS WORKFLOW EXISTS.
+# Until 2026-08-07 this repo had NO automated check on any push. The only
+# enforcement anywhere was Vercel's `prebuild` (check-units-guard +
+# check-kelly-parity), which:
+#   * runs only when Vercel builds, and since T8.4 a data-only push does
+#     not build at all;
+#   * checks the DASHBOARD against a committed fixture, so a change to the
+#     Python that sizes the real bet passes green.
+#
+# So the thing that stakes money had zero tests and zero CI, on a system
+# whose picks are sold to subscribers. This closes both halves.
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+    # Data-only commits cannot change behaviour, and the automation pushes
+    # ~30 of them a day. Skipping them here is the same reasoning as the
+    # Vercel ignoreCommand (T8.4) -- and the same care: everything NOT under
+    # data/ still runs, so a Python or dashboard change always tests.
+    paths-ignore:
+      - "data/**"
+  pull_request:
+  workflow_dispatch:
+
+# A newer push supersedes an in-flight run on the same ref. Without this the
+# hourly automation could queue runs faster than they finish.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  money:
+    name: money path (pytest + fixture parity)
+    # ubuntu-latest, NOT the self-hosted runner: this must still run when the
+    # VPS is down, which is exactly when someone is pushing a fix.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Money-path tests
+        run: pytest tests/ -v --tb=short
+
+      # THE HALF VERCEL CANNOT DO. check-kelly-parity.mjs compares the
+      # dashboard to a committed fixture and never invokes Python, so a
+      # changed money rule in tracker.py passes it green. This regenerates
+      # the fixtures from the live Python and fails if they moved --
+      # demonstrated on 2026-08-07 by setting NRFI_KELLY_ROUNDING=0.5, which
+      # changed a real stake from 4.0u to 3.5u while the .mjs guard still
+      # printed "ok".
+      - name: Fixtures still match Python
+        run: python tools/parity_fixtures.py --check
+
+  dashboard:
+    name: dashboard guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install
+        working-directory: dashboard
+        run: npm ci
+
+      # These are the two guards Vercel runs in `prebuild`. Running them here
+      # too means they still fire on a push that Vercel skips, and they fail
+      # fast rather than at deploy time.
+      - name: Units guard (compile-time brand on cumulative sums)
+        working-directory: dashboard
+        run: node scripts/check-units-guard.mjs
+
+      - name: Kelly + pass-price parity (TypeScript vs fixture)
+        working-directory: dashboard
+        run: node scripts/check-kelly-parity.mjs
