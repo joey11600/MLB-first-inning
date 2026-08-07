@@ -81,6 +81,41 @@ Discord published "4 units" on tonight's No.1 while the board printed
    and mid-July rows read 5.97u, which is what was staked on those
    nights.
 
+### Fixed — two blockers found by adversarial review before they shipped
+
+Both were caught by a red-team pass over the retraction change, not by
+testing it. Both are the kind that only surface in production.
+
+**A retry on an AMBIGUOUS failure double-posted and orphaned the id.**
+`_post_once` returns status 0 on a timeout/reset and 5xx on a gateway
+error. In both cases the POST has already left the process and Discord
+may have created the message before the response was lost, but
+`_send_raw` counted them as "not delivered" and retried up to 4 times.
+That is up to four identical messages in a paying channel, of which at
+most one gets an id -- the exact un-addressable orphan the retraction
+work exists to eliminate, introduced by the retraction work itself.
+Execute Webhook has no idempotency key, so it cannot be fixed at the API
+layer. Those two statuses are no longer retried; 429 still is, because a
+rate-limited request was rejected rather than created. The `_send_raw`
+docstring also claimed a failed send "lets the next cycle retry" -- it
+does not, because `_notify_event_dedup_check` counts rows without
+filtering on `delivered`. Corrected.
+
+**THE BOARD published an already-settled game as a play to bet.**
+`build_board` selected on `is_strong` alone and took no `now`, so it was
+structurally incapable of knowing a game had started. Tonight's 8:43 /
+8:49 / 8:58 PM boards each listed WSH@PHI -- 6:05 PM, already graded WIN
++2.50u -- under **THE PLAYS** with "Stake 3u" and a price floor. For a
+product whose whole value is a verifiable FORWARD record, posting a
+winner after it wins is indistinguishable from post-hoc winner claiming.
+It is the FINAL RESULTS time backstop with the sign flipped, and the
+board had no equivalent. `build_board` is now time-aware: started games
+are dropped from the actionable sections and counted in one honest line
+("_10 games already underway — not listed below._"). The T-60 trigger
+path is unchanged, because nothing has started then. The footer also
+stopped referring to a price ladder that was removed earlier tonight,
+and now counts prices over the games actually LISTED.
+
 ### Added — build-time parity guard (`dashboard/scripts/check-kelly-parity.mjs`)
 
 Two implementations of one money rule will drift, and when they do

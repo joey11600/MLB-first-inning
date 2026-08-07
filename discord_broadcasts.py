@@ -356,16 +356,53 @@ def _game_line(r: dict, date_iso: str) -> str:
     return f"`{away:>3} @ {home:<3}` {when:>8}  **{side}** {prob}{tail}"
 
 
-def build_board(date_iso: str, rows: list[dict]) -> str:
-    """BROADCAST 1 -- the whole slate, an hour before the first game."""
+def build_board(date_iso: str, rows: list[dict],
+                now: datetime | None = None) -> str:
+    """BROADCAST 1 -- the whole slate, an hour before the first game.
+
+    TIME-AWARE, AND `now` IS THE WHOLE POINT.
+
+    On the normal path this changes nothing: the trigger fires at T-60
+    before the FIRST game, when nothing has started. But that condition
+    (`now >= first_pitch - 60m`) stays true for the REST OF THE DAY, and
+    after it the only thing holding the board back is a Supabase dedupe
+    row that is deliberately FAIL-OPEN. On 2026-08-06 it opened, and the
+    board published at 8:43, 8:49 and 8:58 PM ET carrying WSH@PHI --
+    a 6:05 PM game that had already finished and graded WIN +2.50u --
+    under the heading THE PLAYS, with "Stake 3u" and a price floor.
+
+    That is an instruction to bet a game whose result was already known.
+    For a service whose entire value is a verifiable FORWARD record, it
+    is indistinguishable from post-hoc winner claiming, which is the
+    oldest trick in the paid-picks trade and the exact thing this
+    product exists to disprove. It is the FINAL RESULTS backstop below
+    with the sign flipped, and it needs its own guard for the same
+    reason.
+
+    Started games are therefore dropped from the actionable sections and
+    counted in one honest line instead.
+    """
+    now = now or datetime.now(ET)
+
+    def _started(r: dict) -> bool:
+        st = game_start_et(date_iso, r.get("game_time_et", ""))
+        return st is not None and now >= st
+
+    live = [r for r in rows if not _started(r)]
+    gone = len(rows) - len(live)
+
     fp = first_pitch_of_slate(rows, date_iso)
-    plays  = [r for r in rows if is_strong(r)]
-    leans  = [r for r in rows if (r.get("pick_strength") or "").upper() == "LEAN"]
-    others = [r for r in rows if r not in plays and r not in leans]
+    plays  = [r for r in live if is_strong(r)]
+    leans  = [r for r in live if (r.get("pick_strength") or "").upper() == "LEAN"]
+    others = [r for r in live if r not in plays and r not in leans]
 
     L: list[str] = []
     L.append(f"# THE BOARD · {_long_date(date_iso)}")
     L.append(f"{len(rows)} games · first pitch {_hm(fp) if fp else '--'} ET")
+    if gone:
+        # Say it plainly rather than silently showing a short slate.
+        L.append(f"_{gone} game{'s' if gone != 1 else ''} already underway "
+                 f"— not listed below._")
 
     if plays:
         L.append("")
@@ -416,12 +453,16 @@ def build_board(date_iso: str, rows: list[dict]) -> str:
                      f"{(_hm(st) if st else '--'):>8}  "
                      f"{(f'{p*100:.1f}%' if p is not None else '--'):>6}  {reason.title()}")
 
-    priced = sum(1 for r in rows if side_price(r) is not None)
+    # Count over the games actually LISTED, not the whole slate -- on a
+    # late board `rows` includes games that were filtered out above, and
+    # "11 of 11 priced" beneath a one-game board reads as a mistake.
+    priced = sum(1 for r in live if side_price(r) is not None)
     L.append("")
-    L.append(f"_Prices captured for {priced} of {len(rows)} games so far — "
-             f"most books post first-inning lines close to game time. "
-             f"The ladder above needs no price: look up your own book's "
-             f"number and bet the matching stake._")
+    L.append(f"_Prices captured for {priced} of {len(live)} listed "
+             f"game{'s' if len(live) != 1 else ''} — most books post "
+             f"first-inning lines close to game time. Prices shown are "
+             f"DraftKings; if your book differs, the stake still holds so "
+             f"long as you are inside the 'don't take worse than' number._")
     return "\n".join(L)
 
 

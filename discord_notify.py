@@ -176,8 +176,11 @@ def _send_raw(body: str, *, test: bool = False) -> tuple[bool, list[dict]]:
     a bool is how the orphans became unaddressable before.
 
     A partially-delivered board is still a product defect, so the caller
-    is told the truth and the dedupe record stores delivered=False --
-    which lets the next cycle retry rather than marking the night done.
+    is told the truth and the dedupe record stores delivered=False. Note
+    what that does NOT buy: `_notify_event_dedup_check` counts rows
+    without filtering on `delivered`, so a failed send still suppresses
+    the next cycle. There is no automatic retry. A partial board must be
+    finished by hand with `discord_broadcasts.py --resend`.
     """
     url = _webhook_url(test)
     if not url:
@@ -215,6 +218,31 @@ def _send_raw(body: str, *, test: bool = False) -> tuple[bool, list[dict]]:
             if 400 <= status < 500 and status != 429:
                 print(f"  [discord] permanent error HTTP {status}; giving up",
                       file=sys.stderr)
+                return False, posted
+            # AMBIGUOUS FAILURE -- DO NOT RETRY.
+            #
+            # status 0 is a timeout / reset / early disconnect and 5xx is
+            # typically a Cloudflare 502/504, which is emitted precisely
+            # when the origin WAS slow to answer. In both cases the POST
+            # already left this process and Discord may well have created
+            # the message before the response was lost. Execute Webhook
+            # has no idempotency key, so retrying posts a SECOND copy --
+            # one that returns no id, never reaches _record_message_ids,
+            # and therefore can NEVER be retracted, while retract() would
+            # cheerfully report success for the one copy it knows about.
+            # Four attempts means up to four un-addressable duplicates in
+            # a channel people pay for.
+            #
+            # Under-delivering is recoverable by a human (--resend). An
+            # un-indexed duplicate is not. So we stop and say so loudly.
+            # 429 stays retryable: a rate-limited request was REJECTED,
+            # not created, so it is unambiguous.
+            if status == 0 or 500 <= status < 600:
+                print(f"  [discord] part {idx}/{total} "
+                      f"{'no response' if status == 0 else f'HTTP {status}'}"
+                      f" -- this part MAY ALREADY BE LIVE and cannot be "
+                      f"indexed. NOT retrying. Check the channel before "
+                      f"resending.", file=sys.stderr)
                 return False, posted
             wait = retry_after if retry_after else (2.0 ** attempt)
             if attempt < _MAX_ATTEMPTS - 1:
