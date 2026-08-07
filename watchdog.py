@@ -268,14 +268,29 @@ def heartbeat() -> None:
 # runner
 # ---------------------------------------------------------------------------
 
-_ESCALATION_MIN = (0, 60, 240, 720)   # first, +1h, +4h, +12h
-
-
 def _alert(message: str, key: str) -> None:
-    """Telegram, PERSONAL THREADS ONLY, with escalating dedupe.
+    """Telegram, PERSONAL THREADS ONLY, deduped to once an hour.
 
     Routed through tracker's notifications_log so a Railway redeploy
     cannot reset the dedupe and re-page for a fault already reported.
+
+    HOW THE RATE LIMIT ACTUALLY WORKS, because the previous version of
+    this docstring described something the code did not do. There was a
+    module constant `_ESCALATION_MIN = (0, 60, 240, 720)` implying a
+    first/+1h/+4h/+12h backoff; it was never read by anything. The real
+    mechanism is the pair below:
+
+      * the event_key carries an HOUR BUCKET, so the key changes once an
+        hour and a new hour is always allowed through;
+      * `tracker._DEDUP_WINDOW_M["watchdog"]` is 60 minutes, so within
+        an hour the repeat is suppressed.
+
+    Both halves are required. Until 2026-08-07 only the first existed:
+    "watchdog" was absent from _DEDUP_WINDOW_M and inherited the
+    5-MINUTE fallback, and the Railway loop cycles every 5 minutes -- so
+    a persistent fault sent ~12 messages an hour while this file's own
+    anti-noise contract promised "~3 messages, not 72". If you add a new
+    ops event type, register its window in the same commit.
     """
     try:
         import tracker

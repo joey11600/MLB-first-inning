@@ -11,6 +11,72 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07e] - two ops defects: a false page waiting to fire, and a spammer (T8.7, T8.8)
+
+### Fixed — /api/health was measuring BUILD age, not data age (T8.7)
+
+A regression from T8.4, caught by looking for the same disease elsewhere
+rather than by anything alarming.
+
+`route.ts` derived `lastPredictAt` from the bundled
+`data/thresholds.json`. That was correct while every push rebuilt the
+site — build age and data age were the same number. Once data commits
+stopped triggering builds they came apart. Measured live on 2026-08-07:
+
+| source | lastPredictAt |
+|---|---|
+| what /api/health reported | 17:44:48 (the bundled file) |
+| what the predictor had actually done | 18:16 (Supabase) |
+
+**This was a false page waiting to fire.** `watchdog.check_dashboard()`
+PAGES on BROKEN, and BROKEN triggers at >240 min during prime hours — so
+roughly four hours after the last CODE push it would have invented a
+"Dashboard BROKEN" alert about a perfectly healthy system, and kept
+inventing it. It failed the other way too: the 24h error window empties
+as the bundle ages, so a real error storm could have read as a clean OK.
+
+`/api/health-live` was never affected (it reads Supabase), so
+`runner_watchdog.yml`'s "RAILWAY IS DOWN" check was safe — verified
+separately before assuming it.
+
+Now Supabase-first for BOTH the timestamp and the 24h error window, same
+pattern as `loadBoard`, with the bundle as fallback. A new
+`freshnessSource` field (`supabase` / `bundle` / `none`) says which
+answered, so the endpoint can no longer be quietly wrong about its own
+freshness.
+
+Verified by forcing both branches: with Supabase configured,
+`freshnessSource=supabase`, `lastPredictAt` 18:21, errors 3; with it
+blanked and rebuilt, `freshnessSource=bundle`, `lastPredictAt` the
+bundled 17:44, errors still populated from the CSV. The first pass of
+that test reported `none` while successfully reading the bundle — the
+fallback branch never set the field. Fixed before shipping.
+
+### Fixed — the watchdog would have sent ~12 messages an hour (T8.8)
+
+`watchdog` was not registered in `_DEDUP_WINDOW_M`, so it inherited the
+**5-minute** fallback while the Railway loop cycles every 5 minutes. The
+file's own docstring promised "~3 messages, not 72" over six hours. A
+persistent page-level fault would have sent roughly 12 an hour, in the
+one file whose stated purpose is preventing alarm fatigue — and it is
+the same unregistered-event-type bug that published THE BOARD three
+times the night before.
+
+`_ESCALATION_MIN = (0, 60, 240, 720)` was defined at `watchdog.py:271`
+and **never read by anything**. Deleted, and the docstring rewritten to
+describe the mechanism that actually exists: the hour-bucketed event key
+plus a 60-minute window, both required.
+
+Simulated a continuous fault across 12 consecutive 5-minute cycles:
+**1 send, down from 12.**
+
+`transport_check` — the only other unregistered type — is now registered
+at 5 min explicitly, because a human smoke-testing the webhook wants to
+run it twice in a row. Registered so it reads as a decision rather than
+an oversight.
+
+---
+
 ## [2026-08-07d] - the skip check compares against the last BUILD, not the last commit (T8.6)
 
 ### Confirmed on the real runner

@@ -23,6 +23,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCsv } from "@/lib/csv";
 import { loadBoard } from "@/lib/board";
+import { getServerSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,12 +71,48 @@ export async function GET() {
   const year = String(now.getFullYear());
   const picksStat = await safeStat(path.join(dir, `picks_${year}.csv`));
 
-  // 2b. Authoritative "last predict" timestamp comes from
-  // data/thresholds.json's writtenAtUtc, which the predictor rewrites
-  // at the END of every run.  This survives Vercel's mtime reset
-  // because the timestamp is in the file content, not on the inode.
+  // 2b. THE LAST-PREDICT TIMESTAMP MUST COME FROM SUPABASE FIRST.
+  //
+  // It used to be read only from the bundled data/thresholds.json's
+  // writtenAtUtc. That was correct while EVERY push rebuilt the site --
+  // the bundle was minutes old, so build age and data age were the same
+  // number. Since T8.4 (2026-08-07) data-only commits no longer trigger
+  // a build, and the two came apart: on 2026-08-07 this endpoint
+  // reported lastPredictAt 17:44 (the bundled file) while the predictor
+  // had run at 18:16.
+  //
+  // That is not a cosmetic staleness. `watchdog.check_dashboard()`
+  // PAGES on BROKEN, and BROKEN triggers at >240 min during prime
+  // hours -- so roughly four hours after the last CODE push this
+  // endpoint would have invented a "Dashboard BROKEN" alert about a
+  // perfectly healthy system, and kept doing it. It also fails the
+  // other way: the 24h error window empties as the bundle ages, so a
+  // real error storm could read OK.
+  //
+  // /api/health-live already had this right. Same query, same table.
   let lastPredictAt: Date | null = null;
+  let freshnessSource: "supabase" | "bundle" | "none" = "none";
   try {
+    const sb = getServerSupabase();
+    if (sb) {
+      const { data } = await sb
+        .from(`picks_${year}`)
+        .select("updated_at")
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      const iso = (data?.[0] as { updated_at?: string } | undefined)?.updated_at;
+      const t = iso ? Date.parse(iso) : NaN;
+      if (Number.isFinite(t)) {
+        lastPredictAt = new Date(t);
+        freshnessSource = "supabase";
+      }
+    }
+  } catch { /* fall through to the bundled copy */ }
+
+  // Bundled fallback, unchanged. Reaching it now means Supabase is
+  // unconfigured or unreachable, so the figure describes the BUILD, not
+  // the data -- `freshnessSource` says so in the response.
+  if (!lastPredictAt) try {
     const tjson = await safeRead(path.join(dir, "thresholds.json"));
     if (tjson) {
       const obj = JSON.parse(tjson) as { writtenAtUtc?: string };
@@ -88,7 +125,10 @@ export async function GET() {
       // bundled snapshots and any future producer slip from regressing.)
       const rawTs = (obj.writtenAtUtc ?? "").replace(/([+-]\d{2}:\d{2})Z$/, "$1");
       const t = Date.parse(rawTs);
-      if (Number.isFinite(t)) lastPredictAt = new Date(t);
+      if (Number.isFinite(t)) {
+        lastPredictAt = new Date(t);
+        freshnessSource = "bundle";
+      }
     }
   } catch { /* ignore */ }
   // Fallback: most recent captured_at_utc in pick_changes.csv (also
@@ -102,14 +142,47 @@ export async function GET() {
           const t = Date.parse(r.captured_at_utc ?? "");
           if (Number.isFinite(t) && t > max) max = t;
         }
-        if (max > 0) lastPredictAt = new Date(max);
+        if (max > 0) {
+          lastPredictAt = new Date(max);
+          freshnessSource = "bundle";
+        }
       }
     } catch { /* ignore */ }
   }
 
-  // 3. Recent system errors (last 24h)
-  const errorsRaw = await safeRead(path.join(dir, "system_errors.csv"));
+  // 3. Recent system errors (last 24h) -- SUPABASE FIRST, same reason as
+  // 2b. Read only from the bundle, this window empties out as the build
+  // ages: a real error storm would read as a clean OK because the
+  // bundled CSV predates it. The staleness fix above without this one
+  // would leave the endpoint half-live and harder to reason about than
+  // if it were wholly stale.
   let recentErrors: { capturedAtUtc: string; date: string; step: string; exitCode: string; message: string }[] = [];
+  const errCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  try {
+    const sb = getServerSupabase();
+    if (sb) {
+      const { data } = await sb
+        .from("system_errors")
+        .select("captured_at_utc, date, step, exit_code, message")
+        .gte("captured_at_utc", errCutoff.toISOString())
+        .order("captured_at_utc", { ascending: false })
+        .limit(100);
+      if (data && data.length) {
+        recentErrors = (data as Record<string, unknown>[]).map(r => ({
+          capturedAtUtc: String(r.captured_at_utc ?? ""),
+          date:          String(r.date ?? ""),
+          step:          String(r.step ?? ""),
+          // KEEP THE FULL MESSAGE: the known-noise classifier below
+          // matches the TERMINAL "Fetch failed: HTTP Error 403" line,
+          // which sits past char 200 of the logged stderr tail.
+          exitCode:      String(r.exit_code ?? ""),
+          message:       String(r.message ?? ""),
+        })).slice(0, 50);
+      }
+    }
+  } catch { /* fall through to the bundled CSV */ }
+
+  const errorsRaw = recentErrors.length ? null : await safeRead(path.join(dir, "system_errors.csv"));
   if (errorsRaw) {
     const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     recentErrors = parseCsv(errorsRaw)
@@ -239,6 +312,9 @@ export async function GET() {
       // the silent fallback. watchdog.check_board_source() pages on
       // "csv" during game hours.
       boardSource,
+      // "supabase" = live DB. "bundle" = the build-time copy, i.e.
+      // this number describes the BUILD age, not the data age.
+      freshnessSource,
     },
     {
       status: 200,

@@ -1292,6 +1292,23 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # THE BOARD went out repeatedly, and a suppression record written to
     # silence it expired 5 minutes later and let it fire again.
     # If you add a new discord_* event, ADD IT HERE IN THE SAME COMMIT.
+    # ---- OPS ALERTS --------------------------------------------------
+    # watchdog.py buckets its event_key by the hour, so the window here
+    # decides how often a PERSISTING fault re-pages. 60 min = "once an
+    # hour while it is still broken", which is what watchdog.py's
+    # docstring has always promised ("~3 messages, not 72").
+    #
+    # It was NOT registered until 2026-08-07, so it inherited the
+    # 5-minute fallback while the Railway loop cycles every 5 minutes --
+    # roughly 12 messages an hour on a real fault, in the one file whose
+    # stated purpose is preventing alarm fatigue. Same unregistered-type
+    # bug that published THE BOARD three times the night before.
+    "watchdog":             60,
+    # A human running `python discord_notify.py` to smoke-test the
+    # webhook must be able to run it twice in a row, so this one WANTS a
+    # short window. Registered explicitly so it reads as a decision
+    # rather than an oversight.
+    "transport_check":      5,
     "discord_board":        24 * 60,
     "discord_toppick":      24 * 60,
     "discord_settled":      24 * 60,

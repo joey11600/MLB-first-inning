@@ -286,3 +286,17 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   with a targeted `git fetch --depth=1` for the shallow-clone case, which
   gets more likely the more builds we skip. Five edge cases exercised;
   replay still 0 misclassifications. ✅ 2026-08-07
+
+- [x] **T8.7** `/api/health` measured BUILD age, not data age, after T8.4
+  stopped rebuilding on data commits — it reported lastPredictAt 17:44
+  (bundled) while the predictor had run at 18:16. `watchdog.check_dashboard()`
+  PAGES on BROKEN at >240 min, so a false "Dashboard BROKEN" alert was ~4h
+  from firing after every code push. Now Supabase-first for both the
+  timestamp and the 24h error window, with a `freshnessSource` field naming
+  which answered. Both branches forced and verified. ✅ 2026-08-07
+- [x] **T8.8** `watchdog` was unregistered in `_DEDUP_WINDOW_M` and inherited
+  the 5-min fallback against a 5-min loop — ~12 Telegram messages an hour on
+  a persistent fault, against the file's documented "~3, not 72".
+  `_ESCALATION_MIN` was defined and never read; deleted and the docstring
+  corrected to the mechanism that exists. Simulated 12 cycles: 1 send.
+  `transport_check` registered explicitly. ✅ 2026-08-07
