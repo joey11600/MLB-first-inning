@@ -297,6 +297,18 @@ def first_pitch_of_slate(rows: list[dict], date_iso: str) -> datetime | None:
     return min(starts) if starts else None
 
 
+def last_pitch_of_slate(rows: list[dict], date_iso: str) -> datetime | None:
+    """The LATEST first pitch on the slate.
+
+    Exists for the FINAL RESULTS backstop. Anchoring that to the FIRST
+    pitch is not enough: on an 11-game card running 12:35 PM to 9:40 PM,
+    first-pitch + 20 minutes is 12:55 PM, with ten games still to come.
+    """
+    starts = [game_start_et(date_iso, r.get("game_time_et", "")) for r in rows]
+    starts = [s for s in starts if s]
+    return max(starts) if starts else None
+
+
 def is_strong(row: dict) -> bool:
     return (row.get("pick_strength") or "").strip().upper() == "STRONG"
 
@@ -769,8 +781,25 @@ def due_broadcasts(date_iso: str, rows: list[dict],
     # before the games", which is the single most damaging thing this
     # surface could publish. So it must ALSO be past the first pitch plus
     # one inning (~20 min) before results can be announced.
-    if (rows and fp is not None
-            and now >= fp + timedelta(minutes=20)
+    # THE BACKSTOP ANCHORS TO THE LAST GAME, NOT THE FIRST. It was
+    # written against `fp` (first pitch), which is only a real guard on a
+    # one-game card. Simulating a full slate with every row graded, FINAL
+    # RESULTS and THE LEDGER both came due at 12:55 PM -- twenty minutes
+    # after the FIRST pitch of an 11-game card whose last game started at
+    # 9:40 PM -- and published "Every first inning on the board is
+    # complete" over ten games that had not started.
+    #
+    # In normal operation the `all(_terminal)` test hides this, because
+    # rows only grade after their own first inning. It bites exactly when
+    # that test goes trivially true for the wrong reason: a mass
+    # postponement (POSTPONED counts as terminal), a stale re-read of a
+    # finished slate, or any grader bug that fills the column early --
+    # which is the same shape as the 2026-08-05 replay that motivated the
+    # backstop in the first place. The original fix was right in kind and
+    # one game short in degree.
+    lp = last_pitch_of_slate(rows, date_iso)
+    if (rows and lp is not None
+            and now >= lp + timedelta(minutes=20)
             and all(_terminal(r) for r in rows)):
         out.append(("discord_final", f"final:{date_iso}",
                     build_final_results(date_iso, rows)))

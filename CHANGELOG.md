@@ -81,6 +81,32 @@ Discord published "4 units" on tonight's No.1 while the board printed
    and mid-July rows read 5.97u, which is what was staked on those
    nights.
 
+### Fixed — FINAL RESULTS could publish 20 minutes into an 11-game slate
+
+The backstop that stops results being announced before the games was
+anchored to the FIRST pitch of the slate. On a card running 12:35 PM to
+9:40 PM that is 12:55 PM. Replaying a full slate with every row graded,
+FINAL RESULTS and THE LEDGER both came due at 12:55 PM and published
+"Every first inning on the board is complete" over ten games that had
+not started.
+
+`all(_terminal(r))` normally hides this, because rows only grade after
+their own first inning. It bites precisely when that test goes trivially
+true for the wrong reason -- a mass postponement (POSTPONED counts as
+terminal), a stale re-read of a finished slate, or any grader bug that
+fills the column early. That is the same shape as the 2026-08-05 replay
+which motivated the backstop originally: the fix was right in kind and
+one game short in degree.
+
+Now anchored to `last_pitch_of_slate + 20 min`, so results cannot be
+announced until every game on the board has had a first inning. Verified
+on the degenerate all-graded slate: silent at 12:55 PM, silent at
+9:00 PM with ten games in, publishes at 10:00 PM. THE LEDGER is nested
+inside the same condition and inherits the guard.
+
+Found by sweeping a simulated clock across a whole day rather than
+checking a single moment -- the single-point check passed.
+
 ### Changed — THE BOARD now leads with the №1 (operator request)
 
 Operator, 2026-08-06: *"the #1 pick needs to be highlighted most
