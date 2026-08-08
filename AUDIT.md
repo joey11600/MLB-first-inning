@@ -349,3 +349,12 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   rivals and candidates -- empty is NOT excluded, since every row is pending
   before the odds import. Exactly one No.1 on all 123 real slates; suite 37
   passing, 0 xfailed.
+
+- [x] **T8.16** THE BOARD said "the model looked at every game and declined them
+  all" while its own PASSING list showed four games as `Lineup Pending` -- one of
+  which (LAD@ARI) became a 3-unit No.1 three hours later. The board fires at T-60
+  before the FIRST game; picks commit 60 min before EACH game, so late games are
+  structurally unjudged at board time. Added `is_undecided()` and split the
+  no-plays branch into NOT SET YET (pending) vs NO PLAY TONIGHT (all judged);
+  a board WITH a play now also discloses outstanding games. 5 tests, suite 41
+  passing. OK 2026-08-07

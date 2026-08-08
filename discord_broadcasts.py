@@ -350,6 +350,40 @@ def is_strong(row: dict) -> bool:
     return (row.get("pick_strength") or "").strip().upper() == "STRONG"
 
 
+def is_undecided(row: dict) -> bool:
+    """Has the model NOT YET judged this game?
+
+    "PASS - Lineup pending" and "PASS - Starter pending" are not verdicts.
+    They mean the inputs do not exist yet: a pick commits 60 minutes before
+    ITS OWN first pitch, when the lineup posts.
+
+    WHY THIS DISTINCTION IS LOAD-BEARING, 2026-08-07. THE BOARD fires at
+    T-60 before the FIRST game of the slate. On a card running 6:40 PM to
+    10:15 PM that is 5:40 PM, hours before the late games have lineups --
+    so the board is structurally incapable of having judged them. It
+    printed:
+
+        ## NO PLAY TONIGHT
+        The model looked at every game and declined them all.
+
+        ## PASSING (8)
+        `LAD @ ARI`  9:40 PM  57.4%  Lineup Pending      <-- not declined
+
+    and three hours later published LAD@ARI as a 3-unit №1. The board
+    contradicted its own body -- it listed four games as "Lineup Pending"
+    under a heading claiming all had been declined -- and then contradicted
+    itself again across the evening. A subscriber who read the board and
+    stopped watching missed the only play of the night.
+
+    "Declined" and "not yet decided" are different claims. Only one of them
+    was true.
+    """
+    s = (row.get("pick_strength") or "").strip().upper()
+    if s in ("LINEUP PENDING", "STARTER PENDING"):
+        return True
+    return "pending" in (row.get("pick_label") or "").strip().lower()
+
+
 def top_pick(rows: list[dict]) -> dict | None:
     """The night's No.1, using the ledger's own rule so the board badge,
     the dashboard hero and this message cannot disagree."""
@@ -544,11 +578,33 @@ def build_board(date_iso: str, rows: list[dict],
         for r in rest:
             _play_block(r, headline=False)
 
-    if not plays:
+    # A game whose lineup has not posted has NOT been declined -- see
+    # is_undecided. Counting these separately is what stops the board
+    # claiming a verdict it has not reached.
+    pending = [r for r in live if is_undecided(r)]
+
+    if not plays and pending:
+        L.append("")
+        L.append(f"## NOT SET YET — {len(pending)} game"
+                 f"{'s' if len(pending) != 1 else ''} still waiting on lineups")
+        L.append("Nothing is playable from this board *yet*. A pick commits "
+                 "60 minutes before its OWN first pitch, when the lineup "
+                 "posts — so the late games on this card have not been "
+                 "judged, not passed on.")
+        L.append("**Watch for THE №1 PLAY.** If one of these commits, it "
+                 "lands here on its own.")
+    elif not plays:
         L.append("")
         L.append("## NO PLAY TONIGHT")
-        L.append("The model looked at every game and declined them all. "
+        L.append("Every game on the card has been judged and declined. "
                  "A quiet night is a correct outcome, not a missing message.")
+
+    if plays and pending:
+        L.append("")
+        L.append(f"_{len(pending)} game{'s' if len(pending) != 1 else ''} on "
+                 f"this card {'are' if len(pending) != 1 else 'is'} still "
+                 f"waiting on lineups and could still commit. Each one "
+                 f"decides 60 minutes before its own first pitch._")
 
     if leans:
         L.append("")

@@ -11,6 +11,70 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-07j] - THE BOARD claimed a verdict it had not reached (T8.16)
+
+Operator: *"one discord message says we have no #1 pick, then the other says we
+do."* Correct, and the board was the one lying.
+
+### What subscribers saw
+
+**5:42 PM** — THE BOARD:
+
+> ## NO PLAY TONIGHT
+> The model looked at every game and declined them all.
+>
+> ## PASSING (8)
+> `LAD @ ARI`  9:40 PM  57.4%  **Lineup Pending**
+
+**8:41 PM** — THE No.1 PLAY: `LAD @ ARI · YRFI · Stake 3 units`.
+
+The board contradicted **its own body** — four of the eight "passing" games were
+`Lineup Pending`, not declined — and then contradicted itself again three hours
+later. A subscriber who read it and stopped watching missed the only play of the
+night.
+
+### The mechanism is structural, not a typo
+
+THE BOARD fires at T-60 before the **FIRST** game of the slate. A pick commits
+60 minutes before **ITS OWN** first pitch, when the lineup posts. On a card
+running 6:40 PM to 10:15 PM the board is written at 5:40 PM — hours before the
+late games have lineups. **It is incapable of having judged them.**
+
+"Declined" and "not yet decided" are different claims. The code only had a word
+for the first.
+
+### The fix
+
+New `is_undecided(row)` — `LINEUP PENDING` / `STARTER PENDING` / any label
+containing "pending" — and three honest branches:
+
+| state | says |
+|---|---|
+| no plays, games pending | **NOT SET YET — N games still waiting on lineups**, plus "watch for THE No.1 PLAY" |
+| no plays, all judged | NO PLAY TONIGHT — *"every game has been judged and declined"* (now true) |
+| a play, games pending | the No.1, plus *"N games still waiting and could still commit"* |
+
+The quiet-night message is kept, because replacing one false claim with another
+would be no better: when every game really has been judged, the board should say
+so plainly.
+
+### Also corrected: a diagnosis I got wrong mid-flight
+
+While investigating I read the LOCAL `data/picks_2026.csv` and found LAD@ARI as
+`PASS / LINEUP PENDING / bet_placed=N` — and briefly concluded we had published
+a 3-unit bet on a game the system never committed to. **That was my error: the
+local CSV was stale.** Supabase, the live source, has it as `STRONG YRFI /
+bet_placed=Y / units_risked=3`. The No.1 message was correct throughout; only
+the board was wrong. When diagnosing live state, read Supabase — the working
+copy lags the cron.
+
+### Tests
+
+`tests/test_board_copy.py`, 5 tests pinning all three branches and both pending
+shapes. Suite: **41 passing**.
+
+---
+
 ## [2026-08-07i] - the No.1 gate: doubleheaders and demoted rows (T8.13, T8.14)
 
 Both were found by the test suite written hours earlier, pinned `xfail(strict)`,
