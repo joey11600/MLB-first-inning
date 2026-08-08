@@ -1,7 +1,7 @@
 {
   "date": "2026-08-08",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-08T17:04:37Z",
+  "fitted_at": "2026-08-08T17:25:34Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -349,26 +349,26 @@
     {
       "matchup": "LAA@MIA",
       "game_pk": "823834",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "YRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.385,
+      "raw_p_run_t1": 0.3261,
       "raw_p_run_b1": 0.344,
-      "raw_p_nrfi": 0.4035,
-      "calibrated_p_nrfi": 0.4313,
+      "raw_p_nrfi": 0.442,
+      "calibrated_p_nrfi": 0.4689,
       "calibrator_band": {
-        "band": "bin_1-2",
+        "band": "bin_2-3",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
       },
       "top_drivers_t1": [
         {
-          "name": "away_top3c_slg",
-          "value": 0.384,
-          "z": -0.873,
-          "weight": -0.3266,
-          "contribution": 0.285,
+          "name": "away_top3c_iso",
+          "value": 0.1532,
+          "z": -0.516,
+          "weight": 0.3454,
+          "contribution": -0.1781,
           "outlier": false
         },
         {
@@ -377,6 +377,14 @@
           "z": -1.049,
           "weight": -0.141,
           "contribution": 0.1479,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_slg",
+          "value": 0.4182,
+          "z": -0.342,
+          "weight": -0.3266,
+          "contribution": 0.1118,
           "outlier": false
         },
         {
@@ -393,14 +401,6 @@
           "z": 1.083,
           "weight": 0.0661,
           "contribution": 0.0716,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
           "outlier": false
         }
       ],
@@ -909,26 +909,34 @@
     {
       "matchup": "OAK@BOS",
       "game_pk": "824726",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2899,
+      "raw_p_run_t1": 0.2528,
       "raw_p_run_b1": 0.3158,
-      "raw_p_nrfi": 0.4859,
-      "calibrated_p_nrfi": 0.4938,
+      "raw_p_nrfi": 0.5112,
+      "calibrated_p_nrfi": 0.5085,
       "calibrator_band": {
-        "band": "bin_4-5",
+        "band": "bin_5-6",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
       },
       "top_drivers_t1": [
         {
+          "name": "away_top3c_iso",
+          "value": 0.1333,
+          "z": -0.922,
+          "weight": 0.3454,
+          "contribution": -0.3183,
+          "outlier": false
+        },
+        {
           "name": "away_top3c_slg",
-          "value": 0.3981,
-          "z": -0.654,
+          "value": 0.3843,
+          "z": -0.868,
           "weight": -0.3266,
-          "contribution": 0.2136,
+          "contribution": 0.2835,
           "outlier": false
         },
         {
@@ -945,14 +953,6 @@
           "z": 1.673,
           "weight": 0.0661,
           "contribution": 0.1107,
-          "outlier": false
-        },
-        {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
           "outlier": false
         },
         {
