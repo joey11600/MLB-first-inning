@@ -350,6 +350,46 @@ def is_strong(row: dict) -> bool:
     return (row.get("pick_strength") or "").strip().upper() == "STRONG"
 
 
+def is_locked(date_iso: str, row: dict, now: datetime) -> bool:
+    """Has this pick passed its OWN lock (T-60 before ITS first pitch)?
+
+    A pick is not final until it locks.  Before that the model keeps
+    re-deciding it every predict tick as lineups post, and it may change
+    side, strength or stake -- or stop being a play at all.
+
+    WHY THE BOARD MUST ASK THIS, 2026-08-08.  THE BOARD fires at T-60
+    before the FIRST game on the card.  Every LATER game is therefore
+    still unlocked when the board prints, and stays unlocked for hours.
+    Tonight the board fired at 2:07 PM (ahead of a 3:05 PM opener) and
+    published:
+
+        # ⭐ THE №1 PLAY
+        **CLE @ CWS** · 7:15 PM ET
+        ### Stake 6 units
+
+    CLE@CWS did not lock until 6:15 PM -- FOUR HOURS later.  It did not
+    survive them.  pick_changes journals the model's own reversals:
+
+        03:37 PM  TOR@PHI  'STRONG YRFI' -> 'LEAN YRFI'
+        04:02 PM  CLE@CWS  'STRONG YRFI' -> 'LEAN YRFI'
+
+    leaving the slate with NO STRONG pick at all, while the channel still
+    held a published instruction to stake 6 units -- 6% of a subscriber's
+    bankroll -- on a game the system had stopped backing.
+
+    This is T8.16's defect with the sign flipped.  That one had the board
+    claiming a verdict it had not reached ("declined them all") on games
+    still waiting on lineups.  This one has it claiming a COMMITMENT it
+    has not made.  Both come from the same root: the board speaks at
+    slate time about picks that decide at game time.  A pick that can
+    still change must never be printed as an instruction to bet.
+    """
+    st = game_start_et(date_iso, row.get("game_time_et", ""))
+    if st is None:
+        return False
+    return now >= st - timedelta(minutes=LOCK_MINUTES_PREGAME)
+
+
 def is_undecided(row: dict) -> bool:
     """Has the model NOT YET judged this game?
 
@@ -550,31 +590,62 @@ def build_board(date_iso: str, rows: list[dict],
             else:
                 L.append(f"Model **{p*100:.1f}%** · price not captured yet")
             if stake:
+                # A STAKE IS AN INSTRUCTION. Only print it as one once the
+                # pick can no longer change -- see is_locked.
+                locked = is_locked(date_iso, r, now)
+                lock_at = (st - timedelta(minutes=LOCK_MINUTES_PREGAME)
+                           if st else None)
                 if headline:
-                    L.append(f"### Stake {stake:.0f} units")
-                    if pa is not None:
-                        L.append(f"Don't take worse than **{fmt_odds(pa)}**.")
+                    if locked:
+                        L.append(f"### Stake {stake:.0f} units")
+                        if pa is not None:
+                            L.append(f"Don't take worse than **{fmt_odds(pa)}**.")
+                    else:
+                        L.append(f"### Projected stake {stake:.0f} units "
+                                 f"— NOT LOCKED")
+                        L.append(f"**This is not a bet yet.** It locks at "
+                                 f"**{_hm(lock_at) if lock_at else '--'} ET**, "
+                                 f"60 minutes before first pitch. Until then "
+                                 f"the model is still deciding it and the "
+                                 f"stake, the side or the play itself can "
+                                 f"change.")
+                        L.append("_Act on THE №1 PLAY message, not on this "
+                                 "line._")
                 else:
-                    line = f"**Stake {stake:.0f}u**"
-                    if pa is not None:
-                        line += f" · don't take worse than **{fmt_odds(pa)}**"
+                    if locked:
+                        line = f"**Stake {stake:.0f}u**"
+                        if pa is not None:
+                            line += f" · don't take worse than **{fmt_odds(pa)}**"
+                    else:
+                        line = (f"_projected {stake:.0f}u · not locked until "
+                                f"{_hm(lock_at) if lock_at else '--'} ET_")
                     L.append(line)
 
     if no1_live:
         L.append("")
-        L.append("# ⭐ THE №1 PLAY")
-        L.append("_The highest-conviction play on the card, and the one "
-                 "the tracked record is built on._")
+        if is_locked(date_iso, number_one, now):
+            L.append("# ⭐ THE №1 PLAY")
+            L.append("_The highest-conviction play on the card, and the one "
+                     "the tracked record is built on._")
+        else:
+            # Naming it is fine; calling it settled is not.
+            L.append("# ⭐ OUT IN FRONT — NOT LOCKED")
+            L.append("_The play leading the card right now. It becomes THE "
+                     "№1 PLAY only when it locks, and it gets its own "
+                     "message when it does._")
         _play_block(number_one, headline=True)
 
     if rest:
         L.append("")
+        # Same rule as the headline: a heading that reads as a committed
+        # bet is only honest once the pick can no longer change.
+        any_locked = any(is_locked(date_iso, r, now) for r in rest)
         if no1_live:
-            L.append("## " + ("ALSO PLAYING" if len(rest) == 1
-                              else f"ALSO PLAYING ({len(rest)})"))
+            word = "ALSO PLAYING" if any_locked else "ALSO IN CONTENTION"
         else:
-            L.append("## " + ("THE PLAY" if len(rest) == 1
-                              else f"THE PLAYS ({len(rest)})"))
+            word = ("THE PLAY" if any_locked and len(rest) == 1 else
+                    "THE PLAYS" if any_locked else "IN CONTENTION")
+        L.append("## " + (word if len(rest) == 1 else f"{word} ({len(rest)})"))
         for r in rest:
             _play_block(r, headline=False)
 

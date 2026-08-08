@@ -350,6 +350,16 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   before the odds import. Exactly one No.1 on all 123 real slates; suite 37
   passing, 0 xfailed.
 
+- [x] **T8.17** ✅ 2026-08-08 — THE BOARD printed a committed stake for a pick
+  that had not locked. Published `CLE@CWS · Stake 6 units` at 2:07 PM for a
+  7:15 PM game locking at 6:15 PM; the model reversed it (and TOR@PHI) to LEAN
+  before the lock, leaving no STRONG pick while a 6-unit instruction stood in
+  the channel. A stake is now only printed as an instruction once the pick can
+  no longer change; before that it reads `Projected … NOT LOCKED` with the lock
+  time. Sibling of T8.16 (same root: board speaks at slate time, picks decide
+  at game time). Also fixed a self-inflicted time bomb: the T8.16 lock tests
+  hardcoded a slate date that aged past `_pick_is_locked`'s 24 h defensive lock
+  and went red overnight.
 - [x] **T8.16** THE BOARD said "the model looked at every game and declined them
   all" while its own PASSING list showed four games as `Lineup Pending` -- one of
   which (LAD@ARI) became a 3-unit No.1 three hours later. The board fires at T-60

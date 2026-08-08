@@ -150,7 +150,24 @@ def test_a_demoted_no_bet_row_cannot_take_the_number_one_slot(ledger):
 
 # ---------------------------------------------------------------------------
 # the locks
+#
+# THESE TESTS MUST NOT HARDCODE A SLATE DATE.  `_pick_is_locked` has three
+# defensive locks, and the second is "slate date more than 24 h in the past".
+# A literal date therefore passes on the day it is written and starts failing
+# by itself a day or two later, with no code change -- which is exactly what
+# happened: this file shipped 2026-08-07 pinned to "2026-08-06" and went red
+# overnight, blaming a fix that had not touched tracker.py.
+#
+# A test that fails because the calendar moved is not testing the code.  The
+# NEGATIVE cases (which assert a row does NOT lock) must use a live slate
+# date; the POSITIVE ones may use anything, since they lock on grade first.
 # ---------------------------------------------------------------------------
+
+from datetime import datetime  # noqa: E402
+from zoneinfo import ZoneInfo  # noqa: E402
+
+TODAY_ET = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+
 
 def test_terminal_grades_lock_a_pick(ledger):
     """A graded pick must never be rewritten by a later refresh -- that is the
@@ -168,8 +185,8 @@ def test_terminal_grades_lock_a_pick(ledger):
     for g in ("WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"):
         assert tracker._pick_is_locked(_row("A", "B", 0.4, graded_result=g), "2026-08-06") is True
     for g in ("CANCELLED", "VOID", "PENDING", ""):
-        assert tracker._pick_is_locked({"graded_result": g, "date": "2026-08-06"},
-                                       "2026-08-06") is False
+        assert tracker._pick_is_locked({"graded_result": g, "date": TODAY_ET},
+                                       TODAY_ET) is False
 
 
 def test_grade_check_ignores_case_and_whitespace(ledger):
@@ -177,7 +194,7 @@ def test_grade_check_ignores_case_and_whitespace(ledger):
 
 
 def test_an_empty_row_does_not_lock(ledger):
-    assert tracker._pick_is_locked({}, "2026-08-06") is False
+    assert tracker._pick_is_locked({}, TODAY_ET) is False
 
 
 # ---------------------------------------------------------------------------

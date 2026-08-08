@@ -11,6 +11,79 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-08a] - THE BOARD announced a stake it had not committed (T8.17)
+
+T8.16 with the sign flipped. That one had the board claiming a VERDICT it had
+not reached ("declined them all") on games still waiting on lineups. This one
+has it claiming a COMMITMENT it has not made.
+
+### What subscribers saw
+
+**2:07 PM** — THE BOARD (fired at T-60 before a 3:05 PM opener):
+
+> # ⭐ THE No.1 PLAY
+> **CLE @ CWS** · 7:15 PM ET
+> ### Stake 6 units
+
+CLE@CWS does not lock until **6:15 PM** — four hours later. It did not survive
+them. The model's own journal (`pick_changes`) records both plays reversing:
+
+| time | game | change |
+|---|---|---|
+| 3:37 PM | TOR@PHI | `STRONG YRFI` → `LEAN YRFI` |
+| 4:02 PM | CLE@CWS | `STRONG YRFI` → `LEAN YRFI` |
+
+leaving the slate with **no STRONG pick at all**, while the channel still held
+a published instruction to stake 6 units — 6% of a subscriber's bankroll — on a
+game the system had stopped backing.
+
+### Root cause
+
+The same root as T8.16: **the board speaks at slate time about picks that decide
+at game time.** It fires at T-60 before the FIRST game; every later game is
+still unlocked when it prints, and stays unlocked for hours. T8.16 taught it to
+stop calling unjudged games "declined". It still printed unlocked plays as
+committed bets with a stake and a price floor.
+
+### Fixed
+
+- `discord_broadcasts.is_locked()` — new; has this pick passed its OWN lock
+  (T-60 before ITS first pitch), mirroring `LOCK_MINUTES_PREGAME`.
+- `build_board` — a stake is an INSTRUCTION and is only printed as one once the
+  pick can no longer change. Before its lock a play reads `Projected stake N
+  units — NOT LOCKED`, names the lock time, and says plainly *"This is not a bet
+  yet… Act on THE No.1 PLAY message, not on this line."*
+- The No.1 crown is withheld until the lock: an unlocked leader is headed
+  `OUT IN FRONT — NOT LOCKED`, and section headings degrade
+  `THE PLAYS`/`ALSO PLAYING` → `IN CONTENTION`/`ALSO IN CONTENTION`.
+- Locked plays are untouched — a genuine committed play still prints its stake
+  and price floor.
+
+### Fixed (tests)
+
+- `tests/test_selection.py` — the lock tests hardcoded `2026-08-06`, and
+  `_pick_is_locked` defensively locks any slate date >24 h old. They passed the
+  day they shipped (2026-08-07) and went red overnight with no code change,
+  initially appearing to blame a fix that never touched `tracker.py`. Now
+  computed from the current ET date, with the trap documented in-file.
+
+### Verified
+
+- 44 tests passing (3 new, pinning: no committed stake before the lock, the
+  crown waits for the lock, and a locked play still prints a real instruction).
+- Replayed against tonight's actual ledger at the actual 2:07 PM fire time.
+
+### Correction recorded
+
+Mid-diagnosis I read `bet_placed='N'` on both plays and concluded the system had
+*declined* them — i.e. that we had published a bet the model refused. That was
+wrong. `tracker.py:4054-4060` sets `bet_placed='N'` with a non-zero
+`units_risked` to mean **"pending, will commit at lock"**. `bet_placed` is
+overloaded (not-yet / zero-edge decline / PASS) and `units_risked` is what
+separates them. `is_strong()` ignoring `bet_placed` is correct behaviour.
+
+---
+
 ## [2026-08-07j] - THE BOARD claimed a verdict it had not reached (T8.16)
 
 Operator: *"one discord message says we have no #1 pick, then the other says we
