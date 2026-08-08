@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-08-07T05:14:59Z",
+ "generatedUtc": "2026-08-08T04:31:36Z",
  "headlineMethod": "the model that is live right now -- the shipped calibrator and the current gate -- replayed over every game of the season",
  "floorMethod": "no-hindsight check: at each date the calibrator is refit using only games played before that date",
  "caveat": "the shipped calibrator was fit on 2025+2026 data, so it has already seen these outcomes; the model weights are the fixed 2026-05-26 refit (trained through 2026-05-11), which makes bets on or before 2026-05-11 partially in-sample",
@@ -14,22 +14,22 @@
   "label": "Projected profit",
   "priceFill": -125.0,
   "from": "2026-04-01",
-  "to": "2026-08-06",
-  "bets": 198,
+  "to": "2026-08-07",
+  "bets": 199,
   "wins": 134,
-  "losses": 64,
-  "hitRate": 0.6768,
-  "breakEvenNeeded": 0.5648,
-  "edgePts": 11.2,
-  "flatProfit": 40.22,
+  "losses": 65,
+  "hitRate": 0.6734,
+  "breakEvenNeeded": 0.5646,
+  "edgePts": 10.88,
+  "flatProfit": 39.22,
   "assumedBets": 56,
-  "selectedBets": 296,
+  "selectedBets": 297,
   "droppedZeroStake": 49,
   "droppedFlatPnl": -0.52,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 368.15,
-   "profit": 268.15,
+   "finalBank": 365.15,
+   "profit": 265.15,
    "maxDrawdownPct": 9.0,
    "kellyFraction": 0.25,
    "largestStake": 10.0,
@@ -86,10 +86,10 @@
    },
    {
     "month": "2026-08",
-    "bets": 11,
+    "bets": 12,
     "wins": 9,
-    "losses": 2,
-    "flat": 4.58,
+    "losses": 3,
+    "flat": 3.58,
     "assumedBets": 0
    }
   ],
@@ -11860,6 +11860,37 @@
       }
      }
     ]
+   },
+   {
+    "date": "2026-08-07",
+    "flatPnl": -1.0,
+    "simPnl": -3.0,
+    "simBankAfter": 365.15,
+    "flagged": 1,
+    "placed": 1,
+    "bet": 1,
+    "games": [
+     {
+      "game": "LAD@ARI",
+      "side": "YRFI",
+      "modelP": 0.4179,
+      "record": {
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -115,
+       "win": false,
+       "pnl": -3.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 3.0,
+       "odds": -115,
+       "pnl": -3.0
+      }
+     }
+    ]
    }
   ]
  },
@@ -11867,22 +11898,22 @@
   "label": "Real profit",
   "priceFill": null,
   "from": "2026-05-07",
-  "to": "2026-08-06",
-  "bets": 138,
+  "to": "2026-08-07",
+  "bets": 139,
   "wins": 91,
-  "losses": 47,
-  "hitRate": 0.6594,
-  "breakEvenNeeded": 0.5692,
-  "edgePts": 9.02,
-  "flatProfit": 22.56,
+  "losses": 48,
+  "hitRate": 0.6547,
+  "breakEvenNeeded": 0.569,
+  "edgePts": 8.57,
+  "flatProfit": 21.56,
   "assumedBets": 0,
-  "selectedBets": 194,
+  "selectedBets": 195,
   "droppedZeroStake": 27,
   "droppedFlatPnl": 1.84,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 239.68,
-   "profit": 139.68,
+   "finalBank": 236.68,
+   "profit": 136.68,
    "maxDrawdownPct": 13.74,
    "kellyFraction": 0.25,
    "largestStake": 10.0,
@@ -11931,10 +11962,10 @@
    },
    {
     "month": "2026-08",
-    "bets": 11,
+    "bets": 12,
     "wins": 9,
-    "losses": 2,
-    "flat": 4.58,
+    "losses": 3,
+    "flat": 3.58,
     "assumedBets": 0
    }
   ],
@@ -19319,6 +19350,37 @@
        "unitsRisked": 3.0,
        "odds": -120,
        "pnl": 2.5
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-08-07",
+    "flatPnl": -1.0,
+    "simPnl": -3.0,
+    "simBankAfter": 236.68,
+    "flagged": 1,
+    "placed": 1,
+    "bet": 1,
+    "games": [
+     {
+      "game": "LAD@ARI",
+      "side": "YRFI",
+      "modelP": 0.4179,
+      "record": {
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -115,
+       "win": false,
+       "pnl": -3.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 3.0,
+       "odds": -115,
+       "pnl": -3.0
       }
      }
     ]
