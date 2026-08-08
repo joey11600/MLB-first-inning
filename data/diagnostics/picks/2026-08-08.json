@@ -1,7 +1,7 @@
 {
   "date": "2026-08-08",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-08T21:05:14Z",
+  "fitted_at": "2026-08-08T21:22:09Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1586,12 +1586,12 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3455,
-      "raw_p_run_b1": 0.2847,
-      "raw_p_nrfi": 0.4682,
-      "calibrated_p_nrfi": 0.4869,
+      "raw_p_run_t1": 0.3217,
+      "raw_p_run_b1": 0.2499,
+      "raw_p_nrfi": 0.5088,
+      "calibrated_p_nrfi": 0.5067,
       "calibrator_band": {
-        "band": "bin_3-4",
+        "band": "bin_5-6",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -1630,11 +1630,11 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 33.3,
-          "z": 2.081,
-          "weight": 0.0347,
-          "contribution": 0.0721,
+          "name": "home_p_last10_pitcher_nrfi",
+          "value": 0.9,
+          "z": 1.083,
+          "weight": 0.0661,
+          "contribution": 0.0716,
           "outlier": false
         }
       ],
@@ -1672,11 +1672,11 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 33.3,
-          "z": 2.081,
-          "weight": 0.0483,
-          "contribution": 0.1006,
+          "name": "home_obp",
+          "value": 0.326,
+          "z": 1.055,
+          "weight": 0.081,
+          "contribution": 0.0854,
           "outlier": false
         }
       ],
