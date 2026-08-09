@@ -350,6 +350,26 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   before the odds import. Exactly one No.1 on all 123 real slates; suite 37
   passing, 0 xfailed.
 
+- [ ] **T8.18** ⚠️ 2026-08-09 — Stake sized once at first price capture and never
+  re-derived, so it froze against a probability the model had already replaced.
+  LAD@ARI 2026-08-09: sized 2u from p=0.5831 at 02:00 ET; the model revised to
+  0.6288 by 14:40 and the pick locked at 15:10 on the newer number while the
+  stake stayed at the older one (`kelly_stake_units(0.6288, "-120")` = 5.0).
+  The dashboard hero/board/Discord read `units_risked` (2u) while `/history`
+  and the reconcile panel recompute (5u) — same bet, two published numbers.
+  Root cause: `units_risked`/`edge_on_pick` only recompute when a NEW price
+  arrives (`tracker.py:901`), while the probability freeze is gated on
+  `bet_placed="Y"` which does not fire until T-60 (`tracker.py:923`), so the
+  gap between first capture and lock is a free-drift window — 13 h here.
+  `end_of_day_check.py:285` then stamps `bet_placed="Y"` post-game preserving
+  the stale stake. Fingerprint: `edge_on_pick` ≠ `p − implied_p`; present on
+  4 of 25 Kelly-era STRONG bets (07-27, 08-02, 08-04, 08-09).
+  **PARTIAL** — 08-09 row corrected in CSV + Supabase (2u→5.0u, P&L 1.667→4.167,
+  no DRIFT). Root fix (re-derive at lock, then freeze stake+edge+prob+price
+  together) and the `units_risked == kelly_stake_units(prob, odds)` invariant
+  check are DEFERRED pending operator sign-off — money path. 08-02 and 08-04
+  left untouched pending the same decision.
+
 - [x] **T8.17** ✅ 2026-08-08 — THE BOARD printed a committed stake for a pick
   that had not locked. Published `CLE@CWS · Stake 6 units` at 2:07 PM for a
   7:15 PM game locking at 6:15 PM; the model reversed it (and TOR@PHI) to LEAN

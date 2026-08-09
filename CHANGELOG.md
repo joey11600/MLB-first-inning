@@ -11,6 +11,82 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-09] - The stake froze against a probability the model had abandoned (T8.18)
+
+Same family as T8.16/T8.17 — a published number that stopped tracking the thing
+it claims to describe — but this one is arithmetic, not copy.
+
+The dashboard's №1 play showed **STAKE 2u / WON +1.67u** while `/history` showed
+**5.00u / WON 4.17u** for the same bet (LAD@ARI, YRFI, −120). Both were faithful
+to their source: the hero, the board and Discord read `units_risked` from the
+ledger; `/history` and the ¼-Kelly reconcile panel recompute via
+`stakeUnitsFor`. They disagreed because the ledger row was internally
+inconsistent.
+
+### Timeline (ET)
+
+| time | event | p(YRFI) | units_risked |
+|---|---|---|---|
+| 02:00 | DK −120 captured; edge + stake sized | 0.5831 | **2** |
+| 13:04 | predictor revises | 0.6059 | 2 |
+| 14:40 | predictor revises | 0.6288 | 2 |
+| 15:10 | pick locks — nothing re-derives the stake | 0.6288 | 2 |
+| 15:11 | Discord publishes "THE №1 PLAY · Stake 2 units" | 0.6288 | 2 |
+| 16:42 | `end_of_day_check` heals the orphan, books P&L off 2u | 0.6288 | 2 |
+
+`tracker.kelly_stake_units(0.5831, "-120")` → 2.0.
+`tracker.kelly_stake_units(0.6288, "-120")` → 5.0.
+
+### Root cause
+
+Three rules that are each individually correct:
+
+1. `units_risked`, `edge_on_pick` and `market_*_odds` are on the always-preserve
+   list (`tracker.py:901`), so they are only ever recomputed when a **new price
+   arrives**. No second DK price arrived all day — `odds_captured_at` never
+   advanced past 02:00.
+2. The T2.25 probability freeze is gated on `bet_placed == "Y"`
+   (`tracker.py:923`), which under T2.58 does not happen until the row enters
+   its 60-minute lock window. Pre-lock the row sits at `N`, so the probability
+   is free to move while the stake cannot follow.
+3. `tools/end_of_day_check.py:285` then stamps `bet_placed="Y"` post-game and
+   deliberately preserves the recorded stake — so a stake that was never
+   re-derived at lock becomes a "placed bet".
+
+Net: **sizing is a side effect of a price arriving, not a step in the lock.**
+Between first capture and lock (13 hours here) the probability drifts free.
+
+The fingerprint is a row whose `edge_on_pick` disagrees with `p − implied_p`:
+this row stored 0.0376 while the board printed +8.3%. Present on 4 of 25
+quarter-Kelly-era STRONG bets: 07-27, 08-02, 08-04, 08-09. (A separate, benign
+class — the fractional stakes 9.56u / 5.97u / 2.08u / 1.50u — predates
+whole-unit rounding and is correctly frozen history.)
+
+### Fixed
+
+- `data/picks_2026.csv` + Supabase, 2026-08-09 LAD@ARI re-derived from the
+  probability held at lock: `units_risked` 2 → **5.0**, `edge_on_pick`
+  0.0376 → **0.0833**, `profit_loss_units` 1.667 → **4.167**.
+  Written via `tracker._write_rows` (atomic) and `tracker._calc_pnl`;
+  `tools/pl_calc.py --date 2026-08-09` reports no DRIFT.
+  Operator decision: the record should show what the rule says at the
+  probability the pick locked on. Note Discord had already published 2u, so
+  `/history`'s "AS ACTUALLY STAKED" figure moves with this.
+
+### Deferred (needs operator sign-off — money path)
+
+- **The root fix**: re-derive `units_risked` + `edge_on_pick` on every pre-lock
+  tick from the current probability and the locked price, then freeze stake,
+  edge, probability and price together in one atomic moment at T-60. Removes
+  the drift window entirely and makes the two surfaces agree by construction.
+- **The invariant**: `units_risked == kelly_stake_units(row_prob, row_odds)`
+  for every locked STRONG row. Add as a second check alongside the existing
+  P&L DRIFT check in `tools/pl_calc.py` so this is caught the same night.
+- 2026-08-02 DET@OAK (recorded 7u, row's numbers say 1u) and 2026-08-04 SD@ARI
+  (9u vs 8u) left untouched pending the same decision.
+
+---
+
 ## [2026-08-08a] - THE BOARD announced a stake it had not committed (T8.17)
 
 T8.16 with the sign flipped. That one had the board claiming a VERDICT it had
