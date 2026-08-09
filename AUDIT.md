@@ -364,11 +364,42 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   `end_of_day_check.py:285` then stamps `bet_placed="Y"` post-game preserving
   the stale stake. Fingerprint: `edge_on_pick` ≠ `p − implied_p`; present on
   4 of 25 Kelly-era STRONG bets (07-27, 08-02, 08-04, 08-09).
-  **PARTIAL** — 08-09 row corrected in CSV + Supabase (2u→5.0u, P&L 1.667→4.167,
-  no DRIFT). Root fix (re-derive at lock, then freeze stake+edge+prob+price
-  together) and the `units_risked == kelly_stake_units(prob, odds)` invariant
-  check are DEFERRED pending operator sign-off — money path. 08-02 and 08-04
-  left untouched pending the same decision.
+  **BUILT, SHIPPED DARK** — 08-09 row corrected in CSV + Supabase (2u→5.0u,
+  P&L 1.667→4.167, no DRIFT). The three-part fix is now in the tree behind two
+  env flags, both default-off, so pushing it is a provable no-op until the
+  operator flips them on Railway:
+    * PART 1 `tracker._rederive_pre_lock_stake` (`NRFI_STAKE_REDERIVE`) — the
+      stake tracks the model until lock. A pre-lock figure is a PROJECTION and
+      never passes `game_date`, so it cannot allocate against the daily budget
+      and cannot become order-dependent.
+    * PART 2 `tools/lock_commit.py` (`NRFI_LOCK_COMMIT`) — a sweep AFTER
+      import-odds that commits rows whose lock window opened with no fresh
+      price. Three-predicate gate (in-window AND not started AND not terminal),
+      best-bet-first allocation, one reset per batch, reuses `strong_locked`.
+    * PART 3 `tools/stake_drift.py` — per-day Kelly REPLAY (a per-row recompute
+      is unimplementable: it flags every cap-trimmed row). Wired into
+      `pl_calc.py` (exit 1) and `reconcile.py` as I5, REPORT-ONLY, never heals.
+  Supporting: `_size_row_stake` is the single writer of the
+  (bet_placed, units_risked) pair; a batch-epoch guard makes the reset
+  discipline self-enforcing; `_committed_on` no longer caches a failed budget
+  read; `verify_kelly_wiring` CHECK 7/8. 76 tests pass (44 pre-existing
+  untouched + 32 new), parity fixtures 21402/121 ok.
+  Live drift today: 08-02 DET@OAK (7u vs 1u) and 08-04 SD@ARI (9u vs 8u) still
+  flagged, both WINS, correcting them LOWERS recorded P&L by ~4.97u — awaiting
+  operator decision. 07-31 correctly classified cap-order, not drift.
+
+- [ ] **T8.19** ⚠️ 2026-08-09 — `verify_kelly_wiring` CHECK 7 measures, for the
+  first time, that the daily 15u budget is allocated FIRST COME FIRST SERVED, so
+  the same slate sizes differently depending on row order: 2026-07-31 gives
+  CWS@TB 8u/KC@COL 5u/MIL@LAA 2u/DET@OAK 0u in file order and
+  4u/5u/5u/0.5u reversed. A pick's PUBLISHED stake therefore depends on where it
+  sits in the CSV. Pre-existing and NOT caused by T8.18 — verified by running the
+  identical allocation against an unmodified worktree at HEAD (byte-identical
+  vectors) — and already named as a KNOWN LIMITATION in `kelly_stake_units`'
+  docstring. `tools/lock_commit.py` fixes it for its own sweep by sorting
+  best-bet-first; `import_odds` still allocates in DK-file order. CHECK 7 is left
+  FAILING deliberately: either rank by edge before allocating in `import_odds`
+  too, or have the operator accept order-dependence. Do not loosen the assertion.
 
 - [x] **T8.17** ✅ 2026-08-08 — THE BOARD printed a committed stake for a pick
   that had not locked. Published `CLE@CWS · Stake 6 units` at 2:07 PM for a

@@ -17,6 +17,20 @@ Checks:
      documented quarter-Kelly result.
   4. Guard rails hold: no stake exceeds KELLY_MAX_STAKE_FRAC of bank,
      and non-positive-EV bets stake exactly 0.
+  5. Rounding, the 0.5u floor and the two caps interact correctly.
+  6. The published stake does not depend on the bankroll.
+  7. The DAILY cap binds, and the same slate sizes the same whatever
+     order its rows arrive in.
+  8. A capped call made without kelly_reset_daily_committed() refuses.
+
+T8.18 -- WHY 7 AND 8 EXIST.  CLAUDE.md tells the operator to re-run this
+script after any sizing change, and until now it was structurally blind
+to the single variable a sizing change perturbs: it NEVER passed
+`game_date`, so every check above ran on the UNCAPPED path and poked
+`_daily_committed` by hand instead of through the reset.  The daily
+budget, the allocation order and the batch-epoch guard were all
+untested, which means this script would have come back green through
+each of the P0s the T8.18 red team found.
 
 Usage:
     python tools/verify_kelly_wiring.py
@@ -270,6 +284,108 @@ def main():
             "" if same else "   GOT %s" % (seen,)))
     tracker._bankroll_cache = None
     tracker._daily_committed.clear()
+
+    # ---- 7. THE DAILY CAP, AND THE ORDER IT ALLOCATES IN --------------
+    print("")
+    print("=== CHECK 7: the daily risk budget, and allocation order ===")
+    print("  Everything above sizes with game_date=None, i.e. UNCAPPED.  The")
+    print("  capped path is the one the T8.18 pre-lock re-derive perturbs, so")
+    print("  it gets its own check rather than being assumed.")
+    print("  2026-07-31 is a real cap-bound slate: four STRONG YRFI picks")
+    print("  whose uncapped quarter-Kelly stakes sum well past the budget.")
+
+    SLATE_DATE = "2026-07-31"
+    SLATE = [
+        ("CWS@TB",  0.7128, "-130"),
+        ("KC@COL",  0.6903, "-155"),
+        ("MIL@LAA", 0.6288, "-115"),
+        ("DET@OAK", 0.5885, "-140"),
+    ]
+    day_cap = tracker.KELLY_MAX_DAILY_FRAC * 100.0   # published as "15u/day"
+
+    def size_slate(order):
+        """Allocate the slate in `order` and return {game: stake}."""
+        # R2 of the reset discipline: ONE reset at the top of the batch,
+        # never per row.  Doing it per row hands every row the full budget
+        # and the cap silently stops binding -- which is exactly the sort of
+        # regression this check exists to catch.
+        tracker.kelly_reset_daily_committed()
+        # Seed the day's committed exposure at ZERO rather than letting
+        # `_committed_on` read the ledger.  All four of these picks are
+        # bet_placed=Y in data/picks_2026.csv and already sum to exactly
+        # 15.00u, so a live read leaves no room, every stake comes back 0,
+        # both orders match trivially and the check passes by testing
+        # nothing.  It would also drift the day anyone re-grades that date.
+        # The subject here is the ALLOCATOR, so it starts from an empty
+        # budget; the probabilities and prices are still the real ones.
+        tracker._daily_committed[SLATE_DATE] = 0.0
+        return {g: tracker.kelly_stake_units(p, o, game_date=SLATE_DATE)
+                for g, p, o in order}
+
+    def _vec(d):
+        return "  ".join(
+            f"{g} {'None' if d[g] is None else format(d[g], '.2f') + 'u'}"
+            for g, _, _ in SLATE)
+
+    orders = (("row order", SLATE), ("reversed ", list(reversed(SLATE))))
+    sized = []
+    for label, order in orders:
+        d = size_slate(order)
+        sized.append(d)
+        total = sum(v or 0.0 for v in d.values())
+        fits = total <= day_cap + 1e-9
+        if not fits:
+            ok = False
+        print(f"  [{'PASS' if fits else 'FAIL'}] {label}  {_vec(d)}   "
+              f"sum {total:.2f}u (budget {day_cap:.2f}u)")
+
+    fwd, rev = sized
+    same = all(
+        (fwd[g] is None) == (rev[g] is None)
+        and (fwd[g] is None or abs(fwd[g] - rev[g]) <= 1e-9)
+        for g, _, _ in SLATE
+    )
+    if same:
+        print("  [PASS] the same slate sizes identically in either row order")
+    else:
+        ok = False
+        print("  [FAIL] THE SAME SLATE SIZES DIFFERENTLY DEPENDING ON ROW ORDER.")
+        print("         This is the FIRST COME, FIRST SERVED limitation named in")
+        print("         kelly_stake_units' docstring, now measured: the budget is")
+        print("         handed out in iteration order, not best-bet-first, so a")
+        print("         pick's PUBLISHED stake depends on where it happened to sit")
+        print("         in the file.  It is left FAILING on purpose.  Do not")
+        print("         loosen this assertion to make the script green -- either")
+        print("         rank the day's picks by edge before allocating, or have")
+        print("         the operator sign off on order-dependence as accepted.")
+
+    tracker._daily_committed.clear()
+    tracker._bankroll_cache = None
+
+    # ---- 8. THE BATCH-EPOCH GUARD (T8.18 R4) --------------------------
+    print("")
+    print("=== CHECK 8: a capped call with no reset must refuse to size ===")
+    print("  Passing game_date ALLOCATES against the day's budget and mutates")
+    print("  the in-process tally.  In a long-lived process that never resets")
+    print("  (Railway re-imports every 5 minutes) the tally grows every tick")
+    print("  until the cap chokes every bet to zero -- the 2026-07-28 P0-1")
+    print("  oscillation.  The epoch turns that convention into a refusal.")
+    saved_epoch = tracker._kelly_batch_epoch
+    tracker._kelly_batch_epoch = 0      # as if this were a fresh interpreter
+    tracker._daily_committed.clear()
+    try:
+        got = tracker.kelly_stake_units(0.68, "-135", game_date=SLATE_DATE)
+    except RuntimeError as exc:
+        first = str(exc).splitlines()[0]
+        print(f"  [PASS] refused with RuntimeError: {first}")
+    else:
+        ok = False
+        print(f"  [FAIL] sized {got} instead of raising -- rules R1/R2 are back")
+        print("         to being a comment nobody is obliged to read.")
+    finally:
+        tracker._kelly_batch_epoch = saved_epoch
+        tracker._daily_committed.clear()
+        tracker._bankroll_cache = None
 
     print("\n" + ("ALL CHECKS PASSED" if ok else "*** SOME CHECKS FAILED ***"))
     return 0 if ok else 1

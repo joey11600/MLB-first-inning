@@ -73,17 +73,120 @@ whole-unit rounding and is correctly frozen history.)
   probability the pick locked on. Note Discord had already published 2u, so
   `/history`'s "AS ACTUALLY STAKED" figure moves with this.
 
+### Added
+
+- `tools/verify_kelly_wiring.py` — **CHECK 7** (the daily risk budget) and
+  **CHECK 8** (the batch-epoch guard). CLAUDE.md tells the operator to re-run
+  this script after any sizing change, and it was structurally blind to the one
+  variable a sizing change perturbs: it never passed `game_date`, so every check
+  ran on the UNCAPPED path and poked `_daily_committed` by hand instead of
+  through `kelly_reset_daily_committed()`. CHECK 7 sizes the real cap-bound
+  2026-07-31 slate in two row orders; CHECK 8 asserts a capped call made without
+  a reset raises rather than silently allocating.
+- **CHECK 7 fails on first run, and is left failing.** The same four picks size
+  `8 / 5 / 2 / 0` in file order and `4 / 5 / 5 / 0.5` reversed — CWS@TB's
+  published stake halves depending on where the row sat. Both totals respect the
+  15u budget, so this is the FIRST COME, FIRST SERVED limitation already named
+  in `kelly_stake_units`' docstring, now measured rather than assumed. Needs an
+  operator decision: rank the slate by edge before allocating, or accept
+  order-dependence. Do not weaken the assertion to make the script green.
+
+### Fixed (Discord)
+
+- `discord_broadcasts.stake_for()` — a ledger stake of exactly `"0.0"` now
+  returns `0.0` instead of falling through to the uncapped recompute below it.
+  Since T8.18 a commit-time refusal (¼-Kelly finds no edge at the price, or the
+  day's budget is spent) is written as the literal `"0.0"` so it survives the
+  Supabase round trip; the old `booked > 0` test read that as nothing-booked and
+  republished it as a confident positive stake.
+- `build_board` — a refused play prints `No stake at the current price — NOT
+  LOCKED` and says plainly that it is not a bet, rather than
+  `Projected stake 0 units`. Positive projections keep the T8.17 wording.
+- `discord_broadcasts` — recorded in a comment that the missing `game_date=` on
+  its `kelly_stake_units` call is DELIBERATE and load-bearing (T8.18 rule R1):
+  this module runs in-process in the long-lived Railway loop, and a capped call
+  here would accumulate the day's tally forever.
+
+### Added (T8.18 PART 3 — the system checks itself)
+
+- `tools/stake_drift.py` — new. Answers "does `units_risked` still match the
+  rule that was supposed to produce it?" for every locked STRONG row. Wired
+  into `tools/pl_calc.py` (a **STAKE DRIFT** section printed after the existing
+  P&L DRIFT block, sharing its exit-code contract) and into
+  `tools/reconcile.py` as **invariant I5**.
+- **The naive invariant turned out to be unimplementable, and that is the
+  interesting part.** `units_risked == kelly_stake_units(p, odds)` per row
+  fails both ways: *with* `game_date` the day's budget is already seeded from
+  the ledger — including the row being re-derived — so every row recomputes to
+  0 and 17 of 18 locked rows flag; *without* it, every legitimately cap-trimmed
+  row flags (2026-07-31 MIL@LAA stores 1.5u, recomputes to 5.0u, and 1.5 is
+  CORRECT). The shipped check is a **per-day replay**: reset the tally, take the
+  slate's locked STRONG rows, sort best-bet-first using `lock_commit._rank_key`
+  itself, re-derive each with `game_date` live, compare the resulting vector.
+- **Era floor `2026-07-30`** (the unit re-basing). Without it the replay reports
+  310 violations over 366 rows — pre-re-basing history sized under rules that no
+  longer exist. Exemptions for POSTPONED/SUSPENDED, `DraftKings (manual)`,
+  cluster demotions, and an operator escape hatch at
+  `data/stake_drift_exempt.csv` for the flat stakes written by
+  `end_of_day_check`'s and reconcile-I1's orphan heals.
+- **I5 NEVER HEALS**, deliberately. Rewriting a locked stake is a money-path
+  write from two concurrent hosts against a table with no version column, and
+  T2.23 says a placed bet's terms are frozen. It records to `system_errors`,
+  deduped through `notifications_log` on a key containing both figures — so a
+  persistent violation writes ONE row rather than ~288 a day, and a stake that
+  *changes* re-fires.
+- **What it can't see, on the record**: on a cap-bound night the ledger and the
+  replay can split one 15u budget differently and both be right (2026-07-31,
+  8/5/1.5/0.5 vs 8/5/2/0). Such a day is reported as CAP-ORDER, not a violation
+  — which means a genuinely stale stake can hide behind a matching day total on
+  the ~13% of nights where the cap binds. Accepted: the alternative is an alarm
+  every cap-bound night and a check nobody reads. Once `lock_commit` is the
+  writer the two orders are the same function and CAP-ORDER should stop
+  appearing at all.
+- On the live ledger it flags exactly the two known-untouched victims —
+  2026-08-02 DET@OAK (7u vs 1u) and 2026-08-04 SD@ARI (9u vs 8u) — clears the
+  2026-07-31 cap artifact, and clears the already-corrected 2026-08-09 LAD@ARI.
+
+### Tests (T8.18 PART 1)
+
+- `tests/test_stake_rederive.py` — new, 14 cases over
+  `tracker._rederive_pre_lock_stake`. Three prove the stake MOVES: the
+  2026-08-09 LAD@ARI victim replayed across three predict ticks
+  (0.5831 → 0.6060 → 0.6288 ⇒ 2u → 3u → **5u**, `edge_on_pick`
+  0.0376 → 0.0605 → **0.0833**) while `market_*_odds` / `odds_captured_at` /
+  `opened_*` stay byte-identical; three static ticks over the cap-bound
+  2026-07-31 slate returning an identical vector (the P0-1 oscillation guard,
+  restated at the CALLER — `tests/test_money.py` calls the reset inside its own
+  helper, which pins the reset function and not that any caller uses it); and
+  rule R1, that a projection leaves `_daily_committed` and the batch epoch
+  untouched.
+- The other eleven pin the doors that must stay shut: a decided no-bet is never
+  re-opened (and `end_of_day_check.find_orphaned_strong_bets` still returns
+  nothing for it after four ticks of drift — the 2026-07-28 P0-2 door), a
+  published stake is floored rather than blanked, LEAN / cluster-demoted /
+  placeholder-time / started / placed / graded rows are frozen, and the feature
+  is a no-op unless `NRFI_STAKE_REDERIVE=enabled`.
+- **Every negative case carries a `_moves()` control** that repairs the one
+  disqualifying attribute and asserts the stake then DOES move. Measured
+  without the guards, the frozen fixtures would publish 5u — and the decided
+  no-bet would publish **10u at `bet_placed="N"`**, which is exactly the
+  `N + units>0` pair the orphan heal reads as a bet to stamp.
+- No test reads `data/picks_2026.csv` (verified: zero filesystem touches for
+  the file) and no test hardcodes a slate date — every time is derived from
+  `now`, which is what stopped `tests/test_selection.py` from going red
+  overnight on 2026-08-07. Re-run green at frozen clocks of 00:30, 12:00 and
+  22:30 ET, on the DST-fallback night, and across a year boundary.
+
 ### Deferred (needs operator sign-off — money path)
 
 - **The root fix**: re-derive `units_risked` + `edge_on_pick` on every pre-lock
   tick from the current probability and the locked price, then freeze stake,
   edge, probability and price together in one atomic moment at T-60. Removes
   the drift window entirely and makes the two surfaces agree by construction.
-- **The invariant**: `units_risked == kelly_stake_units(row_prob, row_odds)`
-  for every locked STRONG row. Add as a second check alongside the existing
-  P&L DRIFT check in `tools/pl_calc.py` so this is caught the same night.
 - 2026-08-02 DET@OAK (recorded 7u, row's numbers say 1u) and 2026-08-04 SD@ARI
-  (9u vs 8u) left untouched pending the same decision.
+  (9u vs 8u) left untouched pending the same decision. They are no longer
+  invisible: `tools/stake_drift.py` reports both on every reconcile tick, and
+  will keep reporting them until they are healed or exempted.
 
 ---
 

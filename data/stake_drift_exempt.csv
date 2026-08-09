@@ -1,0 +1,43 @@
+date,game_pk,away_team,home_team,reason
+# STAKE-DRIFT EXEMPTIONS -- the operator's escape hatch for T8.18 PART 3.
+#
+# tools/stake_drift.py replays the Kelly allocation for each slate and
+# compares it against what the ledger actually published.  A row listed
+# here is EXCLUDED from that comparison.
+#
+# WHEN TO ADD A ROW.  Some writers legitimately put a FLAT stake on a
+# locked bet, and a flat stake can never match a Kelly replay:
+#
+#   * tools/end_of_day_check.py's orphan heal -- a STRONG bet that graded
+#     without a captured DK price gets stamped bet_placed=Y at 1u so the
+#     result is booked at all.
+#   * tools/reconcile.py's I1 heal -- same situation, reached from the
+#     5-minute sweep instead of the nightly one.
+#   * any deliberate manual repair the operator made to a single row.
+#
+# Three exemptions are AUTOMATIC and do NOT need a line here:
+#   * graded_result POSTPONED or SUSPENDED
+#   * sportsbook "DraftKings (manual)"  (tools/apply_manual_odds.py)
+#   * pick_label starting "PASS - Cluster demotion"
+#
+# WHEN NOT TO ADD A ROW.  Do not use this file to silence a stake you
+# cannot explain.  A mismatch the tool reports means the published number
+# and the rule that was supposed to produce it disagree, which is money.
+# Work out WHY first; exempt only once you know the answer and the answer
+# is "a heal wrote a flat stake here on purpose".
+#
+# The check NEVER heals.  Rewriting a locked stake is itself a money-path
+# write, from two concurrent hosts, with no version column -- so the tool
+# reports and stops, and any correction is a deliberate, journaled act.
+#
+# Format:
+#   date        YYYY-MM-DD ET slate date       (required)
+#   game_pk     MLB game_pk                    (required -- date+game_pk
+#                                               is the key; team columns
+#                                               are for humans only)
+#   away_team   3-letter abbr, e.g. LAD        (optional, documentation)
+#   home_team   3-letter abbr, e.g. ARI        (optional, documentation)
+#   reason      free-form; say which writer set the flat stake and when
+#
+# Example (uncomment + edit to use):
+# 2026-08-04,776123,SD,ARI,"end_of_day_check orphan heal -- no DK price captured"

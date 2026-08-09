@@ -39,6 +39,28 @@ I4.  "every graded STRONG bet has a strong_graded notification"
      bet_placed='Y' → notifications_log MUST have a strong_graded
      entry.  Heal: fire _notify_strong_graded_telegram.
 
+I5.  "a locked STRONG stake still matches the sizing rule"  (T8.18)
+     REPORT-ONLY -- this invariant NEVER heals, and that is a
+     deliberate design decision, not a gap someone forgot to fill.
+     Rewriting a locked units_risked is itself a money-path write; it
+     would run from two concurrent hosts (Railway's 5-minute loop and
+     every GHA tick) against a table with no version column, so the
+     losing writer silently wins.  T2.23 also says a placed bet's
+     price is frozen -- a stake that moves under an operator who has
+     already put the money down is worse than a stake that is wrong
+     and visible.  So: detect, record, and stop.
+     Violations land in system_errors (deduped, see below) so the
+     dashboard's Ops Health card surfaces them.
+     Logic lives in tools/stake_drift.py; see that module for why the
+     naive per-row invariant is unimplementable and why the check is a
+     per-day replay.
+
+     WHY THE CHECK LIVES HERE and not only in pl_calc: reconcile runs
+     every ~5 minutes on Railway AND on every GHA cron tick, whereas
+     pl_calc is on NO schedule at all -- it is a tool a human runs.
+     A self-check nobody schedules is a self-check that reports the
+     recurrence weeks later, which is exactly the failure T8.18 was.
+
 OBSERVABILITY
 =============
 Each invariant logs what it found + healed in a single line.  When
@@ -211,6 +233,10 @@ class ReconcileStats:
         self.i2_pl_corrections = 0
         self.i3_strong_locked_fired = 0
         self.i4_strong_graded_fired = 0
+        # I5 is REPORT-ONLY, so this counts violations FOUND, not healed.
+        # It is deliberately excluded from _record_heal_notice's "healed N
+        # anomalies" tally for that reason.
+        self.i5_stake_drift = 0
         self.errors: list[str] = []
 
     def __str__(self) -> str:
@@ -223,6 +249,8 @@ class ReconcileStats:
             parts.append(f"I3 strong_locked fires={self.i3_strong_locked_fired}")
         if self.i4_strong_graded_fired:
             parts.append(f"I4 strong_graded fires={self.i4_strong_graded_fired}")
+        if self.i5_stake_drift:
+            parts.append(f"I5 stake drift={self.i5_stake_drift} (report-only)")
         if self.errors:
             parts.append(f"errors={len(self.errors)}")
         return "  ".join(parts)
@@ -234,6 +262,10 @@ def _fetch_window(client, dates: list[str] | None, season: int) -> list[dict]:
     cols = (
         "date, game_pk, game_time_et, away_team, home_team, "
         "pick_side, pick_strength, pick_label, "
+        # nrfi_prob / yrfi_prob are I5's inputs: the stake replay re-derives
+        # Kelly from the row's CURRENT probability, which is the whole point
+        # of T8.18 -- the old bug was a stake frozen against a stale one.
+        "nrfi_prob, yrfi_prob, "
         "graded_result, fi_away_runs, fi_home_runs, fi_total_runs, graded_at, "
         "market_nrfi_odds, market_yrfi_odds, sportsbook, "
         "edge_on_pick, opened_nrfi_odds, opened_yrfi_odds, "
@@ -413,6 +445,78 @@ def _heal_i4_strong_graded(client, rows: list[dict], row: dict,
         return False
 
 
+def _check_i5_stake_drift(client, rows: list[dict],
+                           notes: set[tuple[str, str]],
+                           season: int, stats: "ReconcileStats",
+                           dry_run: bool) -> None:
+    """I5 (T8.18) -- REPORT-ONLY.  Does each locked STRONG stake still
+    match what the sizing rule would produce from the row's own
+    probability and price?
+
+    NOTHING IN HERE WRITES TO picks_<season>.  See the invariant note in
+    the module docstring; the short version is that healing a locked
+    stake is a concurrent money-path write and the cure is worse than
+    the disease.
+
+    IT RUNS ONCE PER SWEEP, NOT PER ROW.  The underlying check is a
+    per-DAY replay of the whole slate's Kelly allocation -- the daily 15u
+    cap makes the day's stakes interdependent, so a single row cannot be
+    checked in isolation.  Calling it inside the row loop would replay
+    every slate once per row.
+
+    DEDUPED THROUGH notifications_log, and that is not optional.  This
+    runs every ~5 minutes on Railway plus every GHA tick; a violation
+    that persists (and it will, since nothing heals it) would otherwise
+    write ~288 system_errors rows a day and bury the Ops Health card.
+    That is the same trap _record_heal_notice calls out below.  The key
+    embeds the two numbers, so a stake that CHANGES re-fires while a
+    stake that sits there stays quiet.  Reuses the notes set I3/I4
+    already fetched -- no extra query.
+    """
+    try:
+        from tools import stake_drift
+    except Exception as exc:    # noqa: BLE001 -- never break the sweep
+        print(f"[reconcile] I5 unavailable: {exc!r}", file=sys.stderr)
+        return
+
+    try:
+        # _stringify_row because Supabase hands back real numerics and the
+        # replay feeds them to tracker helpers that assume CSV strings.
+        rep = stake_drift.check_rows(
+            [_stringify_row(r) for r in rows],
+            season=season,
+            exempt_keys=stake_drift.load_exemptions(),
+        )
+    except Exception as exc:    # noqa: BLE001
+        print(f"[reconcile] I5 check failed: {exc!r}", file=sys.stderr)
+        return
+
+    for line in rep.cap_order:
+        print(f"[reconcile] I5 (cap-order, not a violation) {line}")
+    if not rep.violations:
+        return
+
+    for f in rep.violations:
+        stats.i5_stake_drift += 1
+        print(f"[reconcile] I5 STAKE DRIFT{f.line()}", file=sys.stderr)
+        key = (f"stake_drift:{f.date}:{f.game_pk}:"
+               f"{f.stored:.2f}:{f.expected:.2f}")
+        if ("stake_drift", key) in notes:
+            continue            # already recorded; stay quiet
+        if dry_run:
+            continue
+        _record_step_failure(
+            f"I5 stake drift {f.date} {f.game} {f.side}",
+            f"published {f.stored:.2f}u but the sizing rule gives "
+            f"{f.expected:.2f}u at p={f.prob:.4f} / {f.odds} "
+            f"({f.delta:+.2f}u).  REPORT-ONLY: reconcile never rewrites a "
+            f"locked stake.  Verify, then heal deliberately or exempt in "
+            f"data/stake_drift_exempt.csv.",
+        )
+        _record_dedup_only(client, "stake_drift", key)
+        notes.add(("stake_drift", key))
+
+
 def _record_heal_notice(stats: "ReconcileStats") -> None:
     """T-V21-2026-05-07g: write a system_errors NOTICE row whenever the
     reconciler actually heals something.  step="reconcile-heal" is in
@@ -535,6 +639,13 @@ def reconcile(
                                             r, dry_run):
                     stats.i4_strong_graded_fired += 1
                     notes.add(key1)
+
+    # ---- I5: locked STRONG stakes still match the sizing rule --------
+    # Outside the row loop on purpose: the check is a per-DAY replay
+    # (the 15u daily cap makes a slate's stakes interdependent), so it
+    # takes the whole window at once.  Report-only -- it never writes to
+    # picks_<season>.
+    _check_i5_stake_drift(client, rows, notes, season, stats, dry_run)
 
     print(f"[reconcile] {stats}")
     if not dry_run:

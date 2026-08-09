@@ -893,6 +893,11 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
         }
 
         key = (iso_date, str(g["game_pk"]))
+        # T8.18: defined on BOTH branches -- a brand-new row has no prior
+        # state and so can never be locked.  The pre-lock re-derive below
+        # reads this, and an unbound local here would be a NameError on the
+        # first tick of every new slate.
+        effectively_locked = False
         if key in index:
             existing = rows[index[key]]
 
@@ -1164,6 +1169,19 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
         else:
             rows.append(new_row)
             index[key] = len(rows) - 1
+
+        # T8.18 PART 1 -- the stake tracks the model until the pick locks.
+        # THE POSITION MATTERS, in both directions:
+        #   * AFTER the merge if/else above, so `new_row` carries the FRESH
+        #     probability next to the PRESERVED market_*_odds -- placing it
+        #     earlier would size against a price the preserve list is about
+        #     to overwrite, and would bypass the cluster-demotion preserve.
+        #   * BEFORE mirrored_rows.append below, so the change reaches
+        #     Supabase.  rows[...] and new_row are the same dict object, so
+        #     mutating here also reaches the CSV write.
+        # No-op unless NRFI_STAKE_REDERIVE=enabled.
+        _rederive_pre_lock_stake(new_row, season=season,
+                                 locked=effectively_locked)
 
         written += 1
         mirrored_rows.append(new_row)
@@ -1978,12 +1996,22 @@ def _top_pick_rank_tuple(side: str, nrfi_prob: float,
     return (rank, implied, name)
 
 
-def _row_is_nights_top_pick(row: dict) -> bool:
+def _row_is_nights_top_pick(row: dict, rivals: list[dict] | None = None) -> bool:
     """True when `row` is (or outranks everything else and so becomes)
     the night's №1 play.  `row` is trusted as the FRESH state of its own
     game; rivals come from the ledger on disk, with this game excluded,
     so a mid-run flip is compared against the field rather than against
-    its own stale line."""
+    its own stale line.
+
+    T8.18: `rivals` overrides the disk read with an IN-MEMORY view.  The
+    disk copy is the PRE-BATCH ledger, so during a sweep that commits
+    several games in one pass every row still reads its rivals as
+    `bet_placed="N"` and is excluded below -- meaning the earliest-locking
+    game always finds no rival and claims №1.  68 of 125 slates have two
+    STRONG picks starting within five minutes, so this is not rare.
+    Passing the sweep's own candidate list makes rows committed earlier in
+    the same pass visible.  Default None keeps today's behaviour exactly.
+    """
     try:
         iso_date = (row.get("date") or "").strip()
         side = (row.get("pick_side") or "").strip().upper()
@@ -2013,7 +2041,8 @@ def _row_is_nights_top_pick(row: dict) -> bool:
 
         season = int(iso_date[:4])
         best_rival: tuple | None = None
-        for r in _read_rows(_csv_path(season)):
+        source = rivals if rivals is not None else _read_rows(_csv_path(season))
+        for r in source:
             if (r.get("date") or "").strip() != iso_date:
                 continue
             if (r.get("pick_strength") or "").strip().upper() != "STRONG":
@@ -2104,7 +2133,8 @@ def _notify_pick_flip_telegram(*, iso_date: str, away_team: str, home_team: str,
     _notify_event_telegram("flip_to_strong", event_key, body)
 
 
-def _notify_strong_locked_telegram(row: dict) -> None:
+def _notify_strong_locked_telegram(row: dict,
+                                   rivals: list[dict] | None = None) -> None:
     """T2.58: 'BET LOCKED' alert -- fires once per game per slate at the
     moment bet_placed transitions to Y (inside the lock window with
     final data).  This replaces the pre-lock flip-to-strong alert as
@@ -2116,7 +2146,11 @@ def _notify_strong_locked_telegram(row: dict) -> None:
     re-run of import_odds after lock doesn't re-ping."""
     if (row.get("pick_strength") or "").strip().upper() != "STRONG":
         return
-    if not _row_is_nights_top_pick(row):   # №1-only policy, 2026-08-05
+    # №1-only policy, 2026-08-05.  T8.18: `rivals` lets a multi-row sweep
+    # rank against the rows it has already committed in this pass rather
+    # than against the pre-batch ledger on disk, where every un-committed
+    # STRONG row still reads bet_placed="N" and is excluded as a rival.
+    if not _row_is_nights_top_pick(row, rivals):
         return
     if (row.get("bet_placed") or "").strip().upper() != "Y":
         return
@@ -3504,6 +3538,27 @@ _bankroll_cache: float | None = None
 # date -> units already assigned to STRONG picks on that date this run.
 _daily_committed: dict[str, float] = {}
 
+# T8.18 -- batch epoch.  Incremented by kelly_reset_daily_committed().
+# A CAPPED sizing call (one that passes game_date) is an ALLOCATION against
+# the day's 15u budget, and allocating without first resetting the tally is
+# the 2026-07-28 P0-1 oscillation bug.  kelly_stake_units refuses to allocate
+# while this is 0, which turns an unwritten convention into something the
+# process enforces on itself.  See the reset discipline below.
+_kelly_batch_epoch: int = 0
+
+
+class KellyBudgetUnavailable(RuntimeError):
+    """The day's committed exposure could not be read, so the remaining
+    risk budget is unknown.
+
+    T8.18.  `_committed_on` used to swallow a read failure as `total = 0.0`
+    AND CACHE IT, handing the rest of the batch a confidently-wrong empty
+    budget: with 14u already locked, the 2026-08-05 slate would allocate
+    another 28u against a published 15u/day cap.  Refusing to size is
+    strictly safer than sizing against a budget we could not read, so the
+    failure is now loud and callers leave the row exactly as they found it.
+    """
+
 
 def kelly_fraction_of_bankroll(p: float, odds_str: str) -> float | None:
     """Full-Kelly fraction for a bet at `odds_str` with true win prob `p`.
@@ -3603,6 +3658,20 @@ def _committed_on(game_date: str, season: int = 2026) -> float:
                 continue
             if (r.get("bet_placed") or "").strip().upper() != "Y":
                 continue          # pre-lock rows get re-sized; don't count them
+            # T8.18 -- a PRICELESS bet_placed=Y row is not really locked.
+            # The T2.23 early-return needs `locked_side_odds` to fire
+            # (see _apply_odds_to_row), so a Y row with no captured price
+            # on the picked side falls straight through it and gets
+            # RE-SIZED on the next import.  Seeding it here would then
+            # double-count: once as spoken-for exposure, once as the fresh
+            # stake.  11 such rows exist, all with the flat-1u orphan-heal
+            # signature.  Narrow today, but tools/lock_commit.py adds a
+            # second writer that flips N->Y, which widens it.
+            side  = (r.get("pick_side") or "").strip().upper()
+            price = (r.get("market_nrfi_odds") if side == "NRFI"
+                     else r.get("market_yrfi_odds") if side == "YRFI" else "")
+            if not (price or "").strip():
+                continue
             v = (r.get("units_risked") or "").strip()
             if not v:
                 continue
@@ -3610,8 +3679,11 @@ def _committed_on(game_date: str, season: int = 2026) -> float:
                 total += float(v)
             except ValueError:
                 continue
-    except Exception:
-        total = 0.0     # soft-fail: no cap rather than a crash
+    except Exception as exc:
+        # T8.18 -- do NOT cache a soft-failed seed.  See KellyBudgetUnavailable.
+        raise KellyBudgetUnavailable(
+            f"could not read committed exposure for {game_date}: {exc}"
+        ) from exc
     _daily_committed[game_date] = total
     return total
 
@@ -3629,10 +3701,28 @@ def kelly_reset_daily_committed() -> None:
         long-lived process it would serve a stale bankroll for days.
         One ledger read per 5-minute batch is cheap and keeps Kelly
         sizing off the current bank.
+
+    T8.18 -- THE RESET DISCIPLINE, in four rules.  `kelly_stake_units`
+    mutates `_daily_committed` as a side effect of being CALLED with a
+    game_date, not of its result being used, so:
+
+      R1. game_date may be passed from exactly two places: the COMMIT
+          branch of `_size_row_stake`, and `tools/lock_commit.py`.
+          Everything else passes game_date=None.  A capped call is an
+          ALLOCATION; a projection is not an allocation.  The omission at
+          discord_broadcasts.stake_for is load-bearing, not an oversight.
+      R2. Any process that will allocate calls this ONCE, at the top of
+          its batch, before the first row -- never per row.  A per-row
+          reset re-reads disk and hands every row the full 15u, which
+          silently stops the cap binding at all.
+      R3. Every filter runs BEFORE the call.  Skipping a row after
+          sizing it leaks budget to a stake nobody published.
+      R4. R1 and R2 are enforced by the batch epoch, not by this comment.
     """
-    global _bankroll_cache
+    global _bankroll_cache, _kelly_batch_epoch
     _daily_committed.clear()
     _bankroll_cache = None
+    _kelly_batch_epoch += 1
 
 
 def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
@@ -3692,6 +3782,22 @@ def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
     stake = f * 100.0
 
     if game_date:
+        # T8.18 (R4) -- passing game_date ALLOCATES against the day's
+        # budget and mutates _daily_committed below.  Doing that without a
+        # reset at the top of the batch is precisely the 2026-07-28 P0-1
+        # oscillation: in a long-lived process the tally grows every tick
+        # until the cap chokes every bet to zero by the afternoon.  The one
+        # genuinely dangerous surface is step_discord_broadcasts, which runs
+        # IN-PROCESS in the Railway loop and imports tracker; it is safe
+        # today only because it happens to omit game_date.  Make that an
+        # assertion rather than an accident.
+        if _kelly_batch_epoch == 0:
+            raise RuntimeError(
+                "T8.18: capped Kelly sizing (game_date=...) requires "
+                "kelly_reset_daily_committed() at the top of the batch. "
+                "See the reset discipline in that function's docstring. "
+                "If you are a REPORTING caller, pass game_date=None."
+            )
         # The caps are now FIXED UNIT NUMBERS, which is what makes them
         # publishable: "never more than 10u on one bet, 15u in a day".
         room = (KELLY_MAX_DAILY_FRAC * 100.0) - _committed_on(game_date, season)
@@ -3867,6 +3973,282 @@ def _calc_pnl(row: dict) -> str:
     return _fmt(units * ppu, 3)
 
 
+def _apply_edges_to_row(row: dict, nrfi_odds: str, yrfi_odds: str) -> bool:
+    """Write implied_*, edge_nrfi, edge_yrfi and edge_on_pick from a price
+    pair and the row's CURRENT model probabilities.  Returns False when the
+    probabilities are unparseable (caller decides what that means).
+
+    T8.18.  Extracted verbatim from `_apply_odds_to_row` so the pre-lock
+    re-derive computes the edge triple exactly the same way, from the price
+    the row already carries.  ALL THREE edge columns move together or none
+    do: `edge_on_pick` alone is not enough, because anything reconstructing
+    the sizing probability from `edge_nrfi` + `edge_yrfi` would otherwise
+    read a pre-fix value next to a post-fix stake.
+
+    This is what went wrong in T8.18: the 2026-08-09 LAD@ARI row stored
+    edge_on_pick=0.0376 (sized at 02:00 from p=0.5831) while the board
+    printed +8.3% from the row's own current p=0.6288.
+    """
+    imp_nrfi = american_to_prob(nrfi_odds)
+    imp_yrfi = american_to_prob(yrfi_odds)
+
+    row["implied_nrfi_prob"] = _fmt(imp_nrfi, 4) if imp_nrfi is not None else ""
+    row["implied_yrfi_prob"] = _fmt(imp_yrfi, 4) if imp_yrfi is not None else ""
+
+    # Model probs (already logged at prediction time)
+    try:
+        model_nrfi = float(row.get("nrfi_prob", "") or 0)
+        model_yrfi = float(row.get("yrfi_prob", "") or 0)
+    except ValueError:
+        row["edge_nrfi"] = row["edge_yrfi"] = row["edge_on_pick"] = ""
+        return False
+
+    edge_nrfi = (model_nrfi - imp_nrfi) if imp_nrfi is not None else None
+    edge_yrfi = (model_yrfi - imp_yrfi) if imp_yrfi is not None else None
+
+    row["edge_nrfi"] = _fmt(edge_nrfi, 4) if edge_nrfi is not None else ""
+    row["edge_yrfi"] = _fmt(edge_yrfi, 4) if edge_yrfi is not None else ""
+
+    pick = row.get("pick_side", "")
+    if pick == "NRFI":
+        edge_pick = edge_nrfi
+    elif pick == "YRFI":
+        edge_pick = edge_yrfi
+    else:
+        edge_pick = None
+
+    row["edge_on_pick"] = _fmt(edge_pick, 4) if edge_pick is not None else ""
+    return True
+
+
+def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
+                    units_lean: float, units_strong: float | None) -> None:
+    """THE ONLY WRITER of the (bet_placed, units_risked) PAIR.
+
+    T8.18.  These two columns must never move independently.
+    `tools/end_of_day_check.py` uses `bet_placed=="N" AND units_risked>0`
+    as its ONLY discriminator between a T2.58 pre-lock pending and a
+    deliberate Kelly refusal, so manufacturing that combination anywhere
+    else re-opens the 2026-07-28 P0-2 bet-fabrication incident, in which
+    deliberate no-bets were retroactively stamped as placed bets and
+    booked P&L for wagers nobody made.
+
+    `units_strong=None` means PROJECTION MODE -- no flat fallback.  When
+    Kelly cannot compute a stake the row is left EXACTLY as found.
+    `log_picks`'s pre-lock re-derive passes None; `import_odds` passes its
+    flat default and so keeps today's behaviour to the cent.
+
+    THE CAP IS APPLIED ONLY AT COMMIT.  `game_date` reaches
+    `kelly_stake_units` if and only if `inside_lock` is True -- see rule R1
+    in `kelly_reset_daily_committed`.  A pre-lock figure is a PROJECTION,
+    and a projection must be a pure function of (probability, price): the
+    moment it consumes the shared daily budget it becomes order-dependent,
+    and two writers iterating different orders over different candidate
+    sets make the same bet flip size every five minutes.  That is P0-1
+    wearing a new hat.
+
+    Raises KellyBudgetUnavailable if the day's budget could not be read.
+    """
+    pick     = row.get("pick_side", "")
+    strength = row.get("pick_strength", "")
+    projection_mode = units_strong is None
+
+    if pick not in ("NRFI", "YRFI"):
+        if projection_mode:
+            return                      # never blank a row we were only projecting
+        row["bet_placed"]   = "N"
+        row["units_risked"] = ""
+        return
+
+    if projection_mode and strength != "STRONG":
+        return                          # LEAN is track-only; keep its notional stake
+
+    would_be_units = units_strong if strength == "STRONG" else (
+        units_lean if strength == "LEAN" else 0.0
+    )
+
+    # Kelly staking (2026-07-27).  STRONG only, and only when we have BOTH
+    # a real captured price and the model's probability for the side we are
+    # betting -- otherwise fall through to the flat stake.  LEAN is
+    # track-only so it keeps its notional flat size.  Never fabricate a
+    # stake from a missing price: that is the same failure mode as the -110
+    # fallback that inflated April's P&L.
+    if KELLY_ENABLED and strength == "STRONG":
+        prob_col = "nrfi_prob" if pick == "NRFI" else "yrfi_prob"
+        odds_col = "market_nrfi_odds" if pick == "NRFI" else "market_yrfi_odds"
+        try:
+            p_model = float((row.get(prob_col) or "").strip())
+        except (TypeError, ValueError):
+            p_model = None
+        _gd = (row.get("date") or "").strip()
+        k = kelly_stake_units(
+            p_model, row.get(odds_col, ""),
+            season=season,
+            game_date=(_gd if (inside_lock and _gd) else None),
+        )
+        if k is None and projection_mode:
+            return                      # nothing to say; leave the row alone
+        if k is not None:
+            # NOTE -- POLICY CONSEQUENCE.  Kelly returns 0 whenever the
+            # model's probability does not beat the market's implied
+            # probability.  A 0 stake falls through to the else-branch below
+            # and sets bet_placed="N", which means enabling Kelly IMPLICITLY
+            # ADDS AN EDGE GATE TO STRONG -- the exact thing CLAUDE.md's
+            # money rules say requires explicit operator permission (T2.24:
+            # "if the model commits STRONG, we bet at whatever odds DK has").
+            # That is inherent to Kelly, not a bug: staking a positive amount
+            # on a non-positive-EV bet is precisely what Kelly forbids.  It is
+            # called out here so the next reader does not discover it by
+            # watching bets vanish.
+            would_be_units = k
+
+    if strength == "STRONG" and would_be_units > 0:
+        # T2.58: STRONG pre-lock = stake recorded but not bet.
+        #        STRONG inside lock window = commit.
+        row["bet_placed"]   = "Y" if inside_lock else "N"
+        row["units_risked"] = _fmt(would_be_units, 2)
+        return
+
+    if strength == "STRONG" and inside_lock:
+        # T8.18 -- AT COMMIT, A REFUSAL IS AN HONEST NUMERIC ZERO.
+        #
+        # THIS BRANCH MUST STAY ABOVE THE PROJECTION BRANCH BELOW.  The two
+        # overlap whenever tools/lock_commit.py sizes a cap-exhausted row:
+        # it passes units_strong=None (projection mode) AND inside_lock=True.
+        # Ordered the other way, a commit-time refusal on a row that already
+        # carries a stake gets FLOORED to 0.5u instead of zeroed -- and
+        # end_of_day_check's orphan finder skips only `staked <= 0`, so that
+        # 0.5u survives the filter and is stamped bet_placed="Y" after the
+        # game grades.  A fabricated bet, systematically, on every
+        # cap-exhausted night: the 2026-07-28 P0-2 class, rebuilt.
+        #
+        # Zero is written as a numeric zero, never blank: db/supabase_writer
+        # drops a blank write and the CSV-from-Supabase sync then restores
+        # the stale positive over it, and _calc_pnl books a fabricated flat
+        # 1u result on an empty stake.
+        row["bet_placed"]   = "N"
+        row["units_risked"] = _fmt(0.0, 2)
+        return
+
+    if strength == "STRONG" and projection_mode:
+        # T8.18 -- A PRE-LOCK PROJECTION MAY NEVER BLANK A PUBLISHED STAKE.
+        #
+        # Two distinct reasons, both load-bearing:
+        #
+        # 1. THE CLIFF IS NARROWER THAN THE DRIFT.  The bet/no-bet boundary
+        #    is ~0.18pp wide at -120 with a 0 -> 0.5u discontinuity, while
+        #    measured pre-lock probability drift on the three T8.18 victims
+        #    was 2.6 / 4.6 / 9.8pp.  Five of 28 live STRONG rows sit within
+        #    3pp of that cliff.  Let a projection zero itself and a play
+        #    blinks on and off a paying board all evening -- exactly the
+        #    "picks appear to disappear" pattern the operator has been
+        #    burned by before.  The honest zero is decided ONCE, at commit.
+        # 2. A BLANK CANNOT PROPAGATE ANYWAY.  db/supabase_writer drops a
+        #    blank write, and the CSV-from-Supabase sync then pulls the
+        #    stale positive back over it -- a permanent per-cycle ping-pong
+        #    that also re-arms the end-of-day orphan heal.
+        try:
+            prior = float((row.get("units_risked") or "").strip() or 0.0)
+        except ValueError:
+            prior = 0.0
+        if prior > 0.0:
+            row["bet_placed"]   = "N"
+            row["units_risked"] = _fmt(KELLY_ROUNDED_FLOOR, 2)
+            return
+        row["bet_placed"]   = "N"
+        row["units_risked"] = ""
+        return
+
+    # Phase 1.3 (MLB_MODEL_IMPROVEMENT_PLAYBOOK.md 2026-05-12): LEAN tier is
+    # TRACK-ONLY -- never auto-bet regardless of edge or lock-window status.
+    # The would-be stake is still recorded in units_risked so we can compute
+    # counterfactual P&L for the 60-bet break-even analysis.  The previous
+    # "LEAN with edge >= min_edge -> bet" path is intentionally removed; if
+    # we ever want to bet LEAN again, restore it deliberately, not by accident.
+    row["bet_placed"]   = "N"
+    row["units_risked"] = _fmt(would_be_units, 2) if would_be_units > 0 else ""
+
+
+def _rederive_pre_lock_stake(row: dict, *, season: int, locked: bool) -> None:
+    """T8.18 PART 1 -- let the stake track the model until the pick locks.
+
+    Re-derives `units_risked` and the edge triple from the row's CURRENT
+    probability and its ALREADY-CAPTURED price.  We do NOT re-price:
+    market_*_odds / odds_captured_at / opened_* are untouched, so T2.23
+    capture semantics and CLV are unaffected.
+
+    WHY THIS EXISTS.  Sizing used to be a side effect of a price ARRIVING
+    rather than a step in the lock, so when DraftKings did not re-quote the
+    stake froze against a probability the model had already replaced.  On
+    2026-08-09 LAD@ARI that meant a 2u stake (sized 02:00 ET from p=0.5831)
+    published on a pick that locked at 15:10 on p=0.6288, where the rule
+    says 5u.  Two more victims: 2026-08-02 DET@OAK (7u published, rule said
+    1u) and 2026-08-04 SD@ARI (9u vs 8u).
+
+    OFF BY DEFAULT.  `NRFI_STAKE_REDERIVE=enabled` turns it on, and it
+    belongs on the host that captures the price -- Railway -- the same way
+    PREDICTOR_SCRAPE_DK restricts the scrape to one host.  Two hosts
+    re-deriving from two independent model fetches would flap the stake.
+
+    Note there is deliberately NO kelly_reset_daily_committed() here, and
+    none is needed: this path never passes game_date (rule R1), so it never
+    allocates against the daily budget and never mutates the tally.  The
+    batch-epoch guard in kelly_stake_units raises loudly if that changes.
+    """
+    if os.environ.get("NRFI_STAKE_REDERIVE", "skip").strip().lower() != "enabled":
+        return
+    if locked:
+        return                          # the T-60 freeze has already applied
+    if (row.get("pick_strength") or "").strip().upper() != "STRONG":
+        return                          # LEAN is track-only; PASS has no stake
+    if (row.get("pick_side") or "").strip().upper() not in ("NRFI", "YRFI"):
+        return
+    if (row.get("pick_label") or "").strip().startswith("PASS - Cluster demotion"):
+        return                          # deliberately demoted; leave it demoted
+    if (row.get("bet_placed") or "").strip().upper() == "Y":
+        return                          # T2.23 -- frozen, the bet is placed
+    if (row.get("graded_result") or "").strip().upper() in (
+            "WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"):
+        return                          # terminal; note POSTPONED/SUSPENDED count
+    iso  = (row.get("date") or "").strip()
+    gtet = (row.get("game_time_et") or "").strip()
+    if not iso or _parse_game_time_et(gtet, iso) is None:
+        # Doubleheader Game 2 placeholders ("After Game 1" / "TBD") have no
+        # parseable lock time, so we cannot know whether we are pre-lock.
+        # Refuse to size rather than re-size forever through first pitch.
+        return
+    if _game_has_started(gtet, iso):
+        return
+    side = (row.get("pick_side") or "").strip().upper()
+    odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+    if not (row.get(odds_col) or "").strip():
+        return                          # nothing captured yet, nothing to size against
+
+    # THE DECIDED-NO-BET DOOR STAYS SHUT.  A row already at bet_placed="N"
+    # with no positive stake is a RECORDED REFUSAL -- Kelly's edge gate, or
+    # the daily cap zeroing it.  Re-opening it would manufacture the pair
+    # `N + units>0`, which tools/end_of_day_check.py reads as a pre-lock
+    # pending and retroactively stamps as a placed bet after the game has
+    # graded.  That is the 2026-07-28 P0-2 bet-fabrication incident, and it
+    # books P&L for wagers nobody made.
+    try:
+        prior = float((row.get("units_risked") or "").strip() or 0.0)
+    except ValueError:
+        prior = 0.0
+    if (row.get("bet_placed") or "").strip().upper() == "N" and prior <= 0.0:
+        return
+
+    if not _apply_edges_to_row(row, row.get("market_nrfi_odds", ""),
+                                    row.get("market_yrfi_odds", "")):
+        return
+    try:
+        _size_row_stake(row, season=season, inside_lock=False,
+                        units_lean=0.0, units_strong=None)
+    except KellyBudgetUnavailable:
+        return                          # leave the stake exactly as found
+    row["profit_loss_units"] = _calc_pnl(row)
+
+
 def _apply_odds_to_row(
     row:         dict,
     nrfi_odds:   str,
@@ -3876,6 +4258,7 @@ def _apply_odds_to_row(
     units_lean:  float,
     units_strong: float,
     captured_at: str,
+    season:      int = 2026,
 ) -> dict:
     """
     Apply market odds to a single row dict.
@@ -3962,39 +4345,19 @@ def _apply_odds_to_row(
         row["opened_yrfi_odds"]  = yrfi_odds
         row["opened_captured_at"] = captured_at
 
-    imp_nrfi = american_to_prob(nrfi_odds)
-    imp_yrfi = american_to_prob(yrfi_odds)
-
-    row["implied_nrfi_prob"] = _fmt(imp_nrfi, 4) if imp_nrfi is not None else ""
-    row["implied_yrfi_prob"] = _fmt(imp_yrfi, 4) if imp_yrfi is not None else ""
-
-    # Model probs (already logged at prediction time)
-    try:
-        model_nrfi = float(row.get("nrfi_prob", "") or 0)
-        model_yrfi = float(row.get("yrfi_prob", "") or 0)
-    except ValueError:
-        row["edge_nrfi"] = row["edge_yrfi"] = row["edge_on_pick"] = ""
+    # T8.18: extracted so the pre-lock re-derive computes the edge triple
+    # identically.  Same behaviour as the inline block it replaces.
+    if not _apply_edges_to_row(row, nrfi_odds, yrfi_odds):
         row["bet_placed"] = "N"
         row["units_risked"] = ""
         return row
 
-    edge_nrfi = (model_nrfi - imp_nrfi) if imp_nrfi is not None else None
-    edge_yrfi = (model_yrfi - imp_yrfi) if imp_yrfi is not None else None
-
-    row["edge_nrfi"] = _fmt(edge_nrfi, 4) if edge_nrfi is not None else ""
-    row["edge_yrfi"] = _fmt(edge_yrfi, 4) if edge_yrfi is not None else ""
-
-    pick      = row.get("pick_side", "")
-    strength  = row.get("pick_strength", "")
-
-    if pick == "NRFI":
-        edge_pick = edge_nrfi
-    elif pick == "YRFI":
-        edge_pick = edge_yrfi
-    else:
-        edge_pick = None
-
-    row["edge_on_pick"] = _fmt(edge_pick, 4) if edge_pick is not None else ""
+    # Locals the CLV block below still needs.  `american_to_prob` is pure,
+    # so recomputing is exactly what the inline block used to leave behind.
+    pick     = row.get("pick_side", "")
+    strength = row.get("pick_strength", "")          # noqa: F841 (kept for readers)
+    imp_nrfi = american_to_prob(nrfi_odds)
+    imp_yrfi = american_to_prob(yrfi_odds)
 
     # Bet sizing.  T2.24 -- STRONG picks auto-bet regardless of edge:
     # user's stated policy is "if the model commits STRONG, we bet at
@@ -4019,60 +4382,12 @@ def _apply_odds_to_row(
     # below and fire the BET LOCKED Telegram alert exactly once per game.
     pre_edit_bet_placed = (row.get("bet_placed") or "").strip().upper()
 
-    if pick in ("NRFI", "YRFI"):
-        would_be_units = units_strong if strength == "STRONG" else (
-            units_lean if strength == "LEAN" else 0.0
-        )
-        # Kelly staking (2026-07-27).  STRONG only, and only when we have
-        # BOTH a real captured price and the model's probability for the
-        # side we are betting -- otherwise fall through to the flat
-        # stake.  LEAN is track-only so it keeps its notional flat size.
-        # Never fabricate a stake from a missing price: that is the same
-        # failure mode as the -110 fallback that inflated April's P&L.
-        if KELLY_ENABLED and strength == "STRONG":
-            prob_col = "nrfi_prob" if pick == "NRFI" else "yrfi_prob"
-            odds_col = "market_nrfi_odds" if pick == "NRFI" else "market_yrfi_odds"
-            try:
-                p_model = float((row.get(prob_col) or "").strip())
-            except (TypeError, ValueError):
-                p_model = None
-            k = kelly_stake_units(p_model, row.get(odds_col, ""),
-                                  game_date=(row.get("date") or "").strip() or None)
-            if k is not None:
-                # NOTE -- POLICY CONSEQUENCE.  Kelly returns 0 whenever the
-                # model's probability does not beat the market's implied
-                # probability.  A 0 stake falls through to the else-branch
-                # below and sets bet_placed="N", which means enabling Kelly
-                # IMPLICITLY ADDS AN EDGE GATE TO STRONG -- the exact thing
-                # CLAUDE.md's money rules say requires explicit operator
-                # permission (T2.24: "if the model commits STRONG, we bet at
-                # whatever odds DK has").  That is inherent to Kelly, not a
-                # bug: staking a positive amount on a non-positive-EV bet is
-                # precisely what Kelly forbids.  It is called out here so the
-                # next reader does not discover it by watching bets vanish.
-                would_be_units = k
-        if strength == "STRONG" and would_be_units > 0:
-            # T2.58: STRONG pre-lock = stake recorded but not bet.
-            #        STRONG inside lock window = commit.
-            if inside_lock:
-                row["bet_placed"]   = "Y"
-            else:
-                row["bet_placed"]   = "N"   # pending, will commit at lock
-            row["units_risked"] = _fmt(would_be_units, 2)
-        else:
-            # Phase 1.3 (MLB_MODEL_IMPROVEMENT_PLAYBOOK.md 2026-05-12):
-            # LEAN tier is TRACK-ONLY -- never auto-bet regardless of edge
-            # or lock-window status.  The would-be stake is still recorded
-            # in units_risked so we can compute counterfactual P&L for the
-            # 60-bet break-even analysis (Phase 1.3 acceptance criterion).
-            # The previous "LEAN with edge >= min_edge -> bet" path is
-            # intentionally removed; if we ever want to bet LEAN again,
-            # restore it deliberately, not by accident.
-            row["bet_placed"]   = "N"
-            row["units_risked"] = _fmt(would_be_units, 2) if would_be_units > 0 else ""
-    else:
-        row["bet_placed"]   = "N"
-        row["units_risked"] = ""
+    # T8.18: the (bet_placed, units_risked) pair now has exactly one writer.
+    # `units_strong` is a real float here, so this keeps import_odds'
+    # behaviour to the cent -- including the flat fallback when Kelly
+    # cannot price the bet.
+    _size_row_stake(row, season=season, inside_lock=inside_lock,
+                    units_lean=units_lean, units_strong=units_strong)
 
     # T4.28: CLV — closing implied prob - opened implied prob, on the
     # picked side.  Positive = market moved toward our pick (we beat
@@ -4244,7 +4559,10 @@ def import_odds(
 
             rows[idx] = _apply_odds_to_row(
                 rows[idx], nrfi_o, yrfi_o, book, min_edge,
-                units_lean, units_strong, now
+                units_lean, units_strong, now,
+                # T8.18: thread the season so the daily cap stops silently
+                # reading picks_2026.csv regardless of which season is live.
+                season=season,
             )
             matched_indices.append(idx)
 

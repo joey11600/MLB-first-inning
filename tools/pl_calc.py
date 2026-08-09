@@ -43,6 +43,14 @@ What gets reported
   here means either the row was modified by something that didn't
   call _calc_pnl, or a backfill mirror clobbered a real odds value
   with a blank.
+* "STAKE DRIFT" (T8.18): a SEPARATE check, printed straight after the
+  P&L one.  They are deliberately not merged.  P&L drift recomputes
+  profit_loss_units *from* units_risked and so treats the stake as
+  given; stake drift asks whether units_risked itself is what the
+  sizing rule would produce.  A row can pass one and fail the other,
+  and on 2026-08-02 DET@OAK exactly that happened -- the P&L was a
+  faithful settlement of a 7u bet the rule says should have been 1u.
+  See tools/stake_drift.py.
 * "-110 fallback" tag on every row whose stored market odds are blank
   (P&L was computed using the standard -110 payout fallback in
   _calc_pnl).  Those rows are the ones most likely to be off if the
@@ -68,6 +76,11 @@ sys.path.insert(0, str(REPO_ROOT))
 # nightly cron) computes.  If this drifts from tracker, that's the bug,
 # not pl_calc.
 from tracker import _calc_pnl, _csv_path, _read_rows  # noqa: E402
+
+# T8.18 -- the stake-side sibling of the P&L consistency check.  Imported
+# rather than reimplemented so pl_calc and tools/reconcile.py's I5 can
+# never disagree about what the sizing rule says.
+from tools import stake_drift as _stake_drift  # noqa: E402
 
 ET = ZoneInfo("America/New_York")
 
@@ -605,9 +618,36 @@ def main() -> int:
         print(f"\nPer-row drift ({len(drift_rows)} row(s)):")
         for line in drift_rows:
             print(line)
-        return 1   # non-zero so a CI check / Telegram bot can detect drift
 
-    return 0
+    # ---- STAKE DRIFT (T8.18) -------------------------------------------
+    # A SEPARATE check from the P&L drift above, and it must stay separate.
+    # The block above recomputes profit_loss_units *from* units_risked, so
+    # it takes the stake as given and can only ever catch a settlement
+    # error.  This one asks the question that block cannot: is
+    # units_risked itself what the sizing rule would have produced from
+    # the row's own probability and price?
+    #
+    # 2026-08-02 DET@OAK is the worked example -- a flawless P&L on a 7u
+    # bet where the rule said 1u.  Clean above, six units wrong here.
+    #
+    # It runs on the SAME rows pl_calc just loaded (Supabase-first), not a
+    # fresh read, so the two sections can never be reporting on different
+    # copies of the ledger.  Bounded to the requested window, but never
+    # earlier than the era floor.
+    print()
+    sd_since = max(start_iso, _stake_drift.STAKE_DRIFT_ERA_FLOOR)
+    stake_rep = _stake_drift.check_rows(
+        rows, season=season, since=sd_since, until=end_iso,
+        exempt_keys=_stake_drift.load_exemptions(),
+    )
+    print(f"STAKE DRIFT ({sd_since} to {end_iso}) -- does units_risked still "
+          f"match the sizing rule?")
+    for line in _stake_drift.render(stake_rep):
+        print(line)
+
+    # One exit code for both checks: a CI job or Telegram watcher only
+    # needs to know "the ledger disagrees with itself somewhere".
+    return 1 if (drift_rows or stake_rep.violations) else 0
 
 
 if __name__ == "__main__":

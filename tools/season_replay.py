@@ -198,6 +198,10 @@ def simulate(rows, probs, gate, frac=0.25, require_real_price=True,
     tracker.KELLY_FRACTION = frac
     try:
         for d in sorted(byday):
+            # T8.18: bump the batch epoch.  Seeding _daily_committed directly
+            # skips kelly_reset_daily_committed(), and kelly_stake_units now
+            # refuses to allocate (game_date=...) on a process that never reset.
+            tracker.kelly_reset_daily_committed()
             tracker._bankroll_cache = bank
             tracker._daily_committed = {d: 0.0}
             pnl = 0.0

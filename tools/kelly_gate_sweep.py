@@ -90,11 +90,15 @@ def simulate(bets, *, gate=None, frac=0.25, daily_cap=0.15,
     monthly = defaultdict(float)
     try:
         for day in sorted(by_day):
-            tracker._bankroll_cache = bank
             # Seed the day at 0 rather than clearing: an empty dict makes
             # _committed_on() fall through to a full ledger read for every
             # bet, which turned this sweep into minutes of CSV parsing.
             # The sim's exposure is self-contained, so 0 is correct.
+            # T8.18: bump the batch epoch.  Seeding _daily_committed directly
+            # skips kelly_reset_daily_committed(), and kelly_stake_units now
+            # refuses to allocate (game_date=...) on a process that never reset.
+            tracker.kelly_reset_daily_committed()
+            tracker._bankroll_cache = bank
             tracker._daily_committed = {day: 0.0}
             pnl = 0.0
             for b in by_day[day]:
@@ -295,6 +299,10 @@ def main():
             if best is None:
                 continue
             today = [b for b in bets if b["date"] == d and b["p_claimed"] >= best[0]]
+            # T8.18: bump the batch epoch.  Seeding _daily_committed directly
+            # skips kelly_reset_daily_committed(), and kelly_stake_units now
+            # refuses to allocate (game_date=...) on a process that never reset.
+            tracker.kelly_reset_daily_committed()
             tracker._bankroll_cache = bank
             tracker._daily_committed = {d: 0.0}
             o_f = tracker.KELLY_FRACTION

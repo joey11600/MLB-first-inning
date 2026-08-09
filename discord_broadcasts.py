@@ -187,10 +187,30 @@ def stake_for(row: dict) -> float | None:
     priced yet (so a pre-lock board can still show an indicative size),
     and that path is the one place a boundary disagreement can still
     appear. It is bounded to rows carrying no committed stake.
+
+    RETURNS 0.0 FOR A LEDGER REFUSAL, AND THAT IS NOT THE SAME AS None
+    (T8.18). None means "the ledger has no opinion yet"; 0.0 means "the
+    system looked at this bet and decided to stake nothing" — quarter
+    Kelly found no edge at the captured price, or the night's 15u risk
+    budget was already spoken for. Since T8.18 that decision is written
+    to the ledger as the literal "0.0" at commit time, precisely so it
+    survives the Supabase round trip instead of being dropped as a blank
+    and restored stale.
+
+    Until this branch existed the `booked > 0` test read "0.0" as
+    nothing-booked and fell straight through to the RECOMPUTE below —
+    which is uncapped, has no idea the budget is gone, and cheerfully
+    produced a positive number. A refusal therefore published as a
+    confident stake, on the surface that IS the product. Callers must
+    treat 0.0 as a printable answer and not as falsy-means-missing.
     """
     booked = _f(row.get("units_risked"))
     if booked is not None and booked > 0:
         return booked
+    if booked is not None:
+        # Exactly 0 (or, defensively, anything non-positive) is a decided
+        # refusal. Do NOT fall through to the recompute.
+        return 0.0
 
     p, _ = published_probability(row)
     odds = side_price(row)
@@ -200,6 +220,13 @@ def stake_for(row: dict) -> float | None:
     if tracker is None:
         return None
     try:
+        # NO `game_date=` HERE, DELIBERATELY, AND IT IS LOAD-BEARING (T8.18
+        # rule R1): passing it would ALLOCATE against the day's 15u budget
+        # and mutate tracker's in-process tally. This module runs IN-PROCESS
+        # inside the long-lived Railway loop (workers/predictor_loop.py), so
+        # a capped call here would accumulate the day's tally forever — every
+        # board render adding to it until the cap chokes every real bet to
+        # zero. A published figure is a PROJECTION, never an allocation.
         return tracker.kelly_stake_units(p, str(int(odds)))
     except (Exception, SystemExit):  # noqa: BLE001
         return None
@@ -589,7 +616,36 @@ def build_board(date_iso: str, rows: list[dict],
                          f"needs {american_to_implied(odds)*100:.1f}%")
             else:
                 L.append(f"Model **{p*100:.1f}%** · price not captured yet")
-            if stake:
+            if stake == 0.0:
+                # T8.18 -- A REFUSAL IS AN ANSWER, SO SAY IT.
+                #
+                # A 0.0 out of `stake_for` is always a REFUSAL: either the
+                # ledger carries a committed "0.0" (quarter Kelly found no
+                # edge at the captured price, or the night's risk budget was
+                # already spent) or the unpriced-row fallback recomputed one.
+                # Two things must not happen to that number here.
+                #
+                # It must not be recomputed into a positive one -- it was,
+                # until stake_for grew its zero branch, because "0.0" is
+                # falsy and fell through to the uncapped fallback.
+                #
+                # And it must not print as "Projected stake 0 units", which
+                # reads as a formatting bug rather than a decision and
+                # invites the reader to bet it anyway at some size of their
+                # own choosing. Name the refusal instead. Note `stake` is
+                # None (not 0.0) when we simply have no figure, so an
+                # unpriced row still says nothing rather than claiming a
+                # refusal we never made.
+                if headline:
+                    L.append("### No stake at the current price — NOT LOCKED")
+                    L.append("**This is not a bet.** At the price on the "
+                             "board the model does not have enough of an "
+                             "edge to justify money — or tonight's risk "
+                             "budget is already committed elsewhere. The "
+                             "system is staking nothing here.")
+                else:
+                    L.append("_no stake at the current price — NOT LOCKED_")
+            elif stake:
                 # A STAKE IS AN INSTRUCTION. Only print it as one once the
                 # pick can no longer change -- see is_locked.
                 locked = is_locked(date_iso, r, now)

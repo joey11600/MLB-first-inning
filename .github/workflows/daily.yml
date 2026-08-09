@@ -425,6 +425,48 @@ jobs:
               "$(tail -c 400 loss_cluster_err.log)"
           fi
 
+      - name: Lock commit — T-60 STRONG commit without a fresh price (T8.18, predict)
+        # WHY THIS IS ITS OWN STEP RATHER THAN A LINE IN THE BLOCK ABOVE.
+        # The predict block does `exit 1` when the predictor itself fails
+        # (hard-fail, by design -- predict is the heart of the slate).  A
+        # shell line placed after the import block would inherit that
+        # abort, and so would a normal GHA step, because steps default to
+        # `if: success()`.  But a failed PREDICT is exactly a night when
+        # the lock commit matters MOST: the rows on the ledger still have
+        # a lock window opening and a captured price sitting on them, and
+        # nothing else will commit them.  Hence `always()`.
+        #
+        # ORDERING.  It runs after the import block (a commit must never
+        # precede the price landing, or `_apply_odds_to_row`'s T2.23
+        # early-return discards it) and before the end-of-day safety net
+        # (which is the orphan heal that was retroactively stamping these
+        # rows bet_placed=Y at a stale stake AFTER first pitch -- the T8.18
+        # bug).  The reconciliation sweep lives inside the block above and
+        # therefore runs first; that is harmless, it re-runs every tick.
+        #
+        # `!cancelled()`, NOT `always()`.  Both survive a failed predict --
+        # which is the point, since a night predict falls over is exactly a
+        # night nothing else will commit the locked rows.  But `always()`
+        # ALSO fires on a CANCELLED run, and a cancellation is somebody
+        # deliberately pulling the handle.  This step places bets; when a
+        # human stops the workflow it should stop too.  Idempotence makes
+        # that survivable, not correct.
+        if: ${{ !cancelled() && steps.action.outputs.what == 'predict' }}
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Repo variable at /settings/variables/actions.  Absent or
+          # anything other than "enabled" = silent no-op, so merging this
+          # workflow change does NOT switch a new money-path writer on.
+          NRFI_LOCK_COMMIT:     ${{ vars.NRFI_LOCK_COMMIT }}
+        run: |
+          set +e
+          TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
+          python tools/lock_commit.py --date "$TODAY_ISO" 2>&1 \
+            || echo "::warning::lock_commit failed (non-blocking)"
+
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'
         # Grade today AND yesterday (in ET).  GitHub Actions cron can fire
@@ -558,6 +600,29 @@ jobs:
             record_err "cluster-discovery" "$?" \
               "$(tail -c 400 cluster_disc_err.log)"
           fi
+
+      - name: Lock commit — T-60 STRONG commit without a fresh price (T8.18, grade)
+        # Same step as the predict branch above -- see that copy for the
+        # full rationale on `!cancelled()` and on the ordering.  It matters on
+        # the nightly grade tick too: that cron fires at 11:30pm ET and
+        # GitHub's scheduler routinely runs it 1-3 hours late, so a late
+        # west-coast game can still be inside its lock window (and NOT yet
+        # started) when this runs.  Placed immediately before the
+        # end-of-day safety net so a legitimately committed row is already
+        # bet_placed=Y at the right stake before the orphan heal looks at
+        # it.  Idempotent, soft-fail, exits 0 unconditionally.
+        if: ${{ !cancelled() && steps.action.outputs.what == 'grade' }}
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          NRFI_LOCK_COMMIT:     ${{ vars.NRFI_LOCK_COMMIT }}
+        run: |
+          set +e
+          TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
+          python tools/lock_commit.py --date "$TODAY_ISO" 2>&1 \
+            || echo "::warning::lock_commit failed (non-blocking)"
 
       - name: End-of-day safety net (orphaned STRONG bets)
         # 2026-07-19: also run on 'predict' ticks, not just the nightly

@@ -14,6 +14,7 @@ Each cycle, in order:
   3. Predict today's slate               (HARD fail; aborts cycle)
   4. Scrape DraftKings odds              (soft-fail)
   5. Import odds                          (soft-fail; computes edges)
+  6. Lock commit                          (soft-fail; T8.18, off by default)
 
 Each step is idempotent thanks to tracker.py's lock-aware logic:
   - log_picks upserts by (date, game_pk) with bet-time pick lock
@@ -45,6 +46,11 @@ Env vars:
                                     Default skip because DK's CDN blocks
                                     Railway egress -- see T2.56 in CHANGELOG.
                                     GHA's hourly cron handles scraping.)
+  NRFI_LOCK_COMMIT                 (default "skip"; set to "enabled" to let
+                                    tools/lock_commit.py commit STRONG picks
+                                    at T-60 when no fresh DK price arrived.
+                                    T8.18 PART 2 -- read by the subprocess,
+                                    not by this loop.)
 """
 
 from __future__ import annotations
@@ -298,6 +304,35 @@ def step_import_odds() -> int:
     )
 
 
+def step_lock_commit() -> int:
+    """T8.18 PART 2: commit STRONG picks whose T-60 lock window has opened
+    but for which no fresh DraftKings price arrived, so the sizing step
+    inside `_apply_odds_to_row` never ran.  Soft-fail.
+
+    RUNS AFTER import-odds, ON PURPOSE.  Predict runs BEFORE import-odds
+    in `cycle()`, so committing any earlier (e.g. inside `log_picks`)
+    would set bet_placed="Y" ahead of the price landing, and
+    `_apply_odds_to_row`'s T2.23 early-return would then DISCARD the very
+    price that just arrived -- on 64% of STRONG rows.
+
+    Also runs BEFORE the pre-game alert sweep so a pick that commits on
+    this tick can still get its T-30 ping on the same tick.
+
+    OFF unless NRFI_LOCK_COMMIT=enabled is set in the Railway service
+    environment (not in the repo -- same pattern as PREDICTOR_SCRAPE_DK).
+    Unset, the tool prints one line and exits 0.  `tools/lock_commit.py`
+    is soft-fail by contract and always exits 0 anyway; the RC check
+    below exists for the timeout/crash case that `run()` synthesizes.
+    """
+    return run(
+        ["python", "tools/lock_commit.py"],
+        # One ledger read, at most a handful of Kelly evaluations, one
+        # atomic CSV write and a few Supabase/Telegram calls.  60s is
+        # the same headroom step_reconcile gets for comparable work.
+        60, "lock-commit",
+    )
+
+
 def step_reconcile() -> int:
     """T-V21-2026-05-07e: continuous reconciliation sweep.  Asserts
     data + notification invariants over the recent window and
@@ -468,13 +503,22 @@ def cycle() -> None:
     if rc != 0:
         _record_step_failure("import-odds", rc)
 
-    # 6: T2.38 #2 pre-game alert sweep (soft-fail).  Run after odds
+    # 6: T8.18 lock commit (soft-fail).  BETWEEN import-odds and the
+    # pre-game sweep, and that position is the whole design: after the
+    # import so a fresh price is never discarded by the T2.23 freeze,
+    # before the pre-game alert so a pick that commits on this tick can
+    # still be picked up by the T-30 ping on the same tick.
+    rc = step_lock_commit()
+    if rc != 0:
+        _record_step_failure("lock-commit", rc)
+
+    # 7: T2.38 #2 pre-game alert sweep (soft-fail).  Run after odds
     # are imported so the message body has the real DK price/edge.
     rc = step_pregame_alert_check()
     if rc != 0:
         _record_step_failure("pregame-alert", rc)
 
-    # 7: T-V21-2026-05-07e -- reconciliation sweep.  Continuously asserts
+    # 8: T-V21-2026-05-07e -- reconciliation sweep.  Continuously asserts
     # the system's data-integrity + notification invariants over the
     # recent window and auto-heals violations.  Catches anything the
     # rest of the pipeline missed (orphan bets, stale fallback pl,
@@ -484,12 +528,12 @@ def cycle() -> None:
     if rc != 0:
         _record_step_failure("reconcile", rc)
 
-    # 8: subscriber Discord broadcasts.  LAST on purpose -- everything
+    # 9: subscriber Discord broadcasts.  LAST on purpose -- everything
     # above it owns money or data, this owns marketing, and it must
     # never be able to delay them.  Always returns 0.
     step_discord_broadcasts()
 
-    # 9: the watchdog.  Runs HERE, on Railway, because a monitor must not
+    # 10: the watchdog.  Runs HERE, on Railway, because a monitor must not
     # share a failure domain with what it watches -- the GitHub-hosted
     # watchdog went down with GitHub Actions on 2026-08-06 and could not
     # report the very outage it existed for.  Watches GitHub, Vercel, the
