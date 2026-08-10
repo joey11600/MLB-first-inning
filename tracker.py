@@ -1996,6 +1996,44 @@ def _top_pick_rank_tuple(side: str, nrfi_prob: float,
     return (rank, implied, name)
 
 
+def _is_declined_not_pending(row: dict) -> bool:
+    """True when the system has DECIDED not to bet this row.
+
+    T8.22.  `bet_placed="N"` is OVERLOADED and the two meanings need
+    opposite treatment when ranking the night's №1:
+
+      * DECLINED -- the Kelly edge gate found no edge at the price, the
+        daily cap left no room, or apply_cluster_demotion stood the pick
+        down.  Never a candidate.  All three write a non-positive stake.
+      * PENDING  -- T2.58's pre-lock state, "will commit at lock".  This
+        is a live play that simply has not reached its own lock yet, and
+        it carries a POSITIVE stake.  It is absolutely a candidate.
+
+    Collapsing the two is what broke the №1-only policy.  Games lock at
+    their own first-pitch-minus-60, so when one flips to "Y" every other
+    STRONG pick on the slate is still "N" -- and the old test discarded
+    them all as non-bets.  Each game in turn looked around, saw no rival,
+    and crowned itself.  Measured on the live ledger: BOTH multi-pick
+    slates since the policy shipped on 2026-08-05 fired a "BET LOCKED"
+    alert for EVERY pick (08-05 TB@COL + WSH@PHI, 08-06 WSH@PHI +
+    SD@ARI), and on 08-06 the one that pinged first was 4 confidence
+    points WORSE than the play that pinged later.
+
+    `units_risked > 0` is the same discriminator tools/end_of_day_check.py
+    uses to tell a pending row from a refusal, so the two agree by
+    construction.  Note the direction of the failure: a row whose stake
+    will not parse is treated as PENDING (a candidate), because losing a
+    real №1 is worse than one extra ping -- the same fail-open stance the
+    gate takes overall.
+    """
+    if (row.get("bet_placed") or "").strip().upper() != "N":
+        return False                      # "Y" or "" -- not a decline
+    try:
+        return float((row.get("units_risked") or "").strip() or 0.0) <= 0.0
+    except ValueError:
+        return False                      # unparseable -> treat as pending
+
+
 def _row_is_nights_top_pick(row: dict, rivals: list[dict] | None = None) -> bool:
     """True when `row` is (or outranks everything else and so becomes)
     the night's №1 play.  `row` is trusted as the FRESH state of its own
@@ -2018,13 +2056,17 @@ def _row_is_nights_top_pick(row: dict, rivals: list[dict] | None = None) -> bool
         if side not in ("NRFI", "YRFI"):
             return True
         # T8.14: a row the system has DECIDED not to bet is not a
-        # candidate for "tonight's №1 play". bet_placed='N' is set by the
-        # edge gate and by tools/apply_cluster_demotion.py, which
-        # deliberately leaves pick_strength alone -- so a demoted row
-        # stayed STRONG and kept competing. Empty is NOT excluded: before
-        # the odds import runs, every row is pending, and treating
-        # "unknown" as "no bet" would silence the whole slate.
-        if (row.get("bet_placed") or "").strip().upper() == "N":
+        # candidate for "tonight's №1 play" -- the edge gate and
+        # tools/apply_cluster_demotion.py both leave pick_strength alone,
+        # so a stood-down row stays STRONG and would otherwise keep
+        # competing. Empty is NOT excluded: before the odds import runs
+        # every row is unpriced, and treating "unknown" as "no bet" would
+        # silence the whole slate.
+        # T8.22: DECLINED, not merely un-committed -- see
+        # _is_declined_not_pending. A T2.58 pending row is a live play
+        # that has not reached its own lock, and excluding it here is what
+        # let every pick on a multi-pick slate crown itself.
+        if _is_declined_not_pending(row):
             return False
 
         p = float(row.get("nrfi_prob"))
@@ -2050,8 +2092,12 @@ def _row_is_nights_top_pick(row: dict, rivals: list[dict] | None = None) -> bool
             r_side = (r.get("pick_side") or "").strip().upper()
             if r_side not in ("NRFI", "YRFI"):
                 continue
-            if (r.get("bet_placed") or "").strip().upper() == "N":
-                continue   # T8.14: not a bet, so not a candidate
+            # T8.22: skip only a DECLINED rival, never a merely pending
+            # one. This line is the whole fix: every rival is "N" until
+            # its own lock, so discarding them all made the first game to
+            # lock find an empty field and crown itself.
+            if _is_declined_not_pending(r):
+                continue
             r_name = (f"{(r.get('away_team') or '').strip().upper()}"
                       f"@{(r.get('home_team') or '').strip().upper()}")
             r_ident = (r.get("game_pk") or "").strip() or                 f"{r_name}#{(r.get('game_number') or '1').strip()}"

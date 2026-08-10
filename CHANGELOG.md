@@ -11,6 +11,57 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-09c] - The №1-only alert crowned every pick, not one (T8.22)
+
+The policy shipped 2026-08-05. Measured against `notifications_log` rather
+than reasoned about: **both multi-pick slates since then fired a "BET LOCKED"
+alert for every pick.**
+
+| slate | alerts fired | games |
+|---|---|---|
+| 2026-08-05 | **2** | TB@COL + WSH@PHI |
+| 2026-08-06 | **2** | WSH@PHI + SD@ARI |
+| 2026-08-07 | 1 | LAD@ARI *(single STRONG pick)* |
+| 2026-08-09 | 1 | LAD@ARI *(single STRONG pick)* |
+
+Two for two. On 08-06 the one that pinged FIRST (WSH@PHI, 6:05 PM) was **4
+confidence points worse** than the play that pinged later. Discord published
+the correct №1 that night, so the two surfaces disagreed.
+
+### Cause
+
+`bet_placed="N"` is overloaded and the rival scan collapsed the two meanings:
+
+* **DECLINED** — edge gate, daily cap, or `apply_cluster_demotion`. Never a
+  candidate. All three write a non-positive stake.
+* **PENDING** — T2.58's pre-lock state, "will commit at its own lock". A live
+  play carrying a POSITIVE stake.
+
+Games lock at their own first-pitch-minus-60, so when one flipped to "Y" every
+other STRONG pick was still "N" — and the scan discarded them all as non-bets.
+Each game in turn looked around, saw an empty field, and crowned itself.
+
+### Fixed
+
+New `tracker._is_declined_not_pending`: a rival is skipped only when it is `N`
+**with no positive stake**. That is the same discriminator
+`tools/end_of_day_check.py` already uses to tell a pending row from a refusal,
+so the two agree by construction. Applied to both the self-check and the rival
+scan. Fails open on an unparseable stake — losing a real №1 is worse than one
+extra ping, matching the gate's overall stance.
+
+Replayed against the real ledger: **08-05 → TB@COL only; 08-06 → SD@ARI only.**
+One ping, the right game, both nights, in both lock orders. Note 08-06 now
+alerts *later* in the evening, which is correct — the best play locks later.
+
+No dashboard change needed: `top-pick-rank.ts` filters to STRONG and has never
+had a commit-state filter, so this moves tracker INTO line with the board
+rather than away from it. `tests/test_top_pick_gate.py` pins both real shapes,
+both lock orders, the tie-break, and that a demoted rival cannot silence the
+night.
+
+---
+
 ## [2026-08-09b] - Allocation order, the manual-odds twin, and a test that wrote to production
 
 Three follow-ons to T8.18, all operator-directed.

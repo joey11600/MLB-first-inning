@@ -388,6 +388,24 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   flagged, both WINS, correcting them LOWERS recorded P&L by ~4.97u — awaiting
   operator decision. 07-31 correctly classified cap-order, not drift.
 
+- [x] **T8.22** ✅ 2026-08-09 — THE №1-ONLY ALERT CROWNED EVERY PICK. Measured
+  against `notifications_log`, not reasoned about: both multi-pick slates since
+  the policy shipped 2026-08-05 fired a "BET LOCKED" alert for EVERY pick
+  (08-05 TB@COL + WSH@PHI; 08-06 WSH@PHI + SD@ARI). Two for two. On 08-06 the
+  first to ping was 4 confidence points WORSE than the play that pinged later,
+  and Discord published the correct №1 that night — so the surfaces disagreed.
+  Cause: `bet_placed="N"` means both DECLINED (edge gate / daily cap / cluster
+  demotion) and T2.58 PENDING ("commits at its own lock"), and the rival scan
+  discarded both. Games lock at their own T-60, so when one flipped to "Y"
+  every rival was still "N" and each game in turn saw an empty field.
+  Fixed by `tracker._is_declined_not_pending`: skip a rival only when it is
+  `N` with no positive stake — the same discriminator `end_of_day_check` uses,
+  so the two agree by construction. Fails open on an unparseable stake.
+  Replayed on the real ledger: 08-05 → TB@COL only, 08-06 → SD@ARI only; one
+  ping, correct game, both lock orders. No dashboard change — `top-pick-rank.ts`
+  never had a commit-state filter, so this moves tracker INTO line with it.
+  Pinned by `tests/test_top_pick_gate.py` (12 tests).
+
 - [x] **T8.20** ✅ 2026-08-09 — THE TEST SUITE WROTE TO PRODUCTION. Twice in one
   session a test run inserted fabricated rows into the live Supabase
   `picks_2026` table and they rendered on the public dashboard — once as
