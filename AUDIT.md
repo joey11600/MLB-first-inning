@@ -55,6 +55,76 @@ the live ledger's own columns are healthy.
   that. The feature columns are usable; only the derived verdict
   columns are stale.
 
+- [x] **T8.24 — the skip's reach-back fetched from a remote that does
+  not exist, and T8.6's banned comparison was its failure path**
+  ✅ 2026-08-10
+  `should-build.sh` recovered an out-of-shallow-clone
+  `VERCEL_GIT_PREVIOUS_SHA` with `git fetch --depth=1 origin "$PREV"
+  2>/dev/null || true`. **Vercel's build container has no remote named
+  `origin` — it has no configured remote at all.** Measured on the
+  SIBLING strikeouts project 2026-08-10, whose equivalent script printed
+  `fatal: 'origin' does not appear to be a git repository` three times
+  once its failures stopped going to `/dev/null`. Dead on arrival, and
+  silent about it.
+  **That last fact is INFERRED here, not observed.** Same platform, so
+  very likely, but this project's own build has never printed it — the
+  error went to `/dev/null`. The new `remotes configured: [...]` line
+  settles it on the first build log that reaches the fetch branch;
+  until one does, the container's remote list is unconfirmed. Recorded
+  as an open loop rather than closed by assertion.
+  **The consequence here is worse than the bill it caused there.**
+  Strikeouts fails toward BUILDING (91 CPU-hours, Aug 7-10). This script
+  falls to the NARROW COMPARISON against `HEAD^` — precisely the
+  comparison T8.6 exists to eliminate, in which a code commit under a
+  data commit in the same push is skipped and never deploys with nothing
+  turning red. T8.6 removed it from the happy path; the dead fetch
+  reinstated it as the failure path.
+  **Not observed firing.** ~21 commits/day here against strikeouts'
+  ~125, so the last build stays inside the shallow window and sampled
+  logs all show the direct `comparing against LAST BUILD` path. Latent,
+  not active — and unprovable after the fact, since the error was
+  discarded.
+  Fixed: `remote_candidates()` yields every configured remote and then
+  the URL rebuilt from `VERCEL_GIT_REPO_OWNER` / `VERCEL_GIT_REPO_SLUG`,
+  and each is tried in turn — because "a remote exists" and "that remote
+  can serve this object" are different claims, and treating the first as
+  the second puts us straight back on the silent narrow path. Remote
+  list, each candidate tried, and every failure are printed. The
+  `--depth=1` fetch-by-SHA shape is kept.
+  The fetch runs under `GIT_TERMINAL_PROMPT=0` and `-c
+  credential.helper=` so a missing credential FAILS instead of HANGING;
+  an `ignoreCommand` blocked on a password prompt nobody can answer
+  stalls the deploy, which is worse than either verdict. Case D below
+  exercised exactly that.
+  Verified against a harness reproducing the production shape — depth-5
+  `--no-local` clone, `git remote remove origin`, invoked from
+  `dashboard/`, baseline outside the shallow window — on REAL history:
+  ```
+  control  pre-fix script, code in gap  -> SKIPPING build     (0)  <- the bug
+  A  data-only gap of 9   -> fetch ok  -> SKIPPING build      (0)
+  B  code commit in gap   -> fetch ok  -> BUILDING, names tracker.py (1)
+  C  no remote, no env    -> NO REMOTE AVAILABLE -> narrow, loud (1)
+  D  broken remote + env  -> fails fast, cascades, LAST BUILD (1)
+  E  working remote       -> used directly, no regression     (1)
+  ```
+  The control matters: a NORMAL clone passes on both the broken and the
+  fixed script, because it has an origin and a local remote serves any
+  SHA. Only the production shape separates them. 97 tests pass.
+  **`--depth=1` fetch-by-SHA needs the FULL 40-char id.** An abbreviated
+  one is parsed as a ref name and returns `couldn't find remote ref`,
+  which is indistinguishable from "GitHub refuses raw SHA fetches" —
+  it produced a false negative in this fix's own verification until the
+  harness was corrected. `VERCEL_GIT_PREVIOUS_SHA` is full-length.
+  **The reach-back depends on this repo being PUBLIC.** The derived URL
+  is fetched anonymously; there are no credentials in the build
+  container. If the repo is ever made private every reach-back fails and
+  every data commit starts building again — loudly, now that failures
+  print. Verified public 2026-08-10 with the credential helper disabled.
+  Narrow fallback deliberately left in place — operator's call.
+  **Generalises:** a fail-safe that fires without saying why converts a
+  broken recovery into either a recurring bill or a silent non-deploy.
+  `2>/dev/null || true` on a recovery path is the bug, not the git.
+
 ---
 
 ## 🔴 TIER 7 — 2026-07-28 money-path + dashboard audit

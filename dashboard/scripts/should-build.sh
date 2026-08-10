@@ -119,13 +119,96 @@ DATA_ONLY_PATHS=(
 # the sha is set but the object is missing. `git fetch --depth=1` for
 # that one commit is enough -- `git diff A B` needs both objects, not
 # the path between them.
+#
+# THE REMOTE IS NOT CALLED origin.  THERE ISN'T ONE.  Measured on the
+# SIBLING strikeouts project 2026-08-10, whose build printed, three
+# times, `fatal: 'origin' does not appear to be a git repository` once
+# its equivalent script stopped discarding the error.  Its checkout
+# carries the objects and the refs and NO configured remote at all, so
+# the fetch below was dead on arrival -- and with `2>/dev/null || true`
+# it said so to nobody.
+#
+# INFERRED HERE, NOT OBSERVED.  Same platform, so almost certainly the
+# same, but this project's own build has never printed it -- the error
+# went to /dev/null, and at ~21 commits a day the baseline usually stays
+# inside the shallow window so the fetch is rarely reached at all.  The
+# `remotes configured: [...]` line below is what settles it: the first
+# build log that reaches this branch says whether the list is empty.
+# Until one does, treat the container's remote list as unconfirmed.
+#
+# That silence costs more here than it did there.  Strikeouts fell
+# through to BUILDING, which is merely expensive.  This script falls
+# through to the NARROW COMPARISON below, which is the single comparison
+# this whole file exists to avoid: a code commit buried under a data
+# commit in the same push, skipped, never deployed, nothing red.  So
+# find a remote that exists, and say what happened either way.
+#
+# `git fetch --depth=1 <url> <sha>` is the right shape -- one object, no
+# history walk -- and GitHub does serve a reachable raw SHA that way.
+# Confirmed against this repo before shipping, not assumed: fetching an
+# 11-commits-back SHA into a depth-5 clone with the remote removed
+# succeeded anonymously and made the object reachable.
+#
+# IT MUST BE THE FULL 40-CHAR SHA, which VERCEL_GIT_PREVIOUS_SHA is.  A
+# "want" for a raw object id is matched on the full id; git parses an
+# ABBREVIATED one as a ref name and returns `couldn't find remote ref`.
+# Noted because it is indistinguishable from "GitHub refuses raw SHA
+# fetches" -- it cost this fix's own verification a false negative until
+# the harness was corrected to pass full ids.
+#
+# CANDIDATES, NOT ONE PICK.  Every configured remote is tried before the
+# URL rebuilt from the environment, because "a remote exists" and "that
+# remote can serve this object" are different claims -- an expired token
+# baked into a checkout URL would otherwise put us straight back on the
+# silent narrow path this fix exists to close.  In Vercel's container the
+# list is empty and the derived URL is the only candidate.
+#
+# THIS WORKS ONLY BECAUSE THE REPO IS PUBLIC.  The derived URL is fetched
+# anonymously; there are no credentials in the build container to fetch
+# with.  If this repo is ever made private the reach-back will fail and
+# every data commit will start building again -- loudly, in the log, now
+# that failures are printed rather than discarded.  Verified public
+# 2026-08-10: `git -c credential.helper= ls-remote <url>` succeeds under
+# GIT_TERMINAL_PROMPT=0.
+#
+# AND IT MUST FAIL, NOT HANG.  A missing credential asks for one; an
+# ignoreCommand that blocks on a prompt nobody can answer stalls the
+# deploy instead of skipping it, which is a worse outcome than either
+# answer.  The prompt and the credential helpers are disabled on the
+# fetch so that case comes back as a printed failure.
+remote_candidates() {
+  git remote                       # empty in Vercel's container
+  if [ -n "${VERCEL_GIT_REPO_OWNER:-}" ] && [ -n "${VERCEL_GIT_REPO_SLUG:-}" ]; then
+    case "${VERCEL_GIT_PROVIDER:-github}" in
+      github) printf 'https://github.com/%s/%s.git\n' "$VERCEL_GIT_REPO_OWNER" "$VERCEL_GIT_REPO_SLUG" ;;
+      gitlab) printf 'https://gitlab.com/%s/%s.git\n' "$VERCEL_GIT_REPO_OWNER" "$VERCEL_GIT_REPO_SLUG" ;;
+    esac
+  fi
+}
+
 PREV="${VERCEL_GIT_PREVIOUS_SHA:-}"
 BASE=""
 
 if [ -n "$PREV" ]; then
   if ! git cat-file -e "${PREV}^{commit}" 2>/dev/null; then
     echo "should-build: previous build $PREV not in the shallow clone; fetching it"
-    git fetch --quiet --depth=1 origin "$PREV" 2>/dev/null || true
+    echo "should-build:   remotes configured: [$(git remote | tr '\n' ' ' | sed 's/ $//')]"
+    TRIED=0
+    # Process substitution, not a pipe: the loop must run in THIS shell so
+    # `break` and TRIED survive it.
+    while IFS= read -r CAND; do
+      [ -n "$CAND" ] || continue
+      TRIED=$((TRIED + 1))
+      echo "should-build:   trying remote: $CAND"
+      if OUT="$(GIT_TERMINAL_PROMPT=0 git -c credential.helper= fetch --depth=1 "$CAND" "$PREV" 2>&1)"; then
+        echo "should-build:   fetch ok"
+        break
+      fi
+      # First line: git's trailing lines are the generic access-rights
+      # boilerplate, the actual fatal is line 1.
+      echo "should-build:   fetch FAILED — $(printf '%s' "$OUT" | head -1)"
+    done < <(remote_candidates)
+    [ "$TRIED" -gt 0 ] || echo "should-build:   NO REMOTE AVAILABLE — none configured and VERCEL_GIT_REPO_OWNER/SLUG unset"
   fi
   if git cat-file -e "${PREV}^{commit}" 2>/dev/null; then
     BASE="$PREV"

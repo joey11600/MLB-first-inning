@@ -11,6 +11,95 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10a] - The skip's reach-back fetched from a remote that does not exist (T8.24)
+
+**Fixed**
+
+`should-build.sh` compares against `VERCEL_GIT_PREVIOUS_SHA`, and when that
+commit has fallen out of Vercel's shallow clone it fetches it back. That fetch
+was:
+
+    git fetch --quiet --depth=1 origin "$PREV" 2>/dev/null || true
+
+**There is no remote named `origin` in Vercel's build container.** Measured on
+the SIBLING strikeouts project the same day, whose equivalent script — after
+being changed to print its failures instead of discarding them — reported, three
+times over:
+
+    fatal: 'origin' does not appear to be a git repository
+
+That checkout carries the objects and the refs and no configured remote at all.
+Every `git fetch ... origin ...` was dead on arrival, and `2>/dev/null || true`
+meant it said so to nobody.
+
+**Inferred here, not observed here.** Same platform, so very likely the same,
+but this project's own build has never printed it — the error went to
+`/dev/null`. The new `remotes configured: [...]` line answers it on the first
+build log that reaches the fetch branch. Until one does, that claim stays open.
+
+**Why this mattered more here than there.** Strikeouts fell through to BUILDING,
+which is only expensive — it burned 91 CPU-hours over Aug 7-10 doing it. This
+script falls through to the NARROW COMPARISON against `HEAD^`, which is the one
+comparison the file exists to prevent: a code commit buried under a data commit
+in the same push is invisible to it, gets skipped, and never deploys, with
+nothing turning red on a live money dashboard. T8.6 removed that comparison from
+the happy path; the dead fetch quietly reinstated it as the failure path.
+
+**Not observed firing here.** This repo pushes ~21 commits a day against
+strikeouts' ~125, so the last build stays inside the shallow window and the
+fetch is rarely needed. Sampled build logs all show `comparing against LAST
+BUILD` on the direct path. It was a latent hole, not an active fault — and
+because the error went to `/dev/null`, had it fired there would be no trace.
+
+`remote_candidates()` now yields every configured remote and then the provider
+URL rebuilt from `VERCEL_GIT_REPO_OWNER` / `VERCEL_GIT_REPO_SLUG`, and each is
+tried in turn. Not "pick one": *a remote exists* and *that remote can serve this
+object* are different claims, and an expired token baked into a checkout URL
+would otherwise drop us straight back onto the silent narrow path this fix
+exists to close. The remote list, every candidate tried, and every failure are
+printed.
+
+**The fetch must fail, not hang.** It runs under `GIT_TERMINAL_PROMPT=0` with
+credential helpers disabled, so a missing credential comes back as a printed
+error instead of blocking on a password prompt nobody can answer. An
+`ignoreCommand` that hangs stalls the deploy — worse than either verdict.
+
+**The `--depth=1` fetch-by-SHA shape was always right** and is kept. One object,
+no history walk. GitHub does serve a reachable raw SHA, anonymously — confirmed
+here with the credential helper disabled, not assumed.
+
+**It must be the full 40-character SHA.** An abbreviated one is parsed as a ref
+name and returns `couldn't find remote ref` — indistinguishable from "GitHub
+refuses raw SHA fetches", and it produced a false negative in this fix's own
+verification until the harness was corrected. `VERCEL_GIT_PREVIOUS_SHA` is
+full-length, so production is unaffected; it is written down because the next
+person to test this by hand will hit it.
+
+Verified against a harness reproducing the production shape — `--no-local
+--depth=5` clone, `git remote remove origin`, invoked from `dashboard/`, with a
+baseline outside the shallow window — on real history:
+
+    control  pre-fix, code in gap -> SKIPPING build                (0)  <- the bug
+    A  data-only gap of 9  -> fetch ok -> SKIPPING build           (0)
+    B  code commit in gap  -> fetch ok -> BUILDING, names tracker.py (1)
+    C  no remote, no env   -> NO REMOTE AVAILABLE -> narrow, loud  (1)
+    D  broken remote + env -> fails fast, cascades, LAST BUILD     (1)
+    E  working remote      -> used directly, no regression         (1)
+
+The control is the point. A normal clone passes on the broken script *and* the
+fixed one — it has an origin, and a local remote serves any SHA. Only the
+production shape tells them apart, which is how an earlier diagnosis of this bug
+went wrong.
+
+**The reach-back depends on this repo being public.** The derived URL is fetched
+anonymously; there are no credentials in the build container. If the repo is
+ever made private, every reach-back fails and every data commit starts building
+again — loudly, now that failures print rather than vanish.
+
+The narrow fallback is deliberately left in place rather than converted to an
+unconditional build — operator's call, and with the reach-back working it should
+no longer be reachable in practice. 97 tests pass.
+
 ## [2026-08-09d] - Thirteen columns were wiped on every predict tick (T8.23)
 
 **This is why CLV has been unmeasurable all season. It was never a capture gap.**
