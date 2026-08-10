@@ -11,6 +11,52 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10b] - CI red for four pushes, and the parity guard went with it (T8.25)
+
+**Fixed**
+
+`pytest tests/` died at collection with:
+
+    ERROR collecting tests/test_allocation_order.py
+    E   ModuleNotFoundError: No module named 'tracker'
+
+`tests/` has no `__init__.py`, so pytest's prepend import mode puts `tests/` on
+`sys.path` and never the repo root. `import tracker` resolved only because six
+of nine test modules each carried a private `sys.path.insert(...)`, and because
+collection is ALPHABETICAL — whichever module sorted first silently fixed the
+path for every module after it. Three modules never had the line and passed on
+that ordering alone. `test_allocation_order.py` (cb5d5c88) lacks it and sorts
+FIRST, so nothing had run yet, and the other 92 tests never executed.
+
+**Green locally, red in CI, same commit.** `python -m pytest tests/` prepends
+CWD and reports 97 passed; bare `pytest tests/` — what the workflow runs — does
+not. That is the whole difference, and it is why this shipped.
+
+**The exposure was the step behind it.** `Money-path tests` runs before
+`Fixtures still match Python`, so `parity_fixtures.py --check` never ran on any
+of the four red pushes (cb5d5c88, 47bd7db1, 6c31c460, 7590fabd — all the same
+error, verified in each log). That is the only guard that catches the dashboard's
+stake math drifting from the Python that sizes real bets; `check-kelly-parity.mjs`
+compares against a committed fixture and never invokes Python (T8.12). It was
+unexercised across a stake-allocation change (T8.19), a ledger fix (T8.23) and a
+notification fix (T8.22). Run on the fixed tree, both clean — 21402 Kelly cases
+and 121 pass-price cases match Python. Nothing was hiding behind the failure.
+
+Fixed in `tests/conftest.py`, imported before any test module in its directory,
+so it covers every test whether or not the author thought about it — the same
+reasoning as the `autouse` production-write guards already living there.
+Verified by running each of the three previously-unguarded modules ALONE under
+the no-CWD form (5 / 4 / 12 passed), which the private copies cannot explain;
+full suite 97 passed under both runner forms. The six private copies stay:
+redundant, harmless, and they keep `python tests/test_money.py` working directly.
+
+**Generalises:** a per-file import fixup that only works in collection order is
+a latent failure in every file that lacks it, and alphabet picks which one
+exposes it. Shared setup belongs in `conftest.py`. Separately — a CI step
+ordered behind a fragile one inherits its outages silently.
+
+---
+
 ## [2026-08-10a] - The skip's reach-back fetched from a remote that does not exist (T8.24)
 
 **Fixed**

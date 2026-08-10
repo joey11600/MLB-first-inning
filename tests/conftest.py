@@ -20,10 +20,44 @@ prevented neither incident.
 
 If a test ever legitimately needs to exercise the mirror, assert on the
 recorded calls (`supabase_calls`) rather than lifting the guard.
+
+It also puts the repo root on `sys.path` -- see the comment on that line.
 """
 import os
+import sys
 
 import pytest
+
+
+# THE REPO ROOT GOES ON sys.path HERE, ONCE, NOT IN EACH TEST FILE.
+#
+# `tests/` has no `__init__.py`, so pytest's prepend import mode puts
+# `tests/` itself on `sys.path` -- never the repo root.  `import tracker`
+# therefore only resolves if something else put the root there, and which
+# "something else" you get depends on how the runner was started:
+#
+#   python -m pytest tests/   -> the `-m` form prepends CWD.  Works.
+#   pytest tests/             -> no CWD.  ModuleNotFoundError: 'tracker'.
+#
+# CI runs the second form (.github/workflows/tests.yml).  Six test modules
+# carried this line privately and three did not, and that was invisible for
+# as long as the three sorted after a file that had it -- collection is
+# alphabetical, so whoever imported first silently fixed the path for
+# everyone after.  On 2026-08-10 `test_allocation_order.py` landed WITHOUT
+# the line and sorted FIRST, so nothing had run yet: CI failed at collection
+# and stayed red for four pushes while the whole 97-test suite passed
+# locally under `python -m pytest`.  Worse, the failure took the step AFTER
+# it down too -- `parity_fixtures.py --check`, the only guard that catches
+# the dashboard's stake math drifting from the Python that sizes real bets,
+# never ran on any of those four pushes.
+#
+# conftest.py is imported before any test module in its directory, so doing
+# it here covers every test whether or not its author thought about it --
+# the same reasoning as the `autouse` guards below.  The private copies that
+# remain in six modules are now redundant but harmless (a re-insert of a path
+# already present is a no-op), and they keep `python tests/test_money.py`
+# working when run directly.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 @pytest.fixture(autouse=True)

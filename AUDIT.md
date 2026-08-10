@@ -125,6 +125,49 @@ the live ledger's own columns are healthy.
   broken recovery into either a recurring bill or a silent non-deploy.
   `2>/dev/null || true` on a recovery path is the bug, not the git.
 
+- [x] **T8.25 — CI was red for four pushes on a sys.path accident, and it
+  took the parity guard down with it** ✅ 2026-08-10
+  `tests/` has no `__init__.py`, so pytest's prepend import mode puts
+  `tests/` on `sys.path` and never the repo root. `import tracker`
+  therefore resolved only because six of nine test modules each carried a
+  private `sys.path.insert(...)` line — and because collection is
+  ALPHABETICAL, whichever module sorted first silently fixed the path for
+  every module after it. Three modules never had the line
+  (`test_allocation_order.py`, `test_preserve_columns.py`,
+  `test_top_pick_gate.py`) and passed purely on that ordering.
+  `test_allocation_order.py` landed in cb5d5c88 without the line and
+  sorts FIRST, so nothing had run yet: collection died on
+  `ModuleNotFoundError: No module named 'tracker'` and all 92 other tests
+  never executed.
+  **It reproduces on the runner form, not the local one.** `python -m
+  pytest tests/` prepends CWD and shows 97 passed; bare `pytest tests/`
+  — what `.github/workflows/tests.yml` runs — does not. Same code, same
+  tests, opposite verdicts, which is why it shipped green.
+  **The real exposure was the step behind it.** `Money-path tests` runs
+  before `Fixtures still match Python`, so `parity_fixtures.py --check`
+  never ran on any of the four red pushes. That is the ONLY guard that
+  catches the dashboard's stake math drifting from the Python that sizes
+  real bets — `check-kelly-parity.mjs` compares against a committed
+  fixture and never invokes Python (T8.12). It was unexercised across a
+  stake-allocation change (T8.19), a ledger fix (T8.23) and a
+  notification fix (T8.22). Run on the fixed tree: `kelly-parity-fixture
+  .json ok (21402 cases)`, `pass-price-fixture.json ok (121 cases)` — no
+  drift was hiding behind the failure.
+  Fixed in `tests/conftest.py`, which pytest imports before any test
+  module in its directory, so it covers every test whether or not the
+  author thought about it — the same reasoning as the `autouse`
+  production-write guards already there. Verified by running each of the
+  three previously-unguarded modules ALONE under the no-CWD form (5 / 4 /
+  12 passed), which the private copies cannot explain. The six private
+  copies are left in place: redundant, harmless, and they keep `python
+  tests/test_money.py` working when run directly.
+  **Generalises:** a per-file import fixup that only works in collection
+  order is a latent failure in every file that lacks it, and the file
+  that exposes it is chosen by alphabet, not by risk. Shared setup
+  belongs in `conftest.py`. And a CI step ordered behind a fragile one
+  inherits its outages silently — the guard that protects money should
+  not be reachable only by passing the tests first.
+
 ---
 
 ## 🔴 TIER 7 — 2026-07-28 money-path + dashboard audit
