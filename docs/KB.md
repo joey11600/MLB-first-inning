@@ -21,11 +21,17 @@ Six diagnostic layers run nightly so a regression like that surfaces
 within hours instead of days:
 
   - `tools/feature_drift_monitor.py` (T4.5) detects pitcher_q + xera shifts
-  - `tools/daily_shadow_report.py`   (T4.4) tracks T4.2 vs production delta
   - `tools/pick_reasoning_log.py`    (T4.6) per-pick feature contributions
-  - `.github/workflows/shadow_gate.yml` (T4.7) pre-PR shadow gate
-  - `dashboard/components/ShadowDeltaCard.tsx` (T4.9) at-a-glance UI tile
+  - `tools/v21_shadow_predict.py`    V2.1-vs-V2.2 shadow track (observability)
   - `docs/PLAYBOOK.md`               (T4.8) when-to-do-what process doc
+
+Three of the original six layers are GONE, removed 2026-05-06 with the
+V2/T4.2 shadow surface (b125aa45): `daily_shadow_report.py` (T4.4),
+`shadow_gate.yml` (T4.7) and `ShadowDeltaCard.tsx` (T4.9). This list
+still named all three on 2026-08-10 — the shadow_gate line in particular
+promised an automatic pre-merge model check that had not existed for
+three months. **Nothing gates a predictor change today; see PLAYBOOK
+section 4.**
 
 If something breaks: **read PLAYBOOK.md first.** It routes every common
 failure mode to the specific tool that gives you the answer in <5 min.

@@ -89,8 +89,11 @@ seconds of step 5.
 
 ## Cutover -- switch workflows to use the runner
 
-The workflow files (`daily.yml`, `backup.yml`, `shadow_gate.yml`) read
-`runs-on:` from a repo variable that defaults to `ubuntu-latest`:
+The workflow files that use the runner (`daily.yml`, `backup.yml`) read
+`runs-on:` from a repo variable that defaults to `ubuntu-latest`.
+(`tests.yml` deliberately does NOT — it pins `ubuntu-latest` so it still
+runs when the VPS is down, which is exactly when someone is pushing a
+fix. This list also used to name `shadow_gate.yml`, deleted 2026-05-06.)
 
 ```yaml
 runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}

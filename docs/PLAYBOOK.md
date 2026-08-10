@@ -153,23 +153,49 @@ Possible causes:
 
 ## 4. "I'm about to merge a PR that touches the predictor"
 
-The shadow gate (`.github/workflows/shadow_gate.yml`, T4.7) will run
-automatically.  It posts a comment with V2 actual vs V2+T4.2-shadow
-P&L over the trailing 14 days, using the PR's code path.
+**NOTHING WILL CHECK THE MODEL FOR YOU.  You are the gate.**
 
-- If `delta_pl` is positive or near-zero, the PR is safe to merge from
-  a model-quality standpoint.
-- If `delta_pl < -2.0u`, the gate fails and the PR comment shows a
-  red header.  Do NOT override unless you understand exactly why the
-  shadow regressed and accept the trade-off.
+Until 2026-08-10 this section described an automatic pre-merge shadow
+gate (`.github/workflows/shadow_gate.yml`, T4.7) that posted V2 actual
+vs V2+T4.2-shadow P&L on the PR and failed under `delta_pl < -2.0u`.
+**That workflow was deleted on 2026-05-06** (b125aa45, "v2.1 lock-in:
+archive V2 toggle, remove V3 + shadow surface entirely"), along with
+`tools/v2_t42_shadow.py`, `tools/daily_shadow_report.py` and
+`ShadowDeltaCard.tsx`.  The removal was deliberate; the doc simply never
+caught up, and for three months this file told every reader that a
+merge would be checked by something that did not exist.  A stale
+"you're covered" is worse than no doc, because it stops you looking.
 
-The trigger paths are listed at the top of `shadow_gate.yml`.  If
-your PR doesn't touch any of them, the gate doesn't fire, but you
-still might want to run it manually:
+### What actually runs on a push
 
-```bash
-python tools/v2_t42_shadow.py --days 14 --output-json /tmp/shadow.json
-```
+`.github/workflows/tests.yml`, on every push and PR:
+
+| job | what it proves |
+|---|---|
+| `money path` | the money-path unit tests pass, and the committed parity fixtures still match live Python |
+| `dashboard guards` | the dashboard's Kelly/pass-price maths matches those fixtures, and no cumulative-units sum can be printed |
+
+Read that table for what it is: it proves the money PLUMBING is
+consistent — that Python, the fixtures and the TypeScript all agree.
+**It says nothing about whether the model got better or worse.**  A
+change that quietly makes the predictions worse passes all of it green.
+
+### So do this before merging a predictor change
+
+1. Run the three-split out-of-sample protocol (2024→2025, 2025→2024,
+   2024+2025→2026).  Reject a change that helps in only one direction.
+   CLAUDE.md calls this non-negotiable; the method, including the
+   coverage check and the selection-aware permutation null, is in the
+   `feature_test_methodology` memory.
+2. Check the holdout-leakage guard in `two_stage_model.py` did not have
+   to be bypassed.
+3. Confirm the change is one the operator agreed to.  Model, gate,
+   staking and ledger changes need explicit permission first.
+
+The V2.1-vs-V2.2 shadow track (`tools/v21_shadow_predict.py`, writing
+`data/diagnostics/v21_v22_disagreements.csv` on the grade cron) still
+runs, but it is OBSERVABILITY, not a gate — nothing reads it and blocks
+anything.
 
 ---
 
@@ -209,11 +235,18 @@ If updated_at is stale, the worker isn't writing.
 | layer | tool | output | runs |
 |---|---|---|---|
 | Detection | `tools/feature_drift_monitor.py` | `data/diagnostics/drift_<date>.csv` | nightly grade cron |
-| Detection | `tools/daily_shadow_report.py` | `data/diagnostics/shadow_<date>.csv` + summary | nightly grade cron |
+| Detection | `tools/v21_shadow_predict.py` | `data/diagnostics/v21_v22_disagreements.csv` | nightly grade cron |
 | Investigation | `tools/pick_reasoning_log.py` | `data/diagnostics/picks/<date>.json` | nightly grade cron |
-| Investigation | `tools/v2_t42_shadow.py` | stdout, optional JSON | manual / PR gate |
-| Process gate | `.github/workflows/shadow_gate.yml` | PR comment + status check | every PR |
 | Investigation | `tools/multi_variant_3fold.py` | stdout | manual (rebuild research) |
+| Money-path CI | `.github/workflows/tests.yml` | pass/fail status check | every push + PR |
+
+**There is no automatic model-quality gate.** `tests.yml` proves the
+money plumbing is self-consistent, not that the model improved — see
+section 4. Removed 2026-05-06 with the rest of the V2/T4.2 shadow
+surface: `shadow_gate.yml`, `tools/daily_shadow_report.py`,
+`tools/v2_t42_shadow.py`, `ShadowDeltaCard.tsx`,
+`data/diagnostics/shadow_summary.csv`. Listed here because all five were
+cited by this playbook for three months after they stopped existing.
 
 ## When in doubt
 

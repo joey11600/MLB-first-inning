@@ -11,6 +11,46 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10f] - The docs promised a pre-merge model gate deleted three months earlier (T8.28)
+
+**Fixed**
+
+`.github/workflows/shadow_gate.yml` (T4.7) was removed **2026-05-06** in
+b125aa45 ("v2.1 lock-in: archive V2 toggle, remove V3 + shadow surface
+entirely") — deliberately, along with `tools/daily_shadow_report.py` (T4.4),
+`tools/v2_t42_shadow.py`, `ShadowDeltaCard.tsx` (T4.9) and
+`data/diagnostics/shadow_summary.csv`. The code removal was clean. The docs
+never caught up and kept describing all five as live for three months.
+
+**The dangerous one was PLAYBOOK section 4**, an entire procedure headed *"I'm
+about to merge a PR that touches the predictor"*, which stated the gate "will
+run automatically" and would fail the PR under `delta_pl < -2.0u`. Anyone
+following it merged a predictor change believing a model-quality check had
+passed. Nothing ran. A stale "you're covered" is worse than no doc, because it
+stops you looking.
+
+Rewritten to say what actually exists. `tests.yml` runs on every push and proves
+the money **plumbing** is self-consistent — Python ↔ fixtures ↔ TypeScript — and
+says nothing about whether the model improved; a change that quietly worsens
+predictions passes it green. Section 4 now states plainly that **the operator is
+the gate**, and routes to the three-split out-of-sample protocol CLAUDE.md
+already calls non-negotiable. Also corrected: KB.md's six-layer list (3 of 6
+dead), PLAYBOOK's diagnostic-stack table (3 dead rows), SELF_HOSTED_RUNNER's
+cutover list. The surviving V2.1-vs-V2.2 track (`tools/v21_shadow_predict.py` →
+`data/diagnostics/v21_v22_disagreements.csv`) is now labelled observability,
+not a gate.
+
+**Correction to `[2026-08-10e]`:** that entry said CLAUDE.md carried the stale
+citation. It does not — neither CLAUDE.md nor AGENTS.md has ever mentioned
+shadow_gate. The citations were in docs/KB.md, docs/PLAYBOOK.md and
+docs/SELF_HOSTED_RUNNER.md.
+
+**Generalises:** deleting a subsystem is only half the change — grep the docs
+for its filenames in the same commit. A removed guard that is still documented
+becomes a false assurance, which is worse than never having had it.
+
+---
+
 ## [2026-08-10e] - Swept the other workflows for the T8.26 gating defect (T8.27)
 
 **Fixed**
@@ -53,9 +93,11 @@ the shell level, so a broken drift monitor cannot stop `Commit data changes`. Th
 three steps that can fail are genuine prerequisites. `runner_watchdog.yml` is a
 single step.
 
-**Doc drift found in passing:** CLAUDE.md cites
-`.github/workflows/shadow_gate.yml` as running automatically before a predictor
-merge. That file does not exist — there are four workflows.
+**Doc drift found in passing:** `.github/workflows/shadow_gate.yml` is cited as
+running automatically before a predictor merge, and does not exist. *(Corrected
+in `[2026-08-10f]`: the citation is in docs/KB.md, docs/PLAYBOOK.md and
+docs/SELF_HOSTED_RUNNER.md — **not** CLAUDE.md, which never mentioned it. This
+entry named the wrong file.)*
 
 ---
 

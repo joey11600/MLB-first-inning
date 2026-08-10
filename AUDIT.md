@@ -256,10 +256,47 @@ the live ledger's own columns are healthy.
   calibrator on them, so a failed refit SHOULD discard the new park
   factors rather than ship a calibrator that never saw them.
   `runner_watchdog.yml` is a single step, n/a.
-  **Doc drift found in passing:** CLAUDE.md cites
-  `.github/workflows/shadow_gate.yml` as running automatically before a
-  predictor merge. That file does not exist; there are four workflows.
-  The safety net described is not there.
+  **Doc drift found in passing:** `.github/workflows/shadow_gate.yml` is
+  cited as running automatically before a predictor merge, and does not
+  exist. The safety net described is not there. Closed as T8.28.
+  *(Correction: this line originally named CLAUDE.md as the source of
+  the claim. It is not — CLAUDE.md and AGENTS.md never mention
+  shadow_gate. The citations are in docs/KB.md, docs/PLAYBOOK.md and
+  docs/SELF_HOSTED_RUNNER.md.)*
+
+- [x] **T8.28 — the docs promised a pre-merge model gate that was
+  deleted three months earlier** ✅ 2026-08-10
+  `.github/workflows/shadow_gate.yml` (T4.7) was removed **2026-05-06**
+  in b125aa45 ("v2.1 lock-in: archive V2 toggle, remove V3 + shadow
+  surface entirely"), deliberately and along with the rest of that
+  surface: `tools/daily_shadow_report.py` (T4.4), `tools/v2_t42_shadow.py`,
+  `dashboard/components/ShadowDeltaCard.tsx` (T4.9) and
+  `data/diagnostics/shadow_summary.csv`. The code removal was clean; the
+  DOCS never caught up, and kept describing all five as live for three
+  months.
+  **The dangerous one was PLAYBOOK section 4**, an entire procedure
+  headed *"I'm about to merge a PR that touches the predictor"* which
+  told the reader the gate "will run automatically" and would fail the
+  PR under `delta_pl < -2.0u`. Anyone following it merged a predictor
+  change believing a model-quality check had passed. Nothing ran. **A
+  stale "you're covered" is worse than no doc at all, because it stops
+  you looking.**
+  Also stale: KB.md's six-layer diagnostic list (3 of 6 dead),
+  PLAYBOOK's diagnostic-stack table (3 dead rows), and
+  SELF_HOSTED_RUNNER's cutover list.
+  Fixed by writing down what actually exists: `tests.yml` runs on every
+  push, and it proves the money PLUMBING is self-consistent (Python ↔
+  fixtures ↔ TypeScript) — **it says nothing about whether the model got
+  better or worse, and a change that quietly worsens predictions passes
+  it green.** Section 4 now says the operator IS the gate and routes to
+  the three-split out-of-sample protocol. The surviving V2.1-vs-V2.2
+  track (`tools/v21_shadow_predict.py` →
+  `data/diagnostics/v21_v22_disagreements.csv`) is labelled
+  observability, not a gate.
+  **Generalises:** deleting a subsystem is only half the change. Grep
+  the docs for its filenames in the same commit — a removed guard that
+  is still documented converts into a false assurance, which is a worse
+  state than never having had it.
 
 ---
 
