@@ -131,6 +131,28 @@ If anything goes wrong (runner offline, VPS down, weird env quirk):
 The runner self-updates major versions automatically; no maintenance
 needed.
 
+### The runner's version gates which ACTIONS this repo may use
+
+Every `actions/*` release from `checkout@v5`, `setup-python@v6` and
+`setup-node@v5` onward runs on Node 24, and each of those release notes
+states the same floor: **runner v2.327.1 or newer**.  GitHub-hosted
+runners are always current, so this constraint is invisible until a
+workflow lands on THIS box -- and `daily.yml` (the predict cron) and
+`backup.yml` both do, via `runs-on: ${{ vars.RUNNER_LABEL || ... }}`
+with `RUNNER_LABEL=self-hosted`.  An action too new for the runner fails
+the whole job, which on `daily.yml` means no picks.
+
+Checked before the 2026-08-10 bump to `@v7`: runner `vmi3065305` was on
+**2.336.0**, comfortably clear.  Self-update keeps it that way, so this
+is a non-issue in normal operation.  It becomes one only if self-update
+is ever disabled or the box sits offline for a long stretch -- so if a
+job starts failing right after an action version bump, check this first:
+
+```bash
+gh api repos/joey11600/MLB-first-inning/actions/runners \
+  -q '.runners[] | "\(.name) \(.status) \(.version)"'
+```
+
 ## Troubleshooting
 
 ### Workflow fails with "no runner matches the labels"

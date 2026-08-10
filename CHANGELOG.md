@@ -11,6 +11,44 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10d] - Actions bumped off deprecated Node 20
+
+**Changed**
+
+All seven `actions/*` pins across the three workflows that use them, onto the
+current majors — GitHub had begun annotating every run with a Node 20
+deprecation warning and force-running them on Node 24 anyway:
+
+| | was | now |
+|---|---|---|
+| `actions/checkout` | v4 | **v7** (backup.yml, daily.yml, tests.yml ×2) |
+| `actions/setup-python` | v5 | **v7** (daily.yml, tests.yml) |
+| `actions/setup-node` | v4 | **v7** (tests.yml) |
+
+Warnings only, nothing was failing — but Node 20 is on its way out, and these
+would eventually have stopped running rather than merely complaining.
+
+**The one real hazard was the self-hosted runner, and it was checked, not
+assumed.** `daily.yml` (the predict cron) and `backup.yml` both carry
+`runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}`, and `RUNNER_LABEL` is
+set to `self-hosted` — so they run on the Contabo box, not a GitHub runner.
+Every release from `checkout@v5` / `setup-python@v6` / `setup-node@v5` onward
+requires **runner ≥ v2.327.1**, a floor GitHub-hosted runners meet invisibly and
+a self-hosted one need not. Too-new an action fails the whole job, which on
+`daily.yml` means no picks. Runner `vmi3065305` measured at **2.336.0** before
+the bump — clear. Recorded in [docs/SELF_HOSTED_RUNNER.md](./docs/SELF_HOSTED_RUNNER.md)
+with the one-line query, since it is invisible from the workflow files.
+
+**Breaking changes reviewed per major, not skipped.** `checkout` v5→v7 and
+`setup-python` v6→v7 break nothing beyond the runner floor. `setup-node` v5 adds
+automatic caching when `package.json` declares `packageManager` — `dashboard/package.json`
+declares no such field, and the workflow sets `cache: npm` explicitly, so the
+new behaviour does not engage. Every input in use (`fetch-depth`,
+`python-version`, `cache`, `node-version`, `cache-dependency-path`) survives
+unchanged. The diff is seven version strings and nothing else.
+
+---
+
 ## [2026-08-10c] - The parity guard no longer depends on the tests passing (T8.26)
 
 **Changed**
