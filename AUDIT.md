@@ -207,6 +207,59 @@ the live ledger's own columns are healthy.
   they were dependent stages. Ask of any two CI steps whether the second
   CONSUMES the first or merely FOLLOWS it; if it merely follows, the
   implicit `success()` is a silent single point of failure.
+  Swept for other instances as T8.27 — there were two.
+
+- [x] **T8.27 — the same gating defect in the dashboard job and in
+  backup.yml** ✅ 2026-08-10
+  Audit of all four workflows for the T8.26 pattern. Two more instances,
+  one of them the OTHER HALF of the guard T8.26 had just fixed.
+  **`tests.yml` / `dashboard` job.** `Units guard` and `Kelly +
+  pass-price parity` are independent — the first writes a probe file and
+  type-checks it, the second diffs a committed fixture against Python;
+  neither reads the other's output (verified in the two `.mjs` sources).
+  Sequenced, a units-guard failure silenced the parity guard, and the
+  parity guard is the MONEY one. Missed when T8.26 landed because the two
+  halves of the stake-math protection live in DIFFERENT JOBS: `money`
+  checks fixtures against live Python, `dashboard` checks the TypeScript
+  against those same fixtures. **Rule: when you decouple one guard, go
+  find its other half.**
+  **`backup.yml`.** Snapshot → Prune → Commit were sequenced but are
+  peers. Two teeth: (1) snapshot failure skips the prune, and the
+  canonical snapshot failure is a full disk — the exact condition pruning
+  would relieve, so the gate disables the cleanup precisely when it is
+  needed; (2) prune failure skips the commit, discarding the snapshot,
+  which is the job's whole purpose. And the commit is load-bearing for
+  the prune, not just the snapshot: `git add data/backups` stages the
+  DELETIONS too, so a prune whose commit never runs achieves nothing that
+  outlives the runner. This file already carries the scar — silent
+  non-pruning grew 94 snapshots until the tracked tree pushed the Vercel
+  bundle past 250MB and every deploy errored (2026-08-05).
+  **Measured while fixing it: tracked `data/` is 155.1 MB, of which
+  126.0 MB is `data/backups`** (4,142 tracked files; earlier `xargs du |
+  tail -1` readings undercount badly — xargs splits and only the last
+  batch total is printed). Against a 250MB limit that has already broken
+  deploys once, the prune is not housekeeping, it is the thing keeping
+  the deploy alive, and it was gated behind a step that can fail.
+  Fixed: both later steps run on `!cancelled()`, gated only on the
+  checkout — the one true prerequisite.
+  **ACCEPTED TRADE, recorded so nobody "fixes" it back:** a mid-way
+  snapshot failure now commits a PARTIAL backup. Deliberate — a partial
+  backup restores more than none, the job still goes red so the operator
+  sees it, and the alternative silently discards the prune as well.
+  **NOT a defect: `daily.yml`.** Checked and clean, by construction. 15
+  of its 24 steps wrap their work in `set +e` + `|| echo "::warning::"`,
+  which does T8.26's job at the shell level — a broken drift monitor or
+  loss-classifier cannot stop `Commit data changes`. The three steps that
+  CAN fail (install deps, decide action, recalibrate) are genuine
+  prerequisites where skipping downstream is correct; recalibrate
+  especially, since it rebuilds park factors and then refits the
+  calibrator on them, so a failed refit SHOULD discard the new park
+  factors rather than ship a calibrator that never saw them.
+  `runner_watchdog.yml` is a single step, n/a.
+  **Doc drift found in passing:** CLAUDE.md cites
+  `.github/workflows/shadow_gate.yml` as running automatically before a
+  predictor merge. That file does not exist; there are four workflows.
+  The safety net described is not there.
 
 ---
 

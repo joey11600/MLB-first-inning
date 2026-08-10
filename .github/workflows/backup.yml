@@ -28,7 +28,38 @@ jobs:
     # when RUNNER_LABEL repo variable is unset.
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
+      # THE THREE STEPS BELOW ARE PEERS, NOT A PIPELINE (T8.26).
+      #
+      # Snapshot / Prune / Commit read like stages, so they were sequenced
+      # under the implicit `success()` that every un-`if`'d step carries.
+      # They are not stages, and that coupling had two teeth:
+      #
+      #   * SNAPSHOT FAILS -> PRUNE SKIPPED. Pruning does not need the
+      #     snapshot to have worked. The bad version is a full disk: the
+      #     condition that breaks `mkdir`/`cp` is the same one pruning would
+      #     relieve, so the gate disables the cleanup exactly when it is
+      #     needed. Self-locking.
+      #   * PRUNE FAILS -> COMMIT SKIPPED, discarding the snapshot, which is
+      #     the entire point of the job.
+      #
+      # And the commit is load-bearing for the prune, not just the snapshot:
+      # `git add data/backups` stages the DELETIONS too, so a prune whose
+      # commit never runs achieves nothing that outlives the runner. That is
+      # the failure this file already carries a scar from -- see the comment
+      # on the prune step: silent non-pruning grew 94 snapshots until the
+      # tracked tree pushed the Vercel bundle past 250MB and every deploy
+      # errored (2026-08-05).
+      #
+      # So both later steps run on `!cancelled()`, gated only on the
+      # checkout, which is the one true prerequisite -- with no working tree
+      # there is nothing to snapshot, prune or commit.
+      #
+      # ACCEPTED TRADE: if the snapshot fails midway the commit now ships a
+      # PARTIAL backup. Deliberate. A partial backup still restores more than
+      # no backup, the job still goes red so the operator sees it, and the
+      # alternative silently throws away the prune as well.
       - name: Checkout
+        id: checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
@@ -60,6 +91,7 @@ jobs:
           ls -la "$BACKUP_DIR" || true
 
       - name: Prune snapshots older than 30 days
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         # Compare the snapshot's DATE-NAMED directory against a cutoff
         # instead of file mtimes: a fresh `actions/checkout` stamps every
         # file with the clone time, so `find -mtime +30` never matched
@@ -86,6 +118,7 @@ jobs:
           fi
 
       - name: Commit + push snapshot
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

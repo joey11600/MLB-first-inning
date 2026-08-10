@@ -111,16 +111,32 @@ jobs:
           cache-dependency-path: dashboard/package-lock.json
 
       - name: Install
+        id: install
         working-directory: dashboard
         run: npm ci
 
       # These are the two guards Vercel runs in `prebuild`. Running them here
       # too means they still fire on a push that Vercel skips, and they fail
       # fast rather than at deploy time.
-      - name: Units guard (compile-time brand on cumulative sums)
-        working-directory: dashboard
-        run: node scripts/check-units-guard.mjs
-
+      #
+      # NEITHER GATES THE OTHER, same rule as the `money` job (T8.26). These
+      # are independent checks, not pipeline stages: the units guard writes a
+      # probe file and type-checks it, the parity guard diffs a committed
+      # fixture against Python. Neither reads the other's output. Left
+      # sequenced under the implicit `success()`, a units-guard failure would
+      # silence the parity guard -- and the parity guard is the MONEY one.
+      #
+      # This was missed when T8.26 landed because the two halves of the
+      # stake-math protection live in DIFFERENT JOBS: `Fixtures still match
+      # Python` above compares the fixtures to the live Python, this one
+      # compares the dashboard's TypeScript to the same fixtures, and fixing
+      # only the first left the second silenceable. When you decouple one
+      # guard, look for its other half.
       - name: Kelly + pass-price parity (TypeScript vs fixture)
         working-directory: dashboard
         run: node scripts/check-kelly-parity.mjs
+
+      - name: Units guard (compile-time brand on cumulative sums)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: dashboard
+        run: node scripts/check-units-guard.mjs

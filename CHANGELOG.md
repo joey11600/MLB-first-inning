@@ -11,6 +11,54 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10e] - Swept the other workflows for the T8.26 gating defect (T8.27)
+
+**Fixed**
+
+Audited all four workflows for the pattern T8.26 fixed. Two more instances.
+
+**`tests.yml` / `dashboard` job — the other half of the same guard.** `Units
+guard` and `Kelly + pass-price parity` are independent (one type-checks a
+generated probe file, the other diffs a committed fixture against Python;
+neither reads the other's output — verified in both `.mjs` sources). Sequenced,
+a units-guard failure silenced the parity guard — the money one. This was missed
+when T8.26 landed because the two halves of the stake-math protection live in
+**different jobs**: `money` checks the fixtures against live Python, `dashboard`
+checks the TypeScript against those same fixtures. Fixing one left the other
+silenceable. *Rule: when you decouple one guard, go find its other half.*
+
+**`backup.yml` — Snapshot → Prune → Commit are peers, not stages.** Two teeth:
+a snapshot failure skipped the prune, and the canonical snapshot failure is a
+full disk — the exact condition pruning would relieve, so the gate disabled the
+cleanup precisely when needed; and a prune failure skipped the commit,
+discarding the snapshot the job exists to make. The commit is load-bearing for
+the prune too: `git add data/backups` stages the deletions, so a prune whose
+commit never runs achieves nothing that outlives the runner.
+
+**Measured while fixing it: tracked `data/` is 155.1 MB, of which 126.0 MB is
+`data/backups`.** Against the 250 MB limit that already broke every deploy on
+2026-08-05, the prune is not housekeeping — it is what keeps deploys alive, and
+it was gated behind a step that can fail. (Note for future measurement: `git
+ls-files data | xargs du -ch | tail -1` reports ~11 MB and is wrong — xargs
+splits the list and only the final batch's total is printed.)
+
+Both later steps now run on `!cancelled()`, gated only on the checkout.
+**Accepted trade, recorded so nobody reverts it:** a mid-way snapshot failure
+now commits a partial backup. Deliberate — a partial backup restores more than
+none, the job still goes red, and the alternative discards the prune as well.
+
+**Not a defect: `daily.yml`.** Checked and clean by construction — 15 of its 24
+steps wrap their work in `set +e` + `|| echo "::warning::"`, doing T8.26's job at
+the shell level, so a broken drift monitor cannot stop `Commit data changes`. The
+three steps that can fail are genuine prerequisites. `runner_watchdog.yml` is a
+single step.
+
+**Doc drift found in passing:** CLAUDE.md cites
+`.github/workflows/shadow_gate.yml` as running automatically before a predictor
+merge. That file does not exist — there are four workflows.
+
+---
+
 ## [2026-08-10d] - Actions bumped off deprecated Node 20
 
 **Changed**
