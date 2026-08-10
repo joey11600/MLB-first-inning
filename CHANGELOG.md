@@ -11,6 +11,85 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-09b] - Allocation order, the manual-odds twin, and a test that wrote to production
+
+Three follow-ons to T8.18, all operator-directed.
+
+### Fixed — the budget now goes to the best bet, not the first one (T8.19)
+
+`import_odds` handed out the 15u daily budget in DraftKings' file order, so on
+a cap-bound slate a pick's PUBLISHED STAKE depended on its row position. The
+real 2026-07-31 four-game slate:
+
+```
+file order   CWS@TB 8u   KC@COL 5u   MIL@LAA 2u   DET@OAK 0u
+reversed     CWS@TB 4u   KC@COL 5u   MIL@LAA 5u   DET@OAK 0.5u
+```
+
+Same games, same prices, same probabilities — and MIL@LAA is either a 2u bet or
+a 5u bet depending on nothing to do with the bet. The weakest play could take
+money the strongest one then could not have. `kelly_stake_units`' docstring had
+already named this as its known limitation and named the fix.
+
+Matching and sizing are now two passes: matching stays in file order, sizing
+runs best-bet-first via `_top_pick_rank_tuple` — the same ordering the №1 rule,
+`dashboard/lib/top-pick-rank.ts` and `tools/lock_commit.py` use, so the budget
+and the headline can never disagree about which play is best. Only rows inside
+their lock window consume budget (T8.18), so on most slates this reorders
+nothing; it bites exactly when two picks commit in the same batch.
+`verify_kelly_wiring` CHECK 7 now passes: both orders give the identical vector.
+
+### Fixed — `apply_manual_odds.py` was a second T8.18 in the same column
+
+It stamped `bet_placed="Y"` with **no lock-window check** and a flat `"1"` stake,
+writing the two columns independently. Three faults in four lines: committing
+outside the lock window contradicts T2.58 and froze any row it touched out of
+the T8.18 re-derive *forever* via the T2.23 lock; a flat 1u is not the published
+stake (quarter-Kelly sizes these 2u–10u); and splitting the pair is what let the
+2026-07-28 heal fabricate bets. Now routed through `_size_row_stake`, which
+decides commit-vs-pending from the lock window and writes both columns together.
+A row already committed at a real stake is left alone (T2.23). Dormant path —
+the override file is empty — but it would have quietly undone the fix.
+
+### Added — `tests/conftest.py`, because the test suite wrote to production
+
+**Twice in one session a test run put fabricated rows into the production
+Supabase table and they rendered on the public dashboard** — once as
+"THE №1 PLAY · CCC at DDD · STAKE 10u", once as four plausible-looking games
+(CWS@TB 8u, KC@COL 5u, …) indistinguishable from real picks at a glance. They
+also ate 11u of the daily budget, which made the new drift check report the real
+LAD@ARI pick as wrong — a false positive that cost time to chase.
+
+The mechanism is quiet and reasonable-looking: `log_picks` and `import_odds`
+both end by calling `_mirror_picks_to_supabase`, a no-op when the Supabase env
+vars are unset and a **live production write** when they are set. On the
+operator's machine they are set — that is how the real predictor runs. So any
+test driving either function writes to production, and nothing says so.
+
+Three `autouse` guards now apply to every test in the directory whether or not
+the author thought about it, which is the point: an opt-in guard would have
+prevented neither incident.
+
+- Supabase: env vars unset **and** the mirror replaced (either alone has a hole
+  — a module caching a client at import time slips past the env check).
+- Telegram: a commit-path test could otherwise fire a real "BET LOCKED" push
+  about a game that does not exist.
+- The ledger: `_write_rows` refuses a target inside the repo's `data/`. Guards
+  the write rather than `_csv_path`, because several correct tests stub
+  `_read_rows` and let the path be computed without using it.
+
+Verified: Supabase traffic from the suite went 12 → 0, database clean.
+
+### Changed — two T8.18 rows preserved by operator decision
+
+2026-08-02 DET@OAK (published 7u, rule says 1u) and 2026-08-04 SD@ARI (9u vs 8u)
+are genuine T8.18 drift and were left as published. Both were WINS, so
+preserving them **flatters** the record by ~4.97u — recorded in
+`data/stake_drift_exempt.csv` with that stated plainly, so the reason the board
+reads better than the rule is written down next to the rows that cause it.
+
+---
+
 ## [2026-08-09] - The stake froze against a probability the model had abandoned (T8.18)
 
 Same family as T8.16/T8.17 — a published number that stopped tracking the thing

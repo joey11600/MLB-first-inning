@@ -41,3 +41,30 @@ date,game_pk,away_team,home_team,reason
 #
 # Example (uncomment + edit to use):
 # 2026-08-04,776123,SD,ARI,"end_of_day_check orphan heal -- no DK price captured"
+#
+# ---------------------------------------------------------------------------
+# THE TWO T8.18 VICTIMS THE OPERATOR CHOSE TO PRESERVE (2026-08-09)
+#
+# These are NOT heals and NOT unexplained.  Both are genuine T8.18 drift: the
+# stake was sized when the price arrived and never re-derived, so it froze
+# against a probability the model had already replaced by the time the pick
+# locked.  Both are recorded here rather than corrected because the operator
+# decided the published record should keep what was actually published.
+#
+# Both were WINS, so preserving them FLATTERS the record -- correcting them
+# would have cost about 4.97u.  That is the direction that makes the decision
+# worth writing down: the numbers on the board are ~4.97u better than the rule
+# would have produced, and this file is the reason why.
+#
+# 2026-08-02 DET@OAK: model fell 0.6994 -> 0.6012 in the two hours before the
+#   lock; stake stayed 7u where the rule says 1u.  At lock its edge over the
+#   price was 0.94% -- close to a coin flip carrying 7 units.
+# 2026-08-04 SD@ARI:  model fell 0.7128 -> 0.6873 before the lock; stake stayed
+#   9u where the rule says 8u.
+#
+# Do not copy this pattern for NEW drift.  Once PART 1 and PART 2 are enabled
+# on Railway, fresh drift means the fix is not working and belongs in an
+# investigation, not in this file.
+# ---------------------------------------------------------------------------
+2026-08-02,824971,DET,OAK,"T8.18 drift, NOT a heal -- operator decision 2026-08-09 to preserve the published 7u (rule says 1u). WIN; correcting would cost -4.14u."
+2026-08-04,825054,SD,ARI,"T8.18 drift, NOT a heal -- operator decision 2026-08-09 to preserve the published 9u (rule says 8u). WIN; correcting would cost -0.83u."

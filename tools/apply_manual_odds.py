@@ -200,6 +200,12 @@ def main() -> int:
         changed_indices: list[int] = []
         no_op = 0
 
+        # T8.18 rule R2: ONE reset at the top of the batch.  The sizing
+        # below allocates against the day's 15u budget whenever a row is
+        # inside its lock window, and `kelly_stake_units` now refuses to
+        # allocate on a process that never reset the tally.
+        tracker.kelly_reset_daily_committed()
+
         for o in season_overrides:
             d = o.get("date", "")
             a = o.get("away_team", "").upper()
@@ -234,13 +240,46 @@ def main() -> int:
             # Heal bet_placed for STRONG NRFI/YRFI rows.  Only flip
             # to Y when it wasn't already a real bet -- keeps PASS
             # rows untouched (those need the dedicated heal path).
+            #
+            # T8.18/T8.19 -- THIS BLOCK USED TO BE A SECOND T8.18.
+            # It stamped `bet_placed="Y"` with NO lock-window check and a
+            # flat `"1"` stake, writing the two columns independently.
+            # Three separate faults in four lines:
+            #   * committing outside the lock window contradicts T2.58, and
+            #     any row it touched was then frozen out of the pre-lock
+            #     re-derive FOREVER by the T2.23 lock -- the exact defect
+            #     T8.18 exists to fix, reintroduced through the side door;
+            #   * a flat 1u is not the published stake.  Quarter-Kelly
+            #     sizes these 2u-10u, so the ledger recorded a bet nobody
+            #     placed at a size nobody published;
+            #   * writing `units_risked` without `bet_placed` is the pair
+            #     split that let the 2026-07-28 heal fabricate bets.
+            # Now it routes through the shipped sizing path, which decides
+            # commit-vs-pending from the lock window and writes both
+            # columns together.  `units_strong=None` means no flat
+            # fallback: if Kelly cannot price it, the row is left as found
+            # rather than invented.
             ps   = (row.get("pick_strength") or "").strip().upper()
             side = (row.get("pick_side")     or "").strip().upper()
             if ps == "STRONG" and side in ("NRFI", "YRFI"):
-                if (row.get("bet_placed") or "").strip().upper() != "Y":
-                    row["bet_placed"]   = "Y"
-                if not (row.get("units_risked") or "").strip():
-                    row["units_risked"] = "1"
+                already_committed = (
+                    (row.get("bet_placed") or "").strip().upper() == "Y"
+                    and (row.get("units_risked") or "").strip()
+                )
+                # T2.23: a row already committed at a real stake stays put.
+                # The operator is in that bet at that size.
+                if not already_committed:
+                    inside_lock = tracker._is_inside_lock_window(
+                        (row.get("game_time_et") or "").strip(), d)
+                    tracker._apply_edges_to_row(
+                        row, row.get("market_nrfi_odds", ""),
+                        row.get("market_yrfi_odds", ""))
+                    try:
+                        tracker._size_row_stake(
+                            row, season=season, inside_lock=inside_lock,
+                            units_lean=0.0, units_strong=None)
+                    except tracker.KellyBudgetUnavailable:
+                        pass          # leave the row exactly as found
 
             # Recompute P&L from the new odds when the row is graded.
             if (row.get("graded_result") or "").strip().upper() in ("WIN", "LOSS"):

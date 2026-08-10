@@ -388,7 +388,22 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   flagged, both WINS, correcting them LOWERS recorded P&L by ~4.97u — awaiting
   operator decision. 07-31 correctly classified cap-order, not drift.
 
-- [ ] **T8.19** ⚠️ 2026-08-09 — `verify_kelly_wiring` CHECK 7 measures, for the
+- [x] **T8.20** ✅ 2026-08-09 — THE TEST SUITE WROTE TO PRODUCTION. Twice in one
+  session a test run inserted fabricated rows into the live Supabase
+  `picks_2026` table and they rendered on the public dashboard — once as
+  "THE №1 PLAY · CCC at DDD · STAKE 10u", once as four plausible-looking games
+  (CWS@TB 8u, KC@COL 5u, MIL@LAA 2u, DET@OAK 0u). They also consumed 11u of the
+  daily budget, producing a false drift report against the real LAD@ARI pick.
+  Mechanism: `log_picks` and `import_odds` both end in
+  `_mirror_picks_to_supabase`, a no-op with the Supabase env vars unset and a
+  live production write with them set — and they ARE set on the operator's
+  machine, because that is how the real predictor runs. Rows deleted (never
+  reached the CSV; Discord unaffected, it reads the CSV). Fixed by
+  `tests/conftest.py`: three `autouse` guards blocking Supabase (env unset AND
+  mirror replaced), Telegram, and `_write_rows` against the repo's `data/`.
+  Suite Supabase traffic 12 → 0.
+
+- [x] **T8.19** ✅ 2026-08-09 — `verify_kelly_wiring` CHECK 7 measures, for the
   first time, that the daily 15u budget is allocated FIRST COME FIRST SERVED, so
   the same slate sizes differently depending on row order: 2026-07-31 gives
   CWS@TB 8u/KC@COL 5u/MIL@LAA 2u/DET@OAK 0u in file order and
@@ -397,9 +412,24 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   identical allocation against an unmodified worktree at HEAD (byte-identical
   vectors) — and already named as a KNOWN LIMITATION in `kelly_stake_units`'
   docstring. `tools/lock_commit.py` fixes it for its own sweep by sorting
-  best-bet-first; `import_odds` still allocates in DK-file order. CHECK 7 is left
-  FAILING deliberately: either rank by edge before allocating in `import_odds`
-  too, or have the operator accept order-dependence. Do not loosen the assertion.
+  best-bet-first; `import_odds` still allocated in DK-file order.
+  **FIXED 2026-08-09 (operator: "lets fix this").** `import_odds` now splits
+  matching from sizing: matching keeps DK-file order, sizing sorts by
+  `_top_pick_rank_tuple` before allocating, so both writers use one canonical
+  order and it is the same order the №1 rule and `top-pick-rank.ts` use. CHECK 7
+  now passes with identical vectors in both directions, and
+  `tests/test_allocation_order.py` drives the real `import_odds` (not a
+  reimplementation of its allocator) to pin it: same allocation either way, cap
+  respected, strongest play funded first, three consecutive batches identical.
+
+- [x] **T8.21** ✅ 2026-08-09 — `tools/apply_manual_odds.py` was a second T8.18
+  in the same column: it stamped `bet_placed="Y"` with NO lock-window check and
+  a flat `"1"` stake, writing the pair independently. Any row it touched was
+  then frozen out of the T8.18 re-derive forever by the T2.23 lock. Now routed
+  through `_size_row_stake`, which decides commit-vs-pending from the lock
+  window and writes both columns together; a row already committed at a real
+  stake is left alone. Dormant (override file empty) but it would have silently
+  undone the fix.
 
 - [x] **T8.17** ✅ 2026-08-08 — THE BOARD printed a committed stake for a pick
   that had not locked. Published `CLE@CWS · Stake 6 units` at 2:07 PM for a

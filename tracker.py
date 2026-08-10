@@ -4498,6 +4498,9 @@ def import_odds(
     # T2.30: track which row indices got odds applied so we mirror
     # exactly that subset to Supabase after the CSV write.
     matched_indices: list[int] = []
+    # T8.19: matching and SIZING are now two passes.  Matching stays in
+    # DK-file order; sizing runs best-bet-first.  See the sort below.
+    pending: list[tuple[int, str, str, str]] = []
 
     with open(odds_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -4556,26 +4559,75 @@ def import_odds(
                 team_matched_n += 1
 
             dates_covered.add(iso_date)
+            pending.append((idx, nrfi_o, yrfi_o, book))
 
-            rows[idx] = _apply_odds_to_row(
-                rows[idx], nrfi_o, yrfi_o, book, min_edge,
-                units_lean, units_strong, now,
-                # T8.18: thread the season so the daily cap stops silently
-                # reading picks_2026.csv regardless of which season is live.
-                season=season,
-            )
-            matched_indices.append(idx)
+    # ---- T8.19: ALLOCATE BEST BET FIRST ------------------------------
+    #
+    # The 15u daily budget is handed out first-come, first-served, so
+    # until now a pick's PUBLISHED STAKE depended on where its game
+    # happened to sit in DraftKings' file.  Measured on the real
+    # 2026-07-31 slate: iterating one way gives
+    #   CWS@TB 8u / KC@COL 5u / MIL@LAA 2u / DET@OAK 0u
+    # and reversed gives
+    #   CWS@TB 4u / KC@COL 5u / MIL@LAA 5u / DET@OAK 0.5u
+    # -- same four games, same prices, same probabilities, and a game
+    # that is either a 2u bet or a 5u bet depending on file order.  On a
+    # cap-bound day the weakest play could take money the strongest one
+    # then could not have.
+    #
+    # `kelly_stake_units`' own docstring already named this ("the daily
+    # budget is allocated FIRST COME, FIRST SERVED in whatever order rows
+    # are processed, not best-bet-first ... If the slate ever widens,
+    # rank the day's picks by edge before allocating").  This is that.
+    #
+    # The key is `_top_pick_rank_tuple`, the SAME ordering the №1 rule and
+    # dashboard/lib/top-pick-rank.ts use, so the budget and the headline
+    # can never disagree about which play is the best on the board -- and
+    # it matches tools/lock_commit.py's sweep, so the two writers allocate
+    # identically.  Ranking uses the INCOMING price, since that is the one
+    # about to be written.  A row whose probability will not parse sorts
+    # LAST: it cannot be sized either, so it must not take budget ahead of
+    # a real bet.
+    #
+    # Only rows inside their lock window actually consume the budget
+    # (T8.18: `game_date` reaches Kelly only when committing), so on most
+    # slates this reorders nothing.  It bites exactly when two picks
+    # commit in the same batch.
+    def _alloc_key(item: tuple[int, str, str, str]) -> tuple:
+        i, n_o, y_o, _book = item
+        r    = rows[i]
+        side = (r.get("pick_side") or "").strip().upper()
+        name = (f"{(r.get('away_team') or '').strip().upper()}"
+                f"@{(r.get('home_team') or '').strip().upper()}")
+        try:
+            p = float(r.get("nrfi_prob"))
+        except (TypeError, ValueError):
+            return (1, 1.0, 1.0, name)
+        return (0,) + _top_pick_rank_tuple(
+            side, p, (n_o if side == "NRFI" else y_o), name)
 
-            r = rows[idx]
-            bet_tag   = f"bet={'Y' if r['bet_placed']=='Y' else 'N'}"
-            edge_tag  = f"edge={r['edge_on_pick'] or 'N/A'}"
-            units_tag = f"{r['units_risked']}u" if r.get("bet_placed") == "Y" else ""
-            print(
-                f"  {r['away_team']:>3} @ {r['home_team']:<3}  "
-                f"NRFI:{nrfi_o:>5}  YRFI:{yrfi_o:>5}  "
-                f"{bet_tag}  {edge_tag}  {units_tag}"
-            )
-            matched_n += 1
+    pending.sort(key=_alloc_key)
+
+    for idx, nrfi_o, yrfi_o, book in pending:
+        rows[idx] = _apply_odds_to_row(
+            rows[idx], nrfi_o, yrfi_o, book, min_edge,
+            units_lean, units_strong, now,
+            # T8.18: thread the season so the daily cap stops silently
+            # reading picks_2026.csv regardless of which season is live.
+            season=season,
+        )
+        matched_indices.append(idx)
+
+        r = rows[idx]
+        bet_tag   = f"bet={'Y' if r['bet_placed']=='Y' else 'N'}"
+        edge_tag  = f"edge={r['edge_on_pick'] or 'N/A'}"
+        units_tag = f"{r['units_risked']}u" if r.get("bet_placed") == "Y" else ""
+        print(
+            f"  {r['away_team']:>3} @ {r['home_team']:<3}  "
+            f"NRFI:{nrfi_o:>5}  YRFI:{yrfi_o:>5}  "
+            f"{bet_tag}  {edge_tag}  {units_tag}"
+        )
+        matched_n += 1
 
     _write_rows(picks_path, rows)
     # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the

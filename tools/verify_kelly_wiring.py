@@ -304,7 +304,17 @@ def main():
     day_cap = tracker.KELLY_MAX_DAILY_FRAC * 100.0   # published as "15u/day"
 
     def size_slate(order):
-        """Allocate the slate in `order` and return {game: stake}."""
+        """Allocate the slate in `order` and return {game: stake}.
+
+        T8.19: this now applies the SHIPPED allocation order rather than
+        sizing in whatever sequence the caller supplies.  `import_odds`
+        and `tools/lock_commit.py` both sort by `_top_pick_rank_tuple`
+        before allocating, so a check that skipped the sort would be
+        measuring a code path that no longer exists in production -- and
+        would keep reporting an order-dependence the system has fixed.
+        The point of feeding it two different input orders is precisely
+        to prove the sort makes the input order stop mattering.
+        """
         # R2 of the reset discipline: ONE reset at the top of the batch,
         # never per row.  Doing it per row hands every row the full budget
         # and the cap silently stops binding -- which is exactly the sort of
@@ -319,8 +329,14 @@ def main():
         # The subject here is the ALLOCATOR, so it starts from an empty
         # budget; the probabilities and prices are still the real ones.
         tracker._daily_committed[SLATE_DATE] = 0.0
+        # All four are YRFI picks, so rank is p(no run) = 1 - p, and
+        # smaller sorts first -- the most confident play gets the budget.
+        ranked = sorted(
+            order,
+            key=lambda t: tracker._top_pick_rank_tuple("YRFI", 1.0 - t[1], t[2], t[0]),
+        )
         return {g: tracker.kelly_stake_units(p, o, game_date=SLATE_DATE)
-                for g, p, o in order}
+                for g, p, o in ranked}
 
     def _vec(d):
         return "  ".join(
