@@ -388,6 +388,25 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   flagged, both WINS, correcting them LOWERS recorded P&L by ~4.97u — awaiting
   operator decision. 07-31 correctly classified cap-order, not drift.
 
+- [x] **T8.23** ✅ 2026-08-09 — THIRTEEN COLUMNS WIPED ON EVERY PREDICT TICK,
+  and it is the answer to "why is CLV unmeasurable" (open since 2026-07-27).
+  `log_picks` rebuilds each row from a dict literal + a short `preserve` list;
+  `csv.DictWriter` writes `""` for any FIELDS key in neither, ~12x/day. Twelve
+  columns just lost data. The thirteenth self-repaired with the WRONG value,
+  which hid it: `_apply_odds_to_row` re-seeds `opened_*_odds` only when blank,
+  so the wipe made the "opening" price re-seed from the CURRENT scrape every
+  cycle. **1191 of 1277 priced rows (93.3%) have opened == market**, still
+  93.3% in August. Not a capture gap — this. The other nine belong to the v21
+  shadow model and the last-10 top-3 splits and were erased by a process that
+  does not own them. Only the pre-game branch leaked; the locked/graded branch
+  already copies everything outside `allow_update`.
+  **NOT RETROACTIVELY FIXABLE** — the true opening price was never stored, so
+  the 1191 rows are unrecoverable. 86 rows carry real movement. CLV is
+  measurable on new rows only; the first honest read is ~a month out, and any
+  figure spanning earlier dates compares the price to itself.
+  Guarded by `tests/test_preserve_columns.py`. Closes the CLV item in
+  `open_items_2026_07_27`.
+
 - [x] **T8.22** ✅ 2026-08-09 — THE №1-ONLY ALERT CROWNED EVERY PICK. Measured
   against `notifications_log`, not reasoned about: both multi-pick slates since
   the policy shipped 2026-08-05 fired a "BET LOCKED" alert for EVERY pick

@@ -911,6 +911,45 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "implied_nrfi_prob", "implied_yrfi_prob",
                 "edge_nrfi", "edge_yrfi", "edge_on_pick",
                 "bet_placed", "units_risked", "profit_loss_units",
+                # ---- T8.23: THIRTEEN COLUMNS THAT WERE BEING WIPED ----
+                #
+                # `new_row` below is a dict LITERAL, and csv.DictWriter
+                # substitutes "" for any FIELDS key the dict lacks.  These
+                # thirteen are never in that literal and were never in this
+                # list, so EVERY predict tick silently blanked them.
+                #
+                # WHY IT MATTERED MOST FOR opened_*: `_apply_odds_to_row`
+                # re-seeds the opening price only when it is blank --
+                #     if not (row.get("opened_nrfi_odds") or "").strip():
+                #         row["opened_nrfi_odds"] = nrfi_odds
+                # -- so the wipe made it re-seed from the CURRENT scrape on
+                # every cycle.  The "opening" line was therefore never the
+                # opening line; it was the latest one.  Measured on the
+                # ledger: 1191 of 1277 priced rows (93.3%) have
+                # opened == market, and it was still 93.3% over the first
+                # nine days of August.  That is why CLV has been
+                # unmeasurable -- not a capture gap, this.
+                #
+                # The other nine are written by OTHER tools (the v21 shadow
+                # model, the last-10 top-3 splits) and were being erased by
+                # a process that does not own them.
+                #
+                # clv_pct is recomputed by every odds import, so preserving
+                # it changes nothing on its own -- it is here so the whole
+                # group travels together rather than someone re-deriving
+                # which of the thirteen "really" needed it.
+                #
+                # HOW TO NOT REINTRODUCE THIS: if you add a column to
+                # FIELDS, either set it in the `new_row` literal or add it
+                # here. tests/test_preserve_columns.py fails if a column is
+                # in neither.
+                "opened_nrfi_odds", "opened_yrfi_odds", "opened_captured_at",
+                "clv_pct",
+                "v21_shadow_nrfi_prob", "v21_shadow_pick_side",
+                "v21_shadow_pick_strength",
+                "away_top3c_last10_obp", "home_top3c_last10_obp",
+                "away_top3c_last10_slg", "home_top3c_last10_slg",
+                "away_top3c_last10_iso", "home_top3c_last10_iso",
             ]
 
             # T2.25 -- Bet-time pick lock.  Once a bet has been placed

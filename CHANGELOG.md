@@ -11,6 +11,56 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-09d] - Thirteen columns were wiped on every predict tick (T8.23)
+
+**This is why CLV has been unmeasurable all season. It was never a capture gap.**
+
+`log_picks` rebuilds each row from a dict LITERAL and copies a short `preserve`
+list back over it. `csv.DictWriter` substitutes `""` for any FIELDS key the
+literal lacks — so thirteen columns, in neither place, were blanked on every
+predict tick, roughly twelve times a day.
+
+Twelve of the thirteen just lost data. The thirteenth repaired itself with the
+WRONG value, which is why nobody caught it: `_apply_odds_to_row` re-seeds the
+opening price only when it is blank —
+
+```python
+if not (row.get("opened_nrfi_odds") or "").strip():
+    row["opened_nrfi_odds"] = nrfi_odds
+```
+
+— so the wipe made it re-seed from the CURRENT scrape every cycle. The "opening"
+line was never the opening line; it was the most recent one. **1191 of 1277
+priced rows (93.3%) have `opened == market`, and it was still 93.3% over the
+first nine days of August.** A market that appears never to move.
+
+The other nine belong to other tools — the v21 shadow model and the last-10
+top-3 splits — and were being erased by a process that does not own them.
+`clv_pct` is recomputed on every odds import, so it lost nothing on its own;
+it is preserved with the group rather than left for someone to re-litigate.
+
+### Fixed
+
+All thirteen added to `preserve`. Only the pre-game branch leaked — the
+locked/graded branch already copies everything outside `allow_update`.
+
+`tests/test_preserve_columns.py` fails if any FIELDS column is neither set by
+the literal nor preserved, so the next column added has to pick a side. (The
+first pass at that check used a lowercase-only pattern and wrongly flagged
+`away_top3_ops_vs_oppHand` / `home_top3_ops_vs_oppHand` as damaged; both are
+set at `tracker.py:879` and are fine. The test now matches case.)
+
+### What this does NOT fix
+
+**The 1191 historical rows cannot be repaired.** The true opening price was
+never stored anywhere — each tick overwrote it — so there is nothing to
+recover it from. 86 rows carry genuine line movement and remain valid.
+CLV becomes measurable on new rows from the next predict tick forward, which
+means the first honest read on it is roughly a month away. Any CLV figure
+covering earlier dates is measuring the price against itself.
+
+---
+
 ## [2026-08-09c] - The №1-only alert crowned every pick, not one (T8.22)
 
 The policy shipped 2026-08-05. Measured against `notifications_log` rather
