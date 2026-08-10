@@ -47,12 +47,41 @@ jobs:
           cache: pip
 
       - name: Install deps
+        id: deps
         run: |
           pip install -r requirements.txt
           pip install pytest
 
-      - name: Money-path tests
-        run: pytest tests/ -v --tb=short
+      # NEITHER CHECK GATES THE OTHER (T8.26).
+      #
+      # A step with no `if:` carries an implicit `success()`, so by default
+      # every step is gated on all the ones before it. That is right for a
+      # BUILD PIPELINE, where a later stage consumes an earlier stage's
+      # output, and wrong for INDEPENDENT CHECKS, where it means the first
+      # one to break decides whether the others get to speak.
+      #
+      # It broke exactly that way on 2026-08-10 (T8.25): the tests died at
+      # COLLECTION on a sys.path accident -- a plumbing fault that says
+      # nothing whatever about the money math -- and took the parity check
+      # down with it for four consecutive pushes, across a stake-allocation
+      # change (T8.19), a ledger fix (T8.23) and a notification fix (T8.22).
+      # The one guard that would have caught a real stake drift was silent
+      # for the entire window, and the CI page said only "failing", which
+      # everyone read as "that test thing again".
+      #
+      # So parity runs FIRST (it is the money-critical one, and it is
+      # cheap), and the tests run whatever it concluded. Swapping the order
+      # ALONE would only have mirrored the bug -- a parity failure would
+      # then hide the tests.
+      #
+      # `!cancelled()` rather than `always()`: this workflow sets
+      # cancel-in-progress, and the hourly automation supersedes runs
+      # routinely, so `always()` would keep working on a run that has
+      # already been abandoned. The `steps.deps` clause keeps the ONE
+      # genuine prerequisite -- with no dependencies installed neither check
+      # can produce a meaningful verdict, and a wall of import errors under
+      # a failed `pip install` buries the real cause instead of adding to
+      # it. Prerequisite, yes; peer check, no.
 
       # THE HALF VERCEL CANNOT DO. check-kelly-parity.mjs compares the
       # dashboard to a committed fixture and never invokes Python, so a
@@ -63,6 +92,10 @@ jobs:
       # printed "ok".
       - name: Fixtures still match Python
         run: python tools/parity_fixtures.py --check
+
+      - name: Money-path tests
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: pytest tests/ -v --tb=short
 
   dashboard:
     name: dashboard guards

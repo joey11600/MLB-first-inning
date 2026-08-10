@@ -11,6 +11,52 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10c] - The parity guard no longer depends on the tests passing (T8.26)
+
+**Changed**
+
+`.github/workflows/tests.yml` — the money job now runs `Fixtures still match
+Python` FIRST, and runs `Money-path tests` regardless of its verdict:
+
+    - name: Money-path tests
+      if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+
+A step with no `if:` carries an implicit `success()`, so by default every step
+is gated on the ones before it. That is right for a build pipeline, where a
+later stage consumes an earlier stage's output, and wrong for independent
+checks, where it lets the first thing to break decide whether anything else
+gets to speak. T8.25 was that bug firing: a sys.path accident in test
+collection — carrying no information about the money math — suppressed the
+stake-parity guard for four pushes while CI said only "failing".
+
+**Swapping the order alone would have mirrored the bug**, not fixed it; a parity
+failure would then have hidden the tests. The gate between two peer checks is
+the defect. Order only decides which one you read first.
+
+`!cancelled()` rather than `always()` because this workflow sets
+`cancel-in-progress` and the hourly automation supersedes runs routinely, so
+`always()` would keep working on an abandoned run. The `steps.deps` clause keeps
+the one real prerequisite: under a failed `pip install` neither check can reach
+a meaningful verdict, and a wall of import errors would bury the real cause.
+
+**Verified by making it fail, not by reading the YAML** — the whole lesson of
+T8.25 being that this class of defect passes inspection. Scratch branch with the
+parity STEP forced to `exit 1` (never a fixture; no money file was touched),
+[run 31415202287](https://github.com/joey11600/MLB-first-inning/actions/runs/31415202287):
+
+    X  Fixtures still match Python   -> exit 1
+    ✓  Money-path tests              -> 97 passed
+    X  job conclusion                -> failure
+
+The second step ran on a failed first step, and the job still went red — a real
+failure is surfaced, not masked. Branch deleted after the run.
+
+**Generalises:** ask of any two CI steps whether the second CONSUMES the first
+or merely FOLLOWS it. If it merely follows, the implicit `success()` is a silent
+single point of failure.
+
+---
+
 ## [2026-08-10b] - CI red for four pushes, and the parity guard went with it (T8.25)
 
 **Fixed**

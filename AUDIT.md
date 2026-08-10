@@ -166,7 +166,47 @@ the live ledger's own columns are healthy.
   that exposes it is chosen by alphabet, not by risk. Shared setup
   belongs in `conftest.py`. And a CI step ordered behind a fragile one
   inherits its outages silently — the guard that protects money should
-  not be reachable only by passing the tests first.
+  not be reachable only by passing the tests first. Fixed as T8.26.
+
+- [x] **T8.26 — the parity guard was reachable only by passing the tests
+  first** ✅ 2026-08-10
+  A GitHub Actions step with no `if:` carries an implicit `success()`, so
+  by default every step is gated on all the ones before it. Correct for a
+  BUILD PIPELINE, where a later stage consumes an earlier stage's output;
+  wrong for INDEPENDENT CHECKS, where it lets the first thing to break
+  decide whether anything else gets to speak. T8.25 is that bug firing:
+  a sys.path accident in test COLLECTION — carrying no information about
+  the money math at all — suppressed `parity_fixtures.py --check` for
+  four pushes, and the CI page said only "failing".
+  Fixed: parity runs FIRST (money-critical and cheap) and the tests run
+  regardless of its verdict, under
+  `if: ${{ !cancelled() && steps.deps.outcome == 'success' }}`.
+  **Swapping the order alone would have MIRRORED the bug**, not fixed it
+  — a parity failure would then have hidden the tests. The gate between
+  the two peers is the defect; the order is only which one you read
+  first.
+  `!cancelled()` not `always()`: this workflow sets `cancel-in-progress`
+  and the hourly automation supersedes runs routinely, so `always()`
+  would keep working on an abandoned run. The `steps.deps` clause keeps
+  the ONE real prerequisite — under a failed `pip install` neither check
+  can reach a meaningful verdict, and a wall of import errors would bury
+  the real cause rather than add to it.
+  **VERIFIED BY MAKING IT FAIL, not by reading the YAML** — the whole
+  lesson of T8.25 being that this class of defect passes inspection.
+  Scratch branch `ci/prove-step-independence`, parity step forced to
+  `exit 1` (the STEP sabotaged, never a fixture — no money file was
+  touched), run 31415202287:
+  ```
+  X  Fixtures still match Python   -> exit 1
+  ✓  Money-path tests              -> 97 passed
+  X  job conclusion                -> failure
+  ```
+  The second step ran on a failed first step, and the job still went red
+  — a real failure is surfaced, not masked. Branch deleted after the run.
+  **Generalises:** independent checks must not be sequenced as though
+  they were dependent stages. Ask of any two CI steps whether the second
+  CONSUMES the first or merely FOLLOWS it; if it merely follows, the
+  implicit `success()` is a silent single point of failure.
 
 ---
 
