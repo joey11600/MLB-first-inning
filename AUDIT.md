@@ -316,9 +316,29 @@ the live ledger's own columns are healthy.
   CHANGELOG 2026-08-11a) — without it a multi-book file re-prices the
   ledger at whichever book sorts last, because `import_odds` applies every
   matching row in file order.
-  **Still open:** wire the fetch into `workers/predictor_loop.py` (money
-  path — needs sign-off), pick a cadence against the measured 14.6
-  credits/fetch, and decide free vs paid tier.
+  **Wiring SHIPPED 2026-08-11** (operator sign-off same day):
+  `step_fetch_odds_api()` runs between scrape-dk and import-odds, writing
+  the same `data/odds/dk_<date>.csv` the importer already reads — so the
+  import path is unchanged. Gated on `PREDICTOR_ODDS_API=enabled`, off by
+  default, killable from Railway's dashboard without a deploy.
+  **The window is the cost control.** Every event is 1 credit and the loop
+  runs every 5 min, so `--within-minutes 120 --skip-started` restricts each
+  cycle to games actually approaching their lock; `--merge` keeps the
+  already-captured prices in the file rather than overwriting them, and
+  `--min-credits 50` is a floor so a runaway cadence cannot reach zero
+  mid-month and silently unprice every remaining slate.
+  Verified live against Railway's key: window correctly skipped 15/15
+  events at 12:17 PM (first pitch 6:41 PM), **0 credits spent**, exit 0.
+  11 regression tests in `tests/test_odds_api_fetch.py`.
+  **Probes cost 2 credits and retired two risks:** the plan DOES serve
+  `totals_1st_1_innings` (4 books quoted it), and **DraftKings is in the
+  feed** — it quotes h2h on 15/15 games. DK's absence from the
+  first-inning market at midday is TIMING, not plan coverage, which
+  independently corroborates [[lock_earlier_dead]]: DK posts that line
+  ~an hour before its own first pitch.
+  **Still open:** confirm a real DK price lands tonight once games enter
+  the window (~4:40 PM ET), and disable the now-useless
+  `PREDICTOR_SCRAPE_DK` once the API path is proven.
   Rejected and not to be re-proposed: proxying, Railway static outbound
   IPs, a second budget VPS, and scraping from the operator's home
   connection — see the memory `odds_source_strategy`.

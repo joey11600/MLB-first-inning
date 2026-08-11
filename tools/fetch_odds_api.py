@@ -70,7 +70,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -128,6 +128,80 @@ def _get(url: str, params: dict, timeout: float = 20.0):
         remaining = r.headers.get("x-requests-remaining")
         used = r.headers.get("x-requests-used")
         return json.loads(r.read().decode("utf-8")), remaining, used
+
+
+def _parse_iso(iso: str | None) -> datetime | None:
+    """The aggregator's `commence_time` as an aware UTC datetime, or None.
+
+    Returns None rather than raising, and every caller treats None as
+    "cannot judge this event" -- an event with an unreadable start time is
+    KEPT by the window filter, never silently dropped. Dropping it would
+    lose a game's price to a date-format change.
+    """
+    if not iso:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _merge_key(r: dict) -> tuple:
+    """Identity of a priced game IN THE FILE.
+
+    (date, away, home, book) and NOT game_pk, because the aggregator does
+    not supply one -- `parse_event` writes an empty game_pk and the
+    importer falls back to team+time matching. Including the book keeps a
+    diagnostic multi-book file from collapsing to one row per game.
+    """
+    return (r.get("date", ""), r.get("away_team", ""),
+            r.get("home_team", ""), r.get("sportsbook", ""))
+
+
+def merge_rows(existing: list[dict], fresh: list[dict]) -> tuple[list[dict], int]:
+    """(rows to write, how many were refreshed).
+
+    A WINDOWED FETCH ONLY EVER HOLDS PART OF THE SLATE, and `import_odds`
+    re-reads this whole file every cycle. Overwriting would delete the
+    prices already captured for games that have locked -- so rows we did
+    not fetch this run are PRESERVED, and a game we did fetch REPLACES its
+    earlier row rather than appending beside it. Appending would leave two
+    rows for one game, and the importer applies every matching row in file
+    order, so the older price would win.
+    """
+    keyed = {_merge_key(r) for r in fresh}
+    preserved = [r for r in existing if _merge_key(r) not in keyed]
+    return preserved + list(fresh), len(existing) - len(preserved)
+
+
+def select_events_in_window(events: list[dict], within_minutes: int = 0,
+                            skip_started: bool = False,
+                            now: datetime | None = None) -> list[dict]:
+    """The events worth spending a credit on right now.
+
+    EXTRACTED SO IT CAN BE TESTED, because it decides what gets SPENT.
+    Every event costs one credit and the loop calls this every five
+    minutes; a filter that is off by an hour either burns the month's
+    budget on markets that do not exist yet or misses the lock entirely.
+
+    `within_minutes=0` means no upper bound (the whole slate).
+    An event whose start time will not parse is KEPT -- see `_parse_iso`.
+    """
+    now = now or datetime.now(timezone.utc)
+    out = []
+    for ev in events:
+        start = _parse_iso(ev.get("commence_time"))
+        if start is None:
+            out.append(ev)
+            continue
+        mins = (start - now).total_seconds() / 60.0
+        if skip_started and mins < 0:
+            continue
+        if within_minutes and mins > within_minutes:
+            continue
+        out.append(ev)
+    return out
 
 
 def utc_to_et_date(iso: str) -> str:
@@ -306,6 +380,28 @@ def main() -> int:
                          "REQUIRED for anything that feeds the ledger -- see "
                          "the note in the module docstring. Omit to keep "
                          "every book, which is a DIAGNOSTIC output only.")
+    ap.add_argument("--within-minutes", type=int, default=0, metavar="N",
+                    help="Only fetch events whose first pitch is within N "
+                         "minutes. 0 (default) = the whole slate. THE LOOP "
+                         "SETS THIS: DraftKings posts first-inning lines a "
+                         "median 63 min before first pitch, so fetching a "
+                         "10pm game at noon spends a credit on a market that "
+                         "does not exist yet (measured 2026-08-11).")
+    ap.add_argument("--skip-started", action="store_true",
+                    help="Drop events whose first pitch has passed. The pick "
+                         "is decided in the 1st inning, so a started game can "
+                         "never be priced usefully.")
+    ap.add_argument("--min-credits", type=int, default=0, metavar="N",
+                    help="Refuse to spend if fewer than N credits would "
+                         "remain afterwards. A floor, so a runaway cadence "
+                         "cannot take the account to zero mid-month and "
+                         "silently unprice every remaining slate.")
+    ap.add_argument("--merge", action="store_true",
+                    help="Update --output in place instead of overwriting: "
+                         "rows for games fetched now replace their earlier "
+                         "entry, every other row is preserved. Required when "
+                         "fetching a WINDOW, or each run would throw away the "
+                         "prices captured for games that already locked.")
     ap.add_argument("--dry-run", action="store_true",
                     help="list events and report the credit cost, then stop")
     ap.add_argument("--self-test", action="store_true")
@@ -326,6 +422,27 @@ def main() -> int:
     except urllib.error.HTTPError as e:
         sys.exit(f"event list failed: HTTP {e.code} {e.reason}")
     print(f"{len(events)} upcoming MLB events  (credits used {used}, remaining {rem})")
+
+    # WINDOW THE SLATE BEFORE SPENDING ANYTHING. Every event costs a
+    # credit, and DK does not post a first-inning line until roughly an
+    # hour before its own first pitch -- so fetching the whole card at
+    # noon buys mostly empty responses. Filtering here rather than after
+    # the fetch is the entire saving.
+    if args.within_minutes or args.skip_started:
+        kept = select_events_in_window(events, args.within_minutes,
+                                       args.skip_started)
+        skipped = len(events) - len(kept)
+        if skipped:
+            print(f"  window: {len(kept)} of {len(events)} events are within "
+                  f"{args.within_minutes or 'any'} min"
+                  f"{' and not started' if args.skip_started else ''} "
+                  f"-- {skipped} skipped, saving {skipped} credits")
+        events = kept
+
+    if not events:
+        print("no events in the window -- nothing to fetch, 0 credits spent.")
+        return 0
+
     print(f"Fetching '{MARKET}' costs 1 credit per event -> "
           f"{len(events)} more credits for this run.")
     if args.dry_run:
@@ -333,9 +450,18 @@ def main() -> int:
         return 0
     if rem is not None:
         try:
-            if int(rem) < len(events):
+            remaining = int(rem)
+            if remaining < len(events):
                 sys.exit(f"refusing to start: {rem} credits left, "
                          f"{len(events)} needed. Top up or reduce scope.")
+            # THE FLOOR IS SEPARATE FROM "can I afford this run". Running
+            # the balance to zero mid-month unprices every remaining slate
+            # silently -- the importer just sees no file and skips.
+            if args.min_credits and (remaining - len(events)) < args.min_credits:
+                sys.exit(f"refusing to start: would leave "
+                         f"{remaining - len(events)} credits, below the "
+                         f"--min-credits floor of {args.min_credits}. "
+                         f"Top up, or lower the floor deliberately.")
         except ValueError:
             pass
 
@@ -357,6 +483,16 @@ def main() -> int:
                   f"{type(e).__name__}", file=sys.stderr)
 
     if not rows:
+        # A WINDOWED RUN LEGITIMATELY FINDS NOTHING, AND THAT IS NOT AN
+        # ERROR. DK posts a first-inning line ~an hour before its own
+        # first pitch, so a cycle that runs before the book has quoted
+        # returns zero rows and must exit 0 -- the loop calls this every
+        # five minutes and a non-zero exit would log a failure every time.
+        # Without a window, zero rows still means something is wrong.
+        if args.within_minutes or args.skip_started:
+            print("no prices yet for the events in this window "
+                  "(the book has not posted them). Nothing written.")
+            return 0
         if args.book:
             sys.exit(f"no first-inning 0.5 prices for --book {args.book!r} -- "
                      f"nothing written. Either that book was not quoting the "
@@ -369,6 +505,23 @@ def main() -> int:
     today = datetime.now(ET).date().isoformat()
     out = args.output or (ROOT / "data" / "odds" / f"api_{today}.csv")
     out.parent.mkdir(parents=True, exist_ok=True)
+
+    # MERGE, BECAUSE A WINDOW ONLY EVER HOLDS PART OF THE SLATE.
+    # Overwriting would delete the prices captured for games that already
+    # locked -- and `import_odds` reads this whole file every cycle, so a
+    # shrinking file means earlier games stop being re-confirmed. Keyed on
+    # (date, away, home) because the aggregator gives us no game_pk;
+    # a fresh row for the same game REPLACES the older one, which is what
+    # makes repeated polling track the line rather than duplicate it.
+    if args.merge and out.exists() and out.stat().st_size:
+        fetched_n = len(rows)
+        with open(out, newline="", encoding="utf-8") as f:
+            existing = list(csv.DictReader(f))
+        rows, replaced = merge_rows(existing, rows)
+        print(f"  merged into {out.name}: "
+              f"{len(existing) - replaced} row(s) preserved, "
+              f"{replaced} refreshed, {fetched_n} fetched this run")
+
     with open(out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, FIELDS, extrasaction="ignore")
         w.writeheader()

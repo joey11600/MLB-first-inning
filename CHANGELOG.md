@@ -40,6 +40,62 @@ quote it. Match somewhere prose does not go.
 
 ---
 
+## [2026-08-11b] - The Odds API wired into the loop (T8.31)
+
+**Added**
+
+`step_fetch_odds_api()` in `workers/predictor_loop.py`, between scrape-dk and
+import-odds. It writes the same `data/odds/dk_<date>.csv` the importer already
+reads, so the import path is unchanged — one step, not a pipeline rewrite.
+Position matters both ways: after scrape-dk so a direct-scrape file (on any
+host where that still works) is merged onto rather than clobbered; before
+import-odds so a fetch is turned into ledger rows on the same cycle instead of
+sitting five minutes closer to the lock.
+
+**Off by default** behind `PREDICTOR_ODDS_API=enabled`, mirroring
+`PREDICTOR_SCRAPE_DK` — the money path cannot change because a deploy happened,
+only because an operator set the variable, and it can be killed from Railway's
+dashboard without a deploy.
+
+**The window is the cost control, not a nicety.** Every event costs 1 credit
+and this loop runs every 5 minutes, so fetching the whole card each cycle would
+spend ~180 credits/hour on markets that do not exist yet — DraftKings posts a
+first-inning line a median 63 min before *its own* first pitch. New flags:
+
+- `--within-minutes N` — only events within N minutes of first pitch (loop: 120)
+- `--skip-started` — a started game can never be priced usefully
+- `--merge` — a windowed fetch holds only part of the slate, and `import_odds`
+  re-reads the whole file every cycle; overwriting would delete prices already
+  captured for games that locked. A re-fetched game **replaces** its earlier
+  row rather than appending, because the importer applies every matching row in
+  file order and a duplicate would let the *older* price win.
+- `--min-credits N` — a floor (loop: 50) so a runaway cadence cannot reach zero
+  mid-month and silently unprice every remaining slate.
+
+`select_events_in_window()` and `merge_rows()` are extracted rather than inline
+specifically so they can be tested — both decide what gets spent and what
+reaches the ledger. 11 regression tests in `tests/test_odds_api_fetch.py`
+(124 total, up from 113).
+
+**Verified live** against Railway's key: at 12:17 PM ET with first pitch 6:41
+PM, the window correctly skipped 15/15 events, spent **0 credits**, exit 0.
+
+**Two risks retired for 2 credits.** The plan *does* serve
+`totals_1st_1_innings` (4 books quoted it), and **DraftKings is in the feed** —
+it quotes h2h on 15/15 games. So DK's absence from the first-inning market at
+midday is timing, not coverage. That independently corroborates the 08-10
+finding that locking earlier is impossible: the same late posting explains both.
+
+**Credit budget.** Operator is moving to the 20,000/month tier. At ~15 games
+polled across a 2-hour pre-game window that is ~360 credits/day (~10,800/month),
+which leaves room for both an opening and a lock-time price — so CLV tracking
+survives, unlike the free tier's one-shot-per-game.
+
+**Untouched:** model, gates, staking, ledger, `strongYrfiP` (0.42). No API key
+is in any tracked file or in git history (verified both).
+
+---
+
 ## [2026-08-11a] - DK now blocks Railway; `--book` guard added (T8.31)
 
 **Fixed (infrastructure) — DIAGNOSIS, the repair is not shipped yet**

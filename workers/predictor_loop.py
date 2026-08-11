@@ -287,6 +287,70 @@ def step_scrape_dk() -> int:
     )
 
 
+def step_fetch_odds_api() -> int:
+    """T8.31: buy DK's price from The Odds API instead of scraping DK.
+
+    WHY THIS EXISTS.  2026-08-11 DraftKings began 403'ing Railway's egress
+    IP -- the same block that killed the Contabo box -- and Railway was the
+    ONLY working odds source, so the money path lost prices entirely.  It
+    is not the code: curl_cffi's Chrome TLS impersonation IS running (its
+    `raise_for_status` is the only thing that formats `HTTP Error 403: `),
+    subcategory 20150 still returns a full payload, and the identical code
+    from a residential IP returns 15 clean rows.  Four redeploys were all
+    blocked, so unlike 2026-08-06 this is not one unlucky ephemeral IP.
+
+    STILL DRAFTKINGS' NUMBER, DELIBERATELY.  `--book draftkings` is not
+    optional here.  The published No.1 record is a DK-priced series and
+    stakes move ~17% per 10 cents, with the win-loss line itself changing
+    at +/-20c because nights the system refuses become bets.  Buying DK's
+    price from an aggregator keeps the record continuous; buying anyone
+    ELSE'S silently makes it a different product.  Without `--book` the
+    tool emits every US book and `import_odds` applies them in file order,
+    so the last book in the file would become the ledger's price.
+
+    WRITES THE FILE `step_import_odds` ALREADY READS, so the import path
+    is unchanged and this is one step, not a pipeline rewrite.
+
+    THE WINDOW IS THE COST CONTROL.  Every event costs a credit and this
+    loop runs every 5 minutes, so fetching the whole card each cycle would
+    spend ~180 credits an hour on markets that mostly do not exist yet:
+    DK posts a first-inning line a median 63 min before ITS OWN first
+    pitch.  `--within-minutes` restricts each cycle to games actually
+    approaching their lock, and `--skip-started` drops games whose first
+    inning is already being played.  `--merge` then keeps the earlier
+    games' captured prices in the file rather than overwriting them.
+
+    OFF BY DEFAULT, exactly like `PREDICTOR_SCRAPE_DK`, so the money path
+    does not change until an operator sets the variable -- and can be
+    killed from Railway's dashboard without a deploy.
+    """
+    mode = os.environ.get("PREDICTOR_ODDS_API", "skip").strip().lower()
+    if mode != "enabled":
+        print("[predictor] [odds-api] skipped "
+              "(set PREDICTOR_ODDS_API=enabled to override)", flush=True)
+        return 0
+    if not (os.environ.get("ODDS_API_KEY") or "").strip():
+        # Distinct from the skip above: someone turned this ON and the key
+        # is missing, which is a misconfiguration worth seeing every cycle
+        # rather than a silent no-op that looks like "no markets yet".
+        print("[predictor] [odds-api] ENABLED but ODDS_API_KEY is unset; "
+              "no odds will be captured", file=sys.stderr, flush=True)
+        return 0
+    odds_csv = REPO_ROOT / "data" / "odds" / f"dk_{today_iso()}.csv"
+    return run(
+        [
+            "python", "tools/fetch_odds_api.py",
+            "--book",           os.environ.get("ODDS_API_BOOK", "draftkings"),
+            "--within-minutes", os.environ.get("ODDS_API_WINDOW_MIN", "120"),
+            "--min-credits",    os.environ.get("ODDS_API_MIN_CREDITS", "50"),
+            "--skip-started",
+            "--merge",
+            "--output",         str(odds_csv),
+        ],
+        TIMEOUT_SCRAPE, "odds-api",
+    )
+
+
 def step_import_odds() -> int:
     """Soft-fail.  If today's DK CSV is missing (scrape failed or no
     markets posted yet), skip silently."""
@@ -497,6 +561,23 @@ def cycle() -> None:
         print(f"[predictor] [scrape-dk] failed (rc={rc}); GHA hourly cron "
               f"is canonical, skipping system_errors write",
               file=sys.stderr, flush=True)
+
+    # 4b: T8.31 -- buy DK's price from The Odds API (soft-fail).
+    #
+    # AFTER scrape-dk and BEFORE import-odds, and both halves matter.
+    # After, so that on any host where the direct scrape still works its
+    # file is written first and this run merges onto it rather than the
+    # reverse. Before, because import-odds is what turns the file into
+    # ledger rows -- a fetch landing after it would sit unimported until
+    # the next cycle, five minutes closer to the lock.
+    rc = step_fetch_odds_api()
+    if rc != 0:
+        # Soft-fail like scrape-dk: a missed fetch leaves last-known odds
+        # in place and the next cycle retries five minutes later. It DOES
+        # write system_errors, unlike scrape-dk, because this is the
+        # canonical source now -- a persistent failure here means the
+        # slate goes unpriced and the operator needs to see it.
+        _record_step_failure("odds-api", rc)
 
     # 5: import odds (soft-fail; skipped if no CSV)
     rc = step_import_odds()
