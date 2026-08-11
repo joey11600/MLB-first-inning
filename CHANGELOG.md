@@ -40,6 +40,63 @@ quote it. Match somewhere prose does not go.
 
 ---
 
+## [2026-08-11d] - Pay only for prices we use: ask DK, not the region (T8.31)
+
+**Changed**
+
+Operator challenged the credit maths — *"if we only used 2 credits, but it
+allowed you to pull the odds for all the games already, you may be wrong."*
+The challenge was right to make and produced a **7x** further saving.
+
+**What the docs settled.** Cost is `[unique markets RETURNED] x [regions]`,
+**per request**. The bulk `/odds` endpoint is one request for the whole slate;
+the per-event endpoint is one request each — which is where 1-credit-per-game
+came from. Tested directly: the bulk endpoint **cannot** serve this market —
+`HTTP 422 INVALID_MARKET: Markets not supported by this endpoint:
+totals_1st_1_innings`. So per-event is forced, and that part of the model held.
+
+**What the docs also revealed, and this is the win:** *"responses with empty
+data do not count towards the usage quota"*, and up to 10 bookmakers counts as
+one region. We were sending `regions=us`. DraftKings posts a first-inning line
+a median 63 min out — but FanDuel, BetMGM and BetRivers post hours earlier — so
+every early fetch **returned those books, cost a credit, and was then discarded**
+by the `--book draftkings` filter.
+
+Measured on CLE@DET at T-280:
+
+| request | books returned | cost |
+|---|---|---|
+| `bookmakers=draftkings` | none | **0** |
+| `regions=us` | fanduel, betonlineag, betmgm, betrivers | **1** |
+
+`odds_params()` now sends `bookmakers=<book>` instead of `regions` whenever
+`--book` is set, normalising a display name (`DraftKings`) to the API key
+(`draftkings`) — a mismatch there returns nothing, all evening, silently.
+`regions` remains the path for a deliberate multi-book diagnostic pull, the one
+case where paying for other books is the point. The local `--book` filter stays
+as well: a server-side parameter is not something to stake the record on.
+
+**This inverts the design.** The window no longer has to be surgical to be
+cheap, so the two-phase `120:115,75:55` collapses back to a single generous
+`120:55`. Everything before DK quotes is free; we start paying exactly when the
+data becomes worth having. It also captures the price the **moment** it
+appears rather than at the next window boundary, so the ~11% of games with an
+early line get real movement history.
+
+| stage | credits/day | % of 20k tier |
+|---|---|---|
+| original continuous window | 373 | 56% |
+| two-phase (11c) | 101 | 15% |
+| **DK-only + `120:55`** | **~50 expected** | **~7%** |
+
+3 new tests (132 total) pinning the cost model — notably that `regions` must
+not creep back in alongside a `--book` request, since that silently restores
+the paid path on every pre-posting fetch.
+
+**Untouched:** model, gates, staking, ledger, `strongYrfiP` (0.42).
+
+---
+
 ## [2026-08-11c] - Two-phase odds polling: 373 -> 101 credits/day (T8.31)
 
 **Changed**

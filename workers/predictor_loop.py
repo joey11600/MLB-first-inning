@@ -311,32 +311,31 @@ def step_fetch_odds_api() -> int:
     WRITES THE FILE `step_import_odds` ALREADY READS, so the import path
     is unchanged and this is one step, not a pipeline rewrite.
 
-    THE WINDOWS ARE THE COST CONTROL.  Every event costs a credit and this
-    loop runs every 5 minutes, so fetching the whole card each cycle would
-    spend ~180 credits an hour on markets that mostly do not exist yet.
-    Measured over 244 placed bets:
+    WE PAY ONLY FOR PRICES WE ACTUALLY USE, and that is what sets the
+    cadence.  Measured against the live API on 2026-08-11: cost is
+    [unique markets RETURNED] x [regions], up to 10 bookmakers counts as
+    one region, and responses with EMPTY data are free.  Because
+    `fetch_odds_api.py` asks for `bookmakers=draftkings` rather than
+    `regions=us`, a fetch before DK has quoted returns nothing and costs
+    NOTHING -- verified on CLE@DET at T-280, where the DK-only call cost 0
+    and the regions=us call cost 1 for four books we would have discarded.
+
+    That inverts the design.  The window no longer has to be surgical to
+    be cheap, so it is generous instead, and the spend follows the market:
 
         DK first posts a price   median 63 min before first pitch
-                                 87% land in the 60-120 band
-                                 only 11% earlier than 120 min
+                                 87% in the 60-120 band, 11% earlier
         the bet's actual price   median 57 min before first pitch
-                                 (the first 5-min cycle after T-60 opens)
+                                 (first 5-min cycle after T-60 opens)
 
-    So the money lives in a narrow band around the lock, and a continuous
-    120-min window spends most of its credits watching a market that has
-    not opened.  The default `120:115,75:55` is two phases:
+    `120:55` therefore polls from two hours out down to just past the
+    lock.  Everything before DK quotes is free; once it quotes we pay per
+    cycle, which is exactly when the data is worth having.  Expected ~3
+    credits per game (~50/day on a 15-game slate) versus 373 for the
+    original continuous window, and unlike a narrow window it captures the
+    price the MOMENT it appears rather than at the next window boundary --
+    so the ~11% of games with an early line get real movement history.
 
-        75:55    THE MONEY.  Several attempts, so one miss cannot leave
-                 the slate unpriced at commit.  A SINGLE shot at T-62
-                 would miss ~45% of games -- the median post is T-63.
-        120:115  THE MOVEMENT PROBE.  Only the ~11% of games priced early
-                 can drift at all; for the rest the price exists about six
-                 minutes before we bet it, which is why 245 of 263 bets
-                 showed ZERO open-to-lock change.  One credit per game
-                 keeps that measurable rather than assumed.
-
-    373 credits/day -> 101 on tonight's 15-game slate, and the difference
-    is entirely fetches that could not have changed a placed bet.
     `--skip-started` drops games whose first inning is already being
     played.  `--merge` keeps the earlier games' captured prices in the
     file rather than overwriting them.
@@ -362,7 +361,7 @@ def step_fetch_odds_api() -> int:
         [
             "python", "tools/fetch_odds_api.py",
             "--book",        os.environ.get("ODDS_API_BOOK", "draftkings"),
-            "--windows",     os.environ.get("ODDS_API_WINDOWS", "120:115,75:55"),
+            "--windows",     os.environ.get("ODDS_API_WINDOWS", "120:55"),
             "--min-credits", os.environ.get("ODDS_API_MIN_CREDITS", "50"),
             "--skip-started",
             "--merge",

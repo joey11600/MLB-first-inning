@@ -94,6 +94,44 @@ def test_an_unparseable_start_time_is_kept_not_dropped():
 
 
 @pytest.mark.regression
+def test_a_book_request_asks_for_that_book_not_the_whole_region():
+    """THE COST MODEL, measured against the live API 2026-08-11.
+
+    Cost is [markets RETURNED] x [regions], and empty responses are free.
+    DK posts a first-inning line a median 63 min out; FanDuel/BetMGM post
+    hours earlier. So `regions=us` RETURNS those books on every early
+    fetch -- costing a credit for data the --book filter then discards --
+    while `bookmakers=draftkings` comes back empty and costs nothing.
+
+        CLE@DET at T-280:  bookmakers=draftkings -> 0 books, cost 0
+                           regions=us            -> 4 books, cost 1
+
+    If `regions` ever creeps back in alongside a --book request, every
+    pre-posting fetch silently starts costing again."""
+    p = F.odds_params("KEY", "draftkings", "us")
+    assert p["bookmakers"] == "draftkings"
+    assert "regions" not in p, "regions would re-introduce the paid path"
+    assert p["markets"] == F.MARKET
+
+
+@pytest.mark.regression
+def test_a_display_name_is_normalised_to_the_api_key():
+    """--book accepts 'DraftKings' for the local filter; the API wants
+    'draftkings'. A mismatch here returns nothing, all evening, silently."""
+    assert F.odds_params("K", "DraftKings", "us")["bookmakers"] == "draftkings"
+    assert F.odds_params("K", "  DrAfTkInGs  ", "us")["bookmakers"] == "draftkings"
+
+
+@pytest.mark.regression
+def test_without_a_book_it_falls_back_to_regions():
+    """The multi-book diagnostic pull is the one case where paying for
+    other books is the point."""
+    p = F.odds_params("KEY", None, "us")
+    assert p["regions"] == "us"
+    assert "bookmakers" not in p
+
+
+@pytest.mark.regression
 def test_parse_windows_reads_the_two_phase_spec():
     assert F.parse_windows("120:115,75:55") == [(120.0, 115.0), (75.0, 55.0)]
     assert F.parse_windows("75:55") == [(75.0, 55.0)]

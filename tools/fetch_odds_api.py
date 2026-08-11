@@ -147,6 +147,41 @@ def _parse_iso(iso: str | None) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def odds_params(key: str, book: str | None, regions: str) -> dict:
+    """Query params for one event's odds -- and the whole cost model.
+
+    ASK FOR THE ONE BOOK, NOT THE WHOLE REGION. Measured against the live
+    API 2026-08-11: cost is [unique markets RETURNED] x [regions], up to
+    10 bookmakers counts as one region, and "responses with empty data do
+    not count towards the usage quota."
+
+    DK posts a first-inning line a median 63 min before first pitch;
+    FanDuel, BetMGM and BetRivers post hours earlier. So with
+    `regions=us` every early fetch RETURNS those books, costs a credit,
+    and `parse_event`'s --book filter then discards all of it. Asking for
+    `bookmakers=draftkings` makes that same fetch come back empty and
+    cost nothing until DK actually quotes.
+
+        CLE@DET at T-280:  bookmakers=draftkings -> 0 books, cost 0
+                           regions=us            -> 4 books, cost 1
+
+    Paying only for prices we use is what lets the polling window be
+    generous instead of surgical.
+
+    `regions` is the fallback for a deliberate multi-book DIAGNOSTIC pull,
+    which is the only case where paying for other books is the point.
+    """
+    params = {"apiKey": key, "markets": MARKET, "oddsFormat": "american"}
+    if book:
+        # The API wants the bookmaker KEY ("draftkings"), while --book
+        # also accepts the display title ("DraftKings") for the local
+        # filter -- so normalise here rather than making the caller care.
+        params["bookmakers"] = book.strip().lower()
+    else:
+        params["regions"] = regions
+    return params
+
+
 def _merge_key(r: dict) -> tuple:
     """Identity of a priced game IN THE FILE.
 
@@ -534,8 +569,11 @@ def main() -> int:
         try:
             detail, rem, used = _get(
                 f"{API_BASE}/sports/{SPORT}/events/{ev['id']}/odds",
-                {"apiKey": key, "regions": args.regions, "markets": MARKET,
-                 "oddsFormat": "american"})
+                odds_params(key, args.book, args.regions))
+            # The --book filter STAYS even though the API already narrowed
+            # it. It is the guard that keeps the ledger a DraftKings-priced
+            # series; a server-side parameter is not something to stake the
+            # record on if the API ever widens what it returns.
             rows.extend(parse_event(detail, args.book))
         except urllib.error.HTTPError as e:
             failed += 1
