@@ -854,3 +854,5 @@ versioned with the code.
 - The CSV ledger format is stable. If you must add a column, do it at the
   END so existing parsers don't choke on positional fields. `tracker._read_rows`
   warns on schema drift (T3.12).
+
+<!-- gate fast-path probe 2026-08-10 -->
