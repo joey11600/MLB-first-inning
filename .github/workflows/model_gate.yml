@@ -110,6 +110,16 @@ jobs:
           # up as a "model change", and a baseline predating the gate would
           # have no script at all.
           cp tools/model_gate.py /tmp/base/tools/model_gate.py
+
+          # THE HOLDOUT IS PART OF THE INSTRUMENT TOO, and forgetting that
+          # failed run 31448097778: the push that ADDED the 2024/2025 files
+          # had a baseline that did not contain them, so the baseline scored
+          # `holdout missing` and the whole gate errored. Copy the data in for
+          # the same reason as the script -- we are varying the MODEL, not the
+          # yardstick. This also means a future change to the holdout compares
+          # both commits on the new data rather than breaking.
+          mkdir -p /tmp/base/data/backtests
+          cp data/backtests/*_ptfix.csv /tmp/base/data/backtests/
           cd /tmp/base && python tools/model_gate.py --fingerprint /tmp/baseline.json
 
       - name: Report
