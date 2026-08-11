@@ -298,6 +298,46 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [x] **T8.30 — a refused No.1 was published as a bet** ✅ 2026-08-10
+  Live to subscribers. TB@OAK locked with quarter-Kelly having refused it
+  (`units_risked` 0, `edge_on_pick` −0.9%) and the channel got
+  "🔒 TONIGHT'S №1 PLAY … **Don't take worse than -130.**" beside a quoted
+  price of **-145** — a price limit the quoted price already violates,
+  under a headline naming it the night's play. The stake line was absent
+  rather than zero because `if stake:` reads 0.0 as missing, so the only
+  signal it was not a bet was "−0.9%" mid-sentence.
+  **This is T8.18 in the two places it was never applied.**
+  `build_board` grew the "This is not a bet" branch on 2026-08-06;
+  `build_top_pick` and `build_top_pick_settled` did not. The settle ping
+  was ~40 minutes from publishing "✅ THE №1 WON" over a running record
+  that **excludes** the game — `select_top_picks` and
+  `dashboard/lib/top-pick.ts` both drop a zero-stake night — implying an
+  inclusion that never happened; on a loss it reports a loss the record
+  never absorbs.
+  **Fix:** `is_refused()` separates the three states callers were
+  collapsing into two (>0 staked / ==0 refused / None unpriced, which is
+  the ladder path and NOT a refusal); a refused No.1 routes to a new
+  `discord_noplay` broadcast instead of a softened play message
+  (operator's call — a headline naming the night's play should exist only
+  when there is one); the settle ping routes to NO ACTION and states the
+  record is unchanged; `_fmt_units()` stops a floored 0.5u stake printing
+  as "Stake 0 units". `discord_noplay` registered in
+  `tracker._DEDUP_WINDOW_M` in the same commit — an unregistered type
+  inherits the 5-minute fallback and republishes ~12×/hour (2026-08-06).
+  16 regression tests in `tests/test_refused_top_pick.py`.
+  **Ledger untouched and already correct:** `tools/pl_calc.py --top-pick`
+  reads 47-21 / +88.89u with the night correctly absent.
+  **Also measured, and it answers the operator's second question — "should
+  we lock earlier to capture the edge?" No.** DraftKings does not post
+  first-inning lines early: across 263 placed STRONG YRFI bets the median
+  gap between the first captured price and the bet price is **6 minutes**,
+  and only **17 (6%)** ever had a price more than 2h before lock. On those
+  17, locking at the first price would have gained **+0.26pp** of edge and
+  12 of them never moved at all. Tonight's game was the rare exception
+  (−120 → −145), and roughly 45% of its lost edge was the model correctly
+  revising itself once lineups posted — which is exactly what the T-60
+  lock exists to wait for.
+
 - [x] **T8.29 — a model gate that says what it actually proves** ✅ 2026-08-10
   Closes the hole T8.28 exposed: from 2026-05-06 nothing checked model
   quality, and `tests.yml` only proves the money PLUMBING is

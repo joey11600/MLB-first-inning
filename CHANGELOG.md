@@ -11,6 +11,69 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10j] - A refused No.1 is not a play, and never was a result (T8.30)
+
+**Fixed**
+
+TB@OAK locked tonight with quarter-Kelly having refused it — `units_risked` 0,
+`edge_on_pick` −0.9% — and the subscriber channel got a padlocked
+**"TONIGHT'S №1 PLAY"** carrying **"Don't take worse than -130."** beside a
+quoted price of **-145**. The message contradicts itself two lines apart, but
+only for a reader who does the arithmetic; everything with visual weight says
+BET. The stake line was missing rather than zero because `if stake:` treats
+`0.0` as absent.
+
+**This is T8.18 in the two places it was never applied.** `build_board` grew
+the "**This is not a bet.**" branch on 2026-08-06 and the other two message
+builders did not, so one fix covered one of the three surfaces that needed it.
+
+**The settle ping was the worse half**, and was ~40 minutes from firing. It
+would have published "✅ THE №1 WON" above a running record that *excludes*
+the game — both `select_top_picks` and `dashboard/lib/top-pick.ts` drop a
+night whose stake is zero — implying an inclusion that never happened. On a
+loss it fails the other way: a loss the record never absorbs.
+
+- `is_refused()` — the three states callers were collapsing into two:
+  `>0` staked → speak in the imperative; `==0` refused → say so and publish
+  no price; `None` unpriced → the ladder message, a real product path and
+  **not** a refusal.
+- `build_no_play()` + a new `discord_noplay` broadcast. Operator's call: a
+  refused No.1 gets its **own** message rather than a softened play message,
+  because a headline naming the night's play should only exist when there is
+  one. It publishes no `pass_price` — a "don't take worse than" line is a
+  betting instruction. Separate event key so neither shape dedupes the other
+  away, and it says "NO PLAY ON THE №1" rather than "NO PLAY TONIGHT" when the
+  card still has a staked play (T8.16 with the sign flipped).
+- Settle ping routes a refused row to **NO ACTION** and states plainly that
+  the record is unchanged by it.
+- `_fmt_units()` — `f"{0.5:.0f}"` is `"0"`, so a floored 0.5u stake could
+  print "Stake 0 units" and read as the refusal above.
+- `discord_noplay` registered in `tracker._DEDUP_WINDOW_M` **in the same
+  commit**; an unregistered type inherits the 5-minute fallback and
+  republishes ~12×/hour (the 2026-08-06 board incident).
+- 16 regression tests, `tests/test_refused_top_pick.py`.
+
+**The model, the gates, staking and the ledger are untouched.** The ledger had
+this right already: `tools/pl_calc.py --top-pick` reads **47-21, +88.89u** at
+quarter-Kelly with tonight correctly absent.
+
+Commit `f8407483`.
+
+**Deferred**
+
+*Locking bets earlier to capture the edge* — measured, and the data says no.
+DraftKings does not post first-inning lines early enough for it to be a lever:
+across 263 placed STRONG YRFI bets the median gap between the **first**
+captured price and the **bet** price is **6 minutes**, and only **17 (6%)**
+ever had a price more than two hours before lock. On those 17, locking at the
+first price would have gained **+0.26pp** of edge per bet and 12 of them never
+moved at all. Tonight was the rare exception (−120 → −145 in the last two
+hours), and ~45% of its lost edge was the model correctly revising itself as
+lineups posted — which is what the T-60 lock exists to wait for. Revisit only
+if the odds source changes; see the memory `odds_source_strategy`.
+
+---
+
 ## [2026-08-10i] - The model gate now BLOCKS (T8.29)
 
 **Changed**

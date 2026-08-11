@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """
-discord_broadcasts.py -- the five subscriber messages, and the rules
+discord_broadcasts.py -- the six subscriber messages, and the rules
 that keep them honest.
 
     1. THE BOARD        slate T-60   the No.1 first, then every game
     2. THE No.1 PLAY    its own lock the one bet, priced
+    2b. NO PLAY         its own lock  when (2) was REFUSED at the price
     3. THE No.1 SETTLED that row grades  win or lose, the moment it lands
     4. FINAL RESULTS    all graded    how every pick did
     5. THE No.1 LEDGER  after (4)     record + units at quarter-Kelly
+
+(2) AND (2b) ARE MUTUALLY EXCLUSIVE AND FIRE AT THE SAME MOMENT. Exactly
+one of them goes out at the No.1's lock, chosen by `is_refused` -- which
+asks what the system STAKED, not what it ranked. See T8.30: for one night
+this file published (2) on a row quarter-Kelly had refused, complete with
+a price limit the quoted price already violated.
 
 MEASURED FACTS THAT SHAPED THESE (re-run them before changing anything):
 
