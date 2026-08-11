@@ -43,11 +43,27 @@ iterates against it.  The three-split out-of-sample protocol CLAUDE.md
 calls non-negotiable is still yours to run.  This is a tripwire, not a
 verdict.
 
-WHY IT ONLY WARNS.  Operator's call, 2026-08-10, and it is the right one:
-this branch takes ~30 automated pushes a day and a red gate during a live
-slate could block a real fix under time pressure.  The report is loud;
-the exit code is always 0.  Turning it into a blocker is a one-line
-change in the workflow, deliberately not taken.
+IT BLOCKS (operator, 2026-08-10, reversing the warn-only choice made
+earlier that day).  `--blocking` exits 1 when the change makes things
+WORSE: aggregate Brier worse, ANY single season worse, or the mixed
+pattern that means "fitted to one era".  A change that improves every
+season passes, so real model work is not obstructed.  Without
+`--blocking` the same command prints the same report and exits 0, which
+is what you want while iterating by hand.
+
+It ALSO blocks on a real change to `data/thresholds.json`.  A threshold
+is the CUT applied after the probability -- move one and every
+probability here is byte-identical while what gets BET changes.  This
+gate measures probabilities, so it cannot judge that, and reporting
+"PREDICTIONS UNCHANGED" would be true and deeply misleading.  It blocks
+and asks for a human.  `writtenAtUtc` is excluded because every predict
+tick rewrites it (~20/day) and it means nothing.
+
+THE ESCAPE HATCH: `[gate-override]` in a commit message.  The worry
+about blocking -- a genuine fix at 7pm with games starting -- is real,
+so the bypass needs no secret, no dashboard and no second person, and it
+lands in git history forever.  A gate nobody can bypass under pressure
+gets deleted; one bypassed loudly survives.
 
 RE-SCORES FROM FEATURE COLUMNS, NEVER FROM THE VERDICT COLUMNS.
 `pick_side` / `pick_strength` / `nrfi_prob` / `lambda_total` in the
@@ -308,20 +324,75 @@ def _metrics(ps: list[float], ys: list[int]) -> dict:
     }
 
 
-def compare(base: dict, cand: dict) -> None:
-    """Print the report. Never raises, never exits non-zero -- warn-only."""
+def thresholds_delta(base_path: Path, cand_path: Path) -> dict | None:
+    """Which THRESHOLD values changed, ignoring the timestamp.
+
+    `data/thresholds.json` is the decision surface -- `strongYrfiP`,
+    `lambdaYrfiFloor`, the Kelly parameters -- and this gate CANNOT measure
+    a change to it. The fingerprint covers calibrated probabilities; a
+    threshold is the cut applied to them afterwards, so moving one changes
+    what gets BET while every probability stays identical. Reporting
+    "PREDICTIONS UNCHANGED" for that would be true and deeply misleading.
+
+    `writtenAtUtc` is rewritten by every predict tick (~20/day) and means
+    nothing, so it is excluded -- otherwise the gate fires constantly on a
+    timestamp and, once blocking, hands the money branch ~20 chances a day
+    to go red for no reason.
+    """
+    def load(p: Path) -> dict:
+        if not p.exists():
+            return {}
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        d.pop("writtenAtUtc", None)
+        # Bankroll is restated by the tracker as results land; it is not a
+        # decision rule someone edited.
+        d.pop("kellyCurrentBankrollUnits", None)
+        return d
+
+    b, c = load(base_path), load(cand_path)
+    if not b and not c:
+        return None
+    changed = {k: (b.get(k), c.get(k))
+               for k in sorted(set(b) | set(c)) if b.get(k) != c.get(k)}
+    return changed or None
+
+
+def compare(base: dict, cand: dict, thr_changed: dict | None = None) -> bool:
+    """Print the report. Returns True if the change should be BLOCKED.
+
+    The caller decides what to do with that -- `--blocking` turns it into a
+    non-zero exit, and without it the exit stays 0 and this is a warning.
+    """
     bar = "=" * 68
     print(bar)
-    print("MODEL GATE (T8.28/T8.29) -- 2024+2025+2026 holdout, warn-only")
+    print("MODEL GATE (T8.28/T8.29) -- 2024+2025+2026 holdout, BLOCKING")
     print(bar)
+
+    blocked = False
+
+    if thr_changed:
+        blocked = True
+        print("\n  *** THRESHOLDS CHANGED -- THIS GATE CANNOT JUDGE IT ***\n")
+        for k, (b_, c_) in thr_changed.items():
+            print(f"    {k}: {b_}  ->  {c_}")
+        print("\n  A threshold is the CUT applied after the probability, so it")
+        print("  changes WHAT GETS BET while every probability below it stays")
+        print("  identical. This gate measures probabilities. It has no opinion")
+        print("  on whether the new cut is better, and staying silent would")
+        print("  read as approval -- so it blocks and asks for a human.")
 
     if base.get("fingerprint") == cand.get("fingerprint"):
         print(f"\n  PREDICTIONS UNCHANGED across {cand['n']} games.")
-        print("  This change provably did not move the model.\n")
+        if not thr_changed:
+            print("  This change provably did not move the model.\n")
         print(f"  fingerprint {cand['fingerprint'][:16]}  brier "
               f"{cand['metrics']['brier']}")
+        print(f"\n  VERDICT: {'BLOCKED' if blocked else 'PASS'}.")
         print(bar)
-        return
+        return blocked
 
     print("\n  *** PREDICTIONS MOVED ***\n")
     if base.get("n") != cand.get("n"):
@@ -375,13 +446,46 @@ def compare(base: dict, cand: dict) -> None:
             note = "  BETTER" if d < 0 else ("  WORSE" if d > 0 else "  same")
         print(f"  {m:16s}  {b:<11.6f} {c:<11.6f} {d:+.6f}{note}")
 
+    # THE BLOCKING RULE. Worse in aggregate, worse on ANY single season, or
+    # mixed across seasons -> block. Mixed counts on its own because a change
+    # that helps one era and hurts another is the classic shape of a fit to
+    # one era, and it is exactly what three splits exist to expose.
+    #
+    # EPS is tiny deliberately: this gate is DETERMINISTIC, so there is no
+    # measurement noise to absorb and a move is a real move. It exists only
+    # to swallow last-place float wobble between machines.
+    EPS = 1e-6
+    agg_d = cand["metrics"]["brier"] - base["metrics"]["brier"]
+    season_d = ([cs[s_]["brier"] - bs[s_]["brier"] for s_ in bs if s_ in cs]
+                if (bs and cs) else [])
+    worse_agg = agg_d > EPS
+    worse_any = any(d > EPS for d in season_d)
+    mixed = (any(d > EPS for d in season_d) and any(d < -EPS for d in season_d))
+    if worse_agg or worse_any or mixed:
+        blocked = True
+
     print("\n  Brier and log loss are LOWER-IS-BETTER.")
     print("  A win here is NOT proof the change is good. This holdout is FIXED,")
     print("  so anyone iterating against it will overfit it; and a finding can")
     print("  pass a permutation null at p=0.000 and still be an artifact (see")
     print("  the 2026-08-03 gate sweep). Run the three-split out-of-sample")
     print("  protocol before shipping a model change, and get sign-off.")
+
+    if blocked:
+        print("\n  VERDICT: BLOCKED.")
+        if mixed:
+            print("    - mixed across seasons (helps one era, hurts another)")
+        if worse_agg:
+            print(f"    - aggregate brier worse by {agg_d:+.6f}")
+        if worse_any and not worse_agg:
+            print("    - a season got worse even though the aggregate did not")
+        print("\n  If this is intentional and you have the out-of-sample")
+        print("  evidence, put [gate-override] in the commit message. That")
+        print("  lives in git history forever, which is the point.")
+    else:
+        print("\n  VERDICT: PASS (nothing got worse).")
     print(bar)
+    return blocked
 
 
 def main() -> int:
@@ -390,6 +494,10 @@ def main() -> int:
                     help="score the 3-season holdout with the current tree")
     ap.add_argument("--compare", nargs=2, metavar=("BASE.json", "CAND.json"),
                     help="report the difference between two fingerprints")
+    ap.add_argument("--blocking", action="store_true",
+                    help="exit 1 when the verdict is BLOCKED (CI uses this)")
+    ap.add_argument("--thresholds", nargs=2, metavar=("BASE.json", "CAND.json"),
+                    help="also compare two data/thresholds.json files")
     a = ap.parse_args()
 
     if a.fingerprint:
@@ -403,8 +511,12 @@ def main() -> int:
     if a.compare:
         b = json.loads(Path(a.compare[0]).read_text(encoding="utf-8"))
         c = json.loads(Path(a.compare[1]).read_text(encoding="utf-8"))
-        compare(b, c)
-        return 0            # warn-only, always
+        thr = (thresholds_delta(Path(a.thresholds[0]), Path(a.thresholds[1]))
+               if a.thresholds else None)
+        blocked = compare(b, c, thr)
+        # Without --blocking the exit stays 0 and this is purely a report, so
+        # the same command is safe to run by hand while iterating.
+        return 1 if (blocked and a.blocking) else 0
 
     ap.print_help()
     return 0

@@ -11,6 +11,39 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10i] - The model gate now BLOCKS (T8.29)
+
+**Changed**
+
+Operator reversed the warn-only decision made earlier the same day. The gate
+now fails the build.
+
+**What blocks:** aggregate Brier worse, **any single season** worse, or the
+mixed pattern (helps one era, hurts another) that is the signature of a fit to
+one era. A change that improves every season **passes** — real model work is
+not obstructed. Verified across six cases including the one that matters most,
+a genuine improvement passing, and the one the three splits exist for: an
+aggregate win with 2025 worse still blocks.
+
+**It also blocks a real `data/thresholds.json` edit, and that closes a hole I
+had left open.** A threshold is the cut applied *after* the probability — move
+`strongYrfiP` and every probability the gate measures is byte-identical while
+what gets **bet** changes. The gate would have reported "PREDICTIONS UNCHANGED":
+true, and deeply misleading. It now blocks and asks for a human.
+`writtenAtUtc` is excluded, because that timestamp is the **only** thing every
+`auto: predict` tick changes in that file — watching it would have fired the
+gate ~20×/day on nothing and, once blocking, handed the money branch twenty
+daily chances to go red for no reason.
+
+**The escape hatch: `[gate-override]` in a commit message.** The original worry
+about blocking — a genuine fix at 7pm with games starting — is real, so the
+bypass needs no secret, no dashboard and no second person, and it lands in git
+history forever. A gate nobody can bypass under pressure gets deleted; one
+bypassed loudly survives. The override scans the whole pushed commit range, not
+just HEAD.
+
+---
+
 ## [2026-08-10h] - The model gate now covers all three splits (T8.29)
 
 **Changed**

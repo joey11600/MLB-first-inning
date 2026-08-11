@@ -16,11 +16,24 @@
 # does and does not prove; the short version is that it is a tripwire, not a
 # verdict, and the three-split out-of-sample protocol is still yours to run.
 #
-# IT NEVER FAILS THE BUILD. Operator's call, 2026-08-10: this branch takes
-# ~30 automated pushes a day and a red gate during a live slate could block a
-# genuine fix under time pressure. The report is loud and the exit code is 0.
-# To make it blocking, drop the `|| true` on the compare step -- deliberately
-# not done.
+# IT BLOCKS. Operator's call, 2026-08-10, reversing the warn-only choice made
+# earlier the same day. It fails the build when the change makes predictions
+# WORSE -- in aggregate, on any single season, or in the mixed pattern that
+# means "fitted to one era". A change that IMPROVES every season passes, so
+# real model work is not obstructed.
+#
+# The original worry about blocking was real and is answered, not ignored:
+# a genuine fix at 7pm with games starting clears the gate by putting
+# `[gate-override]` in a commit message. No secret, no dashboard, no second
+# person -- and it is in git history forever, so every override is
+# attributable. A gate nobody can bypass under time pressure gets deleted;
+# one that can be bypassed loudly survives.
+#
+# It also blocks on a real change to `data/thresholds.json`, because a
+# threshold is the CUT applied after the probability: it changes what gets
+# BET while every probability stays identical, and this gate measures
+# probabilities. It cannot judge that change, and silence would read as
+# approval. `writtenAtUtc` is ignored -- every predict tick rewrites it.
 name: model gate
 
 on:
@@ -99,6 +112,9 @@ jobs:
             exit 0
           fi
           echo "baseline: $BASE"
+          # Exported so the Report step can scan exactly the pushed commit
+          # range for [gate-override], rather than guessing at HEAD alone.
+          echo "base_sha=$BASE" >> "$GITHUB_OUTPUT"
 
           # A worktree, not a checkout: it leaves the current tree untouched
           # so the candidate fingerprint we just took stays valid.
@@ -125,18 +141,52 @@ jobs:
       - name: Report
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: |
+          set -uo pipefail
           if [ ! -f /tmp/baseline.json ]; then
             echo "no baseline to compare against -- nothing to report"
             exit 0
           fi
-          # `|| true` is what makes this warn-only. Removing it makes the gate
-          # blocking; see the header before you do.
-          python tools/model_gate.py --compare /tmp/baseline.json /tmp/candidate.json \
-            | tee /tmp/report.txt || true
-          # Surface it on the run summary page so nobody has to open the log.
+
+          # THE ESCAPE HATCH, and why it is a commit message rather than a
+          # button. The operator's standing worry about a blocking gate is a
+          # genuine fix at 7pm with games starting. `[gate-override]` clears
+          # it immediately, needs no secret, no dashboard and no second
+          # person -- and is written into git history forever, so an override
+          # is always attributable after the fact. A gate you cannot bypass
+          # under time pressure gets deleted; one you can bypass loudly
+          # survives.
+          OVERRIDE=""
+          if git log --format=%B "${BASE_SHA}..HEAD" 2>/dev/null \
+               | grep -qiF '[gate-override]'; then
+            OVERRIDE="yes"
+          fi
+
+          # `--thresholds` hands the gate both data/thresholds.json files.
+          # The baseline worktree still holds the pre-push copy; the repo root
+          # holds this push's. The gate ignores `writtenAtUtc`, which every
+          # predict tick rewrites (~20/day) and which means nothing.
+          set +e
+          python tools/model_gate.py \
+            --compare /tmp/baseline.json /tmp/candidate.json \
+            --thresholds /tmp/base/data/thresholds.json data/thresholds.json \
+            --blocking | tee /tmp/report.txt
+          RC=${PIPESTATUS[0]}
+          set -e
+
           {
             echo '## Model gate'
+            if [ "$RC" != "0" ] && [ -n "$OVERRIDE" ]; then
+              echo '> **BLOCKED, but overridden** by `[gate-override]` in a commit message.'
+            fi
             echo '```'
             cat /tmp/report.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$RC" != "0" ] && [ -n "$OVERRIDE" ]; then
+            echo "::warning::model gate BLOCKED but [gate-override] was present -- allowing"
+            exit 0
+          fi
+          exit "$RC"
+        env:
+          BASE_SHA: ${{ steps.base.outputs.base_sha }}

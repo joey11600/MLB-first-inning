@@ -175,7 +175,7 @@ Possible causes if predictions DID move:
 
 ## 4. "I'm about to merge a PR that touches the predictor"
 
-**A TRIPWIRE WILL FIRE.  IT IS NOT A VERDICT.  You are still the gate.**
+**THE GATE BLOCKS.  It is still not the whole verdict.**
 
 `.github/workflows/model_gate.yml` (T8.29, shipped 2026-08-10) re-scores a
 fixed committed holdout of **3,728 real games across 2024, 2025 and 2026**
@@ -198,10 +198,17 @@ evidence: the holdout is FIXED, so anyone iterating against it overfits
 it, and --
 `2026-08-03_gate_sweep_artifact` records a finding that passed a
 permutation null at p=0.000 and walk-forward 4-of-4 and was an artifact
-anyway.  **It never fails the build**, by the operator's decision, because
-this branch takes ~30 automated pushes a day and a red gate during a live
-slate could block a real fix.  So it cannot stop you shipping a
-regression; it can only make sure you know you are shipping one.
+anyway.  **It FAILS the build** when a change makes predictions worse -- in
+aggregate, on any single season, or in the mixed pattern that means
+"fitted to one era".  A change that improves every season passes.  It
+also blocks on a real edit to `data/thresholds.json`, because a
+threshold changes what gets BET while leaving every probability
+identical, and this gate cannot judge that.
+
+**To ship anyway, put `[gate-override]` in a commit message.**  No
+secret, no dashboard, no second person -- so a genuine fix at 7pm with
+games starting is never stuck -- and it is in git history forever, so
+every override is attributable.
 
 Until 2026-08-10 this section described an automatic pre-merge shadow
 gate (`.github/workflows/shadow_gate.yml`, T4.7) that posted V2 actual
