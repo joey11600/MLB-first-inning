@@ -74,6 +74,38 @@ if the odds source changes; see the memory `odds_source_strategy`.
 
 ---
 
+## [2026-08-10j] - The gate override, documented -- and what "blocking" actually means
+
+**Added**
+
+PLAYBOOK section 4a: the `[gate-override]` escape hatch — the exact command,
+what it does not do (it never hides the finding; the report and
+`VERDICT: BLOCKED` are still printed and logged), legitimate uses vs smells,
+the `git log --grep` audit command, and the two run IDs proving it works in
+both directions.
+
+**Fixed — an overstatement in my own docs from earlier today**
+
+Section 4 said the gate "blocks". **It does not stop anything.** Verified
+2026-08-10: this branch has no protection rule and no required status checks
+(`branches/<branch>/protection` → 404). A red gate does not reject the push,
+does not stop Vercel deploying, and does not stop the predictor cron picking
+the code up. The change is live either way. What the gate provides is a loud,
+permanent, attributable *record*, not a veto.
+
+Saying otherwise would have been the exact T8.28 failure — a doc promising
+protection that does not exist — committed on the same day I removed the last
+one. Section 4a now states the limit first, and names what an actual veto would
+require (branch protection with `model gate / predictions moved?` as a required
+check) plus why it has deliberately not been enabled: ~30 automated pushes a
+day means a required check turns any CI outage into a frozen money pipeline.
+
+Also corrected: an earlier draft suggested a later empty commit could carry the
+override. It cannot — a commit touching no files matches none of the workflow's
+`paths:`, so the workflow does not re-run at all.
+
+---
+
 ## [2026-08-10i] - The model gate now BLOCKS (T8.29)
 
 **Changed**

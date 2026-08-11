@@ -175,7 +175,9 @@ Possible causes if predictions DID move:
 
 ## 4. "I'm about to merge a PR that touches the predictor"
 
-**THE GATE BLOCKS.  It is still not the whole verdict.**
+**THE GATE FAILS THE BUILD.  It does not stop the deploy -- see 4a for
+what "blocking" does and does not mean here.  And it is still not the
+whole verdict.**
 
 `.github/workflows/model_gate.yml` (T8.29, shipped 2026-08-10) re-scores a
 fixed committed holdout of **3,728 real games across 2024, 2025 and 2026**
@@ -205,10 +207,84 @@ also blocks on a real edit to `data/thresholds.json`, because a
 threshold changes what gets BET while leaving every probability
 identical, and this gate cannot judge that.
 
-**To ship anyway, put `[gate-override]` in a commit message.**  No
-secret, no dashboard, no second person -- so a genuine fix at 7pm with
-games starting is never stuck -- and it is in git history forever, so
-every override is attributable.
+### 4a. The override -- "the gate is red and I need to ship NOW"
+
+**FIRST, KNOW WHAT "BLOCKING" ACTUALLY MEANS HERE.  The gate turns CI
+RED.  It does not stop anything.**  Verified 2026-08-10: this branch has
+no protection rule and no required status checks
+(`gh api repos/.../branches/<branch>/protection` -> 404, "Branch not
+protected").  So a red gate does **not** reject your push, does **not**
+stop Vercel deploying, and does **not** stop the predictor cron picking
+your code up on its next tick.  Your change is live either way.
+
+That is worth saying plainly, because "blocking" invites the belief that
+something is holding the door.  Nothing is.  What the gate gives you is
+a loud, permanent, attributable RECORD that a change made predictions
+worse -- which is the thing that was missing for the three months
+described below.
+
+If you want an actual veto, it needs a branch protection rule with
+`model gate / predictions moved?` as a required status check.  That is
+an operator decision with a real cost: this branch takes ~30 automated
+pushes a day, and a required check turns any CI outage into a frozen
+money pipeline.  It has deliberately NOT been enabled.
+
+**The override itself.**  Put `[gate-override]` anywhere in a commit
+message in the push:
+
+```bash
+git commit -m "fix: lineup parse crash on doubleheaders [gate-override]"
+```
+
+It is scanned across every commit in the pushed range, not just the tip.
+Put it on the change itself -- adding a later empty commit does NOT work,
+because a commit touching no files matches none of this workflow's
+`paths:` and the workflow simply does not run again.  If you forgot,
+either amend (`git commit --amend`, then force-push -- think twice on a
+branch the cron writes to every few minutes) or include it on your next
+commit that touches a model path.
+
+**What it does NOT do.**  It does not silence the gate or hide the
+finding.  The gate still runs, still reaches its verdict, still prints
+the whole report, and still writes `VERDICT: BLOCKED` into the log and
+the run summary.  The only thing that changes is that the job exits 0
+instead of 1.  The record of what you shipped past is permanent and
+attributable -- that is the entire design.
+
+**Legitimate uses.**  A production fault during a slate.  A change you
+have already validated out-of-sample and whose per-season result you
+have read and accepted.  A deliberate threshold move you have decided
+on, which the gate blocks by construction because it cannot judge one.
+
+**Uses that are a smell.**  Overriding because you have not read the
+report.  Overriding a MIXED ACROSS SEASONS verdict without an
+out-of-sample run -- that pattern is the signature of a fit to one era,
+and it is the specific failure this whole apparatus exists to surface.
+Two overrides in a row on the same change.  If you find yourself
+reaching for it routinely, the gate's rule is wrong and should be
+argued with in code, not bypassed in commit messages.
+
+**After an override, you still owe the three-split run.**  The override
+buys you time, not an exemption.
+
+**Auditing overrides** -- the reason it lives in git rather than in a
+checkbox:
+
+```bash
+git log --grep='\[gate-override\]' -i --format='%h %ad %an %s' --date=short
+```
+
+**It is tested, in both directions, so you can rely on it.**  On
+2026-08-10, on a scratch branch, `strongYrfiP` was moved 0.42 -> 0.43
+with no override: run 31449051239 printed `THRESHOLDS CHANGED`, named
+the value, and **failed** with exit 1.  The same class of change 0.43 ->
+0.44 with `[gate-override]` in the message: run 31449121574 printed the
+identical `VERDICT: BLOCKED`, then
+`::warning::model gate BLOCKED but [gate-override] was present --
+allowing`, and **passed**.  Neither value ever reached production; the
+branch was deleted.  Re-run that proof if you ever change the override
+logic -- an escape hatch nobody has tested is worse than none, because
+you discover it is broken at exactly the moment you cannot afford to.
 
 Until 2026-08-10 this section described an automatic pre-merge shadow
 gate (`.github/workflows/shadow_gate.yml`, T4.7) that posted V2 actual
