@@ -175,9 +175,35 @@ def merge_rows(existing: list[dict], fresh: list[dict]) -> tuple[list[dict], int
     return preserved + list(fresh), len(existing) - len(preserved)
 
 
+def parse_windows(spec: str) -> list[tuple[float, float]]:
+    """"120:115,75:55" -> [(120.0, 115.0), (75.0, 55.0)].
+
+    Each pair is MINUTES BEFORE FIRST PITCH, high (earlier) first. An
+    event is fetched on a cycle if it sits inside ANY pair.
+    """
+    out: list[tuple[float, float]] = []
+    for chunk in (spec or "").split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if ":" not in chunk:
+            raise ValueError(f"window {chunk!r} must look like HI:LO, "
+                             f"minutes before first pitch (e.g. 75:55)")
+        hi_s, lo_s = chunk.split(":", 1)
+        hi, lo = float(hi_s), float(lo_s)
+        if hi < lo:
+            raise ValueError(f"window {chunk!r}: HI ({hi}) must be >= LO "
+                             f"({lo}); these are minutes BEFORE first pitch, "
+                             f"so the earlier bound comes first")
+        out.append((hi, lo))
+    return out
+
+
 def select_events_in_window(events: list[dict], within_minutes: int = 0,
                             skip_started: bool = False,
-                            now: datetime | None = None) -> list[dict]:
+                            now: datetime | None = None,
+                            windows: list[tuple[float, float]] | None = None
+                            ) -> list[dict]:
     """The events worth spending a credit on right now.
 
     EXTRACTED SO IT CAN BE TESTED, because it decides what gets SPENT.
@@ -185,10 +211,30 @@ def select_events_in_window(events: list[dict], within_minutes: int = 0,
     minutes; a filter that is off by an hour either burns the month's
     budget on markets that do not exist yet or misses the lock entirely.
 
-    `within_minutes=0` means no upper bound (the whole slate).
+    TWO PHASES, NOT ONE CONTINUOUS WINDOW (design B, 2026-08-11). Measured
+    over 244 placed bets: DK first posts a price a median 63 min before
+    first pitch (87% land in the 60-120 band, only 11% earlier), and the
+    price a bet is actually PLACED at is captured a median 57 min out --
+    the first 5-minute cycle after the T-60 lock opens. So the money lives
+    in a narrow band around the lock, and everything between T-120 and
+    T-75 is spent watching a market that does not exist yet.
+
+        75:55   THE MONEY. Several attempts so a single miss cannot leave
+                the slate unpriced at commit. One shot at T-62 would miss
+                ~45% of games, because the median post is T-63.
+        120:115 THE MOVEMENT PROBE. Only the 11% of games priced early can
+                show any drift at all -- for the rest the price exists for
+                ~6 minutes before we bet it, which is why 245 of 263 bets
+                showed ZERO open-to-lock change. One credit per game keeps
+                that finding measurable instead of assumed.
+
+    `windows` wins when given. `within_minutes=N` is the older single-band
+    form and is kept because it is the honest way to say "the whole slate"
+    (N=0) for a one-off manual pull.
     An event whose start time will not parse is KEPT -- see `_parse_iso`.
     """
     now = now or datetime.now(timezone.utc)
+    bands = list(windows) if windows else None
     out = []
     for ev in events:
         start = _parse_iso(ev.get("commence_time"))
@@ -198,7 +244,10 @@ def select_events_in_window(events: list[dict], within_minutes: int = 0,
         mins = (start - now).total_seconds() / 60.0
         if skip_started and mins < 0:
             continue
-        if within_minutes and mins > within_minutes:
+        if bands:
+            if not any(lo <= mins <= hi for hi, lo in bands):
+                continue
+        elif within_minutes and mins > within_minutes:
             continue
         out.append(ev)
     return out
@@ -380,6 +429,14 @@ def main() -> int:
                          "REQUIRED for anything that feeds the ledger -- see "
                          "the note in the module docstring. Omit to keep "
                          "every book, which is a DIAGNOSTIC output only.")
+    ap.add_argument("--windows", metavar="HI:LO,HI:LO",
+                    help="Fetch an event when it sits in ANY of these bands, "
+                         "in minutes before first pitch (earlier bound "
+                         "first). The loop uses '120:115,75:55': a cluster "
+                         "around the lock, where the money is, plus one "
+                         "early probe for the ~11%% of games priced far out "
+                         "-- the only ones whose line can move before we "
+                         "bet it. Overrides --within-minutes.")
     ap.add_argument("--within-minutes", type=int, default=0, metavar="N",
                     help="Only fetch events whose first pitch is within N "
                          "minutes. 0 (default) = the whole slate. THE LOOP "
@@ -428,13 +485,20 @@ def main() -> int:
     # hour before its own first pitch -- so fetching the whole card at
     # noon buys mostly empty responses. Filtering here rather than after
     # the fetch is the entire saving.
-    if args.within_minutes or args.skip_started:
+    try:
+        bands = parse_windows(args.windows) if args.windows else None
+    except ValueError as exc:
+        sys.exit(f"bad --windows: {exc}")
+
+    if bands or args.within_minutes or args.skip_started:
         kept = select_events_in_window(events, args.within_minutes,
-                                       args.skip_started)
+                                       args.skip_started, windows=bands)
         skipped = len(events) - len(kept)
         if skipped:
-            print(f"  window: {len(kept)} of {len(events)} events are within "
-                  f"{args.within_minutes or 'any'} min"
+            desc = (args.windows if bands
+                    else f"{args.within_minutes or 'any'} min")
+            print(f"  window: {len(kept)} of {len(events)} events are in "
+                  f"{desc}"
                   f"{' and not started' if args.skip_started else ''} "
                   f"-- {skipped} skipped, saving {skipped} credits")
         events = kept
@@ -489,7 +553,7 @@ def main() -> int:
         # returns zero rows and must exit 0 -- the loop calls this every
         # five minutes and a non-zero exit would log a failure every time.
         # Without a window, zero rows still means something is wrong.
-        if args.within_minutes or args.skip_started:
+        if bands or args.within_minutes or args.skip_started:
             print("no prices yet for the events in this window "
                   "(the book has not posted them). Nothing written.")
             return 0

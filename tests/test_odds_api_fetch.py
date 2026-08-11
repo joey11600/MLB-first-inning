@@ -94,6 +94,80 @@ def test_an_unparseable_start_time_is_kept_not_dropped():
 
 
 @pytest.mark.regression
+def test_parse_windows_reads_the_two_phase_spec():
+    assert F.parse_windows("120:115,75:55") == [(120.0, 115.0), (75.0, 55.0)]
+    assert F.parse_windows("75:55") == [(75.0, 55.0)]
+    assert F.parse_windows("") == []
+
+
+@pytest.mark.regression
+def test_parse_windows_rejects_a_reversed_pair():
+    """These are minutes BEFORE first pitch, so the earlier bound comes
+    first. '55:75' would silently match nothing and the slate would go
+    unpriced with no error -- fail loudly instead."""
+    with pytest.raises(ValueError):
+        F.parse_windows("55:75")
+    with pytest.raises(ValueError):
+        F.parse_windows("120")
+
+
+@pytest.mark.regression
+def test_two_phase_fetches_the_probe_and_the_lock_but_not_the_gap():
+    """THE WHOLE POINT of design B: the stretch between the probe and the
+    lock cluster is where a continuous window wasted most of its credits
+    watching a market DK had not opened yet."""
+    bands = F.parse_windows("120:115,75:55")
+
+    def fetched(mins):
+        return bool(F.select_events_in_window(
+            [_ev(mins)], windows=bands, now=NOW))
+
+    assert fetched(118), "inside the early probe"
+    assert fetched(60), "inside the lock cluster"
+    assert fetched(75) and fetched(55), "cluster bounds are inclusive"
+    assert not fetched(100), "the dead gap must NOT be fetched"
+    assert not fetched(90), "the dead gap must NOT be fetched"
+    assert not fetched(300), "hours out, before any price exists"
+    assert not fetched(30), "after the lock has committed"
+
+
+@pytest.mark.regression
+def test_the_lock_cluster_gives_several_attempts_not_one():
+    """A single shot would miss ~45% of games, since the median first
+    post is T-63. Count the 5-minute cycles that fall in the band."""
+    bands = F.parse_windows("120:115,75:55")
+    hits = sum(1 for m in range(0, 200, 5)
+               if F.select_events_in_window([_ev(m)], windows=bands, now=NOW))
+    # 75,70,65,60,55 = 5 in the cluster; 120,115 = 2 in the probe
+    assert hits >= 6, f"too few attempts per game ({hits})"
+
+
+@pytest.mark.regression
+def test_two_phase_costs_far_less_than_a_continuous_window():
+    """Pins the saving that justified the change. Simulates a real
+    15-game evening slate at the loop's 5-minute cadence."""
+    starts = [280, 280, 285, 305, 307, 315, 340, 340, 345,
+              398, 400, 400, 400, 405, 430]      # minutes after NOW
+    two_phase = F.parse_windows("120:115,75:55")
+
+    def cost(windows, within=0):
+        total = 0
+        for step in range(0, 600, 5):
+            now = NOW + timedelta(minutes=step)
+            evs = [_ev(s, f"g{i}") for i, s in enumerate(starts)]
+            total += len(F.select_events_in_window(
+                evs, within_minutes=within, skip_started=True,
+                now=now, windows=windows))
+        return total
+
+    continuous = cost(None, within=120)
+    phased = cost(two_phase)
+    assert phased < continuous / 3, (
+        f"expected a >3x saving, got {phased} vs {continuous}")
+    assert phased > 0, "must still fetch something"
+
+
+@pytest.mark.regression
 def test_the_window_is_what_makes_the_budget_work():
     """A full 15-game slate spanning an evening: at noon almost nothing
     is within two hours, so a cycle costs ~0 rather than 15."""

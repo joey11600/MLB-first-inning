@@ -311,14 +311,35 @@ def step_fetch_odds_api() -> int:
     WRITES THE FILE `step_import_odds` ALREADY READS, so the import path
     is unchanged and this is one step, not a pipeline rewrite.
 
-    THE WINDOW IS THE COST CONTROL.  Every event costs a credit and this
+    THE WINDOWS ARE THE COST CONTROL.  Every event costs a credit and this
     loop runs every 5 minutes, so fetching the whole card each cycle would
-    spend ~180 credits an hour on markets that mostly do not exist yet:
-    DK posts a first-inning line a median 63 min before ITS OWN first
-    pitch.  `--within-minutes` restricts each cycle to games actually
-    approaching their lock, and `--skip-started` drops games whose first
-    inning is already being played.  `--merge` then keeps the earlier
-    games' captured prices in the file rather than overwriting them.
+    spend ~180 credits an hour on markets that mostly do not exist yet.
+    Measured over 244 placed bets:
+
+        DK first posts a price   median 63 min before first pitch
+                                 87% land in the 60-120 band
+                                 only 11% earlier than 120 min
+        the bet's actual price   median 57 min before first pitch
+                                 (the first 5-min cycle after T-60 opens)
+
+    So the money lives in a narrow band around the lock, and a continuous
+    120-min window spends most of its credits watching a market that has
+    not opened.  The default `120:115,75:55` is two phases:
+
+        75:55    THE MONEY.  Several attempts, so one miss cannot leave
+                 the slate unpriced at commit.  A SINGLE shot at T-62
+                 would miss ~45% of games -- the median post is T-63.
+        120:115  THE MOVEMENT PROBE.  Only the ~11% of games priced early
+                 can drift at all; for the rest the price exists about six
+                 minutes before we bet it, which is why 245 of 263 bets
+                 showed ZERO open-to-lock change.  One credit per game
+                 keeps that measurable rather than assumed.
+
+    373 credits/day -> 101 on tonight's 15-game slate, and the difference
+    is entirely fetches that could not have changed a placed bet.
+    `--skip-started` drops games whose first inning is already being
+    played.  `--merge` keeps the earlier games' captured prices in the
+    file rather than overwriting them.
 
     OFF BY DEFAULT, exactly like `PREDICTOR_SCRAPE_DK`, so the money path
     does not change until an operator sets the variable -- and can be
@@ -340,9 +361,9 @@ def step_fetch_odds_api() -> int:
     return run(
         [
             "python", "tools/fetch_odds_api.py",
-            "--book",           os.environ.get("ODDS_API_BOOK", "draftkings"),
-            "--within-minutes", os.environ.get("ODDS_API_WINDOW_MIN", "120"),
-            "--min-credits",    os.environ.get("ODDS_API_MIN_CREDITS", "50"),
+            "--book",        os.environ.get("ODDS_API_BOOK", "draftkings"),
+            "--windows",     os.environ.get("ODDS_API_WINDOWS", "120:115,75:55"),
+            "--min-credits", os.environ.get("ODDS_API_MIN_CREDITS", "50"),
             "--skip-started",
             "--merge",
             "--output",         str(odds_csv),

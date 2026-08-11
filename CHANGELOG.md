@@ -40,6 +40,52 @@ quote it. Match somewhere prose does not go.
 
 ---
 
+## [2026-08-11c] - Two-phase odds polling: 373 -> 101 credits/day (T8.31)
+
+**Changed**
+
+The odds fetch now runs in **two phases** instead of one continuous 120-minute
+window, cutting tonight's slate from **373 credits to 101** (56% -> 15% of the
+20,000/month tier). Operator is adding a strikeouts model on the same key, so
+the headroom is the point.
+
+Measured over 244 placed bets, and the numbers are why the shape changed:
+
+| | median | distribution |
+|---|---|---|
+| DK first posts a price | 63 min out | 87% in the 60-120 band, only 11% earlier |
+| the price a bet is PLACED at | 57 min out | 89% inside 60 min |
+
+So the money lives in a narrow band around the T-60 lock, and a continuous
+window spends most of its credits watching a market DraftKings has not opened.
+
+- `75:55` — **the money.** Several attempts so one miss cannot leave the slate
+  unpriced at commit. A single shot at T-62 would miss ~45% of games, because
+  the median first post is T-63.
+- `120:115` — **the movement probe.** Only the ~11% of games priced early can
+  drift at all; for the rest the price exists about six minutes before we bet
+  it, which is why 245 of 263 bets showed zero open-to-lock change. One credit
+  per game keeps that finding measurable rather than assumed.
+
+Everything cut is a fetch that could not have changed a placed bet: the removed
+spend is the T-115..T-75 dead gap and the post-lock stretch, where
+`market_*_odds` is already frozen by T2.23.
+
+`--windows HI:LO,HI:LO` (env `ODDS_API_WINDOWS`, default `120:115,75:55`),
+with `parse_windows()` rejecting a reversed pair loudly — `55:75` would match
+nothing and silently leave every slate unpriced. `--within-minutes` is kept as
+the honest single-band form for a manual whole-slate pull.
+
+7 new tests (129 total, up from 124), including one that pins the >3x saving
+against a simulated 15-game evening slate so the claim cannot rot.
+
+**Verified live** on Railway's key at 1:41 PM ET: 15/15 events correctly
+skipped, **0 credits spent**.
+
+**Untouched:** model, gates, staking, ledger, `strongYrfiP` (0.42).
+
+---
+
 ## [2026-08-11b] - The Odds API wired into the loop (T8.31)
 
 **Added**
