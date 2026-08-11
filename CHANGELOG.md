@@ -40,6 +40,61 @@ quote it. Match somewhere prose does not go.
 
 ---
 
+## [2026-08-11a] - DK now blocks Railway; `--book` guard added (T8.31)
+
+**Fixed (infrastructure) — DIAGNOSIS, the repair is not shipped yet**
+
+Odds stopped capturing entirely. 2026-08-11: **15 games, 0 priced**, last
+successful capture 10:56 PM ET on 08-10. Root cause: **DraftKings now 403s
+Railway's egress IP.** Railway was the only working odds source, so the whole
+odds path is down.
+
+Ruled out, in order, because each has bitten before:
+
+- **Not a dead/disabled scraper.** It runs every cycle and is refused.
+- **Not a missing `curl_cffi`.** The logged `HTTPError: HTTP Error 403: ` is
+  produced by exactly one library — curl_cffi's `raise_for_status` formats
+  `f"HTTP Error {status}: {reason}"`, verified against its source. `requests`
+  emits `403 Client Error: Forbidden for url: …` and the urllib fallback logs
+  a `repr` and has no warmup. So the Chrome TLS impersonation **is** running
+  and is being blocked anyway.
+- **Not the 08-05 subcategory rotation.** Sub 20150 still returns a full valid
+  payload (15 events / 15 markets / 60 selections) and `extract_odds` parses
+  15 clean rows — *from a residential IP*. That failure looked like 200-with-
+  zero-markets; this is an outright refusal.
+- **Not fixable by redeploying.** Four redeploys since the last good capture
+  (04:31, 04:50, 05:56, 09:50 UTC), all still blocked — so unlike 2026-08-06
+  this is not one unlucky ephemeral IP. Same failure class as the Contabo box.
+
+**Added**
+
+`tools/fetch_odds_api.py --book <name>` — keep exactly one sportsbook.
+**Required on the money path.** Without it the tool emits every US book into
+one file, and `tracker.import_odds` applies every matching row in FILE ORDER
+against the same pick, so **the last book in the file silently becomes the
+ledger's price**. The published No.1 record is a DraftKings-priced series
+(stakes move ~17% per 10c; the win-loss line itself changes at ±20c because
+refused nights become bets), so an arbitrary basis is a different product
+wearing this one's label. Matches the aggregator's `title` or `key`,
+case-insensitively; a book that is not quoting yields **nothing**, never a
+fallback to another book. A multi-book file now prints a loud
+DO-NOT-IMPORT warning and the tool refuses to suggest importing it.
+6 new self-test assertions; `--self-test` passes.
+
+**Costed** (real slates, trailing 14d): average **14.6 credits** per
+full-slate fetch (1 to list events + 1 per game). One fetch/day = **437
+credits/month**, inside the 500 free tier with ~13% headroom — but that is a
+single attempt per night with no redundancy. Two/day = 874, three/day = 1,311.
+This supersedes the 8/6 "~$59/mo like-for-like" estimate, which predates any
+measurement of real slate sizes.
+
+**Not done, deliberately:** the loop is NOT wired to the new source, and no
+key was committed. Wiring it touches the money path and needs operator sign-off.
+
+**Untouched:** model, gates, staking, ledger, `strongYrfiP` (0.42).
+
+---
+
 ## [2026-08-10j] - A refused No.1 is not a play, and never was a result (T8.30)
 
 **Fixed**

@@ -298,6 +298,31 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [ ] **T8.31 — DraftKings now blocks Railway; the odds path is down** 🔴 OPEN 2026-08-11
+  2026-08-11: 15 games, **0 priced**; last capture 10:56 PM ET 08-10.
+  Railway's egress IP is 403'd by DK — the same failure class that killed
+  the Contabo box, and Railway was the ONLY working source.
+  **Confirmed it is the IP, not the code:** curl_cffi Chrome
+  impersonation *is* running (its `raise_for_status` is the only thing
+  that formats `HTTP Error 403: `, verified against library source), sub
+  20150 still returns a full valid payload, and the identical code from a
+  residential IP returns 15 clean odds rows. Four redeploys since the last
+  good capture are all blocked, so unlike 2026-08-06 this is not one
+  unlucky ephemeral IP.
+  **Decided repair** (operator, 2026-08-11): buy DK's price from The Odds
+  API — same book, so no era boundary and no record reset. Blocker is an
+  `ODDS_API_KEY` in Railway, not code.
+  **Shipped so far:** `--book` guard on `tools/fetch_odds_api.py` (see
+  CHANGELOG 2026-08-11a) — without it a multi-book file re-prices the
+  ledger at whichever book sorts last, because `import_odds` applies every
+  matching row in file order.
+  **Still open:** wire the fetch into `workers/predictor_loop.py` (money
+  path — needs sign-off), pick a cadence against the measured 14.6
+  credits/fetch, and decide free vs paid tier.
+  Rejected and not to be re-proposed: proxying, Railway static outbound
+  IPs, a second budget VPS, and scraping from the operator's home
+  connection — see the memory `odds_source_strategy`.
+
 - [x] **T8.30 — a refused No.1 was published as a bet** ✅ 2026-08-10
   Live to subscribers. TB@OAK locked with quarter-Kelly having refused it
   (`units_risked` 0, `edge_on_pick` −0.9%) and the channel got

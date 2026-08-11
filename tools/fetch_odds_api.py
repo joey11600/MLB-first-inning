@@ -37,10 +37,26 @@ and team-mapping are covered by `--self-test`. Treat the first live run
 as a verification step: check the row count against the slate before
 trusting the prices.
 
+ONE BOOK ONLY, FOR ANYTHING THAT FEEDS THE LEDGER.  `--book draftkings`
+is REQUIRED on the money path and the flag exists because omitting it is
+silently wrong rather than loudly wrong: `tracker.import_odds` applies
+every matching row in FILE ORDER against the same pick, so a multi-book
+file leaves the ledger priced at whichever book the aggregator happened
+to return last.  The published No.1 record is a DRAFTKINGS-priced series
+-- stakes move ~17% per 10 cents and the win-loss line itself changes at
++/-20c, because nights the system refuses become bets.  Buying DK's
+number from an aggregator only preserves the record while it is still
+DK's number.  A multi-book file is a PRIVATE DIAGNOSTIC; the writer
+prints a loud warning and refuses to suggest importing it.
+
 Usage:
     export ODDS_API_KEY=...
     python tools/fetch_odds_api.py --dry-run
-    python tools/fetch_odds_api.py --output data/odds/api_2026-07-28.csv
+    # the money path -- one book, into the file the importer already reads:
+    python tools/fetch_odds_api.py --book draftkings \
+        --output data/odds/dk_2026-08-11.csv
+    # diagnostic only -- every book, NEVER imported:
+    python tools/fetch_odds_api.py --output data/odds/api_2026-08-11.csv
     python tools/fetch_odds_api.py --self-test
 """
 
@@ -122,15 +138,40 @@ def utc_to_et_date(iso: str) -> str:
         return ""
 
 
-def parse_event(ev: dict) -> list[dict]:
-    """One event's per-book first-inning 0.5 totals -> one row per book."""
+def parse_event(ev: dict, book: str | None = None) -> list[dict]:
+    """One event's per-book first-inning 0.5 totals -> one row per book.
+
+    `book` KEEPS ONLY THAT SPORTSBOOK, AND THE LEDGER REQUIRES IT.
+
+    WHY, measured 2026-08-11. `tracker.import_odds` appends EVERY matching
+    row to its `pending` list and applies them in file order against the
+    same pick, so with several books in one file THE LAST ONE WINS -- and
+    which book that is depends on the order the aggregator happened to
+    return. Feeding a multi-book file to the importer therefore prices the
+    ledger at an arbitrary book that can change between runs.
+
+    That is not a cosmetic problem. The published No.1 record is a
+    DRAFTKINGS-priced series; the memory `odds_source_strategy` measures
+    what moving the basis does -- stakes shift ~17% per 10 cents and the
+    win-loss line itself changes at +/-20c, because nights the system
+    refuses become bets. A different basis is a different product wearing
+    this one's label, so the whole point of buying DK's number from an
+    aggregator is that it is STILL DK's number.
+
+    Matches the aggregator's `title` ("DraftKings") or `key`
+    ("draftkings"), case-insensitively, so either spelling works.
+    """
     away, home = abbr(ev.get("away_team")), abbr(ev.get("home_team"))
     if not away or not home:
         return []
     start = ev.get("commence_time") or ""
+    want = (book or "").strip().lower()
     out = []
     for bk in ev.get("bookmakers") or []:
         title = bk.get("title") or bk.get("key") or "unknown"
+        if want and want not in (str(bk.get("title") or "").lower(),
+                                 str(bk.get("key") or "").lower()):
+            continue
         for mk in bk.get("markets") or []:
             if mk.get("key") != MARKET:
                 continue
@@ -212,6 +253,45 @@ def self_test() -> int:
     ok &= bad == []
     print(f"  [{'PASS' if bad == [] else 'FAIL'}] dropped")
 
+    # THE BOOK FILTER IS A LEDGER GUARD, NOT A CONVENIENCE. Without it a
+    # multi-book file re-prices the ledger at whichever book sorts last --
+    # see parse_event's docstring.
+    print("\n=== --book keeps exactly one sportsbook ===")
+    ev_key = {
+        "away_team": "New York Yankees", "home_team": "Boston Red Sox",
+        "commence_time": "2026-07-28T23:10:00Z",
+        "bookmakers": [
+            {"key": "draftkings", "title": "DraftKings",
+             "markets": [{"key": MARKET, "outcomes": [
+                 {"name": "Over", "price": -115, "point": 0.5},
+                 {"name": "Under", "price": -105, "point": 0.5}]}]},
+            {"key": "fanduel", "title": "FanDuel",
+             "markets": [{"key": MARKET, "outcomes": [
+                 {"name": "Over", "price": 100, "point": 0.5},
+                 {"name": "Under", "price": -120, "point": 0.5}]}]},
+        ],
+    }
+    dk_title = parse_event(ev_key, "DraftKings")
+    dk_key   = parse_event(ev_key, "draftkings")
+    dk_case  = parse_event(ev_key, "DrAfTkInGs")
+    none_hit = parse_event(ev_key, "Bovada")
+    unfilt   = parse_event(ev_key)
+    book_checks = [
+        (len(dk_title) == 1 and dk_title[0]["sportsbook"] == "DraftKings",
+         "matches on title ('DraftKings') -> 1 row"),
+        (len(dk_key) == 1 and dk_key[0]["sportsbook"] == "DraftKings",
+         "matches on key ('draftkings') -> 1 row"),
+        (len(dk_case) == 1, "match is case-insensitive"),
+        (dk_title[0]["market_yrfi_odds"] == "-115",
+         "keeps DK's price (-115), not FanDuel's (+100)"),
+        (none_hit == [],
+         "a book that is not quoting yields NOTHING, never a fallback"),
+        (len(unfilt) == 2, "omitting --book still returns every book"),
+    ]
+    for good, desc in book_checks:
+        ok &= good
+        print(f"  [{'PASS' if good else 'FAIL'}] {desc}")
+
     print("\n" + ("ALL SELF-TESTS PASSED" if ok else "*** SELF-TEST FAILED ***"))
     return 0 if ok else 1
 
@@ -220,6 +300,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", type=Path)
     ap.add_argument("--regions", default="us")
+    ap.add_argument("--book",
+                    help="Keep ONLY this sportsbook (case-insensitive match "
+                         "on the book's title or key, e.g. --book draftkings). "
+                         "REQUIRED for anything that feeds the ledger -- see "
+                         "the note in the module docstring. Omit to keep "
+                         "every book, which is a DIAGNOSTIC output only.")
     ap.add_argument("--dry-run", action="store_true",
                     help="list events and report the credit cost, then stop")
     ap.add_argument("--self-test", action="store_true")
@@ -260,7 +346,7 @@ def main() -> int:
                 f"{API_BASE}/sports/{SPORT}/events/{ev['id']}/odds",
                 {"apiKey": key, "regions": args.regions, "markets": MARKET,
                  "oddsFormat": "american"})
-            rows.extend(parse_event(detail))
+            rows.extend(parse_event(detail, args.book))
         except urllib.error.HTTPError as e:
             failed += 1
             print(f"  {ev.get('away_team')} @ {ev.get('home_team')}: "
@@ -271,6 +357,12 @@ def main() -> int:
                   f"{type(e).__name__}", file=sys.stderr)
 
     if not rows:
+        if args.book:
+            sys.exit(f"no first-inning 0.5 prices for --book {args.book!r} -- "
+                     f"nothing written. Either that book was not quoting the "
+                     f"market, or the name is wrong (try the aggregator's key, "
+                     f"e.g. 'draftkings'). Nothing is written rather than "
+                     f"silently falling back to a different book.")
         sys.exit("no first-inning 0.5 prices returned -- nothing written. "
                  "Check that your plan includes additional markets.")
 
@@ -287,9 +379,20 @@ def main() -> int:
     if failed:
         print(f"  {failed} event(s) failed and were skipped")
     print(f"  credits remaining: {rem}")
-    print("\nNext: merge with any other source and import the best prices --")
-    print(f"  python tools/merge_odds_books.py {out} data/odds/dk_{today}.csv \\")
-    print(f"      --output data/odds/best_{today}.csv")
+    if len(books) > 1:
+        # LOUD, because the importer will not complain. It applies every
+        # matching row in file order against the same pick, so the LAST
+        # book in the file silently becomes the ledger's price.
+        print("\n  *** MULTI-BOOK FILE -- DO NOT --import-odds THIS ***",
+              file=sys.stderr)
+        print(f"  It holds {len(books)} books. tracker.import_odds applies "
+              f"every row in file order, so the last book wins and your "
+              f"pricing basis becomes arbitrary. Re-run with "
+              f"--book draftkings for anything that feeds the ledger; keep "
+              f"this file as a private diagnostic only.", file=sys.stderr)
+    else:
+        print(f"\nSingle-book file ({books[0]}). Safe to import:")
+        print(f"  python tracker.py --import-odds {out}")
     return 0
 
 
