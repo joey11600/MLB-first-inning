@@ -52,6 +52,7 @@ ET = ZoneInfo("America/New_York")
 _EVENTS = {
     "board":   "discord_board",
     "toppick": "discord_toppick",
+    "noplay":  "discord_noplay",
     "settled": "discord_settled",
     "final":   "discord_final",
     "ledger":  "discord_ledger",

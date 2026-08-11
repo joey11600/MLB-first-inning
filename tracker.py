@@ -1368,6 +1368,10 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     "transport_check":      5,
     "discord_board":        24 * 60,
     "discord_toppick":      24 * 60,
+    # The No.1's counterpart: fires at the same lock when quarter-Kelly
+    # refused it, so the channel is told plainly that nothing is staked
+    # instead of being handed a padlocked play with no stake (2026-08-10).
+    "discord_noplay":       24 * 60,
     "discord_settled":      24 * 60,
     "discord_final":        24 * 60,
     "discord_ledger":       24 * 60,

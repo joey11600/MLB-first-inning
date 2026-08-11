@@ -377,6 +377,53 @@ def is_strong(row: dict) -> bool:
     return (row.get("pick_strength") or "").strip().upper() == "STRONG"
 
 
+def is_refused(row: dict) -> bool:
+    """Did the system LOOK at this row and decide to stake nothing?
+
+    THE ONE TEST EVERY IMPERATIVE MESSAGE MUST APPLY, 2026-08-10. The
+    board learned this at T8.18 and THE No.1 PLAY did not, so the same
+    defect shipped twice from one file. Tonight it reached the channel:
+
+        # 🔒 TONIGHT'S №1 PLAY
+        **TB @ OAK** · 9:40 PM ET
+        ## YRFI — a run scores in the 1st
+        Model 58.3% · price -145 (needs 59.2%) · edge -0.9%
+        Don't take worse than -130.          <-- at a price of -145
+        _1 unit = 1% of your bankroll._
+
+    Quarter-Kelly had already refused it (`units_risked` 0, edge -0.9%),
+    and the ledger correctly counted nothing. The MESSAGE said otherwise:
+    a padlock, a headline that names it the night's play, a price limit
+    the quoted price already violates, and a bankroll footer. The only
+    hint it was not a bet was a "-0.9%" mid-sentence.
+
+    THE THREE STATES ARE NOT TWO. `stake_for` separates them and callers
+    must not collapse them:
+
+        > 0    the system staked money        -> speak in the imperative
+        == 0   the system refused             -> say so; publish no price
+        None   no price captured yet          -> a real product path, the
+               ladder message; NOT a refusal, so do not announce one
+
+    The middle case is the one that bites, because 0.0 is falsy in
+    Python: `if stake:` skipped the stake line entirely and left every
+    surrounding line still reading as an instruction to bet.
+    """
+    return stake_for(row) == 0.0
+
+
+def _fmt_units(u: float) -> str:
+    """Units as a subscriber should read them.
+
+    NEVER `f"{u:.0f}"`. A 0.5u stake formats to "0" under it, so the
+    board could print "Stake 0 units" — which reads as a formatting bug,
+    invites the reader to bet it at a size of their own choosing, and is
+    indistinguishable from the refusal above. `KELLY_ROUNDED_FLOOR` is
+    0.5, so this is reachable on any row the pre-lock projection floors.
+    """
+    return f"{u:.0f}" if abs(u - round(u)) < 1e-9 else f"{u:.1f}"
+
+
 def is_locked(date_iso: str, row: dict, now: datetime) -> bool:
     """Has this pick passed its OWN lock (T-60 before ITS first pitch)?
 
@@ -653,11 +700,11 @@ def build_board(date_iso: str, rows: list[dict],
                            if st else None)
                 if headline:
                     if locked:
-                        L.append(f"### Stake {stake:.0f} units")
+                        L.append(f"### Stake {_fmt_units(stake)} units")
                         if pa is not None:
                             L.append(f"Don't take worse than **{fmt_odds(pa)}**.")
                     else:
-                        L.append(f"### Projected stake {stake:.0f} units "
+                        L.append(f"### Projected stake {_fmt_units(stake)} units "
                                  f"— NOT LOCKED")
                         L.append(f"**This is not a bet yet.** It locks at "
                                  f"**{_hm(lock_at) if lock_at else '--'} ET**, "
@@ -669,12 +716,12 @@ def build_board(date_iso: str, rows: list[dict],
                                  "line._")
                 else:
                     if locked:
-                        line = f"**Stake {stake:.0f}u**"
+                        line = f"**Stake {_fmt_units(stake)}u**"
                         if pa is not None:
                             line += f" · don't take worse than **{fmt_odds(pa)}**"
                     else:
-                        line = (f"_projected {stake:.0f}u · not locked until "
-                                f"{_hm(lock_at) if lock_at else '--'} ET_")
+                        line = (f"_projected {_fmt_units(stake)}u · not locked "
+                                f"until {_hm(lock_at) if lock_at else '--'} ET_")
                     L.append(line)
 
     if no1_live:
@@ -764,8 +811,77 @@ def build_board(date_iso: str, rows: list[dict],
     return "\n".join(L)
 
 
-def build_top_pick(date_iso: str, r: dict) -> str:
-    """BROADCAST 2 -- fires at the No.1 pick's own lock."""
+def build_no_play(date_iso: str, r: dict,
+                  rows: list[dict] | None = None) -> str:
+    """BROADCAST 2b -- the night's best look, DECLINED at the price.
+
+    OPERATOR DECISION, 2026-08-10: on a night the system stakes nothing,
+    subscribers get this INSTEAD of THE No.1 PLAY -- not a No.1 message
+    with a disclaimer bolted on. A message headlined as the night's play
+    should only exist when there is a play; anything else trains readers
+    to skim the headline, which is exactly how tonight's refusal got read
+    as a bet.
+
+    IT PUBLISHES NO PRICE TO ACT ON. `pass_price` is deliberately absent:
+    a "don't take worse than" line is a betting instruction, and there is
+    no bet. Naming the price it WOULD take is a different message from
+    naming a price to lay, and on a refused row only the first is honest
+    -- so the break-even is stated as arithmetic, never as a limit.
+    """
+    away = (r.get("away_team") or "").upper()
+    home = (r.get("home_team") or "").upper()
+    side = (r.get("pick_side") or "").upper()
+    st = game_start_et(date_iso, r.get("game_time_et", ""))
+    p, _ = published_probability(r)
+    odds = side_price(r)
+
+    # A refused No.1 does not mean a silent card: a less confident STRONG
+    # can carry a better price and still be staked. Saying "no play
+    # tonight" over a night that HAS one would be the same class of error
+    # this message exists to fix, with the sign flipped (T8.16).
+    others = [x for x in (rows or [])
+              if x is not r and is_strong(x) and (stake_for(x) or 0) > 0]
+
+    L: list[str] = []
+    L.append("# NO PLAY ON THE №1" if others else "# NO PLAY TONIGHT")
+    L.append("")
+    L.append(f"The card's strongest look was **{away} @ {home}** "
+             f"({side}, {_hm(st) if st else '--'} ET). "
+             f"**The system is staking nothing on it.**")
+    L.append("")
+    if p is not None and odds is not None:
+        L.append(f"Model **{p*100:.1f}%** · the price is "
+                 f"**{fmt_odds(odds)}**, which needs "
+                 f"**{american_to_implied(odds)*100:.1f}%** just to break "
+                 f"even. The number moved past us before it locked.")
+    elif p is not None:
+        L.append(f"Model **{p*100:.1f}%**, with no price worth taking.")
+    L.append("")
+    if others:
+        L.append(f"_{len(others)} other play{'s' if len(others) != 1 else ''} "
+                 f"on tonight's card {'are' if len(others) != 1 else 'is'} "
+                 f"still staked — see THE BOARD._")
+        L.append("")
+    L.append("**This is not a bet, and nothing is added to the record.** "
+             "Passing on a bad price is the same decision as taking a good "
+             "one, and it gets published the same way.")
+    return "\n".join(L)
+
+
+def build_top_pick(date_iso: str, r: dict,
+                   rows: list[dict] | None = None) -> str:
+    """BROADCAST 2 -- fires at the No.1 pick's own lock.
+
+    REFUSALS NEVER REACH THE IMPERATIVE HALF OF THIS FUNCTION. The guard
+    below is a second line of defence -- `due_broadcasts` already routes a
+    refused No.1 to `build_no_play` -- and it is here because this
+    function is also reachable by hand (`--which toppick`, `--resend
+    toppick`), which is precisely how an operator would try to re-publish
+    a night the scheduler had correctly declined to announce.
+    """
+    if is_refused(r):
+        return build_no_play(date_iso, r, rows)
+
     side = (r.get("pick_side") or "").upper()
     st = game_start_et(date_iso, r.get("game_time_et", ""))
     p, reconciled = published_probability(r)
@@ -789,7 +905,7 @@ def build_top_pick(date_iso: str, r: dict) -> str:
             L.append(f"Model **{p*100:.1f}%** · no price captured — "
                      f"use the ladder below at your own book.")
         if stake:
-            L.append(f"### Stake {stake:.0f} units")
+            L.append(f"### Stake {_fmt_units(stake)} units")
         pa = pass_price(p)
         if pa is not None:
             L.append(f"Don't take worse than **{fmt_odds(pa)}**.")
@@ -860,6 +976,49 @@ def build_top_pick_settled(date_iso: str, r: dict) -> str:
     stake = _f(r.get("units_risked"))
     odds = side_price(r)
 
+    # A REFUSED No.1 HAS NO RESULT TO ANNOUNCE, 2026-08-10.
+    #
+    # This fires off `top_pick`, which ranks by conviction and never asks
+    # whether money went down -- so on a night quarter-Kelly declined the
+    # No.1 it was about to publish:
+    #
+    #     # ✅ THE №1 WON
+    #     **TB @ OAK** · **YRFI** — a run scored in the 1st
+    #     price **-145**
+    #     _Record: 47—21 (69.1%) · +88.89u at quarter-Kelly._
+    #
+    # Both halves are false together. There was no bet, so there is no
+    # win; and the record printed underneath EXCLUDES this game (both
+    # `select_top_picks` and dashboard/lib/top-pick.ts drop a night whose
+    # stake is zero), so the line implies an inclusion that did not
+    # happen. Claiming a win nobody staked is the oldest trick in paid
+    # picks; printing it above an unchanged record is also the version a
+    # subscriber can catch, which makes it worse, not better.
+    #
+    # On a LOSS it fails the other way: the ping says the No.1 lost while
+    # the record does not move, so anyone reconciling the two finds the
+    # record understating losses. Silence is not an option either -- see
+    # the loss-ping reasoning above -- so the honest message is that the
+    # game had no action, which is what actually happened.
+    if is_refused(r) and g in ("WIN", "LOSS"):
+        happened = (("a run scored in the 1st" if side == "YRFI"
+                     else "no run scored in the 1st") if g == "WIN" else
+                    ("no run scored in the 1st" if side == "YRFI"
+                     else "a run scored in the 1st"))
+        L = ["# THE №1 — NO ACTION", ""]
+        L.append(f"**{away} @ {home}** · **{side}** — {happened}, so the "
+                 f"pick would have {'won' if g == 'WIN' else 'lost'}.")
+        L.append("")
+        L.append("**No bet was placed.** The price moved past our number "
+                 "before it locked and the system staked nothing, so this "
+                 "is not counted either way — the record below is "
+                 "unchanged by it.")
+        rec = _top_pick_record_line(date_iso)
+        if rec:
+            L.append("")
+            L.append(f"_{rec}._")
+        return "\n".join(L)
+
     L: list[str] = []
     if g == "WIN":
         L.append("# ✅ THE №1 WON")
@@ -885,7 +1044,7 @@ def build_top_pick_settled(date_iso: str, r: dict) -> str:
     if odds is not None:
         bits.append(f"price **{fmt_odds(odds)}**")
     if stake:
-        bits.append(f"staked **{stake:.0f}u**")
+        bits.append(f"staked **{_fmt_units(stake)}u**")
     if pnl is not None:
         bits.append(f"**{pnl:+.2f}u**")
     if bits:
@@ -1098,14 +1257,35 @@ def due_broadcasts(date_iso: str, rows: list[dict],
     # Keyed on the GAME, not just the date: if the No.1 flips during the
     # afternoon the new game gets its own announcement rather than being
     # silently swallowed by an already-used date key.
+    #
+    # A REFUSED No.1 GETS THE OTHER MESSAGE, NOT THIS ONE (2026-08-10).
+    # `top_pick` ranks by conviction and never asks whether money went
+    # down, so on a night quarter-Kelly declined it this fired anyway and
+    # published a padlocked "TONIGHT'S №1 PLAY" carrying a price limit for
+    # a bet the system had refused. Routing it here rather than softening
+    # the message is the operator's call: a message headlined as the
+    # night's play should only exist when there is one.
+    #
+    # SEPARATE EVENT TYPE AND SEPARATE KEY, DELIBERATELY. Reusing
+    # `toppick:` would let one shape suppress the other through the 24h
+    # dedupe -- a No.1 that locks, is announced, then has its price move
+    # would find the no-play notice already "sent". They are different
+    # claims about the night and each must be able to reach the channel.
+    # `discord_noplay` is registered in tracker._DEDUP_WINDOW_M; an
+    # unregistered type inherits a 5-MINUTE window and would republish
+    # roughly twelve times an hour (the 2026-08-06 board incident).
     tp = top_pick(rows)
     if tp is not None:
         st = game_start_et(date_iso, tp.get("game_time_et", ""))
         if st is not None and now >= st - timedelta(minutes=LOCK_MINUTES_PREGAME):
             gid = (tp.get("game_pk") or
                    f"{tp.get('away_team','')}@{tp.get('home_team','')}")
-            out.append(("discord_toppick", f"toppick:{date_iso}:{gid}",
-                        build_top_pick(date_iso, tp)))
+            if is_refused(tp):
+                out.append(("discord_noplay", f"noplay:{date_iso}:{gid}",
+                            build_no_play(date_iso, tp, rows)))
+            else:
+                out.append(("discord_toppick", f"toppick:{date_iso}:{gid}",
+                            build_top_pick(date_iso, tp, rows)))
 
     # 2b -- THE No.1 SETTLED, the moment that ONE row grades. Ordered
     # BEFORE final so that on a night whose No.1 is also the last game,
@@ -1213,9 +1393,13 @@ if __name__ == "__main__":
     ap.add_argument("--at", help="Pretend it is this ET time, e.g. '18:30'")
     ap.add_argument("--mode", choices=["off", "preview", "live"],
                     help="Override DISCORD_BROADCASTS")
-    ap.add_argument("--which", choices=["board", "toppick", "settled", "final", "ledger"],
+    ap.add_argument("--which",
+                    choices=["board", "toppick", "noplay", "settled",
+                             "final", "ledger"],
                     help="Render one message regardless of its trigger")
-    ap.add_argument("--resend", choices=["board", "toppick", "settled", "final", "ledger"],
+    ap.add_argument("--resend",
+                    choices=["board", "toppick", "noplay", "settled",
+                             "final", "ledger"],
                     help="Deliberately re-publish one broadcast, bypassing "
                          "the 24h dedupe. For replacing a post you have "
                          "already retracted -- never for routine sending.")
@@ -1233,7 +1417,8 @@ if __name__ == "__main__":
         tp = top_pick(slate)
         body = {
             "board":   lambda: build_board(d, slate),
-            "toppick": lambda: build_top_pick(d, tp) if tp else "",
+            "toppick": lambda: build_top_pick(d, tp, slate) if tp else "",
+            "noplay":  lambda: build_no_play(d, tp, slate) if tp else "",
             "settled": lambda: build_top_pick_settled(d, tp) if tp else "",
             "final":   lambda: build_final_results(d, slate),
             "ledger":  lambda: build_ledger(d) or "",
@@ -1241,6 +1426,7 @@ if __name__ == "__main__":
         key = {
             "board":   f"board:{d}",
             "toppick": f"toppick:{d}:{tp.get('game_pk') if tp else '?'}",
+            "noplay":  f"noplay:{d}:{tp.get('game_pk') if tp else '?'}",
             "settled": f"settled:{d}:{tp.get('game_pk') if tp else '?'}",
             "final":   f"final:{d}",
             "ledger":  f"ledger:{d}",
@@ -1264,7 +1450,9 @@ if __name__ == "__main__":
     if a.which:
         body = {
             "board":   lambda: build_board(d, slate),
-            "toppick": lambda: (build_top_pick(d, top_pick(slate))
+            "toppick": lambda: (build_top_pick(d, top_pick(slate), slate)
+                                if top_pick(slate) else "(no No.1 play)"),
+            "noplay":  lambda: (build_no_play(d, top_pick(slate), slate)
                                 if top_pick(slate) else "(no No.1 play)"),
             "settled": lambda: (build_top_pick_settled(d, top_pick(slate))
                                 if top_pick(slate) else "(no No.1 play)"),
