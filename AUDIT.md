@@ -298,6 +298,45 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [x] **T8.29 — a model gate that says what it actually proves** ✅ 2026-08-10
+  Closes the hole T8.28 exposed: from 2026-05-06 nothing checked model
+  quality, and `tests.yml` only proves the money PLUMBING is
+  self-consistent — a change that worsens predictions passes it green.
+  `tools/model_gate.py` re-scores a committed 524-game 2026 holdout
+  before and after a push and reports whether predictions moved; the
+  parity answer ("UNCHANGED") is the valuable one, since refactors and
+  ops work should never move the model and one that does is telling you
+  something.
+  **Its own workflow deliberately.** `tests.yml` has
+  `paths-ignore: data/**` for the ~30 daily data commits, but the WEIGHTS
+  live under `data/` — a weights change would have matched the ignore and
+  triggered nothing. `model_gate.yml` uses an allowlist naming the
+  artifacts explicitly.
+  **Warn-only** (operator, 2026-08-10): ~30 pushes/day and a red gate
+  during a live slate could block a real fix. `|| true` on the compare
+  step is the switch; the header says so.
+  **The instrument is held constant, the model varies:** the current
+  gate script is copied INTO the baseline worktree rather than running
+  the baseline's own copy, so a change to the gate cannot masquerade as a
+  model change and a baseline predating the gate still scores.
+  **Coverage floor, because a guard that quietly stops guarding is
+  T8.28 again.** `_feats` skips rows with missing features, so a renamed
+  feature would shrink the holdout silently and a 6-game gate would still
+  report "unchanged". 524/735 today (the 211 skips are a missing
+  `wx_wind_kmh` column, a data hole not a model fault); below 450 emits
+  `::error::`, and 0 hard-stops. Verified by simulating a rename.
+  **Limits stated in the tool, not just here:** 2026 only, because the
+  repaired 2024/25 files are not in git and cannot be rebuilt in CI from
+  a 232MB gitignored cache. Committing them is 13MB and safe from the
+  Vercel bundle (`copy-data.mjs` allowlists and never copies
+  `data/backtests/`) — an upgrade path, not a wall.
+  Also fixed: PLAYBOOK 1.2 and 3 still routed to `daily_shadow_report.py`
+  / `shadow_summary.csv`, deleted 2026-05-06 and missed by the T8.28
+  sweep.
+  **Generalises:** the useful question for a CI guard is not "did it
+  pass" but "what would it have caught". State the limits in the tool's
+  own output, or the next reader inherits a false assurance.
+
 ---
 
 ## 🔴 TIER 7 — 2026-07-28 money-path + dashboard audit

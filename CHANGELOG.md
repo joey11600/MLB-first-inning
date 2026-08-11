@@ -11,6 +11,58 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10g] - The model gate, rebuilt honestly (T8.29)
+
+**Added**
+
+`tools/model_gate.py` + `.github/workflows/model_gate.yml`. Re-scores a fixed
+committed holdout of **524 real 2026 games** with the model code and artifacts
+from before a push and after it, and reports whether any prediction moved.
+
+| verdict | meaning |
+|---|---|
+| PREDICTIONS UNCHANGED | the change provably did not move the model — the common, most useful answer |
+| PREDICTIONS MOVED | per-game moves + Brier / log-loss deltas |
+
+**Its own workflow, not a job in tests.yml, and that is the point.** `tests.yml`
+carries `paths-ignore: data/**` because the automation pushes ~30 data commits a
+day — but **the model weights live under `data/`** (`lr_t1.json`, `lr_b1.json`,
+`calibration_v2.json`). A weights change is the most consequential edit anyone
+can make here and in tests.yml it would have matched `paths-ignore` and
+triggered nothing. This workflow uses a precise allowlist instead.
+
+**Warn-only, by the operator's decision.** ~30 automated pushes a day, and a red
+gate during a live slate could block a genuine fix under time pressure. It
+cannot stop you shipping a regression; it makes sure you know you are.
+
+**What it does NOT prove, stated in the tool itself.** 2026 only — the repaired
+2024/2025 files are not in git and cannot be rebuilt in CI (they come from a
+232 MB gitignored cache). Committing them is 13 MB and safe from the Vercel
+bundle (`copy-data.mjs` allowlists, and never copies `data/backtests/`), so this
+is an upgrade path, not a wall. A metric win on ~500 games is weak evidence —
+see `2026-08-03_gate_sweep_artifact`. The three-split protocol is still yours.
+
+**Re-scores from FEATURE columns, never the verdict columns.** `pick_side` /
+`nrfi_prob` / `lambda_total` in the backtest files are retired-Poisson artifacts
+at AUC ~0.50; reading them as "what the model would have done" is this repo's
+most-repeated mistake.
+
+**Verified by making it fail, not by reading it.** Determinism (same tree twice
+→ same fingerprint); detection (an in-memory 0.1% shift → different fingerprint,
+no file touched); restore; a full worktree simulation of the CI flow; and the
+coverage floor (a renamed feature → hard stop, because a gate that quietly stops
+guarding is the T8.28 failure again).
+
+**Fixed**
+
+PLAYBOOK sections 1.2 and 3 still routed to `tools/daily_shadow_report.py`,
+`data/diagnostics/shadow_<DATE>.csv` and `shadow_summary.csv` — all deleted
+2026-05-06, all missed by the T8.28 sweep. Rerouted to the gate and to
+`pl_calc`. Section 4 and KB.md updated so they describe the gate that now
+exists rather than the one that doesn't.
+
+---
+
 ## [2026-08-10f] - The docs promised a pre-merge model gate deleted three months earlier (T8.28)
 
 **Fixed**

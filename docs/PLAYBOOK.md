@@ -42,17 +42,29 @@ that's the answer.  Common patterns:
 - **No warnings** -> picks were within normal feature ranges.  This is
   variance.  Do NOT change anything; the model lost a coin flip.
 
-### Step 1.2 — read the shadow comparison (T4.4)
+### Step 1.2 — check whether the model itself moved recently
+
+**The T4.4 V2-vs-T4.2 shadow report this step used to call
+(`data/diagnostics/shadow_<DATE>.csv`) was deleted 2026-05-06** with the
+rest of that surface; it produced nothing for three months while this
+step still told you to read it (T8.28).
+
+What answers the same question now:
 
 ```bash
-cat data/diagnostics/shadow_<DATE>.csv
+# Did any recent push move the predictions?  Every model-gate run says so.
+gh run list --workflow model_gate.yml -L 10
 ```
 
-This shows what V2 + T4.2 priors-pooling **would** have predicted.
-If V2 fired STRONG and T4.2-shadow PASSed, T4.2 disagreed -- and the
-fact that T4.2 isn't yet selecting differently in production means the
-priors JSON either isn't fresh OR a pitcher_q tag override prevented
-shrinkage.
+The gate (T8.29) re-scores a fixed 2026 holdout before and after each
+push touching model code or artifacts. If a bad day follows a run that
+said "PREDICTIONS MOVED", that push is your first suspect. If every
+recent run said "UNCHANGED", the model is not what changed — go to
+step 1.3.
+
+The surviving V2.1-vs-V2.2 track logs disagreements to
+`data/diagnostics/v21_v22_disagreements.csv` nightly. It is
+observability, not a verdict.
 
 ### Step 1.3 — check the drift monitor (T4.5)
 
@@ -123,18 +135,27 @@ with other reds.
 
 ---
 
-## 3. "Daily shadow delta has been negative for 5+ consecutive days"
+## 3. "The model looks like it has drifted over days, not one bad day"
 
-The auto-shadow report (`tools/daily_shadow_report.py`) appends
-one row per day to `data/diagnostics/shadow_summary.csv`.  If
-`delta_pl` (T4.2 minus V2) goes consistently negative, T4.2 is no
-longer providing the protective shrinkage.
+**This section used to route to `tools/daily_shadow_report.py` and
+`data/diagnostics/shadow_summary.csv`. Both were deleted 2026-05-06
+(T8.28); neither has existed since.** What to do instead:
 
 ```bash
-tail -10 data/diagnostics/shadow_summary.csv
+# 1. Has any push actually moved the predictions?
+gh run list --workflow model_gate.yml -L 20
+
+# 2. Is it the market rather than the model?  Read this BEFORE concluding decay.
+#    (memory: 2026-08-02_market_drift_not_model_decay)
+python tools/pl_calc.py --window 30d
 ```
 
-Possible causes:
+A flat stretch is far more often the market repricing than the model
+decaying — July 2026 went flat while our edge over the league price held
+steady. If the gate says every recent push left predictions UNCHANGED,
+the model is definitionally not what drifted.
+
+Possible causes if predictions DID move:
 
 - **Priors JSON is stale**: the daily 6 UTC refresh failed or hasn't
   been running.  Check
@@ -153,7 +174,28 @@ Possible causes:
 
 ## 4. "I'm about to merge a PR that touches the predictor"
 
-**NOTHING WILL CHECK THE MODEL FOR YOU.  You are the gate.**
+**A TRIPWIRE WILL FIRE.  IT IS NOT A VERDICT.  You are still the gate.**
+
+`.github/workflows/model_gate.yml` (T8.29, shipped 2026-08-10) re-scores a
+fixed committed holdout of 524 real 2026 games twice -- once with the code
+and artifacts from before your push, once with after -- and reports on the
+run summary whether any prediction moved.
+
+- **"PREDICTIONS UNCHANGED"** is the common and most useful answer.  It
+  proves the change did not move the model at all.  Refactors, ops,
+  logging and dashboard work should all land here, and one that does NOT
+  is telling you something you did not intend.
+- **"PREDICTIONS MOVED"** prints the per-game moves and the Brier / log
+  loss deltas.
+
+Read it for what it is.  524 games of 2026 only: it cannot speak to
+cross-year transfer, and a metric win on that sample is weak evidence --
+`2026-08-03_gate_sweep_artifact` records a finding that passed a
+permutation null at p=0.000 and walk-forward 4-of-4 and was an artifact
+anyway.  **It never fails the build**, by the operator's decision, because
+this branch takes ~30 automated pushes a day and a red gate during a live
+slate could block a real fix.  So it cannot stop you shipping a
+regression; it can only make sure you know you are shipping one.
 
 Until 2026-08-10 this section described an automatic pre-merge shadow
 gate (`.github/workflows/shadow_gate.yml`, T4.7) that posted V2 actual
@@ -166,7 +208,7 @@ caught up, and for three months this file told every reader that a
 merge would be checked by something that did not exist.  A stale
 "you're covered" is worse than no doc, because it stops you looking.
 
-### What actually runs on a push
+### What else runs on a push
 
 `.github/workflows/tests.yml`, on every push and PR:
 

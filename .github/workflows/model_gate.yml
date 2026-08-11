@@ -1,0 +1,132 @@
+# Model gate -- does this change move the predictions, and which way?
+#
+# WHY THIS IS ITS OWN WORKFLOW AND NOT A JOB IN tests.yml.
+# `tests.yml` carries `paths-ignore: data/**`, because the automation pushes
+# ~30 data commits a day and none of them can change behaviour. But THE MODEL
+# WEIGHTS LIVE UNDER data/ -- `data/lr_t1.json`, `data/lr_b1.json`,
+# `data/calibration_v2.json`. A weights change is the single most
+# consequential edit anyone can make here, and in tests.yml it would match
+# `paths-ignore` and trigger nothing at all. So this file uses a precise
+# ALLOWLIST of the paths that actually define the model, which lets it watch
+# those artifacts without waking on the daily data churn.
+#
+# WHAT IT DOES. Scores a fixed committed holdout of real 2026 games twice --
+# once with the code+artifacts from before this push, once with after -- and
+# reports whether any prediction moved. See tools/model_gate.py for what that
+# does and does not prove; the short version is that it is a tripwire, not a
+# verdict, and the three-split out-of-sample protocol is still yours to run.
+#
+# IT NEVER FAILS THE BUILD. Operator's call, 2026-08-10: this branch takes
+# ~30 automated pushes a day and a red gate during a live slate could block a
+# genuine fix under time pressure. The report is loud and the exit code is 0.
+# To make it blocking, drop the `|| true` on the compare step -- deliberately
+# not done.
+name: model gate
+
+on:
+  push:
+    paths:
+      # The model itself: feature construction, the two-stage forward pass,
+      # the calibrator, and the training code that produces the weights.
+      - "mlb_first_inning_predictor.py"
+      - "two_stage_model.py"
+      - "calibration.py"
+      - "recalibrate_v2.py"
+      - "rebuild_park_factors.py"
+      # The fitted artifacts. These are under data/ and are exactly why this
+      # workflow cannot live in tests.yml.
+      - "data/lr_t1.json"
+      - "data/lr_b1.json"
+      - "data/calibration_v2.json"
+      - "data/fi_park_factors.json"
+      - "data/thresholds.json"
+      # The gate and its holdout, so a change to the measuring instrument is
+      # itself measured.
+      - "tools/model_gate.py"
+      - "data/backtests/*_ptfix.csv"
+      - ".github/workflows/model_gate.yml"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: model-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: predictions moved?
+    # ubuntu-latest, NOT the self-hosted runner: same reasoning as tests.yml --
+    # this must still run when the VPS is down.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Need history to check out the pre-push state. 0 = full; the repo
+          # is ~84MB of history, which is cheap next to being unable to find
+          # the base commit when a push contains several commits.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install deps
+        id: deps
+        run: pip install -r requirements.txt
+
+      - name: Score the candidate (this push)
+        id: cand
+        run: python tools/model_gate.py --fingerprint /tmp/candidate.json
+
+      - name: Score the baseline (before this push)
+        id: base
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          # `github.event.before` is the pre-push tip, which is correct when a
+          # push carries several commits (HEAD^ would only undo the last one).
+          # It is unset on PRs and all-zeroes on a branch's first push, so
+          # fall back to the first parent.
+          BASE="${{ github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+          if [ -z "$BASE" ]; then
+            echo "::warning::no baseline commit available (first commit?) -- skipping comparison"
+            exit 0
+          fi
+          echo "baseline: $BASE"
+
+          # A worktree, not a checkout: it leaves the current tree untouched
+          # so the candidate fingerprint we just took stays valid.
+          git worktree add --detach /tmp/base "$BASE"
+
+          # THE INSTRUMENT IS HELD CONSTANT, THE MODEL IS WHAT VARIES.
+          # Copy today's gate script into the old tree rather than running the
+          # old tree's copy -- otherwise a change to model_gate.py would show
+          # up as a "model change", and a baseline predating the gate would
+          # have no script at all.
+          cp tools/model_gate.py /tmp/base/tools/model_gate.py
+          cd /tmp/base && python tools/model_gate.py --fingerprint /tmp/baseline.json
+
+      - name: Report
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: |
+          if [ ! -f /tmp/baseline.json ]; then
+            echo "no baseline to compare against -- nothing to report"
+            exit 0
+          fi
+          # `|| true` is what makes this warn-only. Removing it makes the gate
+          # blocking; see the header before you do.
+          python tools/model_gate.py --compare /tmp/baseline.json /tmp/candidate.json \
+            | tee /tmp/report.txt || true
+          # Surface it on the run summary page so nobody has to open the log.
+          {
+            echo '## Model gate'
+            echo '```'
+            cat /tmp/report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

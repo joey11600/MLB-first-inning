@@ -24,13 +24,17 @@ within hours instead of days:
   - `tools/pick_reasoning_log.py`    (T4.6) per-pick feature contributions
   - `tools/v21_shadow_predict.py`    V2.1-vs-V2.2 shadow track (observability)
   - `docs/PLAYBOOK.md`               (T4.8) when-to-do-what process doc
+  - `tools/model_gate.py` + `.github/workflows/model_gate.yml` (T8.29)
+    re-scores a fixed 2026 holdout before/after a push and reports whether
+    predictions moved -- a tripwire, warn-only, never blocks
 
 Three of the original six layers are GONE, removed 2026-05-06 with the
 V2/T4.2 shadow surface (b125aa45): `daily_shadow_report.py` (T4.4),
 `shadow_gate.yml` (T4.7) and `ShadowDeltaCard.tsx` (T4.9). This list
 still named all three on 2026-08-10 — the shadow_gate line in particular
 promised an automatic pre-merge model check that had not existed for
-three months. **Nothing gates a predictor change today; see PLAYBOOK
+three months. **Nothing BLOCKS a predictor change; the T8.29 gate reports
+whether one moved the model but never fails the build. See PLAYBOOK
 section 4.**
 
 If something breaks: **read PLAYBOOK.md first.** It routes every common
