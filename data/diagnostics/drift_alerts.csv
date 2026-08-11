@@ -280,3 +280,5 @@ date,severity,metric,note
 2026-08-06,MEDIUM,away_whiff_pct_rank_extreme,"away_whiff_pct_rank has 2/11 extreme values (outside [5.0, 95.0]); max=97.00"
 2026-08-07,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 3/15 extreme values (outside [5.0, 95.0]); max=100.00"
 2026-08-07,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 3/15 extreme values (outside [5.0, 95.0]); max=100.00"
+2026-08-10,MEDIUM,away_pitcher_q=live,away_pitcher_q=live: today=50.0% baseline=72.3% shift=-22.3%
+2026-08-10,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)

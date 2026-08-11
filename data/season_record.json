@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-08-10T05:08:03Z",
+ "generatedUtc": "2026-08-11T04:31:22Z",
  "headlineMethod": "the model that is live right now -- the shipped calibrator and the current gate -- replayed over every game of the season",
  "floorMethod": "no-hindsight check: at each date the calibrator is refit using only games played before that date",
  "caveat": "the shipped calibrator was fit on 2025+2026 data, so it has already seen these outcomes; the model weights are the fixed 2026-05-26 refit (trained through 2026-05-11), which makes bets on or before 2026-05-11 partially in-sample",
@@ -14,7 +14,7 @@
   "label": "Projected profit",
   "priceFill": -125.0,
   "from": "2026-04-01",
-  "to": "2026-08-09",
+  "to": "2026-08-10",
   "bets": 200,
   "wins": 135,
   "losses": 65,
@@ -23,9 +23,9 @@
   "edgePts": 11.05,
   "flatProfit": 40.05,
   "assumedBets": 56,
-  "selectedBets": 299,
-  "droppedZeroStake": 49,
-  "droppedFlatPnl": -0.52,
+  "selectedBets": 300,
+  "droppedZeroStake": 50,
+  "droppedFlatPnl": 0.17,
   "sim": {
    "startBank": 100.0,
    "finalBank": 369.32,
@@ -11935,6 +11935,34 @@
       }
      }
     ]
+   },
+   {
+    "date": "2026-08-10",
+    "flatPnl": 0,
+    "simPnl": 0,
+    "simBankAfter": 369.32,
+    "flagged": 1,
+    "placed": 0,
+    "bet": 0,
+    "games": [
+     {
+      "game": "TB@OAK",
+      "side": "YRFI",
+      "modelP": 0.4171,
+      "record": {
+       "action": "SKIP",
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": false,
+       "unitsRisked": 0.0,
+       "odds": -145,
+       "pnl": 0.0
+      }
+     }
+    ]
    }
   ]
  },
@@ -11942,7 +11970,7 @@
   "label": "Real profit",
   "priceFill": null,
   "from": "2026-05-07",
-  "to": "2026-08-09",
+  "to": "2026-08-10",
   "bets": 140,
   "wins": 92,
   "losses": 48,
@@ -11951,9 +11979,9 @@
   "edgePts": 8.83,
   "flatProfit": 22.39,
   "assumedBets": 0,
-  "selectedBets": 197,
-  "droppedZeroStake": 27,
-  "droppedFlatPnl": 1.84,
+  "selectedBets": 198,
+  "droppedZeroStake": 28,
+  "droppedFlatPnl": 2.53,
   "sim": {
    "startBank": 100.0,
    "finalBank": 240.85,
@@ -19469,6 +19497,34 @@
        "win": false,
        "pnl": -2.0,
        "assumed": false
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-08-10",
+    "flatPnl": 0,
+    "simPnl": 0,
+    "simBankAfter": 240.85,
+    "flagged": 1,
+    "placed": 0,
+    "bet": 0,
+    "games": [
+     {
+      "game": "TB@OAK",
+      "side": "YRFI",
+      "modelP": 0.4171,
+      "record": {
+       "action": "SKIP",
+       "code": "kelly_no_edge",
+       "reason": "no edge at that price"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": false,
+       "unitsRisked": 0.0,
+       "odds": -145,
+       "pnl": 0.0
       }
      }
     ]
