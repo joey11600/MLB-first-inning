@@ -336,6 +336,20 @@ the live ledger's own columns are healthy.
   **Generalises:** the useful question for a CI guard is not "did it
   pass" but "what would it have caught". State the limits in the tool's
   own output, or the next reader inherits a false assurance.
+  **UPGRADED same day:** operator added the repaired 2024/2025 files, so
+  the holdout is now 3,728 games across all three splits, reported PER
+  SEASON. Justified immediately — on a synthetic 0.1% shift the aggregate
+  Brier said BETTER while 2025 alone said WORSE, and the gate printed
+  `!! MIXED ACROSS SEASONS`. The 2026-only version would have said
+  "better, ship it", which is precisely the cross-year failure three
+  splits exist to catch.
+  `_ptfix` verified on disk, not trusted: ERA within-season variation is
+  0.0%/0.0% for `truepit` AND for `truepit_pit` (the name is the trap),
+  62.6%/64.8% for `truepit_ptfix`. 13MB, and unreachable by the Vercel
+  bundle because `copy-data.mjs` allowlists and never copies
+  `data/backtests/`. The 2024/25 files carry no `actual_result` (outcome
+  derived from `fi_*_runs`) and no umpire column (imputed at the same
+  0.50 the trainer falls back to). Floor raised 450 -> 3300.
 
 ---
 

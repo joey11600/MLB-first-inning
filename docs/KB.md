@@ -25,8 +25,9 @@ within hours instead of days:
   - `tools/v21_shadow_predict.py`    V2.1-vs-V2.2 shadow track (observability)
   - `docs/PLAYBOOK.md`               (T4.8) when-to-do-what process doc
   - `tools/model_gate.py` + `.github/workflows/model_gate.yml` (T8.29)
-    re-scores a fixed 2026 holdout before/after a push and reports whether
-    predictions moved -- a tripwire, warn-only, never blocks
+    re-scores a fixed 3,728-game 2024+2025+2026 holdout before/after a push
+    and reports whether predictions moved, per season -- a tripwire,
+    warn-only, never blocks
 
 Three of the original six layers are GONE, removed 2026-05-06 with the
 V2/T4.2 shadow surface (b125aa45): `daily_shadow_report.py` (T4.4),

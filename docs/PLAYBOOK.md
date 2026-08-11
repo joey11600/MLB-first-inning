@@ -56,7 +56,8 @@ What answers the same question now:
 gh run list --workflow model_gate.yml -L 10
 ```
 
-The gate (T8.29) re-scores a fixed 2026 holdout before and after each
+The gate (T8.29) re-scores a fixed 3,728-game 2024+2025+2026 holdout
+before and after each
 push touching model code or artifacts. If a bad day follows a run that
 said "PREDICTIONS MOVED", that push is your first suspect. If every
 recent run said "UNCHANGED", the model is not what changed — go to
@@ -177,9 +178,10 @@ Possible causes if predictions DID move:
 **A TRIPWIRE WILL FIRE.  IT IS NOT A VERDICT.  You are still the gate.**
 
 `.github/workflows/model_gate.yml` (T8.29, shipped 2026-08-10) re-scores a
-fixed committed holdout of 524 real 2026 games twice -- once with the code
-and artifacts from before your push, once with after -- and reports on the
-run summary whether any prediction moved.
+fixed committed holdout of **3,728 real games across 2024, 2025 and 2026**
+twice -- once with the code and artifacts from before your push, once with
+after -- and reports on the run summary whether any prediction moved,
+**per season as well as in aggregate**.
 
 - **"PREDICTIONS UNCHANGED"** is the common and most useful answer.  It
   proves the change did not move the model at all.  Refactors, ops,
@@ -188,8 +190,12 @@ run summary whether any prediction moved.
 - **"PREDICTIONS MOVED"** prints the per-game moves and the Brier / log
   loss deltas.
 
-Read it for what it is.  524 games of 2026 only: it cannot speak to
-cross-year transfer, and a metric win on that sample is weak evidence --
+**Read the per-season rows, not the aggregate.**  The gate prints a
+MIXED ACROSS SEASONS warning when a change helps some years and hurts
+others -- the shape of a fit to one era rather than a real improvement,
+and the exact failure an aggregate hides.  A metric win is still weak
+evidence: the holdout is FIXED, so anyone iterating against it overfits
+it, and --
 `2026-08-03_gate_sweep_artifact` records a finding that passed a
 permutation null at p=0.000 and walk-forward 4-of-4 and was an artifact
 anyway.  **It never fails the build**, by the operator's decision, because

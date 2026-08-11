@@ -11,6 +11,51 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10h] - The model gate now covers all three splits (T8.29)
+
+**Changed**
+
+Holdout goes from 524 games (2026 only) to **3,728 across 2024 + 2025 + 2026**,
+by committing the two repaired historical files. Reported **per season as well
+as in aggregate**, because an aggregate hides the exact failure three splits
+exist to catch.
+
+Demonstrated on a synthetic 0.1% shift: aggregate Brier said **BETTER**, while
+2025 alone said **WORSE**, and the gate printed `!! MIXED ACROSS SEASONS`. The
+2026-only version would have said "better, ship it".
+
+| season | n | brier |
+|---|---|---|
+| 2024 | 1,689 | 0.24827 |
+| 2025 | 1,515 | 0.24846 |
+| 2026 | 524 | 0.24807 |
+
+**`_ptfix` only, verified on disk rather than trusted.** `truepit` and
+`truepit_pit` carry season-final ERA/FIP/OBP — on opening day the file already
+knows how a pitcher finishes the year — and `_pit` *reads* like "point-in-time"
+while being the leaked one, a trap that has misled two prior sessions. Measured
+share of pitchers whose ERA varies within the season: `truepit` 0.0%/0.0%,
+`truepit_pit` 0.0%/0.0%, **`truepit_ptfix` 62.6%/64.8%**. Gating on leaked data
+would make the gate confidently wrong — the leak is worth ~+0.011 AUC, about a
+third of this model's entire edge over a coin flip.
+
+**Repo cost 13 MB, and it cannot reach the Vercel bundle** — `copy-data.mjs`
+uses an allowlist (`boards/`, `picks_<year>.csv`, and a handful of named files)
+and never copies `data/backtests/`. So this cannot repeat the 250 MB deploy
+breakage of 2026-08-05.
+
+Two file-format differences handled explicitly: the 2024/2025 files carry no
+`actual_result`, so the outcome derives from `fi_away_runs`/`fi_home_runs` (0
+blank rows); and they predate the umpire feature, so
+`home_plate_ump_nrfi_rate` is imputed at `LEAGUE_NRFI_RATE = 0.50`, exactly
+what `two_stage_model._ump_rate_for` falls back to. Both sides of a comparison
+get identical inputs, so the before/after remains valid.
+
+Coverage floor raised 450 → 3,300. Re-verified: determinism, detection, unique
+keys across seasons, and the floor firing on a simulated feature rename.
+
+---
+
 ## [2026-08-10g] - The model gate, rebuilt honestly (T8.29)
 
 **Added**
