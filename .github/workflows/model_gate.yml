@@ -36,28 +36,20 @@
 # approval. `writtenAtUtc` is ignored -- every predict tick rewrites it.
 name: model gate
 
+# NO `paths:` FILTER, AND THAT IS LOAD-BEARING ONCE THIS IS A REQUIRED CHECK.
+#
+# A path-filtered workflow does not RUN on a push that misses the filter, so
+# its status check never reports. A required status check that never reports
+# blocks the branch FOREVER -- and since the automation pushes ~30 data-only
+# commits a day, that would have frozen the money pipeline within the hour.
+# This is the classic "required checks + path filters" trap.
+#
+# So the workflow always runs and decides INTERNALLY whether there is
+# anything to score (see the `changed` step). A push that touches no model
+# path finishes in seconds and reports success, which is what keeps the
+# required check honest AND keeps the cron flowing.
 on:
   push:
-    paths:
-      # The model itself: feature construction, the two-stage forward pass,
-      # the calibrator, and the training code that produces the weights.
-      - "mlb_first_inning_predictor.py"
-      - "two_stage_model.py"
-      - "calibration.py"
-      - "recalibrate_v2.py"
-      - "rebuild_park_factors.py"
-      # The fitted artifacts. These are under data/ and are exactly why this
-      # workflow cannot live in tests.yml.
-      - "data/lr_t1.json"
-      - "data/lr_b1.json"
-      - "data/calibration_v2.json"
-      - "data/fi_park_factors.json"
-      - "data/thresholds.json"
-      # The gate and its holdout, so a change to the measuring instrument is
-      # itself measured.
-      - "tools/model_gate.py"
-      - "data/backtests/*_ptfix.csv"
-      - ".github/workflows/model_gate.yml"
   pull_request:
   workflow_dispatch:
 
@@ -80,41 +72,65 @@ jobs:
           # the base commit when a push contains several commits.
           fetch-depth: 0
 
+      # DECIDE INSIDE THE JOB whether there is anything to score. This replaces
+      # the `paths:` filter -- see the note on the trigger. The job must always
+      # run and always report, or a required status check deadlocks the branch.
+      - name: Anything to score?
+        id: changed
+        run: |
+          set -euo pipefail
+          # `github.event.before` is the pre-push tip, correct when a push
+          # carries several commits (HEAD^ would only undo the last one). It is
+          # unset on PRs and all-zeroes on a branch's first push, so fall back.
+          BASE="${{ github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+          echo "base_sha=$BASE" >> "$GITHUB_OUTPUT"
+          if [ -z "$BASE" ]; then
+            echo "no baseline commit -- nothing to compare"
+            echo "model=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "baseline: $BASE"
+
+          # The paths that actually define the model. They live here rather
+          # than in a `paths:` filter so the job still RUNS, and still
+          # REPORTS, on the ~30 data-only pushes a day.
+          CHANGED="$(git diff --name-only "$BASE"..HEAD || true)"
+          echo "--- changed files ---"; echo "$CHANGED" | head -30
+          if echo "$CHANGED" | grep -qE '^(mlb_first_inning_predictor|two_stage_model|calibration|recalibrate_v2|rebuild_park_factors)[.]py$|^tools/model_gate[.]py$|^[.]github/workflows/model_gate[.]yml$|^data/(lr_t1|lr_b1|calibration_v2|fi_park_factors|thresholds)[.]json$|^data/backtests/.*_ptfix[.]csv$'; then
+            echo "model=true" >> "$GITHUB_OUTPUT"
+            echo "==> model-defining files changed; scoring."
+          else
+            echo "model=false" >> "$GITHUB_OUTPUT"
+            echo "==> no model-defining file changed; nothing to score."
+          fi
+
       - uses: actions/setup-python@v7
+        if: steps.changed.outputs.model == 'true'
         with:
           python-version: "3.13"
           cache: pip
 
       - name: Install deps
         id: deps
+        if: steps.changed.outputs.model == 'true'
         run: pip install -r requirements.txt
 
       - name: Score the candidate (this push)
         id: cand
+        if: steps.changed.outputs.model == 'true'
         run: python tools/model_gate.py --fingerprint /tmp/candidate.json
 
       - name: Score the baseline (before this push)
         id: base
-        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.changed.outputs.model == 'true' && steps.deps.outcome == 'success' }}
         run: |
           set -euo pipefail
-          # `github.event.before` is the pre-push tip, which is correct when a
-          # push carries several commits (HEAD^ would only undo the last one).
-          # It is unset on PRs and all-zeroes on a branch's first push, so
-          # fall back to the first parent.
-          BASE="${{ github.event.before }}"
-          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
-             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
-            BASE="$(git rev-parse HEAD^ 2>/dev/null || true)"
-          fi
-          if [ -z "$BASE" ]; then
-            echo "::warning::no baseline commit available (first commit?) -- skipping comparison"
-            exit 0
-          fi
+          BASE="${{ steps.changed.outputs.base_sha }}"
           echo "baseline: $BASE"
-          # Exported so the Report step can scan exactly the pushed commit
-          # range for [gate-override], rather than guessing at HEAD alone.
-          echo "base_sha=$BASE" >> "$GITHUB_OUTPUT"
 
           # A worktree, not a checkout: it leaves the current tree untouched
           # so the candidate fingerprint we just took stays valid.
@@ -138,8 +154,20 @@ jobs:
           cp data/backtests/*_ptfix.csv /tmp/base/data/backtests/
           cd /tmp/base && python tools/model_gate.py --fingerprint /tmp/baseline.json
 
+      # The fast path, and the one that keeps the required check honest: a
+      # push touching no model file still produces a green `predictions
+      # moved?` status in seconds.
+      - name: Nothing to score
+        if: ${{ !cancelled() && steps.changed.outputs.model != 'true' }}
+        run: |
+          echo "No model-defining file changed in this push -- gate passes."
+          {
+            echo '## Model gate'
+            echo 'No model-defining file changed in this push. Nothing to score.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Report
-        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.changed.outputs.model == 'true' && steps.deps.outcome == 'success' }}
         run: |
           set -uo pipefail
           if [ ! -f /tmp/baseline.json ]; then
@@ -198,4 +226,4 @@ jobs:
           fi
           exit "$RC"
         env:
-          BASE_SHA: ${{ steps.base.outputs.base_sha }}
+          BASE_SHA: ${{ steps.changed.outputs.base_sha }}
