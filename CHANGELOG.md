@@ -11,6 +11,35 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-10k] - The override fired on commits that merely mentioned it (T8.29)
+
+**Fixed**
+
+The gate matched `[gate-override]` anywhere in a commit message, so **any commit
+that discussed the token disabled the gate**. Both `3c394956` (which introduced
+the escape hatch) and `377993d4` (which documented it) carry the string in their
+bodies — each would have silently overridden the gate it was shipping. So would
+any future changelog entry, revert, or doc quoting it.
+
+Found by running the audit command this playbook had just documented, and
+noticing it returned two commits that never overrode anything. The documented
+command was grepping the same way the workflow was.
+
+Now matched on the **commit subject only** — the line you type after `-m`. Prose
+in a body cannot trip it; an override must be typed deliberately where it is
+visible in `git log --oneline`. The audit command greps formatted output rather
+than `git log --grep`, for the same reason.
+
+Verified against real commits: the three most recent feature/doc commits all
+correctly read as **no override**, while a genuine `... [gate-override]` subject
+still matches.
+
+**Generalises:** a control keyed off free text will eventually fire on text
+written *about* it. Documentation quotes the token; changelogs quote it; reverts
+quote it. Match somewhere prose does not go.
+
+---
+
 ## [2026-08-10j] - A refused No.1 is not a play, and never was a result (T8.30)
 
 **Fixed**

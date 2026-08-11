@@ -155,9 +155,18 @@ jobs:
           # is always attributable after the fact. A gate you cannot bypass
           # under time pressure gets deleted; one you can bypass loudly
           # survives.
+          # THE SUBJECT LINE ONLY, NEVER THE BODY -- and that is a bug fix,
+          # not a preference. Matching the whole message meant any commit that
+          # merely MENTIONED the token overrode the gate: the commit that
+          # introduced this escape hatch (3c394956) and the one documenting it
+          # (377993d4) both carry `[gate-override]` in their bodies, so both
+          # would have silently disabled the gate they were shipping. Any
+          # future changelog entry, revert or doc quoting the token would do
+          # the same. An escape hatch you can trip by writing prose is not an
+          # escape hatch. It must be typed deliberately, on the subject line.
           OVERRIDE=""
-          if git log --format=%B "${BASE_SHA}..HEAD" 2>/dev/null \
-               | grep -qiF '[gate-override]'; then
+          if git log --format=%s "${BASE_SHA}..HEAD" 2>/dev/null \
+               | grep -qF '[gate-override]'; then
             OVERRIDE="yes"
           fi
 

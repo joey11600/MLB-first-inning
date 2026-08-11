@@ -229,19 +229,27 @@ an operator decision with a real cost: this branch takes ~30 automated
 pushes a day, and a required check turns any CI outage into a frozen
 money pipeline.  It has deliberately NOT been enabled.
 
-**The override itself.**  Put `[gate-override]` anywhere in a commit
-message in the push:
+**The override itself.**  Put `[gate-override]` in the commit SUBJECT --
+the first line, the bit you type after `-m`:
 
 ```bash
 git commit -m "fix: lineup parse crash on doubleheaders [gate-override]"
 ```
 
-It is scanned across every commit in the pushed range, not just the tip.
-Put it on the change itself -- adding a later empty commit does NOT work,
-because a commit touching no files matches none of this workflow's
-`paths:` and the workflow simply does not run again.  If you forgot,
+**Subject line only, and deliberately so.**  It used to match anywhere in
+the message, which meant any commit that merely MENTIONED the token
+overrode the gate -- the commit that introduced the escape hatch and the
+one documenting it both carry `[gate-override]` in their bodies and would
+both have silently disabled the gate they were shipping.  A changelog
+entry or a revert quoting the token would do the same.  An escape hatch
+you can trip by writing prose is not an escape hatch.
+
+Subjects are scanned across every commit in the pushed range, not just
+the tip.  Put it on the change itself -- adding a later EMPTY commit does
+NOT work, because a commit touching no files matches none of this
+workflow's `paths:`, so the workflow never runs again.  If you forgot,
 either amend (`git commit --amend`, then force-push -- think twice on a
-branch the cron writes to every few minutes) or include it on your next
+branch the cron writes to every few minutes) or put it on your next
 commit that touches a model path.
 
 **What it does NOT do.**  It does not silence the gate or hide the
@@ -271,8 +279,11 @@ buys you time, not an exemption.
 checkbox:
 
 ```bash
-git log --grep='\[gate-override\]' -i --format='%h %ad %an %s' --date=short
+git log --format='%h %ad %an %s' --date=short | grep -F '[gate-override]'
 ```
+
+(Grep the FORMATTED output, not `git log --grep`, which searches the whole
+message and would list every commit that merely discusses the override.)
 
 **It is tested, in both directions, so you can rely on it.**  On
 2026-08-10, on a scratch branch, `strongYrfiP` was moved 0.42 -> 0.43
