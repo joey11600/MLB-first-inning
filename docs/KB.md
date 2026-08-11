@@ -26,17 +26,20 @@ within hours instead of days:
   - `docs/PLAYBOOK.md`               (T4.8) when-to-do-what process doc
   - `tools/model_gate.py` + `.github/workflows/model_gate.yml` (T8.29)
     re-scores a fixed 3,728-game 2024+2025+2026 holdout before/after a push
-    and reports whether predictions moved, per season -- a tripwire,
-    warn-only, never blocks
+    and reports whether predictions moved, per season. FAILS the build on a
+    worse/mixed result, but does NOT stop the push or the deploy -- branch
+    protection is deliberately OFF; see PLAYBOOK 4a
 
 Three of the original six layers are GONE, removed 2026-05-06 with the
 V2/T4.2 shadow surface (b125aa45): `daily_shadow_report.py` (T4.4),
 `shadow_gate.yml` (T4.7) and `ShadowDeltaCard.tsx` (T4.9). This list
 still named all three on 2026-08-10 — the shadow_gate line in particular
 promised an automatic pre-merge model check that had not existed for
-three months. **Nothing BLOCKS a predictor change; the T8.29 gate reports
-whether one moved the model but never fails the build. See PLAYBOOK
-section 4.**
+three months. **Nothing PREVENTS a predictor change from shipping.** The T8.29 gate
+fails the build on a worse result, but the branch is unprotected, so a red
+gate is a loud record, not a veto. Required status checks were tested
+2026-08-10 and REJECT direct pushes outright -- which would stop the
+predictor cron writing picks. See PLAYBOOK 4a.
 
 If something breaks: **read PLAYBOOK.md first.** It routes every common
 failure mode to the specific tool that gives you the answer in <5 min.
@@ -854,5 +857,3 @@ versioned with the code.
 - The CSV ledger format is stable. If you must add a column, do it at the
   END so existing parsers don't choke on positional fields. `tracker._read_rows`
   warns on schema drift (T3.12).
-
-<!-- gate fast-path probe 2026-08-10 -->
