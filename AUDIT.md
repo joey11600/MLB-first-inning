@@ -298,6 +298,33 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [x] **T8.32 — the daily budget could shortchange the published No.1** ✅ 2026-08-11
+  The 15u/day cap is allocated in LOCK order (first-pitch-minus-60), so a
+  weak early game takes its stake hours before a strong late game is even
+  a candidate. T8.19 fixed the within-batch half; games three hours apart
+  are never in the same batch.
+  **How it surfaced:** the operator asked why COL@ARI went 8u → 1u on the
+  2026-08-11 board. The cap was working — CHC@WSH 6u at 5:45 PM, TEX@LAA
+  8u at 8:38 PM, 1u left — but TEX@LAA and COL@ARI were both 71.28% and
+  the No.1 badge turned on price while the budget turned on a **two-minute**
+  gap in first pitch. Reverse the start times and the published No.1 ships
+  at 1u.
+  **Not an EV fix.** Best-first reordering of the whole budget was already
+  measured at +0.6u/season, CI spanning zero (memory
+  `2026-08-01_kelly_refinements_dead`). This is a product fix: the No.1 is
+  what subscribers actually bet.
+  **Fix:** `kelly_stake_units(reserve_units=...)`, held by `_size_row_stake`
+  at COMMIT only, for the No.1 only, released the moment the No.1 commits
+  (`_allocated_idents` within a batch, `bet_placed=Y` across them). Fails
+  open to the old behaviour on any bad read; never fabricates a price.
+  **Measured:** 0 of 10 settled slates since 2026-07-30 change; simulated
+  realised total identical (+23.33u). Under a forced "No.1 locks last"
+  stress it rescues 2 of 5 multi-pick days — 07-31's No.1 would have gone
+  out at 4u instead of 8u.
+  **Generalises:** a risk control that is EV-neutral can still be a product
+  defect. "Which bet gets trimmed" is invisible in a season total and very
+  visible on the one line you publish.
+
 - [ ] **T8.31 — DraftKings now blocks Railway; the odds path is down** 🔴 OPEN 2026-08-11
   2026-08-11: 15 games, **0 priced**; last capture 10:56 PM ET 08-10.
   Railway's egress IP is 403'd by DK — the same failure class that killed

@@ -3626,6 +3626,14 @@ KELLY_MAX_DAILY_FRAC = float(os.getenv("NRFI_KELLY_MAX_DAILY", "0.15") or 0.15)
 _bankroll_cache: float | None = None
 # date -> units already assigned to STRONG picks on that date this run.
 _daily_committed: dict[str, float] = {}
+# T8.32 -- date -> game idents whose COMMIT-time stake has already been
+# allocated during this batch.  Needed because the №1 reservation below
+# looks the night's best play up on DISK, where a game committed earlier
+# in this same batch still reads bet_placed="N".  Without this the
+# reservation would be held a second time on top of a stake that is
+# already inside `_daily_committed`, and every later pick would be
+# under-sized by the №1's whole stake.  Cleared by the batch reset.
+_allocated_idents: dict[str, set[str]] = {}
 
 # T8.18 -- batch epoch.  Incremented by kelly_reset_daily_committed().
 # A CAPPED sizing call (one that passes game_date) is an ALLOCATION against
@@ -3810,12 +3818,17 @@ def kelly_reset_daily_committed() -> None:
     """
     global _bankroll_cache, _kelly_batch_epoch
     _daily_committed.clear()
+    # T8.32 -- same lifetime as `_daily_committed`: it records which games
+    # that tally already contains, so the two must be cleared together or
+    # the next batch reserves against allocations it no longer remembers.
+    _allocated_idents.clear()
     _bankroll_cache = None
     _kelly_batch_epoch += 1
 
 
 def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
-                      game_date: str | None = None) -> float | None:
+                      game_date: str | None = None,
+                      reserve_units: float = 0.0) -> float | None:
     """Stake in UNITS for one bet, or None to fall back to flat sizing.
 
     Returns None (not 0) when Kelly cannot be computed, so callers can
@@ -3826,15 +3839,28 @@ def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
     that total same-day exposure stays under KELLY_MAX_DAILY_FRAC of
     bankroll -- see that constant for why per-bet capping is not enough.
 
-    KNOWN LIMITATION: the daily budget is allocated FIRST COME, FIRST
-    SERVED in whatever order rows are processed, not best-bet-first.  On
-    a day that exhausts the budget, later picks are trimmed or get 0
-    (i.e. no bet) even if they were the stronger plays.  Measured impact
-    is small -- at the shipped gate the cap binds on 7 of 55 days and the
-    slate averages 1.2 qualifying bets -- and capping still beat not
-    capping in backfill (worst-day exposure 24.5% -> 13.0%, final bank
-    157.79u -> 177.93u).  If the slate ever widens, rank the day's picks
-    by edge before allocating instead of taking them in row order.
+    `reserve_units` is budget held back for a stronger play that has not
+    committed yet -- see `_top_pick_reservation`.  It is subtracted from
+    the room this bet may take, exactly as if that play had already been
+    staked.  Callers that are only PROJECTING pass 0.
+
+    ORDERING, AND WHAT IS AND IS NOT SOLVED.  The daily budget is handed
+    out FIRST COME, FIRST SERVED in whatever order rows are processed.
+    Two fixes now sit on top of that:
+      * T8.19 sorts each import batch best-bet-first, so two picks
+        committing in the SAME batch are ranked before either is sized;
+      * T8.32 (`reserve_units`) holds the night's №1 stake back from
+        picks that commit in an EARLIER batch, which is the half T8.19
+        cannot see -- games lock at their own first-pitch-minus-60, so a
+        6:45 PM game is sized hours before a 9:40 PM game exists as a
+        candidate.  Measured on the live 2026-08-11 slate: CHC@WSH took
+        6u at 5:45 PM and TEX@LAA took 8u at 8:38 PM, leaving the 9:40 PM
+        game 1u.  That was harmless only because the №1 happened to be
+        the 9:38 PM game; two minutes the other way and the published №1
+        goes out at 1u.
+    Neither reorders a stake that is already locked (T2.23), and neither
+    reserves for anything below №1 -- holding back the №2 as well would
+    have zeroed CHC@WSH, a bet that won.
     """
     f = kelly_fraction_of_bankroll(p, odds_str)
     if f is None:
@@ -3889,7 +3915,9 @@ def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
             )
         # The caps are now FIXED UNIT NUMBERS, which is what makes them
         # publishable: "never more than 10u on one bet, 15u in a day".
-        room = (KELLY_MAX_DAILY_FRAC * 100.0) - _committed_on(game_date, season)
+        room = ((KELLY_MAX_DAILY_FRAC * 100.0)
+                - _committed_on(game_date, season)
+                - max(reserve_units, 0.0))
         stake = min(stake, max(room, 0.0))
 
     # THE NO-BET GATE, AND IT MUST STAY ABOVE THE ROUNDING BLOCK.
@@ -3940,7 +3968,9 @@ def kelly_stake_units(p: float, odds_str: str, season: int = 2026,
         if game_date:
             ceiling = min(
                 ceiling,
-                (KELLY_MAX_DAILY_FRAC * 100.0) - _committed_on(game_date, season),
+                (KELLY_MAX_DAILY_FRAC * 100.0)
+                - _committed_on(game_date, season)
+                - max(reserve_units, 0.0),
             )
         if rounded > ceiling:
             rounded = stake
@@ -4110,6 +4140,147 @@ def _apply_edges_to_row(row: dict, nrfi_odds: str, yrfi_odds: str) -> bool:
     return True
 
 
+def _game_ident(row: dict) -> str:
+    """Stable per-GAME identity, matching `_row_is_nights_top_pick`.
+
+    T8.13: both halves of a doubleheader share "AWAY@HOME", so the name
+    alone is not an identity.  game_pk is unique per game; fall back to
+    the name plus game number for pre-2026-04 rows that carry no
+    game_pk."""
+    name = (f"{(row.get('away_team') or '').strip().upper()}"
+            f"@{(row.get('home_team') or '').strip().upper()}")
+    return ((row.get("game_pk") or "").strip()
+            or f"{name}#{(row.get('game_number') or '1').strip()}")
+
+
+def _select_nights_top_pick(iso_date: str, season: int,
+                            fresh_row: dict | None = None) -> dict | None:
+    """The night's №1 play, or None if the slate has no candidate.
+
+    T8.32.  `_row_is_nights_top_pick` answers "is THIS row the №1"; the
+    budget reservation needs the №1 ITSELF, and its price, so it can ask
+    how much to hold back.  Both read the same rule: candidates are
+    STRONG rows carrying a side and not DECLINED
+    (`_is_declined_not_pending` -- a T2.58 pre-lock pending row is a live
+    play and stays a candidate), ranked by `_top_pick_rank_tuple`, which
+    is the shared primitive that also backs
+    dashboard/lib/top-pick-rank.ts.
+
+    THE TWO MUST NEVER DISAGREE about which game is №1 -- a board that
+    crowns one game while the budget protects another is exactly the
+    class of contradiction this repo keeps being cleared of.  They are
+    deliberately separate functions rather than one refactored gate,
+    because `_row_is_nights_top_pick` is the live №1-only notification
+    policy and is not worth destabilising; `tests/test_money.py` asserts
+    the two agree across generated slates instead.
+
+    `fresh_row` is trusted over the disk copy of its own game, the same
+    way `_row_is_nights_top_pick` trusts its `row` argument: a row being
+    sized right now is mid-edit and the ledger has not been written yet.
+    """
+    best: dict | None = None
+    best_key: tuple | None = None
+    fresh_ident = _game_ident(fresh_row) if fresh_row is not None else None
+
+    source = list(_read_rows(_csv_path(season)))
+    if fresh_row is not None:
+        source = [r for r in source
+                  if (r.get("date") or "").strip() != iso_date
+                  or _game_ident(r) != fresh_ident]
+        source.append(fresh_row)
+
+    for r in source:
+        if (r.get("date") or "").strip() != iso_date:
+            continue
+        if (r.get("pick_strength") or "").strip().upper() != "STRONG":
+            continue
+        side = (r.get("pick_side") or "").strip().upper()
+        if side not in ("NRFI", "YRFI"):
+            continue
+        if _is_declined_not_pending(r):
+            continue
+        try:
+            p = float(r.get("nrfi_prob"))
+        except (TypeError, ValueError):
+            continue
+        name = (f"{(r.get('away_team') or '').strip().upper()}"
+                f"@{(r.get('home_team') or '').strip().upper()}")
+        odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+        key = _top_pick_rank_tuple(side, p, r.get(odds_col), name)
+        if best_key is None or key < best_key:
+            best, best_key = r, key
+    return best
+
+
+def _top_pick_reservation(row: dict, season: int) -> float:
+    """Units to hold back from `row`'s daily budget for the night's №1.
+
+    T8.32.  WHY THIS EXISTS.  The 15u/day cap is handed out in lock
+    order, and games lock at their own first-pitch-minus-60.  A weak
+    6:45 PM pick therefore takes its stake HOURS before a strong 9:40 PM
+    pick is even a candidate, and T8.19's best-bet-first sort cannot help
+    because the two are never in the same batch.  The consequence is not
+    an EV problem -- reordering the whole budget best-first was measured
+    at +0.6u per season with a CI spanning zero (memory
+    `2026-08-01_kelly_refinements_dead`) -- it is a PRODUCT problem: the
+    №1 is the play that gets published, sold and bet by subscribers, and
+    a №1 that goes out at 1u because of a two-minute scheduling accident
+    is a defect in the thing being sold.
+
+    So the reservation is deliberately NARROW: the №1 only.  Reserving
+    for №2 as well would have zeroed CHC@WSH on 2026-08-11, a bet that
+    won -- turning "trim the last pick" into "skip the early pick",
+    which is a far bigger behavioural change than was asked for.
+
+    Returns 0.0, i.e. exactly today's behaviour, whenever:
+      * `row` IS the №1 -- nothing outranks it, so it reserves nothing
+        against itself and always gets its full Kelly stake;
+      * the №1 is already `bet_placed="Y"` -- its stake is frozen by
+        T2.23 and `_committed_on` has already counted it;
+      * the №1 was allocated earlier in THIS batch (`_allocated_idents`)
+        -- the disk copy still reads "N", so without this check the
+        reservation would double-count it;
+      * the №1's stake cannot be computed -- no captured price yet, or an
+        unparseable probability.  Never fabricate a price to reserve
+        against; hold back nothing and let the cap behave as it does
+        today.
+
+    FAIL-OPEN, matching `_row_is_nights_top_pick`: any failure returns
+    0.0, which is the pre-T8.32 behaviour.  Reserving too little costs
+    the №1 a scheduling accident it already lives with; reserving on a
+    bad read would silently shrink every other bet on the slate.
+    """
+    try:
+        iso_date = (row.get("date") or "").strip()
+        if not iso_date:
+            return 0.0
+        top = _select_nights_top_pick(iso_date, season, fresh_row=row)
+        if top is None:
+            return 0.0
+
+        top_ident = _game_ident(top)
+        if top_ident == _game_ident(row):
+            return 0.0                    # you are the №1
+        if (top.get("bet_placed") or "").strip().upper() == "Y":
+            return 0.0                    # frozen; already in _committed_on
+        if top_ident in _allocated_idents.get(iso_date, set()):
+            return 0.0                    # allocated earlier in this batch
+
+        side = (top.get("pick_side") or "").strip().upper()
+        odds_col = "market_nrfi_odds" if side == "NRFI" else "market_yrfi_odds"
+        prob_col = "nrfi_prob" if side == "NRFI" else "yrfi_prob"
+        p_top = float((top.get(prob_col) or "").strip())
+        # game_date=None ON PURPOSE (rule R1): this is a PROJECTION of what
+        # the №1 will want, not an allocation.  Passing game_date here would
+        # mutate `_daily_committed` and book the №1's stake twice.
+        want = kelly_stake_units(p_top, top.get(odds_col, ""), season=season)
+        return max(want or 0.0, 0.0)
+    except Exception as exc:  # noqa: BLE001 — fail-open, see docstring
+        print(f"  [kelly] №1 reservation failed open ({exc!r}); reserving 0.",
+              file=sys.stderr)
+        return 0.0
+
+
 def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
                     units_lean: float, units_strong: float | None) -> None:
     """THE ONLY WRITER of the (bet_placed, units_risked) PAIR.
@@ -4170,11 +4341,25 @@ def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
         except (TypeError, ValueError):
             p_model = None
         _gd = (row.get("date") or "").strip()
+        _allocating = bool(inside_lock and _gd)
+        # T8.32 -- hold the night's №1 stake back, but ONLY when this call
+        # is a real allocation.  A pre-lock projection must stay a pure
+        # function of (probability, price): the moment it consumes the
+        # shared budget it becomes order-dependent, which is rule R1 in
+        # `kelly_reset_daily_committed` and the P0-1 oscillation class.
+        _reserve = _top_pick_reservation(row, season) if _allocating else 0.0
         k = kelly_stake_units(
             p_model, row.get(odds_col, ""),
             season=season,
-            game_date=(_gd if (inside_lock and _gd) else None),
+            game_date=(_gd if _allocating else None),
+            reserve_units=_reserve,
         )
+        if _allocating and k is not None:
+            # This game's stake is now inside `_daily_committed`, so any
+            # later row in this batch must NOT reserve for it again.  Note
+            # this records a Kelly REFUSAL (k == 0) too: a refused row takes
+            # no budget and must not have budget held back for it either.
+            _allocated_idents.setdefault(_gd, set()).add(_game_ident(row))
         if k is None and projection_mode:
             return                      # nothing to say; leave the row alone
         if k is not None:

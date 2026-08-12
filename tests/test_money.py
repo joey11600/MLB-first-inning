@@ -266,3 +266,239 @@ def test_non_terminal_grades_return_empty_not_zero():
     would drag an ungraded row into every sum."""
     for g in ("", "PENDING", "POSTPONED", "SUSPENDED", "VOID"):
         assert tracker._calc_pnl(_row(graded_result=g)) == ""
+
+
+# ---------------------------------------------------------------------------
+# T8.32 -- the No.1 keeps its stake when it locks last
+# ---------------------------------------------------------------------------
+#
+# THE GAP THIS CLOSES. The 15u/day budget is handed out in LOCK order, and
+# games lock at their own first-pitch-minus-60. T8.19 sorts each import batch
+# best-bet-first, but two picks three hours apart are never in the same batch,
+# so a weak 6:45 PM game takes its stake before a strong 9:40 PM game is even
+# a candidate. On 2026-08-11 that left the 9:40 PM game 1u -- harmless only
+# because the No.1 happened to be the 9:38 PM game.
+
+
+def _slate_row(pk, away, home, prob_yrfi, yrfi_odds, date="2026-08-11",
+               staked=None):
+    """A STRONG YRFI pre-lock row, shaped like the real ledger.
+
+    `units_risked` CARRIES THE PRE-LOCK PROJECTION, because that is what the
+    real ledger holds and because `_is_declined_not_pending` reads a STRONG
+    row at `N` with no stake as a DECLINE, not a pending play -- such a row is
+    not a No.1 candidate on any surface. A fixture that left it blank would
+    quietly test an empty slate."""
+    proj = (tracker.kelly_stake_units(prob_yrfi, yrfi_odds)
+            if staked is None else staked)
+    return {
+        "date": date, "game_pk": str(pk), "game_number": "1",
+        "away_team": away, "home_team": home,
+        "pick_side": "YRFI", "pick_strength": "STRONG",
+        "nrfi_prob": f"{1.0 - prob_yrfi:.4f}", "yrfi_prob": f"{prob_yrfi:.4f}",
+        "market_nrfi_odds": "", "market_yrfi_odds": yrfi_odds,
+        "bet_placed": "N",
+        "units_risked": f"{proj:.2f}" if proj else "",
+    }
+
+
+def _commit(row, slate, monkeypatch, season=2026):
+    """Size ONE row at its lock, in its own batch -- i.e. what actually
+    happens in production, where each game locks hours from the next."""
+    monkeypatch.setattr(tracker, "_read_rows", lambda _p: list(slate))
+    tracker.kelly_reset_daily_committed()
+    tracker._size_row_stake(row, season=season, inside_lock=True,
+                            units_lean=0.0, units_strong=1.0)
+    return float(row["units_risked"])
+
+
+# The 2026-08-11 slate with the two 9:40-ish games swapped in price, so the
+# LATEST-locking game is the No.1. Same probabilities, same prices, same games.
+_LATE_TOP_SLATE = [
+    _slate_row(1, "CHC", "WSH", 0.6460, "-120"),   # 6:45 PM -- locks FIRST
+    _slate_row(2, "TEX", "LAA", 0.7128, "-140"),   # 9:38 PM -- No.2
+    _slate_row(3, "COL", "ARI", 0.7128, "-135"),   # 9:40 PM -- No.1, locks LAST
+]
+
+
+def test_number_one_is_identified_by_price_when_confidence_ties(monkeypatch):
+    """Both 9:40-ish games are 71.28%, so the better price decides -- the same
+    tie-break dashboard/lib/top-pick-rank.ts uses. If this flips, the whole
+    reservation protects the wrong game."""
+    monkeypatch.setattr(tracker, "_read_rows",
+                        lambda _p: list(_LATE_TOP_SLATE))
+    top = tracker._select_nights_top_pick("2026-08-11", 2026)
+    assert top is not None and top["home_team"] == "ARI"
+
+
+@pytest.mark.regression
+def test_number_one_locking_last_still_gets_its_full_stake(monkeypatch):
+    """THE 2026-08-11 NEAR MISS. Without the reservation the No.1 gets 1u,
+    because the two weaker plays lock first and spend 14 of the 15u. The
+    published No.1 is the play subscribers actually bet -- it must not be
+    sized by an accident of the schedule."""
+    slate = [dict(r) for r in _LATE_TOP_SLATE]
+    wsh, laa, ari = slate
+
+    assert _commit(wsh, slate, monkeypatch) == 6.0    # unchanged: 7u of room
+    assert _commit(laa, slate, monkeypatch) == 1.0    # No.2 takes the hit
+    assert _commit(ari, slate, monkeypatch) == 8.0    # No.1 gets its full size
+
+    assert sum(float(r["units_risked"]) for r in slate) == 15.0
+
+
+@pytest.mark.regression
+def test_without_the_reservation_the_number_one_is_the_one_trimmed(monkeypatch):
+    """The counterfactual that makes the test above mean something: turn the
+    reservation off and the SAME slate hands the No.1 a single unit."""
+    monkeypatch.setattr(tracker, "_top_pick_reservation", lambda *a, **k: 0.0)
+    slate = [dict(r) for r in _LATE_TOP_SLATE]
+    wsh, laa, ari = slate
+
+    assert _commit(wsh, slate, monkeypatch) == 6.0
+    assert _commit(laa, slate, monkeypatch) == 8.0
+    assert _commit(ari, slate, monkeypatch) == 1.0    # the No.1, at 1u
+
+
+def test_real_2026_08_11_slate_is_unchanged(monkeypatch):
+    """A no-op on the night that prompted the change. The No.1 (TEX@LAA, the
+    better price at -135) already locked before COL@ARI, so the reservation
+    releases the moment it commits and nothing else moves. A fix that also
+    re-sizes nights that were already correct is a bigger change than was
+    asked for."""
+    slate = [
+        _slate_row(1, "CHC", "WSH", 0.6460, "-120"),   # 6:45 PM
+        _slate_row(2, "TEX", "LAA", 0.7128, "-135"),   # 9:38 PM -- No.1
+        _slate_row(3, "COL", "ARI", 0.7128, "-140"),   # 9:40 PM
+    ]
+    wsh, laa, ari = slate
+    assert _commit(wsh, slate, monkeypatch) == 6.0
+    assert _commit(laa, slate, monkeypatch) == 8.0
+    assert _commit(ari, slate, monkeypatch) == 1.0
+
+
+@pytest.mark.regression
+def test_reservation_releases_once_the_number_one_is_committed(monkeypatch):
+    """DOUBLE-COUNTING IS THE FAILURE MODE. `_select_nights_top_pick` reads
+    DISK, where a game committed earlier in the same batch still says "N". If
+    the reservation were held again on top of a stake already inside
+    `_daily_committed`, every later pick would lose the No.1's stake twice."""
+    slate = [dict(r) for r in _LATE_TOP_SLATE]
+    wsh, laa, ari = slate
+    monkeypatch.setattr(tracker, "_read_rows", lambda _p: list(slate))
+    tracker.kelly_reset_daily_committed()
+
+    # T8.19 order: the No.1 first, then the rest -- all inside ONE batch.
+    for r in (ari, laa, wsh):
+        tracker._size_row_stake(r, season=2026, inside_lock=True,
+                                units_lean=0.0, units_strong=1.0)
+
+    assert float(ari["units_risked"]) == 8.0
+    assert sum(float(r["units_risked"]) for r in slate) == 15.0
+
+
+def test_a_committed_number_one_is_not_reserved_for_twice(monkeypatch):
+    """Across batches the No.1's frozen stake is already in `_committed_on`,
+    so the reservation must return 0 -- otherwise a locked 8u No.1 would
+    remove 16u from a 15u budget and zero the rest of the slate."""
+    slate = [dict(r) for r in _LATE_TOP_SLATE]
+    wsh, laa, ari = slate
+    ari["bet_placed"], ari["units_risked"] = "Y", "8.00"
+    monkeypatch.setattr(tracker, "_read_rows", lambda _p: list(slate))
+    tracker.kelly_reset_daily_committed()
+
+    assert tracker._top_pick_reservation(wsh, 2026) == 0.0
+    assert _commit(wsh, slate, monkeypatch) == 6.0   # 15 - 8 committed = 7u room
+
+
+def test_an_unstakeable_number_one_reserves_nothing(monkeypatch):
+    """CLAUDE.md: never fabricate odds. A No.1 whose stake cannot be computed
+    gets nothing held back for it rather than a made-up figure -- the cap then
+    behaves exactly as it did before T8.32.
+
+    The row still has to be a CANDIDATE to reach that branch, so it carries a
+    projected stake but an unusable price. A No.1 with no price at all is
+    excluded one level earlier, by `_is_declined_not_pending`, and a different
+    game becomes No.1 -- which is the pre-existing rule on every surface, not
+    something this reservation decides."""
+    slate = [
+        _slate_row(1, "CHC", "WSH", 0.6460, "-120"),
+        _slate_row(2, "TEX", "LAA", 0.7128, "-140"),
+        # Strictly the most confident, so it wins on rank alone -- an unusable
+        # price scores implied=1.0 and could never win a tie-break.
+        _slate_row(3, "COL", "ARI", 0.7300, "n/a", staked=8.0),
+    ]
+    monkeypatch.setattr(tracker, "_read_rows", lambda _p: list(slate))
+    tracker.kelly_reset_daily_committed()
+
+    top = tracker._select_nights_top_pick("2026-08-11", 2026)
+    assert top["home_team"] == "ARI"                  # still the No.1
+    assert tracker.kelly_stake_units(0.7300, "n/a") is None
+    assert tracker._top_pick_reservation(slate[0], 2026) == 0.0
+
+
+def test_the_number_one_never_reserves_against_itself(monkeypatch):
+    """Nothing outranks the No.1, so it always sees the full remaining
+    budget."""
+    slate = [dict(r) for r in _LATE_TOP_SLATE]
+    monkeypatch.setattr(tracker, "_read_rows", lambda _p: list(slate))
+    tracker.kelly_reset_daily_committed()
+    assert tracker._top_pick_reservation(slate[2], 2026) == 0.0
+
+
+def test_reservation_is_a_projection_and_never_allocates(monkeypatch):
+    """Rule R1: a projection must not consume the shared budget. If computing
+    the reservation booked the No.1's stake into `_daily_committed`, the
+    number would be spent twice and stakes would drift every 5-minute tick."""
+    slate = [dict(r) for r in _LATE_TOP_SLATE]
+    monkeypatch.setattr(tracker, "_read_rows", lambda _p: list(slate))
+    tracker.kelly_reset_daily_committed()
+    before = dict(tracker._daily_committed)
+    tracker._top_pick_reservation(slate[0], 2026)
+    assert dict(tracker._daily_committed) == before
+
+
+def test_pre_lock_projections_are_never_reserved_against(monkeypatch):
+    """A pre-lock figure is a pure function of (probability, price). Letting
+    the reservation touch it would make a published stake order-dependent --
+    the P0-1 oscillation class, in a new hat."""
+    slate = [dict(r) for r in _LATE_TOP_SLATE]
+    laa = slate[1]
+    monkeypatch.setattr(tracker, "_read_rows", lambda _p: list(slate))
+    tracker.kelly_reset_daily_committed()
+    tracker._size_row_stake(laa, season=2026, inside_lock=False,
+                            units_lean=0.0, units_strong=1.0)
+    assert float(laa["units_risked"]) == 8.0          # uncapped, unreserved
+    assert laa["bet_placed"] == "N"
+
+
+# ---------------------------------------------------------------------------
+# the two No.1 rules must never disagree
+# ---------------------------------------------------------------------------
+
+def test_selector_agrees_with_the_notification_gate(monkeypatch):
+    """`_select_nights_top_pick` (budget) and `_row_is_nights_top_pick`
+    (Telegram) are separate functions on purpose -- the live notification gate
+    was not worth destabilising. This is the guard that keeps them identical:
+    a board that crowns one game while the budget protects another is the
+    class of contradiction this repo keeps being cleared of."""
+    probs  = [0.7128, 0.6460, 0.7128, 0.5900, 0.6822]
+    prices = ["-120", "-135", "-140", "+100", "-165"]
+    teams  = [("CHC", "WSH"), ("TEX", "LAA"), ("COL", "ARI"),
+              ("KC", "LAD"), ("TB", "OAK")]
+
+    for n in range(1, len(probs) + 1):
+        for rot in range(len(probs)):
+            slate = [
+                _slate_row(i + 1, *teams[(i + rot) % len(teams)],
+                           prob_yrfi=probs[(i + rot) % len(probs)],
+                           yrfi_odds=prices[(i + rot) % len(prices)])
+                for i in range(n)
+            ]
+            monkeypatch.setattr(tracker, "_read_rows",
+                                lambda _p, s=slate: list(s))
+            picked = tracker._select_nights_top_pick("2026-08-11", 2026)
+            crowned = [r for r in slate if tracker._row_is_nights_top_pick(r)]
+            assert len(crowned) == 1, f"{n}/{rot}: {len(crowned)} crowned"
+            assert picked is not None
+            assert tracker._game_ident(picked) == tracker._game_ident(crowned[0])

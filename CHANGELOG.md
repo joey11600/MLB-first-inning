@@ -11,6 +11,73 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-11e] - The No.1 keeps its stake when it locks last (T8.32)
+
+**Fixed**
+
+The 15u/day risk budget is handed out in LOCK order, and games lock at their own
+first-pitch-minus-60. T8.19 already sorts each import batch best-bet-first — but
+two picks three hours apart are never in the same batch, so a weak 6:45 PM game
+takes its stake before a strong 9:40 PM game is even a candidate.
+
+Found while explaining to the operator why COL@ARI moved from 8u to 1u on the
+2026-08-11 board. That was the cap working as designed — CHC@WSH took 6u at 5:45
+PM, TEX@LAA took 8u at 8:38 PM, leaving 1u — but it was harmless only because
+the No.1 happened to be the 9:38 PM game. TEX@LAA and COL@ARI were both 71.28%;
+the No.1 badge was decided by price (-135 vs -140), and the budget by a
+**two-minute** gap in first pitch. Swap the start times and the published No.1
+goes out at 1u.
+
+That is not primarily an EV problem — reordering the whole budget best-first was
+measured at +0.6u/season with a CI spanning zero. It is a PRODUCT problem: the
+No.1 is the play that is published, sold and bet by subscribers.
+
+`kelly_stake_units` now takes `reserve_units`, and `_size_row_stake` holds the
+night's No.1 stake back from any pick committing ahead of it. New helpers
+`_game_ident`, `_select_nights_top_pick`, `_top_pick_reservation`.
+
+Deliberately narrow, and deliberately inert:
+
+- **No.1 only.** Reserving for No.2 as well would have zeroed CHC@WSH on
+  2026-08-11 — a bet that won. That turns "trim the last pick" into "skip the
+  early pick", a far bigger change than the one asked for.
+- **Commit only.** A pre-lock projection stays a pure function of (probability,
+  price); letting the reservation touch it would make a published stake
+  order-dependent, which is rule R1 and the P0-1 oscillation class.
+- **Releases the moment the No.1 commits** — via `_allocated_idents` for the
+  same batch and `bet_placed=Y` across batches. Reserving on top of a stake
+  already inside `_daily_committed` would under-size every later pick by the
+  No.1's whole stake.
+- **Fails open.** Any unreadable ledger, unparseable probability or missing
+  price reserves 0.0, i.e. exactly the pre-T8.32 behaviour. Never fabricate a
+  price to reserve against.
+
+**Measured** (replay of every settled slate since the current sizing rules went
+live on 2026-07-30, driving the real `kelly_stake_units`):
+
+| | |
+|---|---|
+| days replayed | 10 |
+| days whose stakes change | **0** |
+| simulated realised total, before vs after | +23.33u vs +23.33u |
+
+A pure no-op on what actually happened. Under stress — force the No.1 to be the
+last game to lock on each real slate — it earns its keep on 2 of the 5
+multi-pick days: 2026-07-31's No.1 would have been published at **4u instead of
+8u**, and 2026-08-01's at 6u instead of 7u.
+
+13 tests added to `tests/test_money.py`, including the counterfactual with the
+reservation disabled (the No.1 does get 1u), a no-op regression pinning the real
+2026-08-11 slate, and a guard asserting `_select_nights_top_pick` and
+`_row_is_nights_top_pick` crown the same game across generated slates — the two
+No.1 rules are separate functions on purpose (the live notification gate was not
+worth destabilising) so the test is what keeps them from drifting.
+
+Caps themselves are UNCHANGED: still 10u per bet, 15u per day, quarter-Kelly.
+Model, gates and calibration untouched.
+
+---
+
 ## [2026-08-10k] - The override fired on commits that merely mentioned it (T8.29)
 
 **Fixed**
