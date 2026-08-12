@@ -1,7 +1,7 @@
 {
   "date": "2026-08-12",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-12T22:04:57Z",
+  "fitted_at": "2026-08-12T22:32:26Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.5195,
-      "raw_p_run_b1": 0.4477,
-      "raw_p_nrfi": 0.2653,
+      "raw_p_run_t1": 0.5196,
+      "raw_p_run_b1": 0.4191,
+      "raw_p_nrfi": 0.2791,
       "calibrated_p_nrfi": 0.2872,
       "calibrator_band": {
         "band": "below_min",
@@ -63,14 +63,6 @@
       ],
       "top_drivers_b1": [
         {
-          "name": "home_top3c_slg",
-          "value": 0.3803,
-          "z": -0.938,
-          "weight": -0.398,
-          "contribution": 0.3733,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4526,
           "z": -1.108,
@@ -79,11 +71,27 @@
           "outlier": false
         },
         {
+          "name": "home_top3c_slg",
+          "value": 0.415,
+          "z": -0.396,
+          "weight": -0.398,
+          "contribution": 0.1577,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_iso",
+          "value": 0.1512,
+          "z": -0.574,
+          "weight": 0.2289,
+          "contribution": -0.1313,
+          "outlier": false
+        },
+        {
           "name": "home_top3c_obp",
-          "value": 0.3107,
-          "z": -1.023,
+          "value": 0.3669,
+          "z": 0.919,
           "weight": 0.1015,
-          "contribution": -0.1038,
+          "contribution": 0.0933,
           "outlier": false
         },
         {
@@ -92,14 +100,6 @@
           "z": 1.529,
           "weight": 0.055,
           "contribution": 0.0841,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 28.0,
-          "z": 1.165,
-          "weight": 0.0483,
-          "contribution": 0.0563,
           "outlier": false
         }
       ],
@@ -458,27 +458,19 @@
       "matchup": "KC@LAD",
       "game_pk": "823916",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.3755,
+      "raw_p_run_t1": 0.337,
       "raw_p_run_b1": 0.2808,
-      "raw_p_nrfi": 0.4491,
-      "calibrated_p_nrfi": 0.4774,
+      "raw_p_nrfi": 0.4768,
+      "calibrated_p_nrfi": 0.4897,
       "calibrator_band": {
-        "band": "bin_2-3",
+        "band": "bin_3-4",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
       },
       "top_drivers_t1": [
-        {
-          "name": "away_top3c_slg",
-          "value": 0.3972,
-          "z": -0.668,
-          "weight": -0.3266,
-          "contribution": 0.2182,
-          "outlier": false
-        },
         {
           "name": "home_fip",
           "value": 5.415,
@@ -504,11 +496,19 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_iso",
-          "value": 0.169,
-          "z": -0.194,
-          "weight": 0.3454,
-          "contribution": -0.0668,
+          "name": "fi_park_nrfi_rate",
+          "value": 0.4823,
+          "z": -0.382,
+          "weight": -0.141,
+          "contribution": 0.0538,
+          "outlier": false
+        },
+        {
+          "name": "away_top3_ops_vs_oppHand",
+          "value": 0.72,
+          "z": -0.562,
+          "weight": 0.0856,
+          "contribution": -0.0481,
           "outlier": false
         }
       ],
@@ -1475,10 +1475,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO DATA",
       "graded_result": "",
-      "raw_p_run_t1": 0.266,
-      "raw_p_run_b1": 0.3735,
-      "raw_p_nrfi": 0.4598,
-      "calibrated_p_nrfi": 0.4843,
+      "raw_p_run_t1": 0.2663,
+      "raw_p_run_b1": 0.3742,
+      "raw_p_nrfi": 0.4591,
+      "calibrated_p_nrfi": 0.484,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
