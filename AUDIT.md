@@ -298,6 +298,33 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [x] **T8.34 — a chart shipped with no endpoint behind it** ✅ 2026-08-12
+  `<ReliabilityCurve />` has been mounted in `DashboardShell` since the
+  2026-07-28 spec and self-fetches `/api/calibration`. That route was
+  **never written** — no commit in `git log` ever contained it. The fetch
+  404'd, `.catch()` set state to "error", and the component rendered
+  `null` by design ("a missing diagnostic is a zero-pixel outcome, not an
+  error surface"). An approved chart was therefore absent for two weeks
+  with no visible symptom except a console 404, found while verifying
+  T8.33.
+  **Fix:** `dashboard/app/api/calibration/route.ts`, read-only, reading
+  through `loadLedgerRows` so it shares `/history`'s paginated
+  Supabase-then-CSV path and cannot hit the PostgREST 1000-row cap.
+  Bins under 20 games are dropped, not drawn; `betRegion` is computed
+  from raw rows so a suppressed thin bin still counts; `breakEven` uses
+  only real captured prices, never the flat -110 fallback.
+  **What it reveals:** in the bet band the model claims 61.8% against
+  57.1% delivered over 468 games, needing 55.9% — 95% interval
+  52.5–61.5%, which contains break-even. Consistent with
+  `2026-06-04_edge_investigation`; not in tension with /history's 69.6%,
+  which is the top-ranked play per night rather than every game above
+  the gate.
+  **Generalises:** the graceful-degradation rule that makes a missing
+  diagnostic render nothing also makes a NEVER-BUILT diagnostic render
+  nothing. Silent-by-design failure modes need a liveness check
+  somewhere, or "absent" and "broken" become indistinguishable. A
+  console 404 was the only difference here.
+
 - [x] **T8.33 — the board reported 5u of profit that was never won** ✅ 2026-08-12
   Four dashboard surfaces recomputed a stake with `stakeUnitsFor()` rather
   than reading the recorded one. That helper is pure quarter-Kelly with no

@@ -11,6 +11,58 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-12b] - The calibration chart had no endpoint to fetch (T8.34)
+
+**Added**
+
+`dashboard/app/api/calibration/route.ts`. `<ReliabilityCurve />` has been mounted
+in `DashboardShell` since the 2026-07-28 chart spec and self-fetches
+`/api/calibration`. **The route was never written** — `git log` has no record of
+it in any commit. The fetch 404'd, the component's `.catch()` set state to
+`"error"`, and its render returned `null`, which is deliberate: *"a missing
+diagnostic is a zero-pixel outcome, not an error surface"* (2026-08-05
+redesign). So an approved chart failed **silently for two weeks**; the only
+evidence was a 404 in the browser console, spotted while verifying T8.33.
+
+The route is read-only — no pick, stake or ledger column is touched. It reads
+through `loadLedgerRows`, the same paginated Supabase-then-CSV reader `/history`
+and the No.1 tracker use, so it cannot disagree with them about the season and
+cannot hit the PostgREST 1000-row cap that has already truncated `pl_calc` and
+the date picker.
+
+What it serves, for the current season:
+
+- **bins** — every graded first inning binned by the model's P(YRFI) at width
+  0.05. Bins under 20 games are dropped rather than plotted (`droppedBins`
+  reports how many; 1 of 9 today), per InsightCharts' "never invent a number".
+  Wilson bounds are deliberately not sent — the component derives them, and one
+  implementation cannot disagree with itself.
+- **gate** — `1 - strongYrfiP` from `thresholds.json` (0.58), the STRONG YRFI
+  boundary expressed on the chart's axis.
+- **betRegion** — aggregate over every graded game at or above the gate,
+  computed from raw rows rather than by summing plotted bins, so a suppressed
+  thin bin still counts. The top bin is where the STRONG plays live and is the
+  likeliest to be too thin to draw on its own.
+- **breakEven** — mean implied probability of the DK prices actually paid on
+  placed YRFI bets. Never the flat -110 fallback: that price was never real.
+
+Deliberately every graded game, not just the bets — a calibration curve drawn
+only over games we bet is drawn over a selected sample and would flatter itself.
+
+**What it now says**, and it is worth reading before it surprises anyone: in the
+band we bet, the model claims 61.8% and reality delivered 57.1% across 468
+games, against 55.9% needed to break even. The 95% interval (52.5–61.5%)
+contains break-even, so **the edge is still not proven** — the same conclusion
+`2026-06-04_edge_investigation` and `2026-08-01_kelly_refinements_dead` already
+reached, now visible on the homepage instead of buried in a memory. This is not
+in tension with `/history`'s 48−21 / 69.6%: that figure is the top-ranked play
+of each night, a selected subset; this is every game above the gate.
+
+Verified on a PRODUCTION build: `/api/calibration` returns 200, the chart renders
+with its own caveat text, and the homepage load shows no 404s.
+
+---
+
 ## [2026-08-12a] - The board reported 5u of profit that was never won (T8.33)
 
 **Fixed**
