@@ -278,8 +278,21 @@ export default async function BriefPage({
            instruction to risk money on a pick the tracker marks
            bet_placed='N' by rule; on a pending pick it would be a stake
            for a bet that has not been decided and can still flip when
-           the lineup posts. Same guard the board's stake chip runs. */
-        stake: !noStake && odds != null ? stakeUnitsFor(modelP, odds) : null,
+           the lineup posts. Same guard the board's stake chip runs.
+
+           AND WHEN THERE *IS* A STAKE, PRINT THE STORED ONE (T8.33).
+           `stakeUnitsFor` is pure quarter-Kelly and knows nothing about
+           the 15u/day cap, so on a cap-bound night it returns what the
+           play WANTED, not what was placed — on 2026-08-11 that was 8u
+           against a real 1u. This surface is read aloud, so a recomputed
+           figure here is a spoken instruction to risk eight times the
+           money that actually went down. A recorded ZERO is a refusal,
+           not a missing figure (T8.30), so the test is `!= null`. */
+        stake: noStake
+          ? null
+          : detail?.unitsRisked != null
+            ? detail.unitsRisked
+            : (odds != null ? stakeUnitsFor(modelP, odds) : null),
         awayPitcher: detail?.away.pitcher.name ?? null,
         homePitcher: detail?.home.pitcher.name ?? null,
         strength: verdict!.strength,

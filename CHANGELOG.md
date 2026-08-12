@@ -11,6 +11,61 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-12a] - The board reported 5u of profit that was never won (T8.33)
+
+**Fixed**
+
+Four dashboard surfaces recomputed a pick's stake with `stakeUnitsFor()` instead
+of reading the one the ledger recorded. `stakeUnitsFor` is pure quarter-Kelly and
+knows nothing about the 15u/day cap `tracker.kelly_stake_units` applies on top —
+so on a cap-bound night every one of them answered with the stake a play WANTED
+rather than the one that was placed.
+
+Found while explaining the T8.32 near-miss to the operator: the 2026-08-11 card
+read **"22.00u sized across 3 STRONG picks · +16.64u"** while the board's own
+stake chips on the same screen read 8.00 + 1.00 + 6.00 = **15.00u**, and
+`tools/pl_calc.py` — the canonical answer per CLAUDE.md — read **+11.640u**.
+COL@ARI was recomputed at its uncapped 8u after the cap had trimmed it to 1u.
+
+**The exposure figure was the smaller half of this.** A total captioned "at risk"
+overstating real exposure by 7u is bad; a card reporting **5 units of profit that
+was never won** is a different order of defect. `tonightFromBoard` derives P&L
+from the same stake, so the fabricated size propagated straight into the money.
+
+Fixed in all four, each now LEDGER FIRST — recompute only when nothing was
+recorded:
+
+| surface | was | now |
+|---|---|---|
+| `lib/reconcile.ts` `tonightFromBoard` | recompute (fed the 22.00u **and the +16.64u**) | ledger |
+| `TonightsActionCard` `summarizeSides` | recompute | ledger |
+| `TonightsActionCard` `extractPlays` | recompute | ledger |
+| `app/brief/page.tsx` | recompute | ledger |
+
+Two `> 0` tests also became `!= null` (`TopPlayHero`, ×2) and `BoardRow`'s stake
+chip gained an explicit refusal branch. `units_risked` has **three** states and
+collapsing them into two is T8.30 wearing a new hat: `> 0` staked, `== 0` the
+system deliberately refused, `null` never sized. Only the third is a missing
+figure — sending a recorded zero into the recompute prints a stake for a bet
+nobody placed. Reachable today via a cap-zeroed row; the board now shows
+"stake none".
+
+Each surface carried a comment claiming it matched `BoardRow`'s StakeChip, which
+went ledger-first on 2026-07-30. None of them had followed. The stale argument
+for recomputing — that pre-2026-07-30 ledger rows were sized under the old
+bankroll × Kelly% rule — was already settled then: 1.00u is what was staked on
+those nights, and printing a stake nobody placed is the worse failure.
+
+**Verified against a PRODUCTION build** (`npm run build` + `next start`, not dev
+— see the `dashboard_verification_trap` memory). 2026-08-11 now reads "15.00u
+sized across 3 STRONG picks · +11.64u", matching both the chips and `pl_calc.py`
+exactly. 2026-08-10's refused TB@OAK reads "stake none · 0.00u sized". No console
+errors; `/brief` and `/history` unaffected.
+
+Presentation only — no change to staking, the cap, `tracker.py`, or the ledger.
+
+---
+
 ## [2026-08-11e] - The No.1 keeps its stake when it locks last (T8.32)
 
 **Fixed**

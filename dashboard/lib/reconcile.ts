@@ -188,25 +188,47 @@ export function tonightFromBoard(
     const d = lookupDetail(r, details);
     if (!d) continue;
     bets += 1;
-    // THE NEW SYSTEM, COMPUTED LIVE (2026-07-30).
+    // THE STAKE THE SYSTEM SIZED THIS AT -- WHICH IS THE LEDGER'S (T8.33).
     //
-    // This read `d.unitsRisked` -- the stake the LEDGER recorded, which
-    // for anything placed before 2026-07-30 was sized the old way
-    // (bankroll x Kelly%). That made the Today tab disagree with every
-    // other surface: 2026-07-29 showed +2.04u here and +2.83u on
-    // /history, for the same two games.
+    // This recomputed with stakeUnitsFor() on the reasoning that 1 unit =
+    // 1% of bankroll makes the stake a pure function of (probability,
+    // price), so a live slate could be sized without waiting for the
+    // nightly replay export. TRUE OF THE FORMULA, FALSE OF THE SYSTEM:
+    // stakeUnitsFor is quarter-Kelly and nothing else, with no knowledge
+    // of the 15u/day cap that tracker.kelly_stake_units applies on top.
+    // On any cap-bound night it therefore answers with the stake each
+    // play WANTED rather than the one it got.
     //
-    // Because 1 unit = 1% of bankroll, the stake depends only on the
-    // model probability and the price -- so tonight can be sized under
-    // the new rule without waiting for the nightly replay export, which
-    // has no entry for a live slate. stakeUnitsFor() is the same rule
-    // as tracker.kelly_stake_units and the same one /history reads.
+    // 2026-08-11 is the whole bug in one slate. Three winners; the card
+    // read "22.00u sized across 3 STRONG picks · +16.64u" while the
+    // board's own chips read 8.00 + 1.00 + 6.00 = 15.00u and
+    // tools/pl_calc.py -- the canonical answer per CLAUDE.md -- read
+    // +11.640u. COL@ARI was recomputed at its uncapped 8u after the cap
+    // had trimmed it to 1u, so the card overstated exposure by 7u AND
+    // REPORTED 5u OF PROFIT THAT WAS NEVER WON. A wrong P&L is a
+    // different order of defect from a wrong exposure figure.
+    //
+    // `units_risked` IS "the stake the system sized it at" -- exactly
+    // what this card's docstring says it reports -- so reading it needs
+    // no replay export and cannot drift from the chips. `!= null`, not
+    // `> 0`: a recorded zero is a deliberate refusal, not a missing
+    // figure (T8.30), and must stay zero rather than fall through to a
+    // recompute. The pnl below is computed from `u`, so fixing the stake
+    // fixes the money.
+    //
+    // The 2026-07-29 disagreement this replaced (+2.04u here, +2.83u on
+    // /history) came from ledger rows sized under the pre-2026-07-30
+    // bankroll x Kelly% rule. Every row since is sized under the current
+    // rule, and for older slates 1.00u is simply what was staked -- the
+    // same answer BoardRow settled on when it went ledger-first.
     const raw = r.pickSide === "NRFI" ? d.marketNrfiOdds : d.marketYrfiOdds;
     const american = Number.parseFloat((raw ?? "").trim());
     const modelP = (r.pickSide === "NRFI" ? r.nrfiPct : r.yrfiPct) / 100;
-    const u = Number.isFinite(american) && american !== 0
-      ? stakeUnitsFor(modelP, american)
-      : 0;
+    const u = d.unitsRisked != null
+      ? d.unitsRisked
+      : (Number.isFinite(american) && american !== 0
+          ? stakeUnitsFor(modelP, american)
+          : 0);
     staked += u;
     if (d.betPlaced === "Y") committed += 1;
     const g = (d.gradedResult || "").toUpperCase();

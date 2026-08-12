@@ -298,6 +298,33 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [x] **T8.33 — the board reported 5u of profit that was never won** ✅ 2026-08-12
+  Four dashboard surfaces recomputed a stake with `stakeUnitsFor()` rather
+  than reading the recorded one. That helper is pure quarter-Kelly with no
+  knowledge of the 15u/day cap, so on a cap-bound night each answered with
+  what a play WANTED, not what was placed.
+  **Measured, 2026-08-11:** the card read "22.00u sized across 3 STRONG
+  picks · +16.64u"; the stake chips on the same screen read
+  8.00 + 1.00 + 6.00 = 15.00u; `tools/pl_calc.py` read +11.640u. COL@ARI
+  was recomputed at its uncapped 8u after the cap trimmed it to 1u.
+  **The P&L was the serious half.** `tonightFromBoard` derives profit from
+  the same stake, so a display defect became 5 units of fabricated profit.
+  An exposure figure 7u too high is bad; an invented gain is worse.
+  **Fix:** ledger-first in `lib/reconcile.ts`, `TonightsActionCard`
+  (×2) and `app/brief/page.tsx`; two `> 0` tests → `!= null` in
+  `TopPlayHero`; explicit refusal branch on `BoardRow`'s chip.
+  `units_risked` has THREE states (T8.30) and a recorded zero is a
+  refusal, not a missing figure.
+  **Verified on a PRODUCTION build:** 08-11 now reads 15.00u / +11.64u,
+  matching the chips and `pl_calc.py`; 08-10's refused TB@OAK reads
+  "stake none". Presentation only — staking, cap and ledger untouched.
+  **Generalises:** every one of the four carried a comment claiming it
+  matched `BoardRow`'s StakeChip, which had gone ledger-first on
+  2026-07-30. A comment asserting parity is not parity. When a rule
+  changes in one surface, grep for the surfaces that CLAIM to follow it —
+  T8.30 said "fix all builders" about `discord_broadcasts.py` and the
+  same sentence was true here.
+
 - [x] **T8.32 — the daily budget could shortchange the published No.1** ✅ 2026-08-11
   The 15u/day cap is allocated in LOCK order (first-pitch-minus-60), so a
   weak early game takes its stake hours before a strong late game is even

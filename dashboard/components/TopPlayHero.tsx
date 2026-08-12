@@ -152,7 +152,13 @@ export function TopPlayHero({ rows, details, date, report }: TopPlayHeroProps) {
      recomputes will eventually land on the wrong side of one. The fix
      is not better rounding -- it is that every surface prints the SAME
      STORED NUMBER. */
-  const stake = d?.unitsRisked != null && d.unitsRisked > 0
+  /* T8.33: `!= null`, NOT `> 0`. A recorded zero is a DELIBERATE REFUSAL
+     (no edge at the price, or the daily cap left no room), not a missing
+     figure — the three states of `units_risked` must not collapse into
+     two, which is the T8.30 incident. Sending a refusal into the
+     recompute prints the uncapped stake for a bet nobody placed, in the
+     hero, at 20px. */
+  const stake = d?.unitsRisked != null
     ? d.unitsRisked
     : (odds != null ? stakeUnitsFor(sideP, odds) : null);
   const ladder = odds != null ? buildPriceLadder(sideP, odds) : null;
@@ -301,8 +307,10 @@ function OtherPlays({
           r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds,
         );
         const p = r.pickSide === "NRFI" ? r.nrfiPct / 100 : r.yrfiPct / 100;
-        // Same rule as the hero above: booked stake wins over a recompute.
-        const stake = d?.unitsRisked != null && d.unitsRisked > 0
+        // Same rule as the hero above: booked stake wins over a recompute,
+        // and a recorded zero is a refusal rather than a missing figure
+        // (T8.33). The render below already prints nothing for stake <= 0.
+        const stake = d?.unitsRisked != null
           ? d.unitsRisked
           : (odds != null ? stakeUnitsFor(p, odds) : null);
         return (

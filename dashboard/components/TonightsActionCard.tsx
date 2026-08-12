@@ -165,18 +165,25 @@ function extractPlays(
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "YRFI")) ??
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "NRFI"))
     );
-    // THE NEW SYSTEM'S STAKE (2026-07-30), computed from the model
-    // probability and the price. 1 unit = 1% of bankroll, so this is
-    // the same number for every subscriber and the same number
-    // /history shows. Reading d.unitsRisked here would show the OLD
-    // ledger sizing on anything placed before today.
+    // LEDGER FIRST -- same resolution as summarizeSides below and as
+    // BoardRow's StakeChip, because all three are the same quantity and
+    // any drift between them reads as the system contradicting itself.
+    //
+    // T8.33: this used to recompute from (probability, price) first and
+    // never read the ledger at all. `stakeUnitsFor` is pure quarter-Kelly
+    // with no knowledge of the 15u/day cap, so on a cap-bound night it
+    // told the operator to bet the stake the play WANTED rather than the
+    // one that was placed -- this list is the "what closes next, and what
+    // to put on it" surface, so that is a betting instruction, not a
+    // display nit. A recorded ZERO is a refusal and stays zero (T8.30);
+    // only a null means "not sized yet, project it".
     const price = (r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds) || "";
     const american = Number.parseFloat(price.trim());
     const modelP = (r.pickSide === "NRFI" ? r.nrfiPct : r.yrfiPct) / 100;
-    let units: number | null =
-      Number.isFinite(american) && american !== 0
-        ? stakeUnitsFor(modelP, american)
-        : null;
+    let units: number | null = d?.unitsRisked ?? null;
+    if (units == null && Number.isFinite(american) && american !== 0) {
+      units = stakeUnitsFor(modelP, american);
+    }
     if (units == null && rp?.action === "BET" && typeof rp.stake === "number") {
       units = rp.stake;
     }
@@ -243,46 +250,57 @@ function summarizeSides(
       continue;
     }
 
-    const d      = lookupDetail(r, details);
-    const placed = d?.betPlaced;
+    const d = lookupDetail(r, details);
 
     // THE STAKE, RESOLVED EXACTLY AS THE ROW'S STAKE CHIP RESOLVES IT
     // (BoardRow.tsx StakeChip).  Adding up the chips on the board has to
     // reproduce this card's total, or the operator sees one exposure up
     // here and a different one twelve rows down.
     //
-    // Order matters and is NOT arbitrary: the replay's figure wins,
-    // because the ledger's `unitsRisked` is a flat 1.00 on every bet
-    // placed before Kelly sizing went live -- reading the ledger first
-    // would make every April slate report "1.00u at risk" per bet.
-    // Same reason the chips read the replay first.
+    // WHICH IS WHAT HAPPENED, 2026-08-11 (T8.33).  This block recomputed
+    // from (probability, price) FIRST and so never reached the ledger at
+    // all -- the two branches below it are dead whenever a price exists.
+    // `stakeUnitsFor` is a pure quarter-Kelly function and knows nothing
+    // about the 15u/day cap, so on a cap-bound night it answers with the
+    // stake the bet WANTED rather than the one it got.  The card printed
+    // "22.00u sized across 3 STRONG picks" while the board's own chips
+    // read 8.00 + 1.00 + 6.00 = 15.00u: COL@ARI was recomputed at its
+    // uncapped 8u after the daily cap had trimmed it to 1u.  A total
+    // captioned "at risk" overstating real exposure by 7 units is the
+    // worst direction for this number to be wrong in.
+    //
+    // The comment that used to sit here argued the replay must win
+    // because the ledger is a flat 1.00u before Kelly went live.  That
+    // objection was settled on 2026-07-30 in BoardRow: 1.00u IS what was
+    // staked on those nights, and a board printing a stake nobody placed
+    // is the worse failure.  This block simply never followed.
     const rp = replayStakes && (
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, r.pickSide)) ??
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "YRFI")) ??
       replayStakes.get(replayKey(r.away, r.home, r.gameNumber, "NRFI"))
     );
 
-    // Same precedence as the play list and the board chip: the stake
-    // the operator actually has on the game, then the replay. This
-    // total is captioned "at risk", so it must be the real exposure.
-    // Same rule as the play list above and the board chip.
+    // LEDGER FIRST, then the recompute, then the replay -- the chip's order.
+    //
+    // The null test is deliberate and is NOT `> 0`: `units_risked` has
+    // three states (T8.30) and a recorded ZERO is a deliberate refusal,
+    // not a missing figure.  Testing `> 0` would send a cap-zeroed row
+    // into the recompute and book its uncapped want as live exposure --
+    // the same defect one level down.
     let stakeU = 0;
     const priceRaw = (r.pickSide === "NRFI" ? d?.marketNrfiOdds : d?.marketYrfiOdds) || "";
     const am = Number.parseFloat(priceRaw.trim());
     const mp = (r.pickSide === "NRFI" ? r.nrfiPct : r.yrfiPct) / 100;
-    if (Number.isFinite(am) && am !== 0) {
+    if (d?.unitsRisked != null) {
+      // What the bet was actually placed at -- the only figure that cannot
+      // drift from itself, and the one Discord published.
+      stakeU = d.unitsRisked;
+    } else if (Number.isFinite(am) && am !== 0) {
+      // Never sized yet (pre-lock, no stake written).  The projection is
+      // the honest answer for a bet that has not been placed.
       stakeU = stakeUnitsFor(mp, am);
     } else if (rp?.action === "BET" && typeof rp.stake === "number") {
       stakeU = rp.stake;
-    } else if (rp?.action === "SKIP") {
-      // The current model declined this game -- the chip says "model
-      // passes" and prints no figure, so nothing is added here either.
-      stakeU = 0;
-    } else if (placed === "Y" && d?.unitsRisked != null) {
-      // Not replayed yet, i.e. tonight.  A locked row's recorded stake IS
-      // the live Kelly figure, so it is authoritative.  A placed row with
-      // no recorded stake contributes 0 rather than an invented number.
-      stakeU = d.unitsRisked;
     }
 
     if (r.pickSide === "NRFI") {

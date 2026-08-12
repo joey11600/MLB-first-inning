@@ -837,6 +837,27 @@ function StakeChip({
     );
   }
 
+  // A RECORDED ZERO IS A REFUSAL, NOT A MISSING FIGURE (T8.33).
+  //
+  // `units_risked` has THREE states and collapsing them into two is the
+  // T8.30 incident wearing a new hat:
+  //   > 0   staked
+  //   == 0  the system DELIBERATELY refused -- quarter-Kelly found no edge
+  //         at the price, or the daily cap left no room
+  //   null  never sized (no captured price yet)
+  // Only the third is a missing figure. Falling a recorded zero through to
+  // the recompute below answers it with the UNCAPPED quarter-Kelly stake --
+  // which on a cap-exhausted row is a positive number where the truth is
+  // zero, i.e. a stake chip for a bet nobody placed.
+  if (recorded === 0) {
+    return (
+      <span className={`${styles.stakeChip} ${styles.stakeChipZero}`}>
+        <span className={styles.stakeLabel}>stake</span>
+        <span className={styles.stakeValue}>none</span>
+      </span>
+    );
+  }
+
   const stakePriceRaw = (row.pickSide === "NRFI"
     ? detail?.marketNrfiOdds : detail?.marketYrfiOdds) || "";
   const stakeAmerican = Number.parseFloat(stakePriceRaw.trim());
