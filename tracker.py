@@ -1405,6 +1405,19 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # monitor's daily run cadence -- a re-run shouldn't re-ping if the
     # drift signal hasn't changed.
     "feature_drift":        24 * 60,
+    # 2026-08-13: calibration_drift_monitor.py builds a WEEK-keyed event
+    # key ("calibration_drift:<iso_week>:<drifting-buckets>") specifically
+    # so a slow-moving 30-day condition pings ~once a week rather than
+    # every day.  That key did nothing while the type was unregistered:
+    # the dedup window is in MINUTES and the fallback is 5, so the daily
+    # cron was always outside it and re-fired the same alert every single
+    # day for as long as the condition held.  Operator: "i keep getting
+    # telegram notifications saying calibration drift."  7 days makes the
+    # window match the key the monitor already computes.  A NEW bucket
+    # joining changes the signature, so a genuinely worsening picture
+    # still pings immediately.  Third instance of this exact
+    # unregistered-type bug -- see discord_board (8/06), watchdog (8/07).
+    "calibration_drift":    7 * 24 * 60,
     # T-V21-2026-05-08: LINEUP / STARTER PENDING tentative-lean
     # resolved -- one ping per game per day.  Retro-fire pass in
     # grade_date() reaches every today-graded row on every cron tick,

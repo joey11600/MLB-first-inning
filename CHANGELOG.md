@@ -11,6 +11,30 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-13a] - Telegram: `calibration_drift` re-fired every single day
+
+**Fixed**
+
+- `tracker._DEDUP_WINDOW_M` — registered `calibration_drift` at 7 days.
+  Operator report: *"i keep getting telegram notifications saying
+  calibration drift."*
+  - `tools/calibration_drift_monitor.py` already builds a WEEK-keyed event
+    key (`calibration_drift:<iso_week>:<drifting-buckets>`) precisely so a
+    slow-moving 30-day condition pings about once a week. That key was
+    doing nothing: `_notify_event_dedup_check` looks back
+    `_DEDUP_WINDOW_M.get(event_type, 5)` **minutes**, and the type was
+    never registered — so the daily cron was always outside the 5-minute
+    fallback and re-sent the same alert every day the condition held.
+  - The window now matches the key the monitor already computes. A new
+    bucket joining the drift changes the signature, so a genuinely
+    worsening picture still pings immediately.
+  - **Third instance of this exact unregistered-type bug** — `discord_board`
+    (2026-08-06, re-posted THE BOARD to paying subscribers all night) and
+    `watchdog` (2026-08-07, ~12 pages/hour). The dict's own comments warn
+    about it twice. Treat "new event type" and "add to `_DEDUP_WINDOW_M`"
+    as one step.
+  - No model, gate, staking or ledger code touched; delivery cadence only.
+
 ## [2026-08-12c] - Backfist Bets social cards: generator + /cards page
 
 **Added**
