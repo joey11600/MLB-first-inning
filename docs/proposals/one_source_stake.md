@@ -60,25 +60,32 @@ demoted to ops hygiene.
 
 ## Options (layered; they compose)
 
-### Layer 1 — Sticky lineup cards (input robustness) ⭐ the targeted fix
+### Layer 1 — Sticky lineup cards (input robustness) — ✅ SHIPPED 2026-08-13
 
-Once a side's posted card has been seen for a game, never regress that
-side to team_fallback. A DIFFERENT card replaces the old one (a real
-scratch updates honestly); an empty response retains the last-seen card.
+Shipped with operator approval. A card once seen is only ever REPLACED,
+never forgotten: empty fetch sides refill from the ledger row's own
+`*_lineup_json`; a non-empty fetch always wins (real scratches replace
+honestly). Sticky sides tag `lineup_sticky`; the pending guard accepts
+both tags; the layer-3 alarm reports "bridged" vs "regressed".
 
-- Defends exactly against what happened: withdrawal ≠ un-knowing the
-  batters.
-- **This is a model-INPUT change** — it alters live predictions in
-  withdrawal windows. Backtests can't test it (they read post-game
-  boxscores, which are never withdrawn), so the bar is: a replay of
-  today's incident producing 66.9→7u, plus proof that a genuinely revised
-  card still propagates (synthetic test), plus `verify_kelly_wiring.py`
-  unchanged.
-- Persistence question for review: per-host cache stickiness (small,
-  survives within a deploy) vs. reading the row's own stored
-  `*_top3c_source`/`lineup_json` as the memory (host-independent, but
-  touches the ledger-read path). Recommend starting per-host: today's
-  incident would have been covered by Railway's own 15:0x sighting.
+The persistence question resolved itself during implementation: the v1
+recommendation (per-host cache stickiness) was WRONG — the cache dies
+with its host (gitignored → GHA starts empty every run; Railway resets
+on every hourly auto-deploy, proven on the incident: the 11:58 ET
+container started with an empty cache inside the outage). The ledger row
+is the only memory that survives both lifecycles, and it is the same
+memory on every host.
+
+Flag: `NRFI_STICKY_LINEUPS=enabled` on BOTH hosts (Railway variable +
+`daily.yml` predict-step env) — both, because a non-sticky host writing
+team_fallback into the row mid-outage destroys the chain. Kill switch:
+delete both; rows self-heal on the next successful fetch.
+
+Acceptance evidence: `tests/test_sticky_lineups.py` replays the 12:06 ET
+incident state with the real batter IDs — the withdrawn CWS card
+(Meidroth/Grichuk/Vargas) restores exactly; scratch-replacement, chain
+persistence, and malformed-memory refusals pinned alongside. Suite 170
+passed; `verify_kelly_wiring.py` untouched.
 
 ### Layer 2 — Size from the value being published (coherence by construction)
 
@@ -130,11 +137,13 @@ justifies one). All of these quiet the alarm without touching the cause.
 ## Recommended sequence
 
 1. ~~**Layer 3 (alarm)**~~ — ✅ shipped 2026-08-13.
-2. **Layer 1 (sticky cards)** — the targeted fix, behind an env flag on
-   Railway first (same rollout pattern as T8.18 PART 1), with the replay
-   test above. ← NEXT, awaiting operator approval.
-3. **Layer 2 (size-from-published)** — after 1 proves stable, since its
-   value is highest when the published number is itself robust.
+2. ~~**Layer 1 (sticky cards)**~~ — ✅ shipped 2026-08-13, flag on both
+   hosts.
+3. **Layer 2 (size-from-published)** — the remaining open decision.
+   Value is lower now that layer 1 defends the input and layer 3 makes
+   any residual splice loud the same night; the honest framing is
+   "coherence by construction vs. two more moving parts in the money
+   path". No urgency; revisit after layer 1's first real-world bridge.
 4. Host consolidation — optional, later, on its own merits.
 
 Two further candidates surfaced by the incident, listed for the

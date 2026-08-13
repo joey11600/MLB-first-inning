@@ -27,6 +27,7 @@ Usage:
 import argparse
 import json
 import math
+import os
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -2313,6 +2314,100 @@ def _target_iso(target_date: str) -> str:
     return target_date[:10]
 
 
+# ---------------------------------------------------------------------------
+# T8.35 layer 1 -- STICKY LINEUPS
+# ---------------------------------------------------------------------------
+# 2026-08-13 CIN@CWS: MLB's schedule?hydrate=lineups served the CWS card
+# (model -> YRFI 66.9%), WITHDREW it for ~55 minutes, and re-served it
+# unchanged before first pitch.  `fetch_top3_batters` has no memory, so
+# during the outage the model silently regressed the home side to
+# team-average batting (58.6%) and the T-60 commit sized quarter-Kelly on
+# the outage number: 2u where the rule on the published probability said
+# 7u.  The actual first-pitch top-3 was the withdrawn card.
+#
+# The fix: a lineup card, once SEEN, is only ever REPLACED -- never
+# forgotten.  When the live fetch returns an empty side, we re-use the
+# last posted card's batter IDs from the ledger row itself
+# (`*_lineup_json`, written by every predict run).  A real scratch still
+# updates honestly: the revised card arrives as a NON-empty fetch, which
+# always wins.  Downstream is untouched on purpose -- the sticky IDs flow
+# through the SAME `current_season_top3_stats` / `top3_ops_vs_hand` calls
+# as a live card, so batter stats stay fresh; only the ROSTER is
+# remembered.
+#
+# WHY THE LEDGER ROW AND NOT THE data/cache/ LAYER: the cache dies with
+# its host (gitignored, so GHA runners start empty every run, and Railway
+# containers reset on every auto-deploy -- which happens on every cron
+# push).  Proven on the incident itself: Railway redeployed at 11:58 ET
+# with an empty cache and its first fetch landed inside the outage.  The
+# ledger row survives both lifecycles via the git commits, and it is the
+# same memory on every host, so the two hosts cannot disagree about what
+# was seen (the T8.35 postmortem's actual lesson).
+#
+# Sides that ran on memory are tagged `lineup_sticky` (not `lineup`) so
+# the ledger says honestly which card state sized a bet, and the T8.35
+# layer-3 alarm announces the bridge.  The LINEUP PENDING guard treats
+# both tags as "we have a card".
+#
+# DEFAULT OFF.  `NRFI_STICKY_LINEUPS=enabled` activates -- set on BOTH
+# hosts (Railway variable + daily.yml predict-step env), because a
+# non-sticky host writing team_fallback into the row during an outage
+# destroys the very memory the sticky host needs (the chain is only as
+# strong as its last writer).  Rollback = delete the variable / env line;
+# next run reverts, no data repair needed (rows self-heal to "lineup"
+# when the card is next served).
+
+_STICKY_SOURCES = ("lineup", "lineup_sticky")
+
+
+def _sticky_lineups_enabled() -> bool:
+    return (os.environ.get("NRFI_STICKY_LINEUPS", "skip") or "").strip().lower() == "enabled"
+
+
+def _prior_top3_ids(prior_row: dict | None, side: str) -> list[int]:
+    """The last-seen posted card's top-3 batter IDs for `side`, or [].
+
+    Reads the ledger row's `*_lineup_json` (written by
+    `current_season_top3_per_batter`, entries carry "id").  Only trusts a
+    row whose `*_top3c_source` says a card was actually seen ("lineup" or
+    "lineup_sticky" -- the chain must survive its own output), and only a
+    COMPLETE memory: a 1-2 batter fragment is not a card, and building
+    top3c aggregates from it would understate the offense.
+    """
+    if not prior_row:
+        return []
+    if (prior_row.get(f"{side}_top3c_source") or "").strip() not in _STICKY_SOURCES:
+        return []
+    try:
+        entries = json.loads(prior_row.get(f"{side}_lineup_json") or "[]")
+        ids = [int(e["id"]) for e in entries[:3]
+               if isinstance(e, dict) and e.get("id") is not None]
+    except (ValueError, TypeError, KeyError):
+        return []
+    return ids if len(ids) == 3 else []
+
+
+def _apply_sticky_lineups(top3: dict, prior_row: dict | None) -> list[str]:
+    """Fill empty sides of a `fetch_top3_batters` result from the ledger's
+    memory.  Mutates `top3` in place; returns the sides that ran on
+    memory ("away"/"home") so the caller can tag `*_top3c_source`.
+
+    A non-empty fetched side ALWAYS wins -- that is how a real lineup
+    change (scratch, bench shuffle) replaces the memory instead of being
+    masked by it.
+    """
+    sticky_sides: list[str] = []
+    for side in ("away", "home"):
+        key = f"{side}_top3"
+        if top3.get(key):
+            continue                    # live card present -- it wins
+        ids = _prior_top3_ids(prior_row, side)
+        if ids:
+            top3[key] = ids
+            sticky_sides.append(side)
+    return sticky_sides
+
+
 def run(target_date: str, only_strong: bool = False, debug: bool = False) -> None:
     season = int(target_date.split("/")[-1]) if "/" in target_date else date.today().year
     target_iso = _target_iso(target_date)
@@ -2349,6 +2444,24 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         return
 
     results = []
+
+    # T8.35 layer 1 -- load the sticky-lineup memory: today's ledger rows,
+    # indexed by game_pk.  One read per run.  Soft-fail to None, which
+    # leaves sticky inert for the run (identical to pre-sticky behaviour)
+    # rather than letting a corrupt CSV kill the whole slate.
+    sticky_prior_by_pk: dict | None = None
+    if _sticky_lineups_enabled():
+        try:
+            import tracker as _trk
+            sticky_prior_by_pk = {
+                str(r.get("game_pk") or "").strip(): r
+                for r in _trk._read_rows(_trk._csv_path(season))
+                if (r.get("date") or "") == target_iso
+            }
+        except Exception as exc:    # noqa: BLE001
+            print(f"  [sticky-lineups] ledger read failed ({exc!r}); "
+                  f"running without memory this cycle", file=sys.stderr)
+            sticky_prior_by_pk = None
 
     for game in schedule:
         home_ab = game["home_abbr"]
@@ -2474,6 +2587,10 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # not just the aggregate.  Empty list when lineup hasn't posted.
         away_lineup: list[dict] = []
         home_lineup: list[dict] = []
+        # T8.35: initialized OUTSIDE the try -- the tag-override below runs
+        # after the except, and a failed backtest import must read an empty
+        # list there, not raise NameError.
+        sticky_sides: list[str] = []
         try:
             from backtest import (
                 fetch_top3_batters,
@@ -2481,6 +2598,14 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                 current_season_top3_per_batter,
             )
             top3 = fetch_top3_batters(int(game["game_pk"]))
+            # T8.35 layer 1 -- a card once seen is only ever REPLACED,
+            # never forgotten.  Empty sides refill from the ledger's
+            # last-posted card; a non-empty fetch always wins, so a real
+            # scratch still replaces the memory.  The sticky IDs flow
+            # through the SAME stats calls below as a live card.
+            if sticky_prior_by_pk is not None:
+                sticky_sides = _apply_sticky_lineups(
+                    top3, sticky_prior_by_pk.get(str(game["game_pk"])))
             if top3.get("away_top3"):
                 a_agg = current_season_top3_stats(top3["away_top3"], target_iso, season)
                 if a_agg:
@@ -2515,6 +2640,17 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
                     top3["home_top3"], target_iso, season,
                 )
         except Exception: pass
+
+        # T8.35 layer 1 -- tag the sides that ran on MEMORY rather than a
+        # live card, so the ledger says honestly which state sized a bet
+        # and the layer-3 alarm can announce the bridge.  Only downgrade a
+        # tag the stats block actually set to "lineup": if the stats fetch
+        # failed even with sticky IDs, the source stays team_fallback and
+        # the tag stays honest.
+        if "away" in sticky_sides and away_top3c_source == "lineup":
+            away_top3c_source = "lineup_sticky"
+        if "home" in sticky_sides and home_top3c_source == "lineup":
+            home_top3c_source = "lineup_sticky"
 
         # 2026-05-19 VSHAND: top-3 batters' OPS vs opposing starter's hand.
         # Imports the (currently-archived) helpers that handle pitcher hand
@@ -2685,7 +2821,13 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         # (where a real lineup CAN materially change the call), only
         # skip for STRONG.
         if (pick_conf not in ("NO DATA", "STRONG")
-                and (away_top3c_source != "lineup" or home_top3c_source != "lineup")):
+                # T8.35 layer 1: "lineup_sticky" counts as having a card --
+                # the batters are known from the last posted card; only the
+                # feed's serving of it is flapping.  Treating sticky as
+                # pending would re-create the exact PASS-on-good-data
+                # failure the 5/08 incident was about.
+                and (away_top3c_source not in _STICKY_SOURCES
+                     or home_top3c_source not in _STICKY_SOURCES)):
             pick_side = "PASS"
             pass_reasons.append("LINEUP PENDING")
 

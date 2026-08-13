@@ -2612,14 +2612,29 @@ def _notify_lineup_regression_telegram(existing: dict, new_row: dict) -> None:
     except Exception:    # noqa: BLE001 -- unparseable time: fall through
         pass
 
+    # T8.35 layer 1 interplay: with sticky lineups on, a pulled card
+    # shows up as lineup -> lineup_sticky (BRIDGED: memory kept the
+    # batters, model inputs effectively unchanged) instead of
+    # lineup -> team_fallback (REGRESSED: the batters are forgotten and
+    # the probability just fell).  Both transitions ping -- feed
+    # instability on a STRONG game is operator-worthy either way -- but
+    # the message must not cry "reverted to team-average" when the
+    # bridge held.  lineup_sticky -> fallback also counts as REGRESSED:
+    # that is the memory being lost mid-outage (e.g. the flag turned
+    # off), which re-exposes the stake.  Recovery directions
+    # (anything -> lineup) stay silent.
+    _have_card = ("lineup", "lineup_sticky")
+    bridged:   list[str] = []
     regressed: list[tuple[str, str, str]] = []
     for side in ("away", "home"):
         col = f"{side}_top3c_source"
         old_src = (existing.get(col) or "").strip()
         new_src = (new_row.get(col)  or "").strip()
-        if old_src == "lineup" and new_src and new_src != "lineup":
+        if old_src == "lineup" and new_src == "lineup_sticky":
+            bridged.append(side)
+        elif old_src in _have_card and new_src and new_src not in _have_card:
             regressed.append((side, old_src, new_src))
-    if not regressed:
+    if not regressed and not bridged:
         return
 
     away    = (new_row.get("away_team") or "").upper()
@@ -2637,6 +2652,12 @@ def _notify_lineup_regression_telegram(existing: dict, new_row: dict) -> None:
         pick = (new_row.get("pick_side") or "").strip().upper()
 
     lines = [f"⚠️ <b>LINEUP CARD PULLED — {away} @ {home}</b>"]
+    for side in bridged:
+        team = away if side == "away" else home
+        lines.append(
+            f"MLB's feed dropped the {team} lineup; STICKY memory kept "
+            f"the last posted card — model inputs unchanged."
+        )
     for side, _old_src, new_src in regressed:
         team = away if side == "away" else home
         fallback = ("team-average batting" if new_src == "team_fallback"
@@ -2673,8 +2694,13 @@ def _notify_lineup_regression_telegram(existing: dict, new_row: dict) -> None:
         "on the next cycle (T8.18 re-derive). (T8.35)"
     )
 
-    sides_sig = "+".join(s for s, _o, _n in regressed)
-    event_key = f"lineup_regression:{iso}:{game_pk}:{sides_sig}"
+    # Signature carries the NEW state per side, so an escalation inside
+    # the dedup window still pings: home bridged at 12:06 (…home>sticky)
+    # and the memory lost at 12:40 (…home>team_fallback) are different
+    # keys, not a suppressed duplicate.
+    sig_parts = [f"{s}>lineup_sticky" for s in bridged]
+    sig_parts += [f"{s}>{n}" for s, _o, n in regressed]
+    event_key = f"lineup_regression:{iso}:{game_pk}:{'+'.join(sorted(sig_parts))}"
     _notify_event_telegram("lineup_regression", event_key, "\n".join(lines))
 
 

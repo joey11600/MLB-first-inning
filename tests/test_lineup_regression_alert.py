@@ -108,8 +108,10 @@ def test_fires_on_home_lineup_to_fallback(sent):
     assert len(sent) == 1
     et, key, body = sent[0]
     assert et == "lineup_regression"
-    # Key carries game + regressed side so per-game dedup can't collide.
-    assert key == f"lineup_regression:{existing['date']}:824561:home"
+    # Key carries game + side + the NEW state, so a later escalation
+    # (e.g. sticky memory lost mid-outage) is a different key, not a
+    # suppressed duplicate.
+    assert key == f"lineup_regression:{existing['date']}:824561:home>team_fallback"
     # Body carries the forensic pair: probability shift + stake shift.
     assert "66.9%" in body and "58.6%" in body
     assert "7u → 2u" in body
@@ -135,7 +137,7 @@ def test_fires_for_away_side_with_away_key(sent):
     )
     tracker._notify_lineup_regression_telegram(existing, new_row)
     assert len(sent) == 1
-    assert sent[0][1].endswith(":away")
+    assert sent[0][1].endswith(":away>team_fallback")
     assert "CIN" in sent[0][2]
 
 
@@ -143,7 +145,39 @@ def test_both_sides_regressing_is_one_message(sent):
     existing, new_row = _rows(new_away_top3c_source="league_default")
     tracker._notify_lineup_regression_telegram(existing, new_row)
     assert len(sent) == 1                      # one ping, not two
-    assert sent[0][1].endswith(":away+home")   # signature covers both
+    # Sorted signature covers both sides' new states.
+    assert sent[0][1].endswith(":away>league_default+home>team_fallback")
+
+
+def test_sticky_bridge_pings_with_calm_body(sent):
+    # T8.35 layer 1 on: the card is pulled but sticky memory holds the
+    # batters.  Still operator-worthy (the feed is flapping on a STRONG
+    # game) but the body must say the bridge held, not cry regression --
+    # and the probability barely moves, unlike the fallback case.
+    existing, new_row = _rows(
+        new_home_top3c_source="lineup_sticky",
+        new_yrfi_prob="0.6687", new_nrfi_prob="0.3313",
+        new_units_risked="7",
+    )
+    tracker._notify_lineup_regression_telegram(existing, new_row)
+    assert len(sent) == 1
+    key, body = sent[0][1], sent[0][2]
+    assert key.endswith(":home>lineup_sticky")
+    assert "STICKY memory kept the last posted card" in body
+    assert "team-average" not in body
+
+
+def test_sticky_memory_lost_escalates_with_new_key(sent):
+    # lineup_sticky -> team_fallback is the memory dying mid-outage
+    # (flag turned off, ledger row overwritten by a non-sticky host).
+    # The stake is re-exposed, so it must ping -- and under a DIFFERENT
+    # key than the earlier bridge ping, or the 12h window would eat it.
+    existing, new_row = _rows(existing_home_top3c_source="lineup_sticky")
+    tracker._notify_lineup_regression_telegram(existing, new_row)
+    assert len(sent) == 1
+    key, body = sent[0][1], sent[0][2]
+    assert key.endswith(":home>team_fallback")
+    assert "team-average" in body
 
 
 # ---------------------------------------------------------------------------

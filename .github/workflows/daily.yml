@@ -197,6 +197,16 @@ jobs:
         # yesterday's grade fails, we still want today's predict to run.
         env:
           ALERT_WEBHOOK_URL:    ${{ secrets.ALERT_WEBHOOK_URL }}
+          # T8.35 layer 1: sticky lineups.  A lineup card once seen is only
+          # ever REPLACED, never forgotten -- when MLB's feed withdraws a
+          # card pre-lock (2026-08-13 CIN@CWS, ~55 min outage that sized
+          # the No.1 at 2u instead of 7u), the predict run re-uses the
+          # last posted card from the ledger row.  MUST be enabled on BOTH
+          # hosts: a non-sticky host writing team_fallback into the row
+          # during an outage destroys the memory the other host needs.
+          # Railway carries the same variable.  Kill switch: delete this
+          # line (and the Railway var); rows self-heal next cycle.
+          NRFI_STICKY_LINEUPS:  enabled
           # T2.22: Telegram pick-flip notifier.  When both vars are set,
           # tracker.log_picks pings the bot on every actionable flip
           # (PASS/PENDING -> STRONG/LEAN, side-flips, demotes).  Silent

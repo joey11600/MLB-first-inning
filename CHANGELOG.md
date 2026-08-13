@@ -11,6 +11,55 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-13e] - T8.35 layer 1 shipped: sticky lineups (operator-approved model-input change)
+
+**Added**
+
+- **Sticky lineups** (`mlb_first_inning_predictor.py`) — a lineup card,
+  once seen, is only ever REPLACED, never forgotten. When the live
+  `fetch_top3_batters` returns an empty side, the predict run refills it
+  with the last posted card's batter IDs from the ledger row's own
+  `*_lineup_json`; a NON-empty fetch always wins, so a real scratch or
+  bench shuffle replaces the memory instead of being masked by it. The
+  sticky IDs flow through the same `current_season_top3_stats` /
+  `top3_ops_vs_hand` calls as a live card — batter stats stay fresh; only
+  the ROSTER is remembered.
+  - **Why the ledger row and not the data/cache layer:** the cache dies
+    with its host — gitignored (GHA runners start empty every run) and
+    reset on every Railway auto-deploy (hourly+). Proven on the incident:
+    Railway redeployed at 11:58 ET with an empty cache and its first
+    fetch landed inside the outage. The row survives both lifecycles via
+    git and is the SAME memory on every host.
+  - Sides running on memory are tagged `*_top3c_source="lineup_sticky"`
+    (honest ledger; drift monitor already classes this column noisy-
+    categorical; dashboard doesn't read it; Supabase passthrough). The
+    LINEUP PENDING guard treats both tags as "card present". The layer-3
+    alarm now distinguishes BRIDGED (`lineup→lineup_sticky`, calm body:
+    "sticky memory kept the last posted card") from REGRESSED
+    (`→team_fallback`), with the new state in the dedup key so an
+    escalation mid-window still pings.
+  - **Replayed against 2026-08-13:** at the 12:06 ET cycle the fresh
+    fetch loses the home side; sticky restores Meidroth/Grichuk/Vargas
+    (the exact withdrawn card, asserted by ID in
+    `tests/test_sticky_lineups.py::test_the_2026_08_13_outage_is_bridged`)
+    → the model keeps its 66.9% inputs → quarter-Kelly sizes ~7u.
+  - **Rollout:** behind `NRFI_STICKY_LINEUPS=enabled`, default OFF in
+    code, now set on BOTH hosts (Railway variable + `daily.yml`
+    predict-step env) — both, because a non-sticky host writing
+    team_fallback into the row mid-outage destroys the memory the sticky
+    host needs. Kill switch: delete the Railway var + env line; rows
+    self-heal to `lineup` on the next successful fetch. No CSV repair
+    needed either way.
+  - Tests: `tests/test_sticky_lineups.py` (13 — incident replay by real
+    IDs, scratch-replaces-memory, chain persistence via `lineup_sticky`
+    source, partial/malformed-memory refusals, flag contract) plus 2 new
+    alarm-interplay tests. Full suite 170 passed.
+
+**Changed**
+
+- `tracker._notify_lineup_regression_telegram` — bridged-vs-regressed
+  message variants + per-transition dedup keys (see above).
+
 ## [2026-08-13d] - T8.35 layer 3 shipped: two alarms so the next outage is loud
 
 **Added**
