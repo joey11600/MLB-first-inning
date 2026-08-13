@@ -1,0 +1,147 @@
+/* /cards — the social-card viewer.
+   Mobile FIRST here, more than anywhere else in this app: the scene is
+   standing up with a phone, saving an image to post. One column by default,
+   and the save control is a full-width target, not a link to aim at. */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 16px 72px;
+}
+
+.head {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 26px;
+}
+
+.back {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  padding: 6px 0;
+  margin-bottom: 10px;
+}
+.back:hover { color: var(--foreground); }
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 7vw, 44px);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0 0 8px;
+  color: var(--foreground);
+}
+
+.blurb {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+  max-width: 56ch;
+  margin: 0;
+}
+.blurb strong { color: var(--foreground); font-weight: 600; }
+
+.empty {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-left: 3px solid var(--attn);
+  padding: 16px 18px;
+  margin: 0 0 26px;
+}
+.empty code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  word-break: break-all;
+  color: var(--foreground);
+}
+
+.night { margin-bottom: 40px; }
+
+.nightTitle {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 26px;
+}
+
+.card {
+  margin: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.shot { display: block; line-height: 0; }
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.plate {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.save {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  /* 44px min target — this is the one control on the page and it is used
+     one-handed. */
+  min-height: 44px;
+  padding: 0 20px;
+  cursor: pointer;
+}
+.save:hover:not(:disabled) { filter: brightness(1.08); }
+.save:disabled { opacity: 0.6; cursor: progress; }
+.save:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (min-width: 620px) {
+  .page { padding: 28px 24px 88px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+}

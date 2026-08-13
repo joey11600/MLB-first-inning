@@ -11,6 +11,46 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-12c] - Backfist Bets social cards: generator + /cards page
+
+**Added**
+
+- `tools/cards/make_card.py` — renders the night's №1 play as a square
+  1080×1080 PNG for X, under the public brand **Backfist Bets** (not "NRFI
+  Terminal", which stays internal). Backdrops are AI-generated art plates
+  (`tools/cards/plates/`, generated once via Higgsfield `nano_banana_pro`)
+  that deliberately contain **no text**; every character is drawn by Pillow
+  from ledger data, so a published figure cannot drift from the dashboard.
+  Fonts vendored in `tools/cards/fonts/` (Archivo/Archivo Black display,
+  JetBrains Mono figures); logo in `tools/cards/brand/`. Brand colours are
+  sampled from the logo (`#007030` green, `#E0C060` gold).
+  - №1 selection **ranks explicitly** (YRFI, `bet_placed=Y`, priced, lowest
+    `nrfi_prob` — mirroring `pl_calc.select_top_picks`) and uses
+    `tracker._row_is_nights_top_pick` only as a cross-check, because the
+    gate fails open by design and returned a PASS row when used as the
+    finder. Verified against `pl_calc --top-pick` (both pick COL@ARI for
+    2026-08-12).
+  - Copy rules: YRFI reads "Either team scores in the 1st" (side-neutral —
+    "Yes run" beside a matchup misread as a bet on the away team); model %
+    is always paired with the price's break-even; full club names parsed
+    from `dashboard/lib/team-names.ts` at run time (never a second copy);
+    "Tonight's/Today's" follows first pitch.
+  - `--publish` uploads to the new public-read Supabase storage bucket
+    `cards` (service key writes, anon SELECT-only via storage policy;
+    created by migrations `create_social_cards_bucket` +
+    `allow_anon_list_cards_bucket`).
+- `dashboard/app/cards/page.tsx` + `components/CardsView.{tsx,module.css}` —
+  `/cards`: lists the bucket newest-night-first and offers **Save / Share**.
+  On phones this fetches the PNG and opens the native share sheet (Web Share
+  API with a `File`), because cross-origin `<a download>` silently navigates
+  instead of saving on iOS; desktop falls back to a same-origin object-URL
+  download. The page is a *viewer only* — one renderer exists, in Python, so
+  the preview can never disagree with the posted image. Newest night loads
+  eagerly; the archive lazy-loads. Nav link "Cards" added in
+  `DashboardShell`.
+
+---
+
 ## [2026-08-12b] - The calibration chart had no endpoint to fetch (T8.34)
 
 **Added**

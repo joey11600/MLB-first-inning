@@ -511,6 +511,17 @@ export function DashboardShell({
             <span className={styles.navLinkIcon} aria-hidden>▤</span>
             History
           </a>
+          {/* 2026-08-12: the social cards. Lives in the nav rather than
+              behind Settings because the scene is "standing up, about to
+              post" — the same one-handed moment as the board itself. */}
+          <a
+            href="/cards"
+            className={styles.navLink}
+            title="Save tonight's graphics for X"
+          >
+            <span className={styles.navLinkIcon} aria-hidden>▣</span>
+            Cards
+          </a>
           <SettingsDropdown
             notifyToggle={<NotifyToggle />}
             opsControls={<RunJobControl />}

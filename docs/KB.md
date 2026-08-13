@@ -382,6 +382,12 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   lineup cards, pitcher comparison.
 - `components/HistoryView.tsx` — /history page; CalendarHeatmap (T4.16),
   ZoneHitRateChart (T4.17), CalibrationPlot (T4.23).
+- `app/cards/page.tsx` + `components/CardsView.tsx` — /cards, the Backfist
+  Bets social-card viewer. Lists the public `cards` storage bucket (anon
+  SELECT policy); Save/Share uses the Web Share API on phones. The images
+  are rendered ONLY by `tools/cards/make_card.py` (`--publish` uploads with
+  the service key) — this page never draws a card itself, so preview and
+  posted image cannot disagree.
 - `components/DashboardShell.tsx` — filter persistence (T3.18), pitcher
   search (T4.18), browser notifications (T4.20), Realtime push hook
   (Phase 2 / T2.31).
