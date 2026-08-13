@@ -58,24 +58,45 @@ def load(side, since):
             mine = imp(r.get("market_yrfi_odds")) if side == "YRFI" else imp(r.get("market_nrfi_odds"))
             try: model = float(r["yrfi_prob"]) if side == "YRFI" else float(r["nrfi_prob"])
             except (ValueError, KeyError): continue
-            try: pl = float(r.get("profit_loss_units") or "nan")
+            try: booked = float(r.get("profit_loss_units") or "nan")
             except ValueError: continue
-            if pl != pl: continue
+            if booked != booked: continue
             devig = (iY / (iN + iY)) if side == "YRFI" else (iN / (iN + iY))
             try: price = int(float((r.get("market_" + side.lower() + "_odds") or "").strip()))
             except (ValueError, TypeError): price = None
-            rows.append({"edge": model - devig, "won": r["graded_result"].upper() == "WIN",
-                         "pl": pl, "price": price, "vig_implied": mine})
+            won = r["graded_result"].upper() == "WIN"
+            # Flat-1u settlement, the basis edge_reality_check.py and
+            # market_signal_check.py both use.  payout == (1-imp)/imp
+            # exactly, so this needs no second parse of the price string.
+            pl_flat = ((1.0 - mine) / mine) if won else -1.0
+            rows.append({"edge": model - devig, "won": won,
+                         "pl_flat": pl_flat, "booked": booked,
+                         "price": price, "vig_implied": mine})
     return rows
 
 
 def show(rows, label, ci=False):
+    """ROI and its CI are reported on a FLAT 1u basis; booked P&L is carried
+    beside them, labelled, on the quarter-Kelly stakes actually placed.
+
+    This used to be `ROI = sum(profit_loss_units) / n` -- a quarter-Kelly
+    numerator over a flat-1u denominator.  That was correct while every bet
+    was a flat single unit, but quarter-Kelly went live 2026-07-27 with
+    stakes of 3-9u, after which the figure overstated return by roughly the
+    average stake: the 2026-08-13 review saw it print "+259.2%" and
+    "+375.7%".  market_signal_check.py never had the bug because it builds a
+    flat-1u settlement first; clv_tracker now does the same, so the two
+    tools' ROI figures are comparable to each other and to
+    edge_reality_check.py.
+    """
     if not rows:
         print(f"  {label:<24} (0)"); return
-    n = len(rows); w = sum(x["won"] for x in rows); pl = sum(x["pl"] for x in rows)
-    s = f"  {label:<24} n={n:>3}  {w}-{n-w} ({w/n*100:>3.0f}%)  ROI {pl/n*100:>+5.1f}%  P&L {pl:>+6.1f}u"
+    n = len(rows); w = sum(x["won"] for x in rows)
+    flat = sum(x["pl_flat"] for x in rows); booked = sum(x["booked"] for x in rows)
+    s = (f"  {label:<24} n={n:>3}  {w}-{n-w} ({w/n*100:>3.0f}%)  "
+         f"ROI {flat/n*100:>+6.1f}%  flat {flat:>+6.1f}u  booked {booked:>+7.1f}u")
     if ci:
-        lo, hi = boot_ci([x["pl"] for x in rows])
+        lo, hi = boot_ci([x["pl_flat"] for x in rows])
         s += f"  95%CI[{lo*100:+.0f}%,{hi*100:+.0f}%]{'  REAL' if lo>0 else ''}"
     print(s)
 
@@ -92,7 +113,11 @@ def main():
     pos = sum(1 for x in rows if x["edge"] > 0)
     print(f"{args.side} STRONG bets (real odds) since {args.since}: {len(rows)}")
     print(f"avg edge at bet (model - book devig): {avg_edge*100:+.1f}pp   "
-          f"positive-edge bets: {pos}/{len(rows)} ({pos/len(rows)*100:.0f}%)\n")
+          f"positive-edge bets: {pos}/{len(rows)} ({pos/len(rows)*100:.0f}%)")
+    print("ROI, 'flat' and the CI are a FLAT 1u basis -- the model's edge, "
+          "independent of sizing.")
+    print("'booked' is the real money the ledger settled at the "
+          "quarter-Kelly stakes actually placed.\n")
 
     print("=== 1. Is the edge REAL? bucket by edge-at-bet -> realized result ===")
     show([x for x in rows if x["edge"] < 0.0], "negative edge (overpaid)", ci=True)

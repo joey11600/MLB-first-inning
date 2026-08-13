@@ -62,6 +62,30 @@ section captures actual picks accuracy on/around the change date.
   - Read-only monitor. No model, gate, staking or ledger code touched, and
     the change fires no new alert on current data.
 
+## [2026-08-13c] - `clv_tracker`: ROI was a Kelly numerator over a flat denominator
+
+**Fixed**
+
+- `tools/clv_tracker.py` — `show()` computed `ROI = sum(profit_loss_units) / n`.
+  The numerator is the ledger's **quarter-Kelly** settlement (stakes of 3–9u
+  since 2026-07-27); the denominator is the **bet count**. Correct while every
+  bet was a flat 1u, wrong the moment quarter-Kelly went live — it overstated
+  return by roughly the average stake, printing `+259.2%` and `+375.7%` in the
+  2026-08-13 review.
+  - ROI and its bootstrap CI are now computed on a **flat 1u** settlement, the
+    same basis `edge_reality_check.py` and `market_signal_check.py` use, so all
+    three tools' ROI figures are finally comparable.
+    `market_signal_check.py` never had the bug — it builds a flat-1u P&L first.
+  - Real money is still reported, in a `booked` column labelled as the
+    quarter-Kelly stakes actually placed. Both bases print side by side; the
+    header says which is which.
+  - Flat payout derives from the price's implied probability
+    (`payout == (1-imp)/imp`, exact), so no second parse of the odds string.
+  - Verified against an independent implementation: the fortnight's
+    "big edge 10pp+" bucket reads ROI +38.6% / flat +5.8u, matching
+    `market_signal_check.py`'s +39% / +5.8u on the same population.
+  - Read-only reporting script; no prediction path imports it.
+
 ## [2026-08-12c] - Backfist Bets social cards: generator + /cards page
 
 **Added**
