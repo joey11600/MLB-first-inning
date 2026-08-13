@@ -87,25 +87,32 @@ incident state with the real batter IDs — the withdrawn CWS card
 persistence, and malformed-memory refusals pinned alongside. Suite 170
 passed; `verify_kelly_wiring.py` untouched.
 
-### Layer 2 — Size from the value being published (coherence by construction)
+### Layer 2 — Size from the value being published — ✅ SHIPPED 2026-08-13
 
-At commit, derive the stake from the probability THE ROW PUBLISHES, not
-from a separate fresh compute. `stake_drift.py`'s invariant — stake ==
-rule(published p, price) — becomes structurally true instead of checked
-after the fact.
+Shipped with operator approval, and the implementation clarified the
+mechanism: on the SIZING host, stake and probability already come from
+the same row cell — the splice was manufactured at the CROSS-HOST
+reconciliation, where `sync_csv_from_supabase` pulled the money columns
+without the probability and the local T2.25 freeze then locked an
+unrelated probability beside the adopted stake.
 
-- Would have staked ~7u on 2026-08-13 (the row carried 66.87% at commit
-  on the host that had last written it — see the caveat).
-- **Caveat stated plainly:** each host stores its own copy of the row, so
-  "the published value" is only single-valued if the probability column
-  has ONE writer (or the sizer reads it from Supabase at commit — a
-  network call in the money path, which needs its own failure-mode
-  review). This is where a narrow slice of v1's one-writer idea survives:
-  one writer FOR THE PROBABILITY FIELD, not one host for everything.
-- On 2026-08-13 the two copies straddled the withdrawal (GHA's 15:58
-  copy pre-outage, Railway's 16:06 copy mid-outage) — which copy was
-  "right" was luck of refresh timing. Layer 2 without Layer 1 fixes
-  coherence, not sizing quality. Together they fix both.
+The fix is the **bet-adoption sync**: at the N→Y transition (a CSV copy
+first learning `bet_placed=Y` from Supabase), the committing host's
+probability set (`nrfi_prob`/`yrfi_prob` + raws) and pick identity
+(`pick_side`/`pick_strength`/`pick_label`) sync atomically with the
+money. The freeze then preserves the sized-from values everywhere, so
+stake == rule(published p, price) holds by construction on every host.
+
+Strictly N→Y, by design: frozen rows never re-adopt (no silent history
+edits under a settled bet), unplaced rows keep their own fresh compute
+(pre-lock, local is honest — T8.18), blanks never overwrite. Pick
+identity rides along so a committed STRONG stake can never land on a
+locally-demoted LEAN/PASS row.
+
+Acceptance: `tests/test_bet_adoption_sync.py` replays the incident
+splice and asserts it dies at adoption; frozen/unplaced protections and
+one-shot semantics pinned. Live `--dry-run` against production: zero
+false adoptions. Suite 176 passed.
 
 ### Layer 3 — Lineup-regression alarm (operator visibility) — ✅ SHIPPED 2026-08-13
 
@@ -139,12 +146,15 @@ justifies one). All of these quiet the alarm without touching the cause.
 1. ~~**Layer 3 (alarm)**~~ — ✅ shipped 2026-08-13.
 2. ~~**Layer 1 (sticky cards)**~~ — ✅ shipped 2026-08-13, flag on both
    hosts.
-3. **Layer 2 (size-from-published)** — the remaining open decision.
-   Value is lower now that layer 1 defends the input and layer 3 makes
-   any residual splice loud the same night; the honest framing is
-   "coherence by construction vs. two more moving parts in the money
-   path". No urgency; revisit after layer 1's first real-world bridge.
-4. Host consolidation — optional, later, on its own merits.
+3. ~~**Layer 2 (bet-adoption sync)**~~ — ✅ shipped 2026-08-13.
+4. Host consolidation — optional, later, on its own merits. With layers
+   1–3 live it is ops hygiene, not a correctness fix.
+
+**This proposal is now fully executed** (all layers shipped 2026-08-13,
+same day as the incident). T8.35 is closed in AUDIT.md with a standing
+watch: the `lineup_regression` ping announces the next card-flap; the
+nightly stake-drift replay pings on any residual mismatch. The two
+unshipped candidates below remain available if the operator wants them.
 
 Two further candidates surfaced by the incident, listed for the
 operator's consideration (both small, neither shipped):

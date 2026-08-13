@@ -70,6 +70,43 @@ _SYNC_COLUMNS = sorted(_PRESERVE_ON_BLANK_FIELDS) + ["sportsbook"]
 # Strip duplicates if any (sportsbook is already in the preserve set).
 _SYNC_COLUMNS = sorted(set(_SYNC_COLUMNS))
 
+# T8.35 LAYER 2 -- THE PROBABILITY THAT SIZED A BET TRAVELS WITH THE BET.
+#
+# On 2026-08-13 Railway committed the No.1 as (YRFI 58.6%, 2u, bet=Y) --
+# internally coherent -- while this host's CSV copy still held the
+# pre-outage 66.87%.  This sync then pulled the MONEY columns (bet=Y, 2u)
+# but NOT the probability (predict-owned, never synced), and the next
+# log_picks run froze the local 66.87% beside Railway's 2u (T2.25 freezes
+# whatever the local copy holds at the moment bet_placed goes Y).  The
+# full-row mirror pushed that splice back over Supabase, and the
+# published record claimed a 7u-probability next to a 2u stake.
+#
+# The fix: at the ADOPTION MOMENT -- this CSV row learning bet_placed=Y
+# from Supabase for the first time -- the committing host's probability
+# set and pick identity come along atomically.  After adoption the T2.25
+# freeze preserves the ADOPTED values, so stake_drift's invariant
+# (units_risked == rule(published probability, price)) holds by
+# construction on every host, not just the one that sized the bet.
+#
+# STRICTLY N->Y ONLY.  A row already bet_placed=Y in the CSV is a frozen
+# record: re-adopting on later syncs would let any FUTURE Supabase writer
+# rewrite the probability under a settled bet -- the exact class of
+# silent history edit the T2.23/T2.25 freezes exist to prevent.  And a
+# bet_placed=N row keeps its own predict-owned probabilities untouched:
+# pre-lock, each host's fresh compute is the more honest number (T8.18).
+#
+# pick_side / pick_strength / pick_label ride along for the same reason
+# the probabilities do: the committing host may have committed STRONG
+# YRFI while this host's fresh compute had already demoted the row --
+# adopting the stake without the pick identity would manufacture a
+# bet_placed=Y LEAN/PASS row, which violates the LEAN-is-track-only
+# invariant everywhere downstream.
+_BET_ADOPTION_COLUMNS: tuple[str, ...] = (
+    "nrfi_prob", "yrfi_prob",
+    "nrfi_prob_raw", "yrfi_prob_raw",
+    "pick_side", "pick_strength", "pick_label",
+)
+
 # Columns that record WHEN something was observed.  These are merged
 # through tracker.advance_capture_ts (monotonic) instead of a plain
 # assignment -- see the block comment at the merge loop below, and the
@@ -122,7 +159,7 @@ def fetch_supabase_rows(
     Supabase, or all rows if dates is None.  Returns empty list on
     error (caller treats as no-op)."""
     table = f"picks_{season}"
-    cols = ["date", "game_pk", *_SYNC_COLUMNS]
+    cols = ["date", "game_pk", *_SYNC_COLUMNS, *_BET_ADOPTION_COLUMNS]
     select_str = ", ".join(cols)
     try:
         q = client.table(table).select(select_str)
@@ -164,6 +201,7 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
 
     updated = unmatched = unchanged = 0
     ts_advanced = ts_rejected = 0
+    adopted = 0
     for sb in sb_rows:
         key = (sb.get("date") or "", str(sb.get("game_pk") or ""))
         idx = csv_index.get(key)
@@ -171,13 +209,30 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
             unmatched += 1
             continue
         row = rows[idx]
+
+        # T8.35 layer 2 -- detect the ADOPTION MOMENT before any column
+        # is mutated (bet_placed itself is a sync column and will be
+        # written in the loop below; testing after would always be
+        # false).  Adoption = Supabase says the bet is placed and this
+        # CSV copy does not yet know it.  For that row only, the
+        # committing host's probability set and pick identity are synced
+        # atomically with the money columns, so the T2.25 freeze that
+        # engages on the next log_picks run preserves the values the bet
+        # was actually sized from -- not this host's unrelated local
+        # compute.  See _BET_ADOPTION_COLUMNS for the full rationale.
+        sb_bet = _coerce_supabase_value("bet_placed", sb.get("bet_placed"))
+        adopting = (sb_bet.strip().upper() == "Y"
+                    and (row.get("bet_placed") or "").strip().upper() != "Y")
+        row_cols = (_SYNC_COLUMNS + list(_BET_ADOPTION_COLUMNS)
+                    if adopting else _SYNC_COLUMNS)
+
         # Apply each sync column.  Only overwrite if Supabase has a
         # non-empty value -- this protects against a Supabase row that
         # happens to be missing a column that the CSV does have (e.g. a
         # legacy backfill).  In every realistic case, Supabase is the
         # fresher writer for these columns.
         row_changed = False
-        for col in _SYNC_COLUMNS:
+        for col in row_cols:
             sb_val = sb.get(col)
             csv_val = (row.get(col) or "").strip()
             new_val = _coerce_supabase_value(col, sb_val)
@@ -219,6 +274,15 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
             if new_val != csv_val:
                 row[col] = new_val
                 row_changed = True
+        if adopting and row_changed:
+            adopted += 1
+            print(f"[sync] BET ADOPTED {key[0]} {row.get('away_team','?')}@"
+                  f"{row.get('home_team','?')} (pk={key[1]}): money + "
+                  f"probability + pick identity taken from the committing "
+                  f"host (T8.35 layer 2) -- "
+                  f"{row.get('pick_label','?')} p_nrfi={row.get('nrfi_prob','')} "
+                  f"p_yrfi={row.get('yrfi_prob','')} "
+                  f"units={row.get('units_risked','')}")
         if row_changed:
             updated += 1
         else:
@@ -226,6 +290,8 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
 
     print(f"[sync] {updated} row(s) updated, {unchanged} unchanged, "
           f"{unmatched} Supabase-only (no CSV row)")
+    if adopted:
+        print(f"[sync] bets adopted with their sizing probability: {adopted}")
     if ts_advanced or ts_rejected:
         print(f"[sync] capture timestamps: {ts_advanced} advanced, "
               f"{ts_rejected} rejected as backwards")

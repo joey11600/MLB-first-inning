@@ -298,7 +298,7 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
-- [ ] **T8.35 — the No.1 locked mid-outage: MLB withdrew the lineup card** 🔴 OPEN 2026-08-13
+- [x] **T8.35 — the No.1 locked mid-outage: MLB withdrew the lineup card** ✅ 2026-08-13
   2026-08-13 CIN@CWS, the night's **No.1**, published at YRFI 66.87% and
   staked **2u** where the rule says **7u**. It won: +1.667u booked instead
   of +5.833u, a **4.17u shortfall on the play that is actually sold**.
@@ -342,9 +342,18 @@ the live ledger's own columns are healthy.
   non-empty fetches always win so real scratches replace honestly.
   `NRFI_STICKY_LINEUPS=enabled` on BOTH hosts (Railway var + daily.yml).
   Incident replayed in `tests/test_sticky_lineups.py` — the withdrawn
-  CWS card restores by ID at the 12:06 state. Item stays OPEN pending
-  first real-world bridge (the layer-3 alarm will announce it) and the
-  layer-2 (size-from-published) decision.
+  CWS card restores by ID at the 12:06 state.
+  **Layer 2 SHIPPED 2026-08-13** (operator-approved): bet-adoption sync —
+  when a CSV copy first learns `bet_placed=Y` from Supabase, the
+  committing host's probability set + pick identity sync atomically with
+  the money, so the T2.25 freeze preserves the values the bet was sized
+  from. Strictly N→Y: frozen rows never re-adopt, unplaced rows keep
+  their own compute. `tests/test_bet_adoption_sync.py`.
+  **CLOSED with a standing watch:** all three layers + the row heal
+  shipped same-day. The next card-flap announces itself via the
+  `lineup_regression` ping; any residual stake/probability mismatch
+  pings the same night from the grade cron's stake-drift replay. If
+  either watch fires unexpectedly, reopen here.
   **Generalises:** before blaming an infrastructure host for a data
   discrepancy, check whether the SOURCE itself was stable across the
   window — two consumers reading a flapping feed at different moments

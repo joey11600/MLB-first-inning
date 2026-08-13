@@ -11,6 +11,52 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-13f] - T8.35 layer 2 shipped: the probability that sized a bet travels with the bet
+
+**Added**
+
+- **Bet adoption sync** (`tools/sync_csv_from_supabase.py`) — at the
+  moment a GHA-side CSV first learns `bet_placed=Y` from Supabase (the
+  N→Y transition), the committing host's probability set
+  (`nrfi_prob`/`yrfi_prob` + raws) and pick identity
+  (`pick_side`/`pick_strength`/`pick_label`) now sync atomically with
+  the money columns. The T2.25 freeze that engages on the next
+  `log_picks` run then preserves the values the bet was actually sized
+  from — not this host's unrelated local compute. `stake_drift`'s
+  invariant (stake == rule(published probability, price)) becomes true
+  by construction on every host, not just the sizing one.
+  - **The splice this kills:** 2026-08-13, Railway committed the No.1
+    coherently as (58.6%, 2u); GHA's sync pulled the money but not the
+    probability, froze its own pre-outage 66.87% beside Railway's 2u,
+    and mirrored the splice back over Supabase — the published record
+    then claimed a 7u probability next to a 2u stake.
+  - **Strictly N→Y.** Frozen rows (already `Y`) never re-adopt — a later
+    Supabase writer must not silently edit the probability under a
+    settled bet (T2.23/T2.25 class). Unplaced rows keep their own fresh
+    compute — pre-lock, local is the honest number (T8.18). Blank remote
+    values never overwrite. Adoptions print a
+    `[sync] BET ADOPTED …` line for the workflow log.
+  - Pick identity rides along because the committing host may have
+    committed STRONG while this host's fresh compute had demoted the
+    row — adopting the stake without the identity would manufacture a
+    `bet_placed=Y` LEAN/PASS row, violating LEAN-is-track-only.
+  - Tests: `tests/test_bet_adoption_sync.py` (6 — the incident replayed
+    and killed, identity ride-along, blank-skip, frozen-row protection,
+    unplaced-row protection, one-shot adoption). Full suite 176 passed.
+  - Verified read-only against live Supabase (`--dry-run --days 3`):
+    39 rows, routine updates only, zero adoptions — the path arms only
+    on commits the CSV hasn't seen.
+  - No workflow change needed: both sync call sites (predict + grade
+    jobs) already run before their compute steps.
+
+**T8.35 status: all three layers + the row heal are now shipped.**
+Layer 1 (sticky lineups) defends the input, layer 2 (this) makes the
+published record coherent by construction, layer 3 (alarms + nightly
+stake-drift replay) watches both. The audit item is closed with a
+standing watch: the next MLB card-flap will be announced by the
+`lineup_regression` ping, and any residual stake/probability mismatch
+pings the same night from the grade cron.
+
 ## [2026-08-13e] - T8.35 layer 1 shipped: sticky lineups (operator-approved model-input change)
 
 **Added**
