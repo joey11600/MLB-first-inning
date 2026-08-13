@@ -330,6 +330,13 @@ the live ledger's own columns are healthy.
   **Fix proposed, not shipped:** `docs/proposals/one_source_stake.md`
   (rewritten post-correction: sticky lineup cards, size-from-published-
   value, lineup-regression alarm; host consolidation demoted).
+  **Layer 3 SHIPPED 2026-08-13** (same day): `lineup_regression` ops
+  Telegram (fires on the lineup→fallback transition, pre-lock STRONG
+  only — would have pinged at ~12:06 ET, four minutes before lock) +
+  `stake_drift.py --notify` wired into the nightly grade cron so a
+  mis-sized stake surfaces the same night. Observability only; the item
+  stays OPEN until layers 1–2 (sticky cards, size-from-published) are
+  decided.
   **Generalises:** before blaming an infrastructure host for a data
   discrepancy, check whether the SOURCE itself was stable across the
   window — two consumers reading a flapping feed at different moments

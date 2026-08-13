@@ -751,6 +751,28 @@ jobs:
           python tools/calibration_monitor.py --alert 2>&1 \
             || echo "::warning::calibration_monitor failed (non-blocking)"
 
+      - name: Stake drift nightly replay (T8.35 layer 3b)
+        if: steps.action.outputs.what == 'grade'
+        # Replays quarter-Kelly for every settled slate since the era floor
+        # (2026-07-30) and compares against the ledger.  READ-ONLY -- it
+        # never heals; a violation is a deliberate-investigation trigger,
+        # not an auto-fix (rewriting a locked stake is a money-path write).
+        # --notify pings the ops Telegram on any violation surviving the
+        # exemptions, dedup-keyed on the violating set, so a mis-sized
+        # stake surfaces the SAME NIGHT.  Motivation: 2026-08-13, the No.1
+        # published 2u where the rule on its own probability said 7u, and
+        # the tool that would have caught it ran only when a human typed
+        # it.  Exit 1 on violations is expected signal, hence non-blocking.
+        env:
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          python tools/stake_drift.py --notify 2>&1 \
+            || echo "::warning::stake_drift reported violations or failed (see log above; non-blocking)"
+
       # T-V21-LOCKIN-2026-05-06: removed "Daily T4.2 shadow report"
       # step.  Tool deleted (tools/daily_shadow_report.py).  V2.1 is now
       # production; the V2-vs-V2.1 shadow comparison that justified

@@ -100,13 +100,19 @@ after the fact.
   "right" was luck of refresh timing. Layer 2 without Layer 1 fixes
   coherence, not sizing quality. Together they fix both.
 
-### Layer 3 — Lineup-regression alarm (operator visibility)
+### Layer 3 — Lineup-regression alarm (operator visibility) — ✅ SHIPPED 2026-08-13
 
-When a side that was lineup-sourced regresses pre-lock, fire an ops
-Telegram (registered in `_DEDUP_WINDOW_M` in the same commit, per the
-Discord/notify rule). On 2026-08-13 it would have fired ~16:06 — four
-minutes before lock — naming the game, the side, and the probability
-delta. Cheap, no behaviour change, ships independently of 1 and 2.
+Shipped same-day with operator approval, in two parts:
+- `tracker._notify_lineup_regression_telegram` — fires on the
+  lineup→fallback transition for pre-lock STRONG rows, quoting the
+  probability and projected-stake shift. On 2026-08-13 it would have
+  fired ~12:06 ET, four minutes before lock. Registered in
+  `_DEDUP_WINDOW_M` (12h) in the same commit.
+- `tools/stake_drift.py --notify` wired into the nightly grade cron —
+  the PART 3 replay now runs unattended and pings on any violation
+  surviving the exemptions, so a mis-sized stake surfaces the same
+  night instead of when a human squints at the board.
+Tests: `tests/test_lineup_regression_alert.py` (13 tests).
 
 ### Demoted — host consolidation (ops hygiene, later)
 
@@ -123,13 +129,30 @@ justifies one). All of these quiet the alarm without touching the cause.
 
 ## Recommended sequence
 
-1. **Layer 3 (alarm)** — smallest, no behaviour change, immediate eyes.
+1. ~~**Layer 3 (alarm)**~~ — ✅ shipped 2026-08-13.
 2. **Layer 1 (sticky cards)** — the targeted fix, behind an env flag on
    Railway first (same rollout pattern as T8.18 PART 1), with the replay
-   test above.
+   test above. ← NEXT, awaiting operator approval.
 3. **Layer 2 (size-from-published)** — after 1 proves stable, since its
    value is highest when the published number is itself robust.
 4. Host consolidation — optional, later, on its own merits.
+
+Two further candidates surfaced by the incident, listed for the
+operator's consideration (both small, neither shipped):
+
+- **Game-time-change alert** — the 2:10→1:10 correction silently moved
+  the lock window an hour earlier, shrinking the runway to lock from ~2h
+  to 12 minutes. An ops ping when a slate row's `game_time_et` changes
+  would make the next such compression visible. Cheap; deferred rather
+  than shipped because alert volume is a real cost here (see
+  `_DEDUP_WINDOW_M`'s history) and the operator should choose the
+  threshold (any change vs. changes that move a lock earlier).
+- **`sizing_prob` ledger column** — stamp the probability that actually
+  sized the bet next to `units_risked` (written by the same code path).
+  Today's row would have read `yrfi_prob=0.6687, sizing_prob=0.5864` on
+  the dashboard — the splice visible instantly instead of via log
+  forensics. Ledger schema change (CSV + Supabase + dashboard readers),
+  so it needs approval on those grounds alone.
 
 ## Testing bar (unchanged from v1 where applicable)
 

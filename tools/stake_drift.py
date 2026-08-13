@@ -571,6 +571,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--season", type=int, default=None)
     ap.add_argument("--verbose", action="store_true",
                     help="print every compared row, not just the mismatches")
+    ap.add_argument("--notify", action="store_true",
+                    help="send an ops Telegram when violations survive the "
+                         "exemptions (T8.35 layer 3b; wired into the nightly "
+                         "grade cron so a mis-sized stake surfaces the same "
+                         "night). Dedup-keyed on the violating set, so a "
+                         "known violation stays quiet and a NEW one pings.")
     args = ap.parse_args(argv)
 
     if args.date:
@@ -605,7 +611,49 @@ def main(argv: list[str] | None = None) -> int:
         print(line)
     print()
     print(rep.summary())
+    if args.notify and rep.violations:
+        _notify_violations(rep)
     return 1 if rep.violations else 0
+
+
+def _notify_violations(rep: Report) -> None:
+    """T8.35 layer 3b -- ops Telegram on surviving violations.
+
+    Routed through tracker._notify_event_telegram so the standard dedup +
+    notifications_log audit apply.  The event key is the violating-set
+    signature (date:game_pk of every violation): a nightly re-run that
+    finds the SAME violations is silent inside the 24h window registered
+    in _DEDUP_WINDOW_M, while any NEW mis-sized stake changes the
+    signature and pings immediately.
+
+    Motivation: on 2026-08-13 the No.1 published 2u where the rule on its
+    own probability said 7u, and the splice sat invisible until the
+    operator happened to ask.  This check existed (PART 3) but ran only
+    when a human typed it.  Never raises -- the exit code above is the
+    contract; the ping is advisory.
+    """
+    try:
+        sig = "+".join(sorted(f"{f.date}:{f.game_pk}" for f in rep.violations))
+        event_key = f"stake_drift:{sig[:180]}"
+        lines = [f"🧮 <b>STAKE DRIFT — {len(rep.violations)} row(s) off the rule</b>"]
+        for f in rep.violations[:6]:
+            lines.append(
+                f"{f.date} {f.game} {f.side}: ledger {f.stored:g}u "
+                f"vs rule {f.expected:g}u ({f.delta:+.2f}u)"
+            )
+        if len(rep.violations) > 6:
+            lines.append(f"…and {len(rep.violations) - 6} more")
+        lines.append(
+            "Read-only check; nothing was auto-corrected. Run "
+            "tools/stake_drift.py locally for the full replay, then heal "
+            "deliberately or add a journaled exemption. (T8.35)"
+        )
+        delivered = tracker._notify_event_telegram(
+            "stake_drift", event_key, "\n".join(lines))
+        print(f"[stake-drift] telegram "
+              f"{'sent' if delivered else 'skipped (dedup or env unset)'}")
+    except Exception as exc:    # noqa: BLE001 -- advisory only
+        print(f"[stake-drift] notify failed: {exc!r}", file=sys.stderr)
 
 
 if __name__ == "__main__":

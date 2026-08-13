@@ -11,6 +11,49 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-13d] - T8.35 layer 3 shipped: two alarms so the next outage is loud
+
+**Added**
+
+- `tracker._notify_lineup_regression_telegram` — ops Telegram the moment a
+  side that WAS lineup-sourced regresses to team/league fallback on a
+  pre-lock STRONG row. Fires on the transition only (once the regressed
+  row is written the stored source is no longer "lineup", so a cycle
+  can't re-fire); silent when the bet is already placed (stake frozen,
+  nothing to protect), when the game has started, when the row is
+  terminally graded, or when neither side of the merge is STRONG — the
+  regression demoting the fresh verdict below STRONG still fires, since
+  the pick vanishing off the board IS the event. Called from `log_picks`
+  after the T8.18 re-derive so the ping quotes the stake the row now
+  actually projects; baseline captured per loop iteration (a stale
+  `existing` from the previous game was the obvious trap). Deliberately
+  NOT gated by the №1-only policy — money-integrity class, like
+  strong_orphan_no_odds. On 2026-08-13 it would have fired at ~12:06 ET,
+  four minutes before the lock window opened.
+- `tools/stake_drift.py --notify` + nightly wiring in `daily.yml` (grade
+  job) — the T8.18 PART 3 replay existed but ran only when a human typed
+  it; the 2026-08-13 2u-vs-7u splice sat invisible until the operator
+  asked. Now it replays every settled slate since the era floor every
+  night and pings ops Telegram on any violation surviving the exemptions.
+  Event key is the violating-set signature: a known violation stays
+  silent inside the 24h window, a NEW one changes the signature and pings
+  through it. Read-only contract unchanged — it reports, never heals.
+- Both event types registered in `_DEDUP_WINDOW_M` in the same commit
+  (`lineup_regression` 12h, `stake_drift` 24h) — per the standing rule,
+  fourth-time's-the-charm on the unregistered-type bug class.
+- `tests/test_lineup_regression_alert.py` — 13 tests: 4 pin when the
+  alarm fires (incl. key format and body forensics), 6 pin the silences
+  (placed bet / no STRONG / recovery direction / graded / started /
+  nothing regressed), 1 pins the raise contract, 2 cover the stake-drift
+  notifier (signature key, never-raises). Full suite 156 passed.
+
+**Deferred (need operator approval — model input / money path)**
+
+- Sticky lineup cards (layer 1) and size-from-published-value (layer 2)
+  remain proposals in `docs/proposals/one_source_stake.md`. A
+  `sizing_prob` ledger column and a game-time-change alert are listed
+  there as candidates. Nothing behavioral shipped.
+
 ## [2026-08-13c] - T8.35 root cause found: MLB withdrew the lineup card (investigation only)
 
 **Changed (docs — diagnosis corrected, no code or data touched)**

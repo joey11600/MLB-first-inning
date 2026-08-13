@@ -1205,9 +1205,15 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     new_row[fld] = existing.get(fld, "")
 
             rows[index[key]] = new_row
+            # T8.35: baseline for the lineup-regression check below.
+            # Captured PER ITERATION -- `existing` survives the loop
+            # variable scope, so reading it in the appended-new branch
+            # would compare against the PREVIOUS game's row.
+            _lineup_reg_baseline = existing
         else:
             rows.append(new_row)
             index[key] = len(rows) - 1
+            _lineup_reg_baseline = None    # first sighting; nothing to regress from
 
         # T8.18 PART 1 -- the stake tracks the model until the pick locks.
         # THE POSITION MATTERS, in both directions:
@@ -1221,6 +1227,19 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
         # No-op unless NRFI_STAKE_REDERIVE=enabled.
         _rederive_pre_lock_stake(new_row, season=season,
                                  locked=effectively_locked)
+
+        # T8.35 layer 3 -- a lineup card that vanishes pre-lock deserves a
+        # human's attention BEFORE the commit sizes on the regressed
+        # number.  AFTER the re-derive on purpose: the ping quotes the
+        # stake the row now actually projects.  The locked branch restores
+        # the stored sources onto new_row, so this is naturally silent
+        # there.  Advisory only -- never breaks the predictor.
+        if _lineup_reg_baseline is not None:
+            try:
+                _notify_lineup_regression_telegram(_lineup_reg_baseline, new_row)
+            except Exception as exc:    # noqa: BLE001
+                print(f"[telegram] lineup-regression notify failed: {exc!r}",
+                      file=sys.stderr)
 
         written += 1
         mirrored_rows.append(new_row)
@@ -1418,6 +1437,21 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # still pings immediately.  Third instance of this exact
     # unregistered-type bug -- see discord_board (8/06), watchdog (8/07).
     "calibration_drift":    7 * 24 * 60,
+    # 2026-08-13 T8.35 layer 3: a lineup card MLB WITHDRAWS pre-lock makes
+    # the model silently regress that side to team-average batting; if the
+    # pick commits inside the outage the stake sizes small (CIN@CWS: 2u
+    # where the rule on the published probability said 7u).  The alarm
+    # fires on the TRANSITION only (once the regressed row is written, the
+    # stored source is no longer "lineup", so the next cycle can't
+    # re-fire); the 12h window collapses the two hosts each detecting it
+    # once from their own CSV copies.
+    "lineup_regression":    12 * 60,
+    # 2026-08-13 T8.35 layer 3b: nightly stake-drift replay (grade cron
+    # runs tools/stake_drift.py --notify).  The event key is the
+    # violating-set signature, so a night that re-detects the SAME known
+    # violations stays silent inside the window while a NEW mis-sized
+    # stake changes the signature and pings immediately.
+    "stake_drift":          24 * 60,
     # T-V21-2026-05-08: LINEUP / STARTER PENDING tentative-lean
     # resolved -- one ping per game per day.  Retro-fire pass in
     # grade_date() reaches every today-graded row on every cron tick,
@@ -2524,6 +2558,124 @@ def _notify_lineup_pending_resolved_telegram(row: dict) -> None:
     else:
         event_key = f"tentative_resolved:{iso_date}:{away}@{home}"
     _notify_event_telegram("tentative_resolved", event_key, body)
+
+
+def _notify_lineup_regression_telegram(existing: dict, new_row: dict) -> None:
+    """T8.35 layer 3 -- a lineup card that WAS posted has now VANISHED.
+
+    2026-08-13 CIN@CWS: MLB's schedule?hydrate=lineups served the CWS
+    card at ~11:03 ET (model -> YRFI 66.9%), withdrew it between 11:58
+    and 12:06 ET, and re-served it -- unchanged -- by ~13:03 ET.  In
+    between, `fetch_top3_batters` has no memory, so the model silently
+    regressed the home side to team-average batting (58.6%), and the
+    commit at 12:11 ET -- 90 seconds into a lock window that the same
+    hour's game-time correction had moved an hour earlier -- sized
+    quarter-Kelly on the outage number: 2u where the rule on the
+    published probability said 7u.  Nothing in the system said a word.
+    This ping is the word, sent while there may still be time to act.
+
+    OPS ALERT, deliberately NOT gated by the No.1-only policy: like
+    strong_orphan_no_odds it reports a money-integrity condition, not a
+    pick.  Scope is STRONG rows only (on EITHER side of the merge --
+    the regression itself can demote the fresh verdict below STRONG,
+    and that demotion is precisely worth reporting), because only
+    STRONG carries money (LEAN is track-only).
+
+    Silent -- by guard, not accident -- when:
+      * bet_placed == "Y": T2.23 froze the stake; nothing left to protect.
+      * the game has started, or the row is terminally graded.
+      * neither the stored nor the fresh verdict is STRONG.
+
+    Caller passes the STORED row (pre-merge) and the MERGED row (after
+    the pre-game refresh and the T8.18 re-derive, so the quoted stake is
+    what the row now actually projects).  In the locked branch the merge
+    restores the stored sources onto new_row, so this detector is
+    naturally silent there -- no lock-state check needed.
+    """
+    if (new_row.get("bet_placed") or "").strip().upper() == "Y":
+        return
+    if (new_row.get("graded_result") or "").strip().upper() in (
+            "WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"):
+        return
+    strengths = {
+        (existing.get("pick_strength") or "").strip().upper(),
+        (new_row.get("pick_strength") or "").strip().upper(),
+    }
+    if "STRONG" not in strengths:
+        return
+
+    iso  = (new_row.get("date") or "").strip()
+    gtet = (new_row.get("game_time_et") or "").strip()
+    try:
+        if iso and gtet and _game_has_started(gtet, iso):
+            return
+    except Exception:    # noqa: BLE001 -- unparseable time: fall through
+        pass
+
+    regressed: list[tuple[str, str, str]] = []
+    for side in ("away", "home"):
+        col = f"{side}_top3c_source"
+        old_src = (existing.get(col) or "").strip()
+        new_src = (new_row.get(col)  or "").strip()
+        if old_src == "lineup" and new_src and new_src != "lineup":
+            regressed.append((side, old_src, new_src))
+    if not regressed:
+        return
+
+    away    = (new_row.get("away_team") or "").upper()
+    home    = (new_row.get("home_team") or "").upper()
+    game_pk = str(new_row.get("game_pk") or "").strip()
+
+    def _fprob(d: dict, col: str) -> float | None:
+        try:
+            return float((d.get(col) or "").strip())
+        except (TypeError, ValueError):
+            return None
+
+    pick = (existing.get("pick_side") or "").strip().upper()
+    if pick not in ("NRFI", "YRFI"):
+        pick = (new_row.get("pick_side") or "").strip().upper()
+
+    lines = [f"⚠️ <b>LINEUP CARD PULLED — {away} @ {home}</b>"]
+    for side, _old_src, new_src in regressed:
+        team = away if side == "away" else home
+        fallback = ("team-average batting" if new_src == "team_fallback"
+                    else "league-average batting")
+        lines.append(
+            f"MLB's feed dropped the {team} lineup; that side is back "
+            f"on {fallback}."
+        )
+    if pick in ("NRFI", "YRFI"):
+        prob_col = "nrfi_prob" if pick == "NRFI" else "yrfi_prob"
+        old_p = _fprob(existing, prob_col)
+        new_p = _fprob(new_row,  prob_col)
+        if old_p is not None and new_p is not None:
+            lines.append(f"{pick} {old_p * 100:.1f}% → {new_p * 100:.1f}%")
+    old_u = (existing.get("units_risked") or "").strip()
+    new_u = (new_row.get("units_risked")  or "").strip()
+    if old_u or new_u:
+        lines.append(f"projected stake {old_u or '—'}u → {new_u or '—'}u")
+
+    game_dt = _parse_game_time_et(gtet, iso) if (gtet and iso) else None
+    if game_dt is not None:
+        try:
+            from datetime import timedelta as _td
+            mins = int((game_dt - _td(minutes=60)
+                        - datetime.now(game_dt.tzinfo)).total_seconds() // 60)
+            lines.append(f"{gtet} · " + (f"lock in ~{mins}m" if mins >= 0
+                                         else "LOCK WINDOW OPEN"))
+        except Exception:    # noqa: BLE001 -- time line is optional
+            lines.append(gtet)
+
+    lines.append(
+        "If the pick commits during the outage it commits at the smaller "
+        "stake; if the card returns pre-lock, the stake follows it back "
+        "on the next cycle (T8.18 re-derive). (T8.35)"
+    )
+
+    sides_sig = "+".join(s for s, _o, _n in regressed)
+    event_key = f"lineup_regression:{iso}:{game_pk}:{sides_sig}"
+    _notify_event_telegram("lineup_regression", event_key, "\n".join(lines))
 
 
 def _notify_strong_orphan_no_odds_telegram(row: dict) -> None:
