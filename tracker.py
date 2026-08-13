@@ -715,6 +715,9 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
     # changed set to Supabase after the CSV write -- avoids re-pushing
     # 400+ unchanged rows on every refresh.
     mirrored_rows: list[dict] = []
+    # T8.35 follow-on -- games whose scheduled time moved this run,
+    # collected across the loop and sent as ONE batched ops ping below.
+    _time_changes: list[dict] = []
 
     for g in results:
         side   = g["pick_side"]
@@ -1210,6 +1213,17 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             # variable scope, so reading it in the appended-new branch
             # would compare against the PREVIOUS game's row.
             _lineup_reg_baseline = existing
+            # T8.35 follow-on -- did this game's scheduled time move?
+            # Detected against the merged row (what will be written);
+            # all silences live inside the candidate function.
+            try:
+                _tc = _game_time_change_candidate(existing, new_row,
+                                                  effectively_locked)
+                if _tc is not None:
+                    _time_changes.append(_tc)
+            except Exception as exc:    # noqa: BLE001 -- advisory only
+                print(f"[telegram] game-time-change check failed: {exc!r}",
+                      file=sys.stderr)
         else:
             rows.append(new_row)
             index[key] = len(rows) - 1
@@ -1243,6 +1257,16 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
 
         written += 1
         mirrored_rows.append(new_row)
+
+    # T8.35 follow-on -- one batched ping for every time change this run
+    # detected.  Advisory only: a notify failure must never block the
+    # ledger write below.
+    if _time_changes:
+        try:
+            _notify_game_time_change_telegram(_time_changes)
+        except Exception as exc:    # noqa: BLE001
+            print(f"[telegram] game-time-change notify failed: {exc!r}",
+                  file=sys.stderr)
 
     _write_rows(path, rows)
     # T2.30: dual-write to Supabase (Phase 1.5).  Mirrors only the
@@ -1452,6 +1476,14 @@ _DEDUP_WINDOW_M: dict[str, int] = {
     # violations stays silent inside the window while a NEW mis-sized
     # stake changes the signature and pings immediately.
     "stake_drift":          24 * 60,
+    # 2026-08-13 T8.35 follow-on: a slate row's scheduled game time MOVED
+    # pre-lock.  On the incident day the 2:10->1:10 ET correction moved
+    # the lock an hour earlier and shrank the runway to lock from ~2h to
+    # 12 minutes -- the bet then committed mid-lineup-outage.  One batched
+    # ping per detection run; the key carries each game's NEW time, so a
+    # second move later the same day is a new signature and pings through
+    # the window.
+    "game_time_change":     12 * 60,
     # T-V21-2026-05-08: LINEUP / STARTER PENDING tentative-lean
     # resolved -- one ping per game per day.  Retro-fire pass in
     # grade_date() reaches every today-graded row on every cron tick,
@@ -2558,6 +2590,122 @@ def _notify_lineup_pending_resolved_telegram(row: dict) -> None:
     else:
         event_key = f"tentative_resolved:{iso_date}:{away}@{home}"
     _notify_event_telegram("tentative_resolved", event_key, body)
+
+
+_TIME_CHANGE_MIN_DELTA_M = 5    # ignore sub-5-minute schedule jitter
+
+
+def _game_time_change_candidate(existing: dict, new_row: dict,
+                                effectively_locked: bool) -> dict | None:
+    """T8.35 follow-on -- a game's scheduled time MOVED pre-lock.
+
+    Why this is money-relevant and not calendar trivia: every pre-lock
+    protection in this system (T8.18 re-derive, lineup alarms, the
+    operator's own reaction time) is denominated in MINUTES BEFORE THE
+    LOCK, and the lock is game time minus 60.  On 2026-08-13 the
+    2:10->1:10 ET correction -- caught at 11:58, twelve minutes before
+    the NEW lock -- silently deleted an hour of that runway, and the
+    No.1 then committed inside a lineup outage nobody had time to see.
+
+    Returns a candidate dict for the batched notifier, or None.  The
+    silences are the design:
+      * effectively_locked rows -- the bet/lock machinery is done with
+        this row; a time change now is a delay, not a compressed lock.
+      * doubleheader game 2+ -- MLB initially lists game 2 at game 1's
+        time +5 min and corrects it later; that churn is routine (the
+        post-lock allow_update exists for exactly this cleanup).
+      * unparseable times on either side ("TBD" / "After Game 1") -- a
+        placeholder RESOLVING is a time appearing, not a time moving.
+      * games already started, terminally graded rows, and sub-5-minute
+        jitter.
+    """
+    old_t = (existing.get("game_time_et") or "").strip()
+    new_t = (new_row.get("game_time_et") or "").strip()
+    if not old_t or not new_t or old_t == new_t:
+        return None
+    if effectively_locked:
+        return None
+    if (new_row.get("graded_result") or "").strip().upper() in (
+            "WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED"):
+        return None
+    if ((new_row.get("double_header") or "").strip().upper() == "Y"
+            and str(new_row.get("game_number") or "1").strip() != "1"):
+        return None
+    iso = (new_row.get("date") or "").strip()
+    old_dt = _parse_game_time_et(old_t, iso) if iso else None
+    new_dt = _parse_game_time_et(new_t, iso) if iso else None
+    if old_dt is None or new_dt is None:
+        return None
+    try:
+        if _game_has_started(new_t, iso):
+            return None
+    except Exception:    # noqa: BLE001 -- defensive; treat as not started
+        pass
+    delta_m = int(round((new_dt - old_dt).total_seconds() / 60.0))
+    if abs(delta_m) < _TIME_CHANGE_MIN_DELTA_M:
+        return None
+    from datetime import timedelta as _td
+    return {
+        "row":     new_row,
+        "old":     old_t,
+        "new":     new_t,
+        "delta_m": delta_m,
+        "lock_dt": new_dt - _td(minutes=60),
+    }
+
+
+def _notify_game_time_change_telegram(candidates: list[dict]) -> None:
+    """One batched ops ping for every game whose time moved this run.
+
+    Batched because schedule corrections can land slate-wide at once (a
+    makeup-day rebuild) and five separate pings for one MLB data event
+    is alarm fatigue.  NOT gated by the No.1-only policy -- this reports
+    the lock machinery's inputs shifting, not a pick.
+
+    Per the T8.16/T8.17 lesson (board_slate_time_vs_game_time): any
+    stake quoted here pre-lock is worded as a PROJECTION, never a
+    commitment -- an unlocked pick is not a bet.
+    """
+    if not candidates:
+        return
+    moved_earlier = any(c["delta_m"] < 0 for c in candidates)
+    header = ("⏰⚠️ <b>GAME TIME MOVED — LOCK EARLIER</b>" if moved_earlier
+              else "⏰ <b>GAME TIME CHANGED</b>")
+    lines = [header]
+    for c in candidates:
+        row = c["row"]
+        away = (row.get("away_team") or "").upper()
+        home = (row.get("home_team") or "").upper()
+        direction = "earlier" if c["delta_m"] < 0 else "later"
+        lines.append(f"{away} @ {home}  {c['old']} → {c['new']}  "
+                     f"({abs(c['delta_m'])}m {direction})")
+        lock_dt = c["lock_dt"]
+        hour12 = ((lock_dt.hour - 1) % 12) + 1
+        ampm = "AM" if lock_dt.hour < 12 else "PM"
+        lock_str = f"{hour12}:{lock_dt.minute:02d} {ampm} ET"
+        try:
+            runway_m = int((lock_dt - datetime.now(lock_dt.tzinfo))
+                           .total_seconds() // 60)
+            runway = (f"~{runway_m}m away" if runway_m >= 0
+                      else "LOCK WINDOW OPEN")
+        except Exception:    # noqa: BLE001 -- runway line is optional
+            runway = ""
+        lines.append(f"   new lock {lock_str}" + (f" ({runway})" if runway else ""))
+        strength = (row.get("pick_strength") or "").strip().upper()
+        units    = (row.get("units_risked") or "").strip()
+        label    = (row.get("pick_label") or "").strip()
+        if strength == "STRONG" or units:
+            if (row.get("bet_placed") or "").strip().upper() == "Y":
+                lines.append(f"   {label} · bet locked at {units}u")
+            else:
+                lines.append(f"   {label} · projected stake "
+                             f"{units or '—'}u — NOT LOCKED")
+    iso = (candidates[0]["row"].get("date") or "").strip()
+    sig = "+".join(sorted(
+        f"{str(c['row'].get('game_pk') or '')}>{c['new'].replace(' ', '')}"
+        for c in candidates))
+    event_key = f"game_time_change:{iso}:{sig[:180]}"
+    _notify_event_telegram("game_time_change", event_key, "\n".join(lines))
 
 
 def _notify_lineup_regression_telegram(existing: dict, new_row: dict) -> None:

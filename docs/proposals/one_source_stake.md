@@ -156,22 +156,20 @@ watch: the `lineup_regression` ping announces the next card-flap; the
 nightly stake-drift replay pings on any residual mismatch. The two
 unshipped candidates below remain available if the operator wants them.
 
-Two further candidates surfaced by the incident, listed for the
-operator's consideration (both small, neither shipped):
+Candidates surfaced by the incident:
 
-- **Game-time-change alert** — the 2:10→1:10 correction silently moved
-  the lock window an hour earlier, shrinking the runway to lock from ~2h
-  to 12 minutes. An ops ping when a slate row's `game_time_et` changes
-  would make the next such compression visible. Cheap; deferred rather
-  than shipped because alert volume is a real cost here (see
-  `_DEDUP_WINDOW_M`'s history) and the operator should choose the
-  threshold (any change vs. changes that move a lock earlier).
-- **`sizing_prob` ledger column** — stamp the probability that actually
-  sized the bet next to `units_risked` (written by the same code path).
-  Today's row would have read `yrfi_prob=0.6687, sizing_prob=0.5864` on
-  the dashboard — the splice visible instantly instead of via log
-  forensics. Ledger schema change (CSV + Supabase + dashboard readers),
-  so it needs approval on those grounds alone.
+- ~~**Game-time-change alert**~~ — ✅ SHIPPED 2026-08-13
+  (operator-approved). Batched ops ping on any pre-lock move ≥5 min;
+  loud header when a lock moves earlier. Deliberately silent on DH
+  game-2 churn, placeholder resolutions, jitter, and locked/started/
+  graded rows. Stakes quoted pre-lock use the T8.16/T8.17 projection
+  wording. `tests/test_game_time_change_alert.py`.
+- **`sizing_prob` ledger column** — the one remaining unshipped
+  candidate. Stamp the probability that actually sized the bet next to
+  `units_risked`. Largely redundant now that layer 2 makes
+  published == sized by construction; would add belt-and-suspenders
+  visibility on the dashboard. Ledger schema change (CSV + Supabase +
+  dashboard readers), so it needs approval on those grounds alone.
 
 ## Testing bar (unchanged from v1 where applicable)
 

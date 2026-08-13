@@ -354,6 +354,10 @@ the live ledger's own columns are healthy.
   `lineup_regression` ping; any residual stake/probability mismatch
   pings the same night from the grade cron's stake-drift replay. If
   either watch fires unexpectedly, reopen here.
+  **Follow-on shipped same day:** `game_time_change` ops alert — the
+  incident's first coincidence (2:10→1:10 correction deleting an hour
+  of pre-lock runway) now pings the moment it lands, batched, with
+  DH-game-2 churn and placeholder resolutions deliberately silent.
   **Generalises:** before blaming an infrastructure host for a data
   discrepancy, check whether the SOURCE itself was stable across the
   window — two consumers reading a flapping feed at different moments

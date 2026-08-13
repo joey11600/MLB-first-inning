@@ -11,6 +11,39 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-13g] - Game-time-change alert (T8.35 follow-on)
+
+**Added**
+
+- `tracker._game_time_change_candidate` + `_notify_game_time_change_telegram`
+  — ops Telegram when a slate row's scheduled game time MOVES pre-lock.
+  Every pre-lock protection is denominated in minutes before the lock
+  (game time − 60); on 2026-08-13 the 2:10→1:10 ET correction silently
+  deleted an hour of that runway and the No.1 committed inside a lineup
+  outage twelve minutes later. This makes the next such compression
+  visible the moment it lands.
+  - **Batched:** one ping per detection run even if a schedule rebuild
+    moves five games at once. Loud header (⏰⚠️ LOCK EARLIER) when any
+    move shrinks a lock; calm header otherwise. Body shows old→new,
+    direction, the NEW lock time with runway remaining, and the row's
+    pick context — worded per the T8.16/T8.17 rule: a pre-lock stake
+    prints as "projected … NOT LOCKED", never as a commitment.
+  - **Silences, deliberately:** sub-5-minute jitter; doubleheader game-2
+    churn (MLB lists G2 at G1+5min and corrects it later — the routine
+    cleanup the post-lock `allow_update` exists for); placeholder→real
+    transitions ("After Game 1" resolving is a time appearing, not
+    moving); locked rows (a change there is a delay, not a compressed
+    lock); started/graded rows.
+  - `game_time_change` registered in `_DEDUP_WINDOW_M` (12h) same
+    commit; key carries each game's NEW time so a second move the same
+    day pings through the window.
+  - Detection hooks into `log_picks`' merge (fires on whichever host
+    sees the transition first; dedup collapses the pair). Advisory only
+    — wrapped so a notify failure can never block the ledger write.
+  - Tests: `tests/test_game_time_change_alert.py` (14 — 2 fires, 7
+    silences, 5 notifier: batching, headers, key signature,
+    projection-vs-locked wording). Full suite 190 passed.
+
 ## [2026-08-13f] - T8.35 layer 2 shipped: the probability that sized a bet travels with the bet
 
 **Added**
