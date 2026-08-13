@@ -11,6 +11,56 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-13b] - The No.1 staked 2u where the rule said 7u (T8.35)
+
+**Fixed (data)**
+
+- `data/picks_2026.csv` + Supabase — 2026-08-13 CIN@CWS (pk 824561),
+  STRONG YRFI @ -120, corrected **2u → 7u**; `profit_loss_units`
+  **+1.667u → +5.833u**; the edge triple recomputed from the row's own
+  published probability (`edge_on_pick` 0.0409 → 0.1232).
+  - Operator report: *"the number one pick today, in which it won, only
+    was staking two units."* Correct — the rule says 7u on the 66.87%
+    the system published.
+  - **Cause (T8.35):** GHA and Railway each ran the model and disagreed
+    — GHA 66.87% (published), Railway **58.6%** (sized the bet, being the
+    only host that can reach DraftKings). Quarter-Kelly is right in both;
+    the row carried one host's probability beside the other's stake.
+  - Applied by `tools/heal_2026_08_13_split_brain_stake.py` — a
+    deliberate, journaled money-path write, per
+    `data/stake_drift_exempt.csv`'s rule that `stake_drift.py` reports
+    and stops. Every figure comes from a shipped function
+    (`kelly_stake_units`, `_apply_edges_to_row`, `_calc_pnl`); none is
+    hand-arithmetic. Writes CSV **and** Supabase (`patch_picks`, so the
+    grade and odds already in Supabase are untouched — the 2026-05-05
+    wipe used a full mirror). Idempotent.
+  - The edge triple moves **with** the stake deliberately: leaving
+    `edge_on_pick=0.0409` (which encodes p=0.5864) next to a 7u stake
+    (p=0.6687) rebuilds the exact inconsistency the heal removes — T8.18's
+    "all three edge columns move together or none do".
+  - Verified after: `tools/pl_calc.py` → +5.833u, stored == recomputed,
+    no drift. `tools/stake_drift.py --date 2026-08-13` → 0 violations.
+  - **Note this is the opposite call to 2026-08-09**, where DET@OAK and
+    SD@ARI were *preserved* in `stake_drift_exempt.csv`. Those two were
+    over-staked winners, so correcting would have cost ~4.97u; this one
+    was under-staked on a winner. Direction is the operator's call each
+    time; both are now on the record.
+
+**Added**
+
+- `docs/proposals/one_source_stake.md` — **DRAFT, nothing shipped.**
+  Five options for making the stake and the published probability come
+  from one place, with a recommended sequence (diagnose Railway's lineup
+  staleness → coherence guard at commit → `sizing_prob` column → unify on
+  one model host) and the testing bar each must clear. Awaiting operator
+  review; the money path is untouched until then.
+
+**Deferred**
+
+- The cause itself. T8.35 stays OPEN. The row is healed; the architecture
+  that produced it is not. Its hard prerequisite — why Railway, running
+  12× more often, held *older* lineups than GHA — is still unexplained.
+
 ## [2026-08-13a] - Telegram: `calibration_drift` re-fired every single day
 
 **Fixed**

@@ -298,6 +298,32 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [ ] **T8.35 — the stake and the probability came from different hosts** 🔴 OPEN 2026-08-13
+  2026-08-13 CIN@CWS, the night's **No.1**, published at YRFI 66.87% and
+  staked **2u** where the rule says **7u**. It won: +1.667u booked instead
+  of +5.833u, a **4.17u shortfall on the play that is actually sold**.
+  **Cause:** GitHub Actions and Railway each run the model independently.
+  GHA's 15:58:04Z run produced 66.87% (published to board / dashboard /
+  Discord); Railway's 16:11:31Z run produced **58.6%** and, being the only
+  host that can reach DraftKings, did the sizing. Quarter-Kelly is correct
+  in both (0.586 → 2u, 0.6687 → 7u) — the row simply carried one host's
+  probability beside the other's stake. Railway printed the same 58.6% on
+  nine consecutive cycles while the committed board read 66.9%.
+  **Not T8.18.** `NRFI_STAKE_REDERIVE` is enabled and re-derived correctly
+  every cycle — to 2u, because it re-reads the probability on the host it
+  runs on. A re-derive cannot outrun a bad input. T8.18 PART 3
+  (`stake_drift.py`) *did* catch it, after the fact.
+  **Sub-problem, unexplained:** Railway runs 12× more often than GHA and
+  still had *older* lineup data. Both hosts agreed on `combined_lambda`
+  (1.0369), so the divergence is entirely in the lineup-driven half.
+  **Row healed** to 7u via `tools/heal_2026_08_13_split_brain_stake.py`
+  (operator decision, journaled) — that fixed the row, not the cause.
+  **Fix proposed, not shipped:** `docs/proposals/one_source_stake.md`.
+  **Generalises:** two writers with no shared clock will eventually splice
+  their outputs into one record, and the splice is invisible when each
+  column is individually plausible. Re-deriving harder does not help; the
+  inputs have to come from one place.
+
 - [x] **T8.34 — a chart shipped with no endpoint behind it** ✅ 2026-08-12
   `<ReliabilityCurve />` has been mounted in `DashboardShell` since the
   2026-07-28 spec and self-fetches `/api/calibration`. That route was
