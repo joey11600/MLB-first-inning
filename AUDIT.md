@@ -298,31 +298,42 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
-- [ ] **T8.35 — the stake and the probability came from different hosts** 🔴 OPEN 2026-08-13
+- [ ] **T8.35 — the No.1 locked mid-outage: MLB withdrew the lineup card** 🔴 OPEN 2026-08-13
   2026-08-13 CIN@CWS, the night's **No.1**, published at YRFI 66.87% and
   staked **2u** where the rule says **7u**. It won: +1.667u booked instead
   of +5.833u, a **4.17u shortfall on the play that is actually sold**.
-  **Cause:** GitHub Actions and Railway each run the model independently.
-  GHA's 15:58:04Z run produced 66.87% (published to board / dashboard /
-  Discord); Railway's 16:11:31Z run produced **58.6%** and, being the only
-  host that can reach DraftKings, did the sizing. Quarter-Kelly is correct
-  in both (0.586 → 2u, 0.6687 → 7u) — the row simply carried one host's
-  probability beside the other's stake. Railway printed the same 58.6% on
-  nine consecutive cycles while the committed board read 66.9%.
-  **Not T8.18.** `NRFI_STAKE_REDERIVE` is enabled and re-derived correctly
-  every cycle — to 2u, because it re-reads the probability on the host it
-  runs on. A re-derive cannot outrun a bad input. T8.18 PART 3
-  (`stake_drift.py`) *did* catch it, after the fact.
-  **Sub-problem, unexplained:** Railway runs 12× more often than GHA and
-  still had *older* lineup data. Both hosts agreed on `combined_lambda`
-  (1.0369), so the divergence is entirely in the lineup-driven half.
+  **Cause (corrected same day — the first write-up of this entry and the
+  `b95e1905` commit message blamed host drift; that is DISPROVEN):**
+  the CWS lineup card posted ~15:03Z (→ 66.9%), was **withdrawn from
+  MLB's `schedule?hydrate=lineups` feed between 15:58 and 16:06Z**, and
+  returned by ~17:03Z — unchanged, and matching the actual first-pitch
+  order. During the outage the model silently regressed the home side to
+  team_fallback → **58.6% on BOTH hosts** (Railway's 16:06+ cycles AND
+  GHA's own 16:47 run's fresh compute — its log prints ">> STRONG YRFI |
+  YRFI 58.6%" beside the frozen 66.9% board line). Railway's 15:04–15:58
+  deploy printed 66.9% every cycle; the hosts agreed at every instant.
+  Three coincidences stacked: the game-time correction (2:10→1:10 ET,
+  caught 15:58) moved the lock an hour earlier to 16:10; the card was
+  pulled in exactly those minutes; the commit fired at **16:11:33** — 90
+  seconds into the window, sizing quarter-Kelly on the live 58.6% → 2u.
+  T2.25 then froze the published 66.87% over it.
+  **Not T8.18** — the re-derive tracked its input faithfully; the INPUT
+  regressed. `stake_drift.py` (PART 3) caught the splice after the fact.
+  **The real defect:** `fetch_top3_batters` has no memory — a card seen
+  10 minutes ago that vanishes is treated as never-posted, silently, with
+  no alarm; and the stake is sized from the live compute while the
+  published probability freezes from an earlier one, so a transient input
+  regression in the lock minute splices the row — on one host or many.
   **Row healed** to 7u via `tools/heal_2026_08_13_split_brain_stake.py`
-  (operator decision, journaled) — that fixed the row, not the cause.
-  **Fix proposed, not shipped:** `docs/proposals/one_source_stake.md`.
-  **Generalises:** two writers with no shared clock will eventually splice
-  their outputs into one record, and the splice is invisible when each
-  column is individually plausible. Re-deriving harder does not help; the
-  inputs have to come from one place.
+  (operator decision, journaled) — sound, and strengthened by the finding:
+  the 66.87% inputs matched the real lineup; 58.6% was the data outage.
+  **Fix proposed, not shipped:** `docs/proposals/one_source_stake.md`
+  (rewritten post-correction: sticky lineup cards, size-from-published-
+  value, lineup-regression alarm; host consolidation demoted).
+  **Generalises:** before blaming an infrastructure host for a data
+  discrepancy, check whether the SOURCE itself was stable across the
+  window — two consumers reading a flapping feed at different moments
+  look exactly like two consumers disagreeing with each other.
 
 - [x] **T8.34 — a chart shipped with no endpoint behind it** ✅ 2026-08-12
   `<ReliabilityCurve />` has been mounted in `DashboardShell` since the

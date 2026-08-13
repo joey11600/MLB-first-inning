@@ -11,6 +11,35 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-13c] - T8.35 root cause found: MLB withdrew the lineup card (investigation only)
+
+**Changed (docs — diagnosis corrected, no code or data touched)**
+
+- The 2026-08-13b entry below and commit `b95e1905`'s message attributed
+  the 2u/7u splice to host drift ("Railway computed 58.6% from stale
+  lineups while GHA published 66.87%"). **Disproven the same day:**
+  - Railway deploy `3f26d0ef` (15:04–15:58Z) printed **66.9%** every
+    cycle — Railway was never behind.
+  - GHA's own 16:47 run log shows its FRESH compute at **58.6%**
+    (">> STRONG YRFI | YRFI 58.6%") beside the frozen 66.9% board line.
+  - The actual mechanism: the CWS lineup card posted ~15:03Z, was
+    **withdrawn from MLB's schedule/lineups feed 15:58→16:06Z**, and
+    returned by ~17:03Z unchanged (actual first-pitch top-3 =
+    Meidroth/Grichuk/Vargas = the withdrawn card). Both hosts tracked the
+    flapping source faithfully; the bet locked at 16:11:33 — 90 seconds
+    into a lock window that the same-hour game-time correction
+    (2:10→1:10 ET) had moved an hour earlier — sizing on the outage-
+    degraded 58.6% → 2u, while T2.25 froze the published 66.87% over it.
+  - The 7u heal's standing improves: 66.87%'s inputs matched the real
+    lineup; 58.6% was a transient data outage, not a model downgrade.
+- `AUDIT.md` T8.35 rewritten with the corrected cause (correction trail
+  preserved in the entry). `docs/proposals/one_source_stake.md` rewritten:
+  host consolidation demoted to ops hygiene — it would NOT have prevented
+  this (a single host would have coherently staked 2u on a published
+  58.6%); the targeted fixes are sticky lineup cards, sizing from the
+  published value, and a lineup-regression alarm. All still DRAFT,
+  awaiting operator approval.
+
 ## [2026-08-13b] - The No.1 staked 2u where the rule said 7u (T8.35)
 
 **Fixed (data)**
