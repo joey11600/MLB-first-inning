@@ -35,6 +35,33 @@ section captures actual picks accuracy on/around the change date.
     as one step.
   - No model, gate, staking or ledger code touched; delivery cadence only.
 
+## [2026-08-13b] - `calibration_monitor`: flagged a bucket, then denied it
+
+**Fixed**
+
+- `tools/calibration_monitor.py` — `is_drift_persistent()` required a bucket
+  to be flagged in the 14d **and** 30d windows specifically. `flagged` needs
+  `n >= MIN_BUCKET_N` (30) bets in ONE probability bucket, and a fortnight
+  rarely has 30 STRONG bets in total (2026-07-31..08-13 had 25 across four
+  buckets), so the 14d window could essentially never qualify — the alert was
+  structurally unreachable.
+  - Now: flagged in **>= 2 windows with the drift pointing the same way**,
+    which is what the module docstring has always promised ("two consecutive
+    flagged windows"). The stats quoted are from the longest flagged window,
+    so an alert cites its best-sampled evidence.
+  - The verdict line no longer prints *"No persistent drift detected. All
+    buckets within variance bounds"* underneath rows the report just marked
+    `***`. When single-window flags stand it now names them and says plainly
+    that they are not yet persistence.
+  - Surfaced by the 2026-08-13 fortnight review: the 0.55–0.60 bucket is
+    **43.5% actual vs 57.5% stated over 60d at n=85 (−14.0pp)** — the
+    biggest, best-sampled miscalibration in the system — and the tool was
+    reporting no drift. It still does not page (one window is not
+    persistence), but it now says so out loud instead of contradicting
+    itself.
+  - Read-only monitor. No model, gate, staking or ledger code touched, and
+    the change fires no new alert on current data.
+
 ## [2026-08-12c] - Backfist Bets social cards: generator + /cards page
 
 **Added**

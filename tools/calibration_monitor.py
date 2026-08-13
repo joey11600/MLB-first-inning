@@ -138,17 +138,41 @@ def compute_drift(rows_in_window: list[dict]) -> dict[tuple[float, float], dict]
 def is_drift_persistent(
     by_window: dict[str, dict[tuple[float, float], dict]]
 ) -> list[tuple[tuple[float, float], dict]]:
-    """A bucket has 'persistent drift' if it's flagged in BOTH the 14d AND
-    30d windows -- which means the drift survives sample-size scrutiny.
-    Returns list of (bucket, 30d-stats) for buckets meeting that bar."""
+    """A bucket has 'persistent drift' if it is flagged in AT LEAST TWO of
+    the report's windows, with the drift pointing the same way in each.
+
+    This is what the module docstring has always promised ("two consecutive
+    flagged windows").  The code required the 14d AND 30d windows
+    SPECIFICALLY, which is a bar the 14d window can essentially never clear:
+    `flagged` needs n >= MIN_BUCKET_N (30) bets in ONE probability bucket,
+    and a fortnight rarely has 30 STRONG bets in total -- 2026-07-31..08-13
+    had 25 spread across four buckets.  So the alert was structurally
+    unreachable, and worse, the verdict line printed "No persistent drift
+    detected" directly underneath rows the report had just marked ***.
+
+    Measured on 2026-08-13: the 0.55-0.60 bucket is 43.5% actual vs 57.5%
+    stated over 60d at n=85 (-14.0pp) -- the biggest, best-sampled
+    miscalibration in the system -- and the tool reported no drift.
+
+    Requiring two windows still keeps the "not a one-window blip" bar the
+    docstring describes; it just no longer insists one of them be the
+    shortest and noisiest.  Returns (bucket, stats-from-the-LONGEST-flagged-
+    window) so the alert quotes the best-sampled evidence.
+    """
     persistent = []
     for bucket in BUCKETS:
-        s14 = by_window.get("Last 14d", {}).get(bucket, {})
-        s30 = by_window.get("Last 30d", {}).get(bucket, {})
-        # Both windows must be flagged AND drift in same direction
-        if (s14.get("flagged") and s30.get("flagged")
-                and (s14.get("drift_pp", 0) > 0) == (s30.get("drift_pp", 0) > 0)):
-            persistent.append((bucket, s30))
+        hits = [
+            (days, by_window.get(label, {}).get(bucket, {}))
+            for days, label in WINDOWS
+            if by_window.get(label, {}).get(bucket, {}).get("flagged")
+        ]
+        if len(hits) < 2:
+            continue
+        # Same direction in every flagged window; a sign flip is noise, not
+        # drift, and must not page the operator.
+        if len({s["drift_pp"] > 0 for _d, s in hits}) != 1:
+            continue
+        persistent.append((bucket, max(hits, key=lambda h: h[0])[1]))
     return persistent
 
 
@@ -176,8 +200,8 @@ def print_report(by_window: dict[str, dict[tuple[float, float], dict]]) -> None:
 
 
 def emit_to_system_errors(client: Any, persistent: list[tuple]) -> None:
-    """When drift is persistent (flagged in both 14d AND 30d), write a
-    system_errors row so the dashboard ops health card surfaces it."""
+    """When drift is persistent (flagged in >= 2 windows, same direction),
+    write a system_errors row so the dashboard ops health card surfaces it."""
     if not persistent:
         return
     parts = []
@@ -188,8 +212,8 @@ def emit_to_system_errors(client: Any, persistent: list[tuple]) -> None:
             f"stated {s['stated_pct']:.0f}%, actual {s['actual_pct']:.0f}% "
             f"({sign}{s['drift_pp']:.1f}pp, n={s['n']})"
         )
-    msg = "Calibration drift persistent (flagged in 14d AND 30d windows): " \
-          + " | ".join(parts)
+    msg = "Calibration drift persistent (flagged in >=2 windows, same " \
+          "direction): " + " | ".join(parts)
     captured_at = _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None) \
                               .isoformat(timespec="seconds") + "Z"
     try:
@@ -214,7 +238,7 @@ def main() -> None:
     parser.add_argument("--season", type=int, default=_dt.date.today().year)
     parser.add_argument("--alert", action="store_true",
                         help="Write a system_errors row when drift is "
-                             "persistent (flagged in 14d AND 30d).")
+                             "persistent (flagged in >=2 windows).")
     args = parser.parse_args()
 
     client = _get_client()
@@ -241,7 +265,7 @@ def main() -> None:
     if persistent:
         print()
         print(f"  ALERT: {len(persistent)} bucket(s) showing PERSISTENT drift "
-              f"(flagged in both 14d AND 30d windows):")
+              f"(flagged in >=2 windows, same direction):")
         for (lo, hi), s in persistent:
             print(f"    P={lo:.2f}-{hi:.2f}  "
                   f"actual {s['actual_pct']:.1f}% vs stated "
@@ -250,9 +274,30 @@ def main() -> None:
         if args.alert:
             emit_to_system_errors(client, persistent)
     else:
+        # Do NOT claim "all buckets within variance bounds" when the report
+        # above just printed a *** row -- that contradiction is what made the
+        # old verdict untrustworthy.  Name the single-window flags instead.
+        singles = sorted({
+            (bucket, label)
+            for _days, label in WINDOWS
+            for bucket in BUCKETS
+            if by_window.get(label, {}).get(bucket, {}).get("flagged")
+        })
         print()
-        print("  No persistent drift detected.  All buckets within "
-              "variance bounds of stated probability.")
+        if singles:
+            print(f"  No PERSISTENT drift (nothing flagged in >=2 windows), "
+                  f"but {len(singles)} single-window flag(s) stand:")
+            for (lo, hi), label in singles:
+                s = by_window[label][(lo, hi)]
+                print(f"    P={lo:.2f}-{hi:.2f}  {label}  "
+                      f"actual {s['actual_pct']:.1f}% vs stated "
+                      f"{s['stated_pct']:.0f}%  ({s['drift_pp']:+.1f}pp, "
+                      f"n={s['n']} bets)")
+            print("    Not paged (one window is not yet persistence), but "
+                  "these are real misses at a real sample size -- watch them.")
+        else:
+            print("  No drift flagged in any window.  All buckets within "
+                  "variance bounds of stated probability.")
 
 
 if __name__ == "__main__":
