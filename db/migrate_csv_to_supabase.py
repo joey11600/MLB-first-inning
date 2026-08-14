@@ -230,6 +230,7 @@ PICKS_FIELD_MAP = {
     # Bet
     "bet_placed":        ("bet_placed",        lambda s: (s or "").strip() or None),
     "units_risked":      ("units_risked",      _to_float),
+    "sizing_prob":       ("sizing_prob",       _to_float),   # T8.35
     "profit_loss_units": ("profit_loss_units", _to_float),
 }
 

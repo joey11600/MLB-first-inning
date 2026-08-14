@@ -164,12 +164,16 @@ Candidates surfaced by the incident:
   game-2 churn, placeholder resolutions, jitter, and locked/started/
   graded rows. Stakes quoted pre-lock use the T8.16/T8.17 projection
   wording. `tests/test_game_time_change_alert.py`.
-- **`sizing_prob` ledger column** — the one remaining unshipped
-  candidate. Stamp the probability that actually sized the bet next to
-  `units_risked`. Largely redundant now that layer 2 makes
-  published == sized by construction; would add belt-and-suspenders
-  visibility on the dashboard. Ledger schema change (CSV + Supabase +
-  dashboard readers), so it needs approval on those grounds alone.
+- ~~**`sizing_prob` ledger column**~~ — ✅ SHIPPED 2026-08-13
+  (operator-approved). Stamped only by `_size_row_stake`'s Kelly
+  branches (same read as the stake, including refusals); blank = not
+  probability-sized; keep-alive floor never re-stamps; preserved
+  through every hop (predict merge, mirror, sync). Historical rows stay
+  honestly NULL. No dashboard surface yet — data first.
+  `tests/test_sizing_prob_stamp.py`.
+
+**Every item in this document is now shipped.** One incident, one day:
+heal, root cause, three layers, two follow-on alerts, one audit column.
 
 ## Testing bar (unchanged from v1 where applicable)
 

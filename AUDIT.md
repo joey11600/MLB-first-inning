@@ -358,6 +358,11 @@ the live ledger's own columns are healthy.
   incident's first coincidence (2:10→1:10 correction deleting an hour
   of pre-lock runway) now pings the moment it lands, batched, with
   DH-game-2 churn and placeholder resolutions deliberately silent.
+  **Also same day:** `sizing_prob` ledger column (CSV + Supabase) —
+  `_size_row_stake` stamps the exact probability it fed to Kelly beside
+  every stake it writes (refusals included; blank = not
+  probability-sized). Any future splice is visible on the row itself;
+  historical rows stay honestly NULL.
   **Generalises:** before blaming an infrastructure host for a data
   discrepancy, check whether the SOURCE itself was stable across the
   window — two consumers reading a flapping feed at different moments

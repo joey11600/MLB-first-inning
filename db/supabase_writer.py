@@ -268,6 +268,9 @@ PICKS_CONVERTERS: dict[str, Any] = {
     "odds_captured_at":   _passthrough,
     "implied_nrfi_prob":  _to_float,
     "implied_yrfi_prob":  _to_float,
+    # T8.35: the probability the Kelly sizer actually used when it last
+    # wrote units_risked.  Blank = current stake is not probability-sized.
+    "sizing_prob":        _to_float,
     "edge_nrfi":          _to_float,
     "edge_yrfi":          _to_float,
     "edge_on_pick":       _to_float,
@@ -315,6 +318,11 @@ _PRESERVE_ON_BLANK_FIELDS: frozenset[str] = frozenset({
     "opened_captured_at", "clv_pct",
     # Bet placement
     "bet_placed", "units_risked", "profit_loss_units",
+    # T8.35: written by the sizing path only; a predict-path mirror
+    # emits it blank and must not wipe the sizer's stamp.  Membership
+    # here also enrolls it in sync_csv_from_supabase's _SYNC_COLUMNS,
+    # so the stamp travels to the GHA CSV exactly like units_risked.
+    "sizing_prob",
     # Grade (set by --grade only)
     "actual_result", "graded_result",
     "fi_away_runs", "fi_home_runs", "fi_total_runs",

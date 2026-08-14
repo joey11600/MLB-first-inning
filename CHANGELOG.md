@@ -11,6 +11,46 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-13h] - The sizing_prob column: the ledger records what sized the bet (T8.35)
+
+**Added**
+
+- `sizing_prob` — new ledger column (CSV + Supabase `picks_2026`,
+  migration `t835_add_sizing_prob` applied): the probability the Kelly
+  sizer ACTUALLY USED when it last wrote `units_risked`. Stamped only
+  inside `tracker._size_row_stake`'s Kelly branches — the stamp and the
+  stake are the same read of the same cell, by construction. **Blank
+  means "this stake is not probability-sized"** (flat fallback, LEAN
+  notional, orphan heal) — so the stake-drift exemption class is now
+  visible in data too.
+  - A Kelly **refusal** stamps as well (0 units from exactly this p at
+    this price — auditable like a stake). The T8.18 keep-alive 0.5u
+    floor deliberately does NOT re-stamp: the floor isn't
+    probability-sized; the last honest stamp stands until commit.
+  - On the incident row this would have read `yrfi_prob=0.6687` beside
+    `sizing_prob=0.5864` — the splice visible on the row itself instead
+    of via Railway log forensics. With layers 1–2 live the two should
+    now always match; divergence = a new bug announcing itself.
+  - Plumbing (each hop is a place T8.23 taught us a column dies):
+    `tracker.FIELDS` (appended LAST — never reorder a CSV schema),
+    `log_picks` preserve list (or every predict tick wipes it),
+    `new_row` literal, `supabase_writer.PICKS_CONVERTERS` (numeric),
+    `_PRESERVE_ON_BLANK_FIELDS` (a predict-path mirror must not blank
+    the sizer's stamp — membership also auto-enrolls it in
+    `sync_csv_from_supabase._SYNC_COLUMNS`, so it travels to the GHA
+    CSV exactly like `units_risked`), `db/schema.sql`,
+    `db/migrate_csv_to_supabase.py`.
+  - Historical rows: NULL/blank (honest — we did not record what sized
+    them; do NOT backfill from `stake_drift` replays, which reconstruct
+    the rule, not the actual read).
+  - Dashboard: deliberately no display yet — the column is for the
+    ledger, forensics, and the nightly replay; a UI surface can follow
+    if ever wanted.
+  - Tests: `tests/test_sizing_prob_stamp.py` (10 — stamp on projection/
+    commit/refusal/incident-shape, blank on flat/LEAN/PASS, keep-alive
+    non-restamp, re-derive co-movement, end-to-end wiring). Full suite
+    200 passed. Live sync dry-run with the new SELECT: clean.
+
 ## [2026-08-13g] - Game-time-change alert (T8.35 follow-on)
 
 **Added**

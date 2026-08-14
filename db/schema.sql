@@ -159,7 +159,13 @@ CREATE TABLE IF NOT EXISTS picks_2026 (
   -- Bet outcome (filled by tracker._apply_odds_to_row + tracker._calc_pnl)
   bet_placed         TEXT,    -- 'Y' | 'N' | ''
   units_risked       REAL,
-  profit_loss_units  REAL
+  profit_loss_units  REAL,
+  -- T8.35 (2026-08-13): the probability the Kelly sizer actually used
+  -- when it last wrote units_risked.  NULL = the current stake is not
+  -- probability-sized (flat fallback, LEAN notional, orphan heal).
+  -- Live tables received it via:
+  --   alter table picks_2026 add column if not exists sizing_prob real;
+  sizing_prob        REAL
 );
 
 -- Hot-path indices for the dashboard's most common queries

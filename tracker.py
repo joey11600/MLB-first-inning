@@ -155,6 +155,19 @@ FIELDS = [
     "away_top3c_last10_obp", "home_top3c_last10_obp",
     "away_top3c_last10_slg", "home_top3c_last10_slg",
     "away_top3c_last10_iso", "home_top3c_last10_iso",
+    # T8.35 (2026-08-13): the probability the KELLY SIZER actually used
+    # when it last wrote units_risked.  Written ONLY by _size_row_stake's
+    # Kelly branches (including a 0-stake refusal); blank means the
+    # current stake is NOT probability-sized (flat fallback, LEAN
+    # notional, orphan heal).  With layers 1-2 this normally EQUALS the
+    # published pick-side probability -- the column exists so the one
+    # place that can no longer happen silently is the ledger itself:
+    # on the incident row it would have read yrfi_prob=0.6687 beside
+    # sizing_prob=0.5864, the splice visible in data instead of via
+    # Railway log forensics.  Appended LAST deliberately: _write_rows
+    # rewrites the whole file with the new header on first touch, and
+    # appending never disturbs column positions for external readers.
+    "sizing_prob",
 ]
 
 # ---------------------------------------------------------------------------
@@ -893,6 +906,7 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "implied_nrfi_prob": "", "implied_yrfi_prob": "",
             "edge_nrfi": "", "edge_yrfi": "", "edge_on_pick": "",
             "bet_placed": "", "units_risked": "", "profit_loss_units": "",
+            "sizing_prob": "",
         }
 
         key = (iso_date, str(g["game_pk"]))
@@ -914,6 +928,9 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 "implied_nrfi_prob", "implied_yrfi_prob",
                 "edge_nrfi", "edge_yrfi", "edge_on_pick",
                 "bet_placed", "units_risked", "profit_loss_units",
+                # T8.35: rides with units_risked everywhere or the T8.23
+                # wipe class below claims it on the very next predict tick.
+                "sizing_prob",
                 # ---- T8.23: THIRTEEN COLUMNS THAT WERE BEING WIPED ----
                 #
                 # `new_row` below is a dict LITERAL, and csv.DictWriter
@@ -4657,6 +4674,7 @@ def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
             return                      # never blank a row we were only projecting
         row["bet_placed"]   = "N"
         row["units_risked"] = ""
+        row["sizing_prob"]  = ""        # T8.35: no stake, no sizing probability
         return
 
     if projection_mode and strength != "STRONG":
@@ -4665,6 +4683,13 @@ def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
     would_be_units = units_strong if strength == "STRONG" else (
         units_lean if strength == "LEAN" else 0.0
     )
+
+    # T8.35 -- the probability the Kelly sizer ACTUALLY USED this call, or
+    # None when whatever gets written below is not probability-sized (flat
+    # fallback, LEAN notional).  Set only where `k` is set: the stamp and
+    # the stake must be the same read of the same cell, or the column
+    # would just re-create the incoherence it exists to expose.
+    _kelly_p: float | None = None
 
     # Kelly staking (2026-07-27).  STRONG only, and only when we have BOTH
     # a real captured price and the model's probability for the side we are
@@ -4714,12 +4739,16 @@ def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
             # called out here so the next reader does not discover it by
             # watching bets vanish.
             would_be_units = k
+            _kelly_p = p_model          # T8.35: this p produced this stake
 
     if strength == "STRONG" and would_be_units > 0:
         # T2.58: STRONG pre-lock = stake recorded but not bet.
         #        STRONG inside lock window = commit.
         row["bet_placed"]   = "Y" if inside_lock else "N"
         row["units_risked"] = _fmt(would_be_units, 2)
+        # T8.35: stamp what sized it.  Blank on the flat fallback -- a
+        # flat stake is not probability-sized and must not claim to be.
+        row["sizing_prob"]  = _fmt(_kelly_p, 4) if _kelly_p is not None else ""
         return
 
     if strength == "STRONG" and inside_lock:
@@ -4741,6 +4770,10 @@ def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
         # 1u result on an empty stake.
         row["bet_placed"]   = "N"
         row["units_risked"] = _fmt(0.0, 2)
+        # T8.35: a refusal is probability-DERIVED -- Kelly said 0 from
+        # exactly this p at this price.  Stamping it makes the refusal
+        # auditable the same way a positive stake is.
+        row["sizing_prob"]  = _fmt(_kelly_p, 4) if _kelly_p is not None else ""
         return
 
     if strength == "STRONG" and projection_mode:
@@ -4767,9 +4800,13 @@ def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
         if prior > 0.0:
             row["bet_placed"]   = "N"
             row["units_risked"] = _fmt(KELLY_ROUNDED_FLOOR, 2)
+            # T8.35: sizing_prob deliberately UNTOUCHED here.  The floor
+            # is a keep-alive placeholder, not a probability-sized figure;
+            # the last honest stamp stands until commit decides for real.
             return
         row["bet_placed"]   = "N"
         row["units_risked"] = ""
+        row["sizing_prob"]  = ""        # T8.35: no stake, no stamp
         return
 
     # Phase 1.3 (MLB_MODEL_IMPROVEMENT_PLAYBOOK.md 2026-05-12): LEAN tier is
@@ -4780,6 +4817,8 @@ def _size_row_stake(row: dict, *, season: int, inside_lock: bool,
     # we ever want to bet LEAN again, restore it deliberately, not by accident.
     row["bet_placed"]   = "N"
     row["units_risked"] = _fmt(would_be_units, 2) if would_be_units > 0 else ""
+    # T8.35: LEAN's notional flat stake is not probability-sized.
+    row["sizing_prob"]  = ""
 
 
 def _rederive_pre_lock_stake(row: dict, *, season: int, locked: bool) -> None:
