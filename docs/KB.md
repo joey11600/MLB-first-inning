@@ -387,7 +387,11 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   SELECT policy); Save/Share uses the Web Share API on phones. The images
   are rendered ONLY by `tools/cards/make_card.py` (`--publish` uploads with
   the service key) — this page never draws a card itself, so preview and
-  posted image cannot disagree.
+  posted image cannot disagree. Rendered hourly by the `Publish Backfist
+  cards (predict)` step in `daily.yml` (2026-08-14); before that nothing
+  called the renderer and Pillow was not even a declared dependency, so the
+  bucket only ever held hand-run cards. Club marks are vendored PNGs in
+  `tools/cards/logos/` — refresh with `tools/cards/fetch_logos.py`.
 - `components/DashboardShell.tsx` — filter persistence (T3.18), pitcher
   search (T4.18), browser notifications (T4.20), Realtime push hook
   (Phase 2 / T2.31).

@@ -477,6 +477,54 @@ jobs:
           python tools/lock_commit.py --date "$TODAY_ISO" 2>&1 \
             || echo "::warning::lock_commit failed (non-blocking)"
 
+      - name: Publish Backfist cards (predict)
+        # WHY THIS STEP EXISTS AT ALL.  Nothing generated the social cards
+        # before today: `/cards` listed whatever the operator had last run by
+        # hand, which is exactly why the page went stale.  Two things were
+        # missing, not one -- no cron ever called the renderer, AND Pillow
+        # was never in requirements.txt, so no cron COULD have.  Both are
+        # fixed in the same commit; fixing either alone changes nothing.
+        #
+        # WHY EVERY PREDICT TICK RATHER THAN ONCE A NIGHT.  The card follows
+        # the LEDGER, and the ledger moves during the day: on 2026-08-12 the
+        # afternoon render crowned COL@ARI and the evening render crowned
+        # TEX@LAA, because TEX@LAA only reached bet_placed=Y at its own lock.
+        # Both were true when drawn.  Hourly keeps the published card equal
+        # to the CURRENT No.1 rather than to whichever No.1 happened to hold
+        # at one fixed hour.  Filenames are date+plate, so a re-render
+        # UPSERTS the same three objects -- twelve ticks cost three objects,
+        # not thirty-six.
+        #
+        # ORDERING.  After the lock commit, never before it.  The card prints
+        # the stake and the price, and the lock commit is what writes those;
+        # drawing first would publish a card for a bet not yet placed.
+        #
+        # FAIL-SOFT, ALWAYS.  A slate with no priced STRONG YRFI play is a
+        # normal night, not a fault, and make_card exits non-zero for it by
+        # design ("nothing fabricated").  A graphic is also the least
+        # important thing this workflow does -- it must never fail a run that
+        # priced and placed real bets correctly.
+        if: ${{ !cancelled() && steps.action.outputs.what == 'predict' }}
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set +e
+          TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
+          OUT=$(python tools/cards/make_card.py \
+                  --date "$TODAY_ISO" --plate all --publish 2>&1)
+          CODE=$?
+          echo "$OUT"
+          if [ $CODE -ne 0 ]; then
+            # Distinguish "quiet slate" from "something broke".  Both are
+            # non-blocking, but only one of them is worth looking at.
+            if echo "$OUT" | grep -qE "no priced STRONG YRFI play|no rows for"; then
+              echo "::notice::no card for $TODAY_ISO — no priced STRONG YRFI play on this slate"
+            else
+              echo "::warning::card render/publish failed (non-blocking)"
+            fi
+          fi
+
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'
         # Grade today AND yesterday (in ET).  GitHub Actions cron can fire

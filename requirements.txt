@@ -32,3 +32,11 @@ python-dotenv>=1.0.0,<2.0
 # importable, falls back to plain `requests` on environments where it
 # can't compile (no precompiled wheel).
 curl_cffi>=0.7.0,<1.0
+
+# 2026-08-14: Pillow, for tools/cards/make_card.py (the Backfist Bets social
+# cards).  THIS WAS THE SECOND REASON THE CARDS NEVER AUTO-UPDATED: the
+# renderer shipped in August 2026 but its only dependency was never declared,
+# so it could only ever run on the operator's own machine where Pillow
+# happened to be installed.  No cron could have rendered a card even if one
+# had called it.  Same upper-bound pinning rationale as the rest of the file.
+Pillow>=10.0.0,<13.0

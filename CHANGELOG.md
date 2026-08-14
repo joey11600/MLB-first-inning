@@ -11,6 +11,81 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-14] - Cards: the matchup goes on the card, and a cron finally draws it
+
+**Fixed**
+
+- **Cards and Settings were unreachable on a phone.** `.headerActions` was a
+  four-item `nowrap` flex row with an intrinsic width of 362px sharing a
+  343px content box with the brand. Measured on the live page at 375px:
+  History clipped at the viewport edge, **Cards started at x=393 and the
+  settings button ran to x=538** — both entirely off-screen. The page has no
+  horizontal scroll (`documentElement.scrollWidth === 375`), so there was no
+  gesture that reached either one. Actions now take their own full-width grid
+  row at ≤600px with tightened pills (~305px of 343px used), and
+  `flex-wrap: wrap` on the base rule means a future fourth destination drops
+  to a second line instead of vanishing. Verified at 375px (one row, 54px
+  spare) and 320px (gear wraps, still nothing off-screen).
+
+- **The lineup was on every card-eligible row and the card never showed it.**
+  `_lineup()` parsed `*_lineup_json` with `json.loads` only. The CSV stores
+  real JSON, but **Supabase — the DEFAULT source — hands back the Python
+  repr** of the same list (`[{'ab': 395, ...}]`, single-quoted), which
+  `json.loads` rejects. The rejection was silent, so every Supabase-rendered
+  card printed "lineup not posted" with the hitters sitting right there in
+  the column. Now falls back to `ast.literal_eval` (literal-only, cannot
+  execute) and passes through an already-deserialised list.
+
+**Added**
+
+- **The No.1 card now carries the matchup.** Both club marks, both starters
+  (name, throwing hand, ERA, WHIP) and both top-threes (name + OBP) in two
+  columns split by a gutter hairline. To make room the display headline drops
+  from three lines at ~110px to one line at ~50px — `fit_block`'s box is now
+  one line tall on purpose, because it maximises FONT SIZE rather than line
+  count and a taller box let it prefer 57px-on-two-lines (orphaning "1ST")
+  over 50px-on-one. Date and first pitch moved into the gold eyebrow, freeing
+  the 64px line they had under the matchup. **Every value is a column the
+  predictor already wrote when it priced the game** — nothing is fetched or
+  recomputed, so a card cannot disagree with the row that produced the bet.
+  - Lineups are posted on ~94% of bet rows; the other 6% gets the composite
+    the model actually used, labelled `Lineup not posted · .338 OBP`. Never a
+    guessed nine.
+  - Smoke-tested over all 132 ledger dates: 98 renderable No.1s, 34 quiet
+    slates, **0 errors**. Longest club name (DIAMONDBACKS), longest pitcher
+    names and accented names (José Tena) all fit.
+
+- `tools/cards/logos/` — the 30 club marks as PNG (544KB), vendored by the
+  new `tools/cards/fetch_logos.py` from `midfield.mlbstatic.com`, which is
+  already the dashboard's headshot source. Vendored rather than fetched at
+  render time for the same reason the fonts and plates are: a CDN hiccup on
+  the hourly cron must not publish a card with a hole in it. The abbr→id map
+  is parsed out of `mlb_first_inning_predictor.py`, not copied.
+
+- `_backfill_display_cols` — Supabase's mirror has 106 columns to the CSV's
+  117, and `*_pitcher_throws_hand` is one of the eleven missing, so cards
+  printed "3.67 ERA" where they meant "LHP · 3.67 ERA". Fills that from the
+  CSV. Deliberately an **allowlist of display-only columns, read-only**:
+  nothing named there can reach a price, stake, probability or graded result.
+
+**Changed**
+
+- **The cards auto-update now.** New `Publish Backfist cards (predict)` step
+  in `daily.yml` runs on every hourly predict tick, after the lock commit
+  (the card prints the stake and price, which the lock commit writes).
+  Filenames are date+plate so re-renders upsert the same three objects.
+  Fail-soft: a slate with no priced STRONG YRFI play is a normal night and
+  logs a `::notice::`, not a failure.
+  - **Two things were broken, not one.** No cron ever called the renderer,
+    AND `Pillow` was never in `requirements.txt` — so no cron *could* have.
+    Fixing either alone changes nothing; both ship here.
+
+**Untouched:** no model weights, gates, thresholds, calibration, staking or
+ledger columns were modified. 200/200 tests pass; dashboard prebuild guards
+(units, Kelly parity) pass.
+
+---
+
 ## [2026-08-13h] - The sizing_prob column: the ledger records what sized the bet (T8.35)
 
 **Added**

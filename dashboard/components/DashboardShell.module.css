@@ -157,6 +157,12 @@
   align-items: center;
   gap: 10px;
   align-self: flex-end;
+  /* A nowrap row is what put Cards off the side of the phone (see the
+     600px block).  Wrapping is a no-op wherever the row already fits,
+     so it costs nothing at desktop and makes the failure mode of a
+     future fourth destination "drops to a second line" rather than
+     "silently unreachable". */
+  flex-wrap: wrap;
 }
 
 .navLink {
@@ -213,10 +219,39 @@
 }
 
 @media (max-width: 600px) {
+  /* ── 2026-08-14 · CARDS AND SETTINGS WERE OFF THE SIDE OF THE PHONE ──
+     The 980px stack keeps brand and actions on one row ("brand actions"),
+     but .headerActions is a four-item nowrap row with an intrinsic width
+     of 362px.  On a 375px phone the shell leaves 343px and the brand
+     claims ~150px of it, so measured on the live page: History clipped at
+     the viewport edge, Cards started at x=393 and the settings button ran
+     to x=538 -- both entirely outside the screen.  The page has no
+     horizontal scroll (documentElement.scrollWidth === 375), so they were
+     UNREACHABLE, not merely cut off; there was no gesture that got you to
+     the Cards page or the settings menu from a phone.
+
+     Fix is structural rather than cosmetic: actions get their own
+     full-width row so they never compete with the brand for width, and
+     the pills tighten enough that all four fit one line at 375px
+     (~308px of 343px).  Combined with flex-wrap on the base rule, a
+     narrower phone wraps to a second line instead of clipping again. */
   .header {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "slate"
+      "actions";
     gap: 12px 14px;
     padding: 18px 0 14px;
   }
+  .headerActions {
+    grid-area: actions;
+    align-self: auto;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .navLink      { padding: 8px 9px; font-size: 11px; gap: 6px; }
+  .navLinkIcon  { font-size: 12px; }
   .mark         { width: 32px; height: 32px; flex: 0 0 32px; }
   .mark::after  { inset: 4px; }
   .brandTitle   { font-size: 18px; }

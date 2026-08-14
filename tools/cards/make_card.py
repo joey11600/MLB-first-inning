@@ -12,6 +12,9 @@ different game than the alerts did.
 from __future__ import annotations
 
 import argparse
+import ast
+import csv
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -172,55 +175,137 @@ def scrim(path):
                            img, veil.resize((SIZE, SIZE))), T
 
 
+# ---- club art ----------------------------------------------------------------
+LOGOS = HERE / "logos"
+
+
+def club_logo(abbr: str, px: int):
+    """A vendored club mark, or None if there is no art for that code.
+
+    Missing art degrades the column to name-only rather than raising: a
+    relocation or a brand-new franchise code should cost the card a logo,
+    not the whole night's render. Refresh with `fetch_logos.py`.
+    """
+    p = LOGOS / f"{(abbr or '').upper()}.png"
+    if not p.exists():
+        return None
+    return Image.open(p).convert("RGBA").resize((px, px), Image.LANCZOS)
+
+
+def _shrink(dr, text, font_fn, max_w, start, floor=16):
+    """Largest size at or below `start` at which `text` fits one line."""
+    f = font_fn(start)
+    while f.size > floor and measure(dr, text, f) > max_w:
+        f = font_fn(f.size - 1)
+    return f
+
+
 # ---- the card ----------------------------------------------------------------
 def render(plate: Path, d: dict, out: Path) -> Path:
+    """1080x1080, one column per club.
+
+    2026-08-14 REBUILD. The card used to spend its middle third on a
+    three-line display headline and nothing else; the operator wanted the
+    clubs' marks, both starters and both top-threes on the same card. Those
+    do not fit beside a 110px headline, so the headline is now ONE line at
+    roughly half the size and the reclaimed band (y 430-800) carries two
+    club columns. Everything drawn here still comes from the ledger row --
+    only the layout changed, not where a number comes from.
+    """
     img, T = scrim(plate)
     dr = ImageDraw.Draw(img)
     COL, RIGHT = SIZE - M * 2, SIZE - M
+    GUT = 48
+    CW = (COL - GUT) // 2                      # 440 — one column per club
+    CX = (M, M + CW + GUT)                     # 76, 564
 
-    # header — the logo IS the wordmark, so there is no text mark
-    logo_h, logo_y = 158, 50
+    # ---- header — the logo IS the wordmark, so there is no text mark
+    logo_h, logo_y = 126, 44
     logo = Image.open(BRAND).convert("RGBA").resize(
         (round(logo_h * LOGO_ASPECT), logo_h), Image.LANCZOS)
     img.paste(logo, (M, logo_y), logo)
 
-    f_tag = _archivo(23, 800)
+    f_tag = _archivo(22, 800)
     tag = d["tag"].upper()
     tb = dr.textbbox((0, 0), tag, font=f_tag)
-    bw = measure(dr, tag, f_tag, 0.14) + 44
-    bh = (tb[3] - tb[1]) + 28
+    bw = measure(dr, tag, f_tag, 0.14) + 42
+    bh = (tb[3] - tb[1]) + 26
     bx, by = RIGHT - bw, logo_y + (logo_h - bh) // 2
     dr.rectangle([bx, by, bx + bw, by + bh], fill=d.get("tag_fill") or T["gold"])
-    ink_at(dr, bx + 22, by + 14, tag, f_tag, T["tag_ink"], 0.14)
+    ink_at(dr, bx + 21, by + 13, tag, f_tag, T["tag_ink"], 0.14)
 
-    dr.line([(M, 240), (RIGHT, 240)], fill=T["rule"], width=3)
+    dr.line([(M, 200), (RIGHT, 200)], fill=T["rule"], width=3)
 
-    # the bet, in plain words — the hero
-    ink_at(dr, M, 272, d["eyebrow"].upper(), _archivo(24, 800), T["gold"], 0.20)
-    f_hero, lines = fit_block(dr, d["headline"].upper(), _black, COL, 268, -0.015, 1.02)
-    y = 330
+    # ---- the bet, in plain words. The eyebrow now carries the date and
+    #      first pitch too, because the old standalone "when" line cost 64px
+    #      that the club columns needed and it reads fine as one gold rule.
+    ink_at(dr, M, 226, d["eyebrow"].upper(), _archivo(20, 800), T["gold"], 0.16)
+    # max_h is ONE line's worth on purpose. fit_block maximises FONT SIZE, not
+    # line count, so a 118px box let it prefer 57px-on-two-lines over
+    # 50px-on-one — which orphaned "1ST" on a line of its own. Capping the box
+    # at a single line makes the one-line option the only tall one available.
+    f_hero, lines = fit_block(dr, d["headline"].upper(), _black,
+                              COL, 76, -0.015, 1.02, hi=74)
+    y = 266
     for ln in lines:
-        y += ink_at(dr, M, y, ln, f_hero, T["ink"], -0.015) + f_hero.size * 0.20
+        y += ink_at(dr, M, y, ln, f_hero, T["ink"], -0.015) + f_hero.size * 0.16
 
-    # the game
-    dr.line([(M, 636), (RIGHT, 636)], fill=T["rule"], width=2)
-    f_game = _archivo(46, 800)
-    while measure(dr, d["matchup"], f_game) > COL and f_game.size > 26:
-        f_game = _archivo(f_game.size - 2, 800)
-    ink_at(dr, M, 668, d["matchup"], f_game, T["ink"])
-    ink_at(dr, M, 732, d["when"].upper(), _archivo(25, 700), T["dim"], 0.14)
+    dr.line([(M, 376), (RIGHT, 376)], fill=T["rule"], width=2)
 
-    # the numbers
-    dr.line([(M, 800), (RIGHT, 800)], fill=T["rule"], width=2)
-    f_k, f_v = _archivo(22, 800), _mono(50, 700)
+    # ---- the two clubs, a column each: mark, starter, top of the order.
+    #      A hairline down the gutter keeps the eye in one club's column;
+    #      without it the two pitcher names read as one wide row.
+    dr.line([(M + CW + GUT // 2, 398), (M + CW + GUT // 2, 786)],
+            fill=T["rule"], width=1)
+
+    for i, side in enumerate(("away", "home")):
+        x = CX[i]
+        c = d["clubs"][side]
+
+        art = club_logo(c["abbr"], 82)
+        nx = x
+        if art is not None:
+            img.paste(art, (x, 400), art)
+            nx = x + 82 + 16
+        f_club = _shrink(dr, c["club"], lambda s: _archivo(s, 800),
+                         x + CW - nx, 27)
+        cb = dr.textbbox((0, 0), c["club"], font=f_club)
+        ink_at(dr, nx, 400 + (82 - (cb[3] - cb[1])) // 2, c["club"], f_club, T["ink"])
+
+        ink_at(dr, x, 524, "Starting pitcher".upper(), _archivo(15, 700),
+               T["dim"], 0.16)
+        f_p = _shrink(dr, c["pitcher"], lambda s: _archivo(s, 800), CW, 27)
+        ink_at(dr, x, 552, c["pitcher"], f_p, T["ink"])
+        ink_at(dr, x, 592, c["pline"], _mono(17, 600), T["dim"])
+
+        ink_at(dr, x, 644, c["bats_head"], _archivo(15, 700), T["dim"], 0.16)
+        f_s = _mono(19, 600)
+        for n, (nm, stat) in enumerate(c["bats"]):
+            by_ = 676 + n * 36
+            ink_at(dr, x, by_ + 3, f"{n + 1}", _mono(17, 600), T["dim"])
+            nf = _shrink(dr, nm, lambda s: _archivo(s, 700),
+                         CW - 30 - (measure(dr, stat, f_s) + 14 if stat else 0), 23)
+            ink_at(dr, x + 30, by_, nm, nf, T["ink"])
+            if stat:
+                ink_at(dr, x + CW - measure(dr, stat, f_s), by_ + 3, stat,
+                       f_s, T["dim"])
+        if not c["bats"]:
+            # Lineups are posted ~94% of the time on a bet row. The other 6%
+            # gets the composite the MODEL actually used, labelled as such —
+            # never a guessed nine.
+            ink_at(dr, x, 678, c["bats_note"], _archivo(19, 700), T["dim"])
+
+    # ---- the numbers
+    dr.line([(M, 812), (RIGHT, 812)], fill=T["rule"], width=2)
+    f_k, f_v = _archivo(21, 800), _mono(46, 700)
     cw = COL / max(len(d["stats"]), 1)
     for i, (k, v, kind) in enumerate(d["stats"]):
         x = M + cw * i
-        ink_at(dr, x, 832, k.upper(), f_k, T["dim"], 0.14)
-        ink_at(dr, x, 872, v, f_v,
+        ink_at(dr, x, 842, k.upper(), f_k, T["dim"], 0.14)
+        ink_at(dr, x, 880, v, f_v,
                T["green"] if kind == "up" else T["loss"] if kind == "down" else T["ink"])
 
-    ink_at(dr, M, 986, d["footer"].upper(), _archivo(21, 700), T["dim"], 0.12)
+    ink_at(dr, M, 976, d["footer"].upper(), _archivo(20, 700), T["dim"], 0.12)
 
     out.parent.mkdir(parents=True, exist_ok=True)
     img.save(out, "PNG")
@@ -250,6 +335,121 @@ def team_names() -> dict[str, str]:
             r'(\w+):\s*\{\s*city:\s*"[^"]*",\s*club:\s*"([^"]+)"', src):
         out[ab] = re.sub(r"^the\s+", "", club).upper()
     return out
+
+
+def _lineup(raw) -> list[dict]:
+    """The stored top-three, or [] if it was never posted.
+
+    `*_lineup_json` holds exactly the three hitters the model priced, so this
+    is not a nine that needs slicing.
+
+    THREE ENCODINGS, because the two ledger sources disagree. The CSV stores
+    real JSON; Supabase hands back the PYTHON REPR of the same list —
+    `[{'ab': 395, ...}]`, single-quoted — which `json.loads` rejects. That
+    rejection was silent: every card rendered off Supabase claimed "lineup
+    not posted" while the hitters sat right there in the column. `ast` reads
+    the repr form and, being literal-only, cannot execute anything. A list
+    that arrives already deserialised is passed straight through.
+
+    Anything still unparseable degrades to "no lineup" for the same reason a
+    missing price stays missing — the card would rather say nothing than say
+    something invented.
+    """
+    if isinstance(raw, list):
+        return [b for b in raw if isinstance(b, dict)]
+    s = (raw or "").strip()
+    if not s:
+        return []
+    for parse in (json.loads, ast.literal_eval):
+        try:
+            v = parse(s)
+        except Exception:
+            continue
+        if isinstance(v, list):
+            return [b for b in v if isinstance(b, dict)]
+    return []
+
+
+def _three(v) -> str:
+    """.371, the way a baseball card writes a rate — no leading zero."""
+    return f"{v:.3f}".lstrip("0") if isinstance(v, (int, float)) else ""
+
+
+def _club_block(row: dict, pre: str, abbr: str, club: str) -> dict:
+    """Everything the card prints for one club, straight off the ledger row.
+
+    Nothing here is fetched or recomputed: the starter, his line and the top
+    three are columns the predictor already wrote when it priced the game, so
+    a card can never disagree with the row that produced the bet.
+    """
+    hand = (row.get(f"{pre}_pitcher_throws_hand") or "").strip().upper()
+    era, whip = _f(row.get(f"{pre}_era")), _f(row.get(f"{pre}_whip"))
+    bits = ([f"{hand}HP"] if hand in ("L", "R") else [])
+    if era is not None:
+        bits.append(f"{era:.2f} ERA")
+    if whip is not None:
+        bits.append(f"{whip:.2f} WHIP")
+
+    bats = [(nm, _three(b.get("obp")))
+            for b in _lineup(row.get(f"{pre}_lineup_json"))
+            if (nm := (b.get("name") or "").strip())]
+
+    note = ""
+    if not bats:
+        c_obp = _f(row.get(f"{pre}_top3c_obp"))
+        note = ("Lineup not posted · " + _three(c_obp) + " OBP"
+                if c_obp is not None else "Lineup not posted")
+
+    return {
+        "abbr": abbr,
+        "club": club,
+        "pitcher": (row.get(f"{pre}_pitcher") or "").strip() or "TBD",
+        "pline": " · ".join(bits),
+        "bats_head": "Top of the order".upper(),
+        "bats": bats[:3],
+        "bats_note": note,
+    }
+
+
+# Columns the Supabase mirror does not carry, but the CSV does. The mirror has
+# 106 columns to the CSV's 117 and the starter's throwing hand is one of the
+# eleven missing, so a card rendered from Supabase — which is the DEFAULT
+# source — printed "3.67 ERA" where it meant "LHP · 3.67 ERA".
+#
+# Deliberately an allowlist of DISPLAY-ONLY columns, and read-only. Nothing
+# named here can reach a price, a stake, a probability or a graded result, so
+# the worst a stale CSV can do is cost the card a two-letter label. Widening
+# this tuple to anything the money path reads would break that guarantee.
+_CSV_ONLY = ("away_pitcher_throws_hand", "home_pitcher_throws_hand")
+
+
+def _backfill_display_cols(row: dict, date_iso: str) -> None:
+    """Fill display-only columns the Supabase row is missing, from the CSV."""
+    if all(row.get(c) for c in _CSV_ONLY):
+        return
+    path = REPO / "data" / f"picks_{date_iso[:4]}.csv"
+    if not path.exists():
+        return
+
+    def same_game(r: dict) -> bool:
+        pk, rpk = str(row.get("game_pk") or "").strip(), str(r.get("game_pk") or "").strip()
+        if pk and rpk:
+            return pk == rpk                      # unique, survives doubleheaders
+        return ((r.get("date") or "").strip() == date_iso
+                and (r.get("away_team") or "").strip() == (row.get("away_team") or "").strip()
+                and (r.get("home_team") or "").strip() == (row.get("home_team") or "").strip())
+
+    try:
+        with path.open(encoding="utf-8", newline="") as fh:
+            for r in csv.DictReader(fh):
+                if not same_game(r):
+                    continue
+                for c in _CSV_ONLY:
+                    if not row.get(c) and (r.get(c) or "").strip():
+                        row[c] = r[c].strip()
+                return
+    except Exception as exc:                       # noqa: BLE001
+        print(f"  ! display backfill skipped: {exc}", file=sys.stderr)
 
 
 def implied(odds: float) -> float:
@@ -295,6 +495,7 @@ def load_night(date_iso: str) -> dict:
         raise SystemExit(f"{date_iso}: no priced STRONG YRFI play on this slate")
     cand.sort(key=lambda t: t[:3])
     top = cand[0][3]
+    _backfill_display_cols(top, date_iso)
 
     if not tracker._row_is_nights_top_pick(top, [x for x in night if x is not top]):
         print(f"  ! warning: {date_iso} ranking and the alert gate disagree",
@@ -319,6 +520,10 @@ def load_night(date_iso: str) -> dict:
         "odds": odds, "implied": implied(odds) * 100,
         "stake": _f(top.get("units_risked")) or 0.0,
         "result": (top.get("graded_result") or "").strip().upper(),
+        "clubs": {
+            "away": _club_block(top, "away", away, names.get(away, away)),
+            "home": _club_block(top, "home", home, names.get(home, home)),
+        },
     }
 
 
@@ -338,11 +543,15 @@ def top_pick_card(n: dict) -> dict:
     # "Yes run" beside a matchup reads as a bet on the first-named side.
     return {
         "tag": "No.1 Play",
-        "eyebrow": _daypart(n.get("first_pitch", "")),
+        # The date and first pitch ride the eyebrow now. They used to have
+        # their own 64px line under the matchup, and the club columns needed
+        # that band; as one gold rule it still answers "when is this?".
+        "eyebrow": f"{_daypart(n.get('first_pitch', ''))} · {n['when']}",
         "headline": ("Either team scores in the 1st" if n["side"] == "YRFI"
                      else "No runs in the 1st inning"),
         "matchup": n["matchup"],
         "when": n["when"],
+        "clubs": n["clubs"],
         "stats": [
             ("We make it", f"{n['model']:.1f}%", "up"),
             ("Price needs", f"{n['implied']:.1f}%", "flat"),
