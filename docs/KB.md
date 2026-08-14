@@ -391,7 +391,12 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   cards (predict)` step in `daily.yml` (2026-08-14); before that nothing
   called the renderer and Pillow was not even a declared dependency, so the
   bucket only ever held hand-run cards. Club marks are vendored PNGs in
-  `tools/cards/logos/` — refresh with `tools/cards/fetch_logos.py`.
+  `tools/cards/logos/` — refresh with `tools/cards/fetch_logos.py`. Player
+  portraits are FETCHED per render (too many players to vendor) and cached in
+  the system temp dir, never under `data/`, which the cron commits hourly.
+  The same cron step then runs `tools/cards/prune_cards.py --keep-days 1`,
+  which keeps today's set only; it refuses to delete anything unless today's
+  cards are already in the bucket, so a failed render never empties the page.
 - `components/DashboardShell.tsx` — filter persistence (T3.18), pitcher
   search (T4.18), browser notifications (T4.20), Realtime push hook
   (Phase 2 / T2.31).

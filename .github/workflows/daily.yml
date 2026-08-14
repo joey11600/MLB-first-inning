@@ -477,7 +477,7 @@ jobs:
           python tools/lock_commit.py --date "$TODAY_ISO" 2>&1 \
             || echo "::warning::lock_commit failed (non-blocking)"
 
-      - name: Publish Backfist cards (predict)
+      - name: Publish + prune Backfist cards (predict)
         # WHY THIS STEP EXISTS AT ALL.  Nothing generated the social cards
         # before today: `/cards` listed whatever the operator had last run by
         # hand, which is exactly why the page went stale.  Two things were
@@ -524,6 +524,21 @@ jobs:
               echo "::warning::card render/publish failed (non-blocking)"
             fi
           fi
+          # RETENTION (operator, 2026-08-14: the old ones are already posted,
+          # don't waste space).  A night is ~3.3MB across three plates, so an
+          # unpruned bucket grows ~100MB/month.
+          #
+          # Runs unconditionally because it is SELF-GUARDING, which is
+          # stronger than gating it on the render's exit code: --require-date
+          # checks that today's cards are actually IN THE BUCKET before it
+          # deletes anything.  So a failed render, a partial upload or a quiet
+          # slate leaves yesterday's cards in place rather than emptying
+          # /cards -- the old set only goes once a new set exists to replace
+          # it.  Cards are regenerable from the ledger, so this is derived
+          # data, never a source.
+          python tools/cards/prune_cards.py \
+            --keep-days 1 --require-date "$TODAY_ISO" 2>&1 \
+            || echo "::warning::card prune failed (non-blocking)"
 
       - name: Run grader (grade)
         if: steps.action.outputs.what == 'grade'

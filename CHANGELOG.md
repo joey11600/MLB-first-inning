@@ -11,6 +11,59 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-14b] - Faces on the card; the bucket stops growing
+
+**Added**
+
+- **Player portraits.** Both starters at 76px and all six top-of-the-order
+  hitters at 34px, from `midfield.mlbstatic.com/v1/people/<id>/spots/240` —
+  the same CDN the dashboard already uses for headshots. Every ID needed was
+  already on the ledger row (`*_pitcher_id`, and `id` inside
+  `*_lineup_json`). Drawn disc-first, then the cutout, then a hairline ring:
+  MLB's portraits are transparent cutouts, so pasting one straight onto the
+  plate leaves a head floating with no ground under it.
+  - **Fetched, not vendored** — unlike the 30 club marks. ~750 active players
+    and eight faces that change nightly is not a fixed cost. Cache lives in
+    the system temp dir, deliberately **outside the repo**: the cron commits
+    `data/` every tick and a cache under it would be committed too.
+  - `headshot()` never raises. A face that will not load costs the card a
+    portrait and nothing else — the disc is still drawn, so the two club
+    columns stay aligned either way. (MLB returns a generic silhouette for
+    unknown IDs rather than a 404, so even a bad ID degrades to a real image.)
+
+- `tools/cards/prune_cards.py` — retention for the `cards` bucket. A night is
+  ~3.3MB across three plates, so an unpruned bucket grows ~100MB/month; two
+  nights were already 6.5MB. Runs on the hourly predict step, keeping today
+  only (`--keep-days 1`).
+  - Safe to automate because a card is a **derived** artefact: it is drawn
+    from one ledger row, that row stops changing once graded, and
+    `make_card.py --date <d> --publish` redraws any past night. Demonstrated
+    in testing — a set deleted by the bug below was restored by re-running it.
+  - Two guards. `--require-date` deletes nothing unless the bucket already
+    holds a card for that date, so a failed render or a quiet slate leaves
+    yesterday's set in place instead of emptying `/cards`. And the filename
+    pattern is an allowlist — anything that is not
+    `backfist_<date>_<plate>.png` is counted and skipped, never removed.
+
+**Fixed**
+
+- **The prune deleted the night it had just published.** Caught in testing,
+  not production. The `--require-date` guard and the retention cutoff were
+  computed from **two different clocks**: the guard confirmed a card for
+  2026-08-13 existed, then the cutoff came from `now()` — already 08-14 —
+  and removed the 08-13 set the same run had just uploaded. The guard passed
+  and the delete was still wrong. The window is now anchored to
+  `--require-date`, making it "keep N nights ending at the night we just
+  published" regardless of when the clock ticks over mid-run. In production
+  this only bites at the ET midnight rollover (a step capturing `TODAY_ISO`
+  at 11:59pm reaching the prune at 12:00am). Pinned by
+  `tests/test_card_prune_window.py` (7 tests, incl. the allowlist).
+
+**Untouched:** no model weights, gates, thresholds, calibration, staking or
+ledger columns. 207/207 tests pass.
+
+---
+
 ## [2026-08-14] - Cards: the matchup goes on the card, and a cron finally draws it
 
 **Fixed**

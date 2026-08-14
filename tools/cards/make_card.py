@@ -16,6 +16,8 @@ import ast
 import csv
 import json
 import sys
+import tempfile
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -42,12 +44,16 @@ DARK = {
     "green": (28, 202, 104), "gold": (224, 192, 96), "loss": (240, 112, 96),
     "rule": (255, 255, 255), "tag_ink": (18, 17, 14), "veil": (18, 17, 14),
     "lo": 0.24, "hi": 0.94, "gamma": 1.55,
+    # Disc behind a headshot. MLB's portraits are transparent CUTOUTS, so
+    # without a plate behind them you get a head floating on the leather.
+    "spot": (58, 54, 47, 232),
 }
 LIGHT = {
     "ink": (33, 30, 26), "dim": (92, 84, 74),
     "green": (0, 112, 48), "gold": (138, 104, 20), "loss": (154, 27, 18),
     "rule": (33, 30, 26), "tag_ink": (251, 248, 241), "veil": (251, 249, 244),
     "lo": 0.10, "hi": 0.74, "gamma": 1.5,
+    "spot": (226, 219, 205, 236),
 }
 
 
@@ -200,6 +206,68 @@ def _shrink(dr, text, font_fn, max_w, start, floor=16):
     return f
 
 
+# Headshots are FETCHED, not vendored — unlike the 30 club marks. There are
+# ~750 active players and the eight faces on a card change nightly, so
+# vendoring them is not a fixed cost the way the clubs are.
+#
+# The cache deliberately lives OUTSIDE the repo. The cron commits `data/`
+# every tick, so a cache under data/ would be committed with it and the repo
+# would grow a face at a time.  Ephemeral on CI (~8 fetches a run, ~20KB
+# each); persistent locally, which is what makes re-rendering a night free.
+HEADSHOTS = Path(tempfile.gettempdir()) / "backfist_headshots"
+_HS_UA = {"User-Agent": "Mozilla/5.0 (nrfi-terminal card renderer)"}
+
+
+def headshot(pid, px: int):
+    """A player's cutout portrait at `px` square, or None.
+
+    NEVER RAISES. A face that will not load costs the card a portrait and
+    nothing else — the caller still draws the disc, so the two club columns
+    stay aligned whether or not MLB served the image. That matters more than
+    the portrait: an hourly cron must not fail on a CDN hiccup.
+    """
+    try:
+        pid = int(str(pid).strip())
+    except (TypeError, ValueError):
+        return None
+    src = HEADSHOTS / f"{pid}.png"
+    if not src.exists():
+        try:
+            HEADSHOTS.mkdir(parents=True, exist_ok=True)
+            req = urllib.request.Request(
+                f"https://midfield.mlbstatic.com/v1/people/{pid}/spots/240",
+                headers=_HS_UA)
+            with urllib.request.urlopen(req, timeout=15) as r:
+                body = r.read()
+            if not body.startswith(b"\x89PNG"):
+                return None
+            src.write_bytes(body)
+        except Exception:                              # noqa: BLE001
+            return None
+    try:
+        return Image.open(src).convert("RGBA").resize((px, px), Image.LANCZOS)
+    except Exception:                                  # noqa: BLE001
+        return None
+
+
+def portrait(img, dr, x, y, px, pid, T):
+    """Disc, then the cutout on top of it, then a hairline ring.
+
+    Drawn in that order because the portraits are transparent cutouts: paste
+    one straight onto the plate and you get a head floating on the leather
+    with no ground under it.
+    """
+    disc = Image.new("RGBA", (px, px), (0, 0, 0, 0))
+    ImageDraw.Draw(disc).ellipse([0, 0, px - 1, px - 1], fill=T["spot"])
+    face = headshot(pid, px)
+    if face is not None:
+        disc.alpha_composite(face)
+    mask = Image.new("L", (px, px), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, px - 1, px - 1], fill=255)
+    img.paste(disc, (x, y), mask)
+    dr.ellipse([x, y, x + px - 1, y + px - 1], outline=T["rule"], width=1)
+
+
 # ---- the card ----------------------------------------------------------------
 def render(plate: Path, d: dict, out: Path) -> Path:
     """1080x1080, one column per club.
@@ -272,20 +340,27 @@ def render(plate: Path, d: dict, out: Path) -> Path:
         cb = dr.textbbox((0, 0), c["club"], font=f_club)
         ink_at(dr, nx, 400 + (82 - (cb[3] - cb[1])) // 2, c["club"], f_club, T["ink"])
 
-        ink_at(dr, x, 524, "Starting pitcher".upper(), _archivo(15, 700),
+        # The starter: portrait left, name and line to its right.
+        ink_at(dr, x, 508, "Starting pitcher".upper(), _archivo(15, 700),
                T["dim"], 0.16)
-        f_p = _shrink(dr, c["pitcher"], lambda s: _archivo(s, 800), CW, 27)
-        ink_at(dr, x, 552, c["pitcher"], f_p, T["ink"])
-        ink_at(dr, x, 592, c["pline"], _mono(17, 600), T["dim"])
+        portrait(img, dr, x, 536, 76, c["pitcher_id"], T)
+        px_ = x + 76 + 16
+        f_p = _shrink(dr, c["pitcher"], lambda s: _archivo(s, 800),
+                      x + CW - px_, 27)
+        ink_at(dr, px_, 548, c["pitcher"], f_p, T["ink"])
+        ink_at(dr, px_, 586, c["pline"], _mono(17, 600), T["dim"])
 
-        ink_at(dr, x, 644, c["bats_head"], _archivo(15, 700), T["dim"], 0.16)
+        ink_at(dr, x, 640, c["bats_head"], _archivo(15, 700), T["dim"], 0.16)
         f_s = _mono(19, 600)
-        for n, (nm, stat) in enumerate(c["bats"]):
-            by_ = 676 + n * 36
-            ink_at(dr, x, by_ + 3, f"{n + 1}", _mono(17, 600), T["dim"])
+        for n, (nm, stat, bid) in enumerate(c["bats"]):
+            by_ = 672 + n * 40
+            ink_at(dr, x, by_ + 6, f"{n + 1}", _mono(17, 600), T["dim"])
+            portrait(img, dr, x + 22, by_ - 6, 34, bid, T)
+            nx_ = x + 22 + 34 + 12
             nf = _shrink(dr, nm, lambda s: _archivo(s, 700),
-                         CW - 30 - (measure(dr, stat, f_s) + 14 if stat else 0), 23)
-            ink_at(dr, x + 30, by_, nm, nf, T["ink"])
+                         x + CW - nx_ - (measure(dr, stat, f_s) + 14 if stat else 0),
+                         23)
+            ink_at(dr, nx_, by_, nm, nf, T["ink"])
             if stat:
                 ink_at(dr, x + CW - measure(dr, stat, f_s), by_ + 3, stat,
                        f_s, T["dim"])
@@ -390,7 +465,7 @@ def _club_block(row: dict, pre: str, abbr: str, club: str) -> dict:
     if whip is not None:
         bits.append(f"{whip:.2f} WHIP")
 
-    bats = [(nm, _three(b.get("obp")))
+    bats = [(nm, _three(b.get("obp")), b.get("id"))
             for b in _lineup(row.get(f"{pre}_lineup_json"))
             if (nm := (b.get("name") or "").strip())]
 
@@ -404,6 +479,7 @@ def _club_block(row: dict, pre: str, abbr: str, club: str) -> dict:
         "abbr": abbr,
         "club": club,
         "pitcher": (row.get(f"{pre}_pitcher") or "").strip() or "TBD",
+        "pitcher_id": row.get(f"{pre}_pitcher_id"),
         "pline": " · ".join(bits),
         "bats_head": "Top of the order".upper(),
         "bats": bats[:3],
