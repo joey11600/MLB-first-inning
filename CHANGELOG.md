@@ -11,6 +11,49 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-14c] - The figures row says what the numbers are
+
+**Changed**
+
+- **"We make it" / "Price needs" are gone.** Operator didn't like either
+  label, and the row was carrying three figures where the story needs five.
+  It now reads, in order: **MARKET** (the price's implied probability) ·
+  **OUR MODEL** · **EDGE** · **STAKE** · **ODDS**. The odds moved out of the
+  stake's label into a column of their own.
+  - **Only the edge takes a tone colour** — green positive, crimson
+    negative. It is the one figure that says whether the bet is any good,
+    and the sign carries the meaning with hue only reinforcing it, per the
+    palette rule. The model percentage used to be green for no reason.
+  - Real minus (U+2212) on the edge, matching `fmt_odds`. A hyphen next to a
+    full-width minus is visible when both sit in the same mono row.
+
+- **Columns are sized to their content, not cut into equal slices.** Five
+  figures of very different lengths ("+12.3%" against "7.0u") in five equal
+  columns leaves a fat gap after the short ones and almost none after the
+  long ones; the row read as badly kerned. Each pair is measured and the
+  remainder spent as one uniform gutter. The value type also shrinks until
+  the row genuinely fits, so a sixth figure could not break it — worst
+  plausible case (100.0% / −100.0% / 10.0u / +1500) still fits at full
+  46px with 116px of gutter, so the shrink is insurance, not a live path.
+
+**Fixed**
+
+- **The edge is DERIVED, never read from `edge_on_pick`.** Same rule, and
+  the same reasoning, as the dashboard's `deriveEdge`: the stored column is
+  written by a different process than the one that writes `nrfi_prob`, so
+  they drift — 41 rows disagree with a correct recomputation (mean 1.66pp,
+  worst 7.75pp) and 2026-06-17 PIT@OAK has the **sign backwards**, stored
+  +4.8% on a bet whose real edge at −150 is −0.6%. Publishing that on a card
+  is worse than publishing it on a board. Deriving from the two figures
+  printed beside it also means the card and the board cannot contradict each
+  other: same inputs, same formula, same number.
+
+**Untouched:** no model weights, gates, thresholds, calibration, staking or
+ledger columns — the edge is a display derivation, and the stored column is
+left exactly as it was. 207/207 tests pass.
+
+---
+
 ## [2026-08-14b] - Faces on the card; the bucket stops growing
 
 **Added**

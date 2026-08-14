@@ -206,6 +206,19 @@ def _shrink(dr, text, font_fn, max_w, start, floor=16):
     return f
 
 
+def _shrink_all(dr, texts, font_fn, max_w, start, floor=12, track=0.0):
+    """Largest size at which EVERY string fits `max_w` — one size for the row.
+
+    Sizing the figures as a set rather than individually is the point: a row
+    where "MARKET" is bigger than "OUR MODEL" because it happens to be
+    shorter reads as a mistake, not as emphasis.
+    """
+    f = font_fn(start)
+    while f.size > floor and any(measure(dr, t, f, track) > max_w for t in texts):
+        f = font_fn(f.size - 1)
+    return f
+
+
 # Headshots are FETCHED, not vendored — unlike the 30 club marks. There are
 # ~750 active players and the eight faces on a card change nightly, so
 # vendoring them is not a fixed cost the way the clubs are.
@@ -370,15 +383,39 @@ def render(plate: Path, d: dict, out: Path) -> Path:
             # never a guessed nine.
             ink_at(dr, x, 678, c["bats_note"], _archivo(19, 700), T["dim"])
 
-    # ---- the numbers
+    # ---- the numbers.
+    #
+    # COLUMNS ARE SIZED TO THEIR CONTENT, NOT CUT INTO EQUAL SLICES. Five
+    # figures of very different lengths ("+12.3%" against "7.0u") in five
+    # equal columns puts a fat gap after the short ones and almost none after
+    # the long ones, and the row reads as badly kerned. Measuring each pair
+    # and spending what is left over as ONE gutter width makes the rhythm
+    # even, and it is what stops the row breaking if a sixth figure is ever
+    # added — the type shrinks until the row genuinely fits.
     dr.line([(M, 812), (RIGHT, 812)], fill=T["rule"], width=2)
-    f_k, f_v = _archivo(21, 800), _mono(46, 700)
-    cw = COL / max(len(d["stats"]), 1)
-    for i, (k, v, kind) in enumerate(d["stats"]):
-        x = M + cw * i
+    stats, n = d["stats"], max(len(d["stats"]), 1)
+    MIN_GUT = 24
+    f_k = _archivo(20, 800)
+
+    def _cols(fv):
+        return [max(measure(dr, k.upper(), f_k, 0.14), measure(dr, v, fv))
+                for k, v, _ in stats]
+
+    f_v = _mono(46, 700)
+    while f_v.size > 24 and sum(_cols(f_v)) + MIN_GUT * (n - 1) > COL:
+        f_v = _mono(f_v.size - 1, 700)
+    w = _cols(f_v)
+    gut = (COL - sum(w)) / (n - 1) if n > 1 else 0
+
+    x = float(M)
+    for (k, v, kind), cwi in zip(stats, w):
         ink_at(dr, x, 842, k.upper(), f_k, T["dim"], 0.14)
-        ink_at(dr, x, 880, v, f_v,
+        # Only the edge takes a tone colour. It is the one figure that says
+        # whether the bet is any good; the sign carries the meaning and the
+        # hue only reinforces it, per the palette rule.
+        ink_at(dr, x, 882, v, f_v,
                T["green"] if kind == "up" else T["loss"] if kind == "down" else T["ink"])
+        x += cwi + gut
 
     ink_at(dr, M, 976, d["footer"].upper(), _archivo(20, 700), T["dim"], 0.12)
 
@@ -615,6 +652,7 @@ def _daypart(first_pitch: str) -> str:
 
 
 def top_pick_card(n: dict) -> dict:
+    edge = n["model"] - n["implied"]
     # YRFI is EITHER team scoring, not the away team's — say so, because
     # "Yes run" beside a matchup reads as a bet on the first-named side.
     return {
@@ -628,10 +666,31 @@ def top_pick_card(n: dict) -> dict:
         "matchup": n["matchup"],
         "when": n["when"],
         "clubs": n["clubs"],
+        # THE EDGE IS DERIVED HERE, NEVER READ FROM `edge_on_pick`.
+        #
+        # The dashboard's `deriveEdge` does exactly this and says why: the
+        # stored column is written by a different process than the one that
+        # writes `nrfi_prob`, so the two drift. 41 rows disagree with a
+        # correct recomputation (mean 1.66pp, worst 7.75pp) and 2026-06-17
+        # PIT@OAK has the SIGN BACKWARDS — stored +4.8% on a bet whose real
+        # edge at -150 is -0.6%. Publishing that on a card is worse than
+        # publishing it on a board.
+        #
+        # Deriving from the two figures printed beside it also means the card
+        # cannot contradict the board: same inputs, same formula, same
+        # number. (Model 66.9 and market 54.5 print a 12.3 edge, not 12.4 —
+        # the edge is computed at full precision, then rounded once. Matching
+        # the ledger matters more than surviving mental arithmetic.)
         "stats": [
-            ("We make it", f"{n['model']:.1f}%", "up"),
-            ("Price needs", f"{n['implied']:.1f}%", "flat"),
-            (f"Stake at {fmt_odds(n['odds'])}", f"{n['stake']:.1f}u", "flat"),
+            ("Market", f"{n['implied']:.1f}%", "flat"),
+            ("Our model", f"{n['model']:.1f}%", "flat"),
+            # Real minus (U+2212), not a hyphen — `fmt_odds` already uses one
+            # and the two sit side by side in the same mono row, where a
+            # stubby hyphen next to a full-width minus is visible.
+            ("Edge", f"{'+' if edge >= 0 else '−'}{abs(edge):.1f}%",
+             "up" if edge >= 0 else "down"),
+            ("Stake", f"{n['stake']:.1f}u", "flat"),
+            ("Odds", fmt_odds(n["odds"]), "flat"),
         ],
         "footer": "1 unit = 1% of your bankroll",
     }
