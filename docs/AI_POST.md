@@ -107,12 +107,22 @@ free pass handed to a made-up count.
 
 ### The honest limit
 
-The guard catches invented **numbers**. It cannot catch an invented claim
-with no number in it — *"he's been shaky early all month"*. The prompt
-forbids that, and the fact list is rich enough that the model has no reason
-to reach for it, but a prompt is a request rather than a guarantee. **Read
-the post before you post it.** It is one short paragraph and it is sitting
-right there on `/cards` next to the Copy button.
+The guard catches invented **numbers**, digits and spelled-out counts alike.
+It cannot catch a claim with no number in it. Real examples seen while
+testing this, all with every figure correct:
+
+- *"into Anaheim"* — true for the Angels, but the venue was never supplied,
+  and clubs play neutral-site series. Now forbidden by the prompt.
+- *"a combined clip well north of league average"* — a comparison against a
+  league average the model was never given.
+- *"the Angels counter that vulnerability"* — about the Angels' **own**
+  starter, before the facts began stating who bats against whom.
+
+Each of those was fixed at the source — by adding the missing fact or the
+missing rule — rather than by hoping. But the class of problem does not go
+away: prose is instructed, numbers are enforced. **Read the paragraph before
+you post it.** It is two or three sentences sitting right next to the Copy
+button, and it takes five seconds.
 
 ---
 

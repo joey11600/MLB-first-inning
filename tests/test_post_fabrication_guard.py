@@ -75,6 +75,77 @@ def test_invented_numbers_are_caught(text, culprit):
     assert culprit in mp._unsourced_numbers(text, ALLOWED)
 
 
+@pytest.mark.parametrize("text,culprit", [
+    ("Trout has homered in six straight games.", "6"),
+    ("He has walked twelve in his last outing.", "12"),
+])
+def test_spelled_out_counts_are_checked_too(text, culprit):
+    """A fabricated count is no less fabricated for being spelled.
+
+    The guard read digits only until a real generation slipped "three of his
+    last five" past it — derived by arithmetic, written in words, invisible
+    to a digit scanner.
+    """
+    assert culprit in mp._unsourced_numbers(text, ALLOWED)
+
+
+@pytest.mark.parametrize("text", [
+    "He punches out 7.22 per nine.",        # "nine" appears in the facts
+    "This one sets up well for the hitters.",   # pronoun, not a count
+    "No one has solved him early this year.",
+])
+def test_word_check_does_not_eat_ordinary_prose(text):
+    """"one" is excluded from the word map on purpose: it is an article and a
+    pronoun far more often than a count. And a word that appears in the FACTS
+    allows itself, so "per nine" survives."""
+    assert mp._unsourced_numbers(text, ALLOWED) == []
+
+
+def test_build_facts_runs_on_a_realistic_night():
+    """REGRESSION: `build_facts` ended with an orphaned `del mc` after a
+    refactor dropped the assignment, and nothing caught it — the no-key path
+    returns BEFORE build_facts, so every test and every local run skipped the
+    function entirely. It crashed on the first generation with a real key."""
+    night = {
+        "model": 69.9, "implied": 54.5, "first_pitch": "9:38 PM ET",
+        "clubs": {
+            "away": {"club": "ROYALS", "pitcher": "Seth Lugo",
+                     "bats": [("Bobby Witt Jr.", ".355", 1)]},
+            "home": {"club": "ANGELS", "pitcher": "Grayson Rodriguez",
+                     "bats": [("Mike Trout", ".388", 2)]},
+        },
+        "row": {
+            "away_era": "4.35", "away_whip": "1.35", "away_k9": "7.15",
+            "away_pitcher_throws_hand": "R", "away_p_last5_pitcher_nrfi": "0.8",
+            "home_era": "5.92", "home_whip": "1.47", "home_k9": "8.42",
+            "home_pitcher_throws_hand": "R", "home_p_last5_pitcher_nrfi": "0.4",
+            "park_factor": "0.99", "wx_is_dome": "0.0",
+            "wx_temp_c": "27.2", "wx_wind_kmh": "12.9",
+        },
+    }
+    joined = " ".join(mp.build_facts(night))
+    assert "Seth Lugo" in joined and "Grayson Rodriguez" in joined
+    # BOTH framings of the last-5 record, so the model never has to subtract
+    assert "scoreless in 4 of his last 5" in joined
+    assert "allowed a first-inning run in the other 1" in joined
+    # and who bats against whom, so the causal link is stated, not inferred
+    assert "against Grayson Rodriguez" in joined
+    assert "against Seth Lugo" in joined
+
+
+def test_build_facts_survives_a_night_with_no_row():
+    """`row` is optional — a caller holding only the summary gets the handful
+    of facts that do not need it, not a KeyError."""
+    night = {
+        "model": 69.9, "implied": 54.5, "first_pitch": "9:38 PM ET",
+        "clubs": {
+            "away": {"club": "ROYALS", "pitcher": "Seth Lugo", "bats": []},
+            "home": {"club": "ANGELS", "pitcher": "Grayson Rodriguez", "bats": []},
+        },
+    }
+    assert mp.build_facts(night)
+
+
 def test_the_seed_allowlist_stays_minimal():
     """Every seeded integer is a free pass handed to a fabricated count.
 

@@ -104,7 +104,13 @@ def build_facts(n: dict) -> list[str]:
         f"That is an edge of {n['model'] - n['implied']:+.1f} percentage points.",
     ]
 
-    for side, c in (("away", away), ("home", home)):
+    # `opp` so the top-three fact can name the pitcher they actually face.
+    # Without it the model had the two lineups and the two starters but no
+    # stated relation between them, and wrote "the Angels counter that
+    # weakness" about the Angels' OWN starter — every name and number right,
+    # the causal link invented. The fact sheet, not the prompt, is the place
+    # to fix that: say who bats against whom and there is nothing to infer.
+    for side, c, opp in (("away", away, home), ("home", home, away)):
         who = c["club"].title()
         bits = []
         era, whip = _f(row.get(f"{side}_era")), _f(row.get(f"{side}_whip"))
@@ -126,12 +132,22 @@ def build_facts(n: dict) -> list[str]:
         # count here so the model never divides anything.
         last5 = _f(row.get(f"{side}_p_last5_pitcher_nrfi"))
         if last5 is not None:
+            # BOTH FRAMINGS, because the interesting one is usually the
+            # inverse. Given only "scoreless in 2 of his last 5", Sonnet wrote
+            # "allowed a first-inning run in three of his last five" — correct,
+            # but it got there by subtracting, which is the one thing the fact
+            # sheet exists to make unnecessary, and it wrote the result as
+            # WORDS where the number guard could not see it. Handing it the
+            # subtraction already done removes the reason to do it.
+            kept = round(last5 * 5)
             facts.append(f"{c['pitcher']} has kept the first inning scoreless "
-                         f"in {round(last5 * 5)} of his last 5 starts.")
+                         f"in {kept} of his last 5 starts, and allowed a "
+                         f"first-inning run in the other {5 - kept}.")
 
         if c["bats"]:
             trio = ", ".join(f"{nm} ({obp} on-base)" for nm, obp, _ in c["bats"])
-            facts.append(f"{who} top three due up: {trio}.")
+            facts.append(f"{who} top three, who bat in the 1st against "
+                         f"{opp['pitcher']}: {trio}.")
 
     park = _f(row.get("park_factor"))
     if park is not None:
@@ -146,12 +162,30 @@ def build_facts(n: dict) -> list[str]:
                          f"{round(temp * 9 / 5 + 32)} degrees Fahrenheit.")
         if wind is not None:
             facts.append(f"Wind around {round(wind * 0.621)} miles per hour.")
-    del mc
     return facts
 
 
 # ---- the guard ---------------------------------------------------------------
 _NUM = re.compile(r"\d+(?:\.\d+)?")
+
+# SPELLED-OUT COUNTS COUNT AS NUMBERS. The guard originally read digits only,
+# and a real generation slipped "three of his last five" past it — a claim
+# derived by arithmetic, in words, entirely invisible to a digit scanner. A
+# fabricated count is no less fabricated for being spelled.
+#
+# "one" is deliberately absent: it is a pronoun and an article far more often
+# than a count ("this one", "one of the best"), so checking it would reject
+# ordinary prose. Both sides of the check use this map, so a phrase that
+# appears in the FACTS ("strikeouts per nine") allows its own word.
+_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+          "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
+_WORD_RE = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.I)
+
+
+def _numbers_in(text: str) -> list[str]:
+    """Every figure in `text`, digits and spelled-out counts alike."""
+    return (_NUM.findall(text)
+            + [str(_WORDS[w.lower()]) for w in _WORD_RE.findall(text)])
 
 
 def _allowed_numbers(facts: list[str], n: dict) -> set[str]:
@@ -168,7 +202,7 @@ def _allowed_numbers(facts: list[str], n: dict) -> set[str]:
     """
     ok = {"1"}
     for f in facts:
-        ok.update(_NUM.findall(f))
+        ok.update(_numbers_in(f))
     ok.update(_NUM.findall(f"{n['stake']:.1f} {n['odds']:.0f}"))
     return ok
 
@@ -193,7 +227,7 @@ def _unsourced_numbers(text: str, allowed: set[str]) -> list[str]:
     """
     bad = []
     afloat = {float(a) for a in allowed}
-    for tok in _NUM.findall(text):
+    for tok in _numbers_in(text):
         try:
             v = float(tok)
         except ValueError:
@@ -218,7 +252,13 @@ given, say something else instead.
 - Do not do arithmetic. Every number you need is already written out.
 - The bet is on the FIRST INNING ONLY, and it wins if EITHER team scores. \
 Never write it as a bet on one team, and never call it a bet on the game.
+- Each club's hitters face the OTHER club's starter. A starter's weakness is \
+exploited by the opposing lineup, never by his own. The facts state who bats \
+against whom; do not infer it.
 - Use full club names. Never use abbreviations like CIN or CWS.
+- Do not name the ballpark, stadium or city. You are not told where the game \
+is played, and clubs do play neutral-site series. "Anaheim" for an Angels \
+home game is a guess that happens to land.
 - Do not repeat the price, the units or the word "unit" - they are already \
 printed above your paragraph.
 - Do not give instructions or advice to the reader. Do not say "take", \

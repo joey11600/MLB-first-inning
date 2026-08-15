@@ -11,6 +11,51 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-15b] - First live generation: one crash and three unsourced claims
+
+The operator added `OPENROUTER_API_KEY` and the AI path ran for real for the
+first time. Everything below was found by that one run and the four that
+followed — the no-key path had been hiding all of it.
+
+**Fixed**
+
+- **`build_facts` crashed with `UnboundLocalError: mc`.** An earlier refactor
+  changed `row, mc = n["row"], _mc()` to `row = n.get("row") or {}` and left
+  the trailing `del mc` orphaned. Nothing caught it because `analysis()`
+  returns before `build_facts()` when there is no API key — so every test and
+  every local run had skipped the function entirely. Now covered by
+  `test_build_facts_runs_on_a_realistic_night`.
+
+- **The guard read digits only.** Sonnet was given "scoreless in 2 of his
+  last 5 starts" and wrote "allowed a first-inning run in **three of his last
+  five**" — correct, but reached by subtraction (the one thing the fact sheet
+  exists to prevent) and written in words, invisible to a digit scanner.
+  Fixed at both ends: the facts now state **both framings** so nothing needs
+  inverting, and `_numbers_in` reads spelled-out counts two–twelve. "one" is
+  excluded on purpose — it is an article and a pronoun far more often than a
+  count. Words appearing in the facts allow themselves, so "per nine" lives.
+
+- **The model invented the causal link between a starter and a lineup**:
+  *"the Angels counter that vulnerability"* — about the Angels' **own**
+  starter. It had both lineups and both starters but no stated relation
+  between them. The top-three fact now names the pitcher they actually face,
+  and the prompt says a starter's weakness is exploited by the opposing
+  lineup, never his own. Fixed in the fact sheet, not by hoping.
+
+- **It named the ballpark** (*"into Anaheim"*) — true for the Angels, never
+  supplied, and wrong the moment a club plays a neutral-site series. Prompt
+  now forbids naming venue or city.
+
+**Changed**
+
+- `docs/AI_POST.md` "honest limit" now lists these as concrete examples. The
+  class of problem does not go away: numbers are enforced, prose is only
+  instructed. Read the paragraph before posting it.
+
+228/228 tests pass. No model weights, gates, staking or ledger columns.
+
+---
+
 ## [2026-08-15] - The X post writes itself (OpenRouter), with a fabrication guard
 
 **Added**
