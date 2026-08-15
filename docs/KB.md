@@ -397,6 +397,13 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   The same cron step then runs `tools/cards/prune_cards.py --keep-days 1`,
   which keeps today's set only; it refuses to delete anything unless today's
   cards are already in the bucket, so a failed render never empties the page.
+  `tools/cards/make_post.py` writes that night's ready-to-paste X post to the
+  same bucket as `backfist_<date>_post.txt` (OpenRouter; `OPENROUTER_API_KEY`
+  absent = deterministic template, silently). **The header — play, units,
+  side, price — is built in Python and never generated**, and every number in
+  the generated paragraph is checked against the facts supplied
+  (`_unsourced_numbers`; decimals lenient, integers strict) before it is
+  allowed out. See [docs/AI_POST.md](./AI_POST.md).
 - `components/DashboardShell.tsx` — filter persistence (T3.18), pitcher
   search (T4.18), browser notifications (T4.20), Realtime push hook
   (Phase 2 / T2.31).

@@ -79,6 +79,66 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* ── The night's X post ───────────────────────────────────────────────
+   Sits above that night's cards because the order of the job is: copy the
+   words, then save the picture. Rendered as a sheet like the cards are, but
+   with the attention rail rather than a full border so it reads as a note
+   ABOUT the set rather than a fourth member of it. */
+.post {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--attn);
+  box-shadow: var(--shadow-card);
+  margin: 0 0 22px;
+}
+
+.postHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.postLabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.copy {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  min-height: 40px;
+  padding: 0 22px;
+  cursor: pointer;
+}
+.copy:hover { filter: brightness(1.08); }
+.copy:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* `pre-wrap` because the post is authored with real line breaks -- the play
+   and the units are their own line and must stay that way when pasted. */
+.postBody {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--foreground);
+  margin: 0;
+  padding: 14px;
+  max-width: 68ch;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr;

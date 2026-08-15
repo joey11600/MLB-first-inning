@@ -82,3 +82,11 @@ def test_the_filename_pattern_is_an_allowlist():
         "old/backfist_2026-08-13_leather.png",
     ):
         assert not prune.NAME.match(foreign), foreign
+
+
+def test_the_nights_x_post_ages_out_with_its_cards():
+    """The post is part of the same publication, so it prunes on the same
+    schedule. Before this it matched nothing, counted as "not a card", and
+    accumulated forever."""
+    m = prune.NAME.match("backfist_2026-08-13_post.txt")
+    assert m and m.group(1) == "2026-08-13"

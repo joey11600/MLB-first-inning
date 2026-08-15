@@ -508,6 +508,11 @@ jobs:
         env:
           SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          # Absent = the post falls back to a plain deterministic template,
+          # silently. Same contract as the Telegram vars: the feature is
+          # missing, not broken, and nothing upstream fails without it.
+          OPENROUTER_API_KEY:   ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL:     ${{ vars.OPENROUTER_MODEL }}
         run: |
           set +e
           TODAY_ISO=$(TZ='America/New_York' date +%Y-%m-%d)
@@ -523,6 +528,15 @@ jobs:
             else
               echo "::warning::card render/publish failed (non-blocking)"
             fi
+          fi
+          # The night's ready-to-paste X post, beside the images. Only runs
+          # when a card was actually drawn -- a post without a card is a
+          # tweet about a bet the system did not publish, which is the T8.30
+          # failure in a different costume.
+          if [ $CODE -eq 0 ]; then
+            python tools/cards/make_post.py \
+              --date "$TODAY_ISO" --publish 2>&1 \
+              || echo "::warning::post generation failed (non-blocking)"
           fi
           # RETENTION (operator, 2026-08-14: the old ones are already posted,
           # don't waste space).  A night is ~3.3MB across three plates, so an

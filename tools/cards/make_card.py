@@ -637,6 +637,12 @@ def load_night(date_iso: str) -> dict:
             "away": _club_block(top, "away", away, names.get(away, away)),
             "home": _club_block(top, "home", home, names.get(home, home)),
         },
+        # The winning row itself, so a consumer that needs a column this dict
+        # does not name (make_post.py wants park factor, weather and the
+        # pitchers' recent first-inning record) can read it WITHOUT
+        # re-implementing the ranking. There is one definition of "the No.1"
+        # and it lives above; nothing downstream gets to have its own.
+        "row": top,
     }
 
 

@@ -11,6 +11,78 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-15] - The X post writes itself (OpenRouter), with a fabrication guard
+
+**Added**
+
+- `tools/cards/make_post.py` — the ready-to-paste X post that goes beside the
+  night's cards. Published to the same `cards` bucket as
+  `backfist_<date>_post.txt`, rendered on `/cards` above that night's images
+  with a **Copy** button. Runs on the hourly predict step, only when a card
+  was actually drawn.
+
+- **The header is deterministic; the model only writes the paragraph.** The
+  play, the units, the side and the price are built in Python from the ledger
+  row exactly as the card builds them — an LLM never touches them. Same
+  principle as T8.30: the money-facing line keys off what the system actually
+  STAKED, and generated prose does not go near it.
+
+- **The model is handed pre-formatted English, not raw numbers.** Every fact
+  arrives as a finished fragment ("scoreless 1st in 4 of his last 5 starts"),
+  so composing never requires arithmetic. A model that cannot compute cannot
+  miscompute. Facts come from columns the predictor already wrote: both
+  starters' hand/ERA/WHIP/K9, each one's recent first-inning record, both
+  top-threes with on-base, park factor, roof, temperature and wind.
+
+- **`_unsourced_numbers` — every number written back is checked against the
+  facts supplied.** A prompt is a request, not a control, and a wrong ERA on
+  a public card is the fabrication failure this project has rules about. On a
+  violation it retries once with the offending numbers quoted back, then
+  falls back to a template with no model in the loop.
+  - **Decimals lenient, integers strict**, deliberately. "A 3.7 ERA" for a
+    supplied 3.67 is ordinary prose; but the dangerous invention is a COUNT
+    ("scored first in 8 of their last 10"), and under rounding rules that 8
+    would pass as a rounded 7.58 K/9.
+  - **The seed allowlist is one entry.** It began as {1, 3, 5, 9} for "1st
+    inning" / "top 3" / "last 5" / "per nine" — and seeding 3 alone let
+    "homered in 3 straight games" through. The facts spell those as words, so
+    the seeds were never needed. Every seeded integer is a free pass handed
+    to a fabricated count.
+  - Pinned by `tests/test_post_fabrication_guard.py` (13 tests).
+
+- **Degrades to a deterministic template with no `OPENROUTER_API_KEY`**, and
+  says so. Same contract as the Telegram notifier: absent, not broken.
+  Model is configurable via `OPENROUTER_MODEL`, with fallback slugs so a
+  renamed identifier cannot cost a night its post.
+
+**Changed**
+
+- `storage.buckets` migration `allow_text_posts_in_cards_bucket` — the bucket
+  was created `image/png`/`image/jpeg` only and rejected the post with
+  `415 invalid_mime_type`. Kept in the same bucket as the images on purpose:
+  one publication, one retention job, and the existing anon SELECT policy
+  already covers it.
+- `prune_cards.py` now matches `.txt` as well as `.png`. Without it the post
+  was counted "not a card" and accumulated forever — observed live, where
+  08-13's cards were pruned and its post survived as an orphan.
+- `load_night` returns the winning `row`, so a consumer needing a column the
+  summary does not name reads it without re-implementing the No.1 ranking.
+
+**Fixed**
+
+- The Copy button did nothing when the clipboard was refused. `writeText`
+  throws `NotAllowedError` even in a focused, secure context that exposes the
+  API — measured on a prod build over localhost. It now selects the post so
+  the keyboard shortcut works and the label says so.
+- `build_facts` assumed `n["row"]` and `analysis` built the fact list before
+  checking for an API key, so the no-key path — the path this runs until a
+  key is added — depended on data the template never needs.
+
+**Untouched:** no model weights, gates, thresholds, calibration, staking or
+ledger columns. 221/221 tests pass.
+
+---
+
 ## [2026-08-14c] - The figures row says what the numbers are
 
 **Changed**

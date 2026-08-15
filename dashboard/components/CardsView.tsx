@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import styles from "./CardsView.module.css";
 
 export type CardItem = {
@@ -104,8 +104,60 @@ function Card({ item, eager }: { item: CardItem; eager: boolean }) {
   );
 }
 
-export function CardsView({ items, configured }:
-  { items: CardItem[]; configured: boolean }) {
+/**
+ * The night's X post, ready to paste.
+ *
+ * The whole point is one tap, so the button copies and says so.
+ *
+ * IT ALSO HAS TO SURVIVE THE CLIPBOARD BEING REFUSED. `writeText` can throw
+ * NotAllowedError even in a focused, secure context that exposes the API —
+ * browser policy, a locked-down profile, an http:// host. Measured, not
+ * assumed: it threw exactly that on a prod build over localhost. The first
+ * version caught it and set state back to idle, so the button did nothing
+ * at all when pressed, which is the worst outcome available. Now the fallback
+ * SELECTS the post so the keyboard shortcut works, and the label says so.
+ */
+function PostBlock({ text }: { text: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "manual">("idle");
+  const bodyRef = useRef<HTMLParagraphElement>(null);
+
+  const onCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setState("copied");
+      setTimeout(() => setState("idle"), 2400);
+      return;
+    } catch {
+      // fall through to selecting it by hand
+    }
+    const el = bodyRef.current;
+    if (el) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+    setState("manual");
+  }, [text]);
+
+  return (
+    <div className={styles.post}>
+      <div className={styles.postHead}>
+        <span className={styles.postLabel}>Post for X</span>
+        <button type="button" onClick={onCopy} className={styles.copy}>
+          {state === "copied" ? "Copied"
+            : state === "manual" ? "Selected — press Ctrl/⌘+C"
+            : "Copy"}
+        </button>
+      </div>
+      <p className={styles.postBody} ref={bodyRef}>{text}</p>
+    </div>
+  );
+}
+
+export function CardsView({ items, posts, configured }:
+  { items: CardItem[]; posts: Record<string, string>; configured: boolean }) {
   const nights = Array.from(new Set(items.map((i) => i.date)));
 
   return (
@@ -116,7 +168,8 @@ export function CardsView({ items, configured }:
         <p className={styles.blurb}>
           Square graphics for X, built from the ledger. Tap a card to open it
           full size, or <strong>Save / Share</strong> to put it in your camera
-          roll.
+          roll. Each night’s <strong>Post for X</strong> is written to go with
+          them — hit <strong>Copy</strong> and paste it straight in.
         </p>
       </header>
 
@@ -139,6 +192,7 @@ export function CardsView({ items, configured }:
       {nights.map((date) => (
         <section key={date} className={styles.night}>
           <h2 className={styles.nightTitle}>{longDate(date)}</h2>
+          {posts[date] && <PostBlock text={posts[date]} />}
           <div className={styles.grid}>
             {/* The newest night is the reason the operator opened the page —
                 load it eagerly. Lazy-loading is for the archive below it. */}

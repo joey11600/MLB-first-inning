@@ -40,7 +40,13 @@ from zoneinfo import ZoneInfo
 
 REPO = Path(__file__).parent.parent.parent
 BUCKET = "cards"
-NAME = re.compile(r"^backfist_(\d{4}-\d{2}-\d{2})_([a-z0-9-]+)\.png$", re.I)
+# `.txt` as well as `.png` since 2026-08-14: the night's X post
+# (`backfist_<date>_post.txt`) lives in the same bucket and belongs to the
+# same publication, so it ages out on the same schedule. Without this it
+# matched nothing, was counted as "not a card", and quietly accumulated
+# forever — the exact thing this job exists to stop.
+NAME = re.compile(r"^backfist_(\d{4}-\d{2}-\d{2})_([a-z0-9-]+)\.(?:png|txt)$",
+                  re.I)
 
 
 def retention_cutoff(require_date: str | None, keep_days: int,
