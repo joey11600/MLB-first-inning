@@ -158,25 +158,57 @@ def test_the_seed_allowlist_stays_minimal():
         "1", "7.0", "120"}
 
 
-def test_the_header_is_never_generated():
-    """The play and the units are built in Python and must not depend on the
-    model — that is the T8.30 lesson (publish what the system STAKED)."""
-    night = {
+def _night(first_pitch="1:10 PM ET"):
+    return {
         # Full precision, as `load_night` supplies it — the edge is computed
         # from these and rounded ONCE, so 66.87 - 54.55 prints 12.3, not the
         # 12.4 you would get by subtracting the two displayed figures.
         "side": "YRFI", "stake": 7.0, "odds": -120.0,
-        "model": 66.87, "implied": 54.55, "first_pitch": "1:10 PM ET",
+        "model": 66.87, "implied": 54.55, "first_pitch": first_pitch,
         "clubs": {
             "away": {"club": "REDS", "pitcher": "Andrew Abbott", "bats": []},
             "home": {"club": "WHITE SOX", "pitcher": "Davis Martin", "bats": []},
         },
     }
-    header = mp.build_post(night, verbose=False)[0].split("\n\n")[0]
-    assert "7u" in header
-    assert "Either team scores in the 1st" in header   # never "yes run"
-    assert "−120" in header                       # real minus, as the card
-    assert "Reds at White Sox" in header               # club names, not CIN/CWS
+
+
+def test_every_line_but_the_paragraph_is_built_in_python():
+    """The play, side, model number, price and stake are ledger facts on
+    their own lines. None of them may depend on the model — that is the T8.30
+    lesson: publish what the system STAKED."""
+    post = mp.build_post(_night(), verbose=False)[0]
+    assert "⚾ Reds @ White Sox" in post          # club names, not CIN/CWS
+    assert "🎯 Either Team to Score in the 1st — YES" in post   # never "yes run"
+    assert "📈 Model Probability: 66.9%" in post
+    assert "🎰 Market odds: -120" in post          # plain ASCII for pasting
+    assert "🔥 7 UNIT PLAY" in post                # trailing .0 stripped
+    assert post.endswith("#MLB #MLBBets #SportsBetting #BackfistBets")
+
+
+@pytest.mark.parametrize("first_pitch,expected", [
+    ("9:38 PM ET", "TONIGHT’S"),
+    ("1:10 PM ET", "TODAY’S"),
+    ("4:05 PM ET", "TODAY’S"),
+    ("7:05 PM ET", "TONIGHT’S"),
+])
+def test_the_daypart_matches_first_pitch(first_pitch, expected):
+    """"Tonight's" over a 1:10 first pitch is the kind of wrong a reader
+    notices before they notice anything else. Shares `make_card._daypart`
+    rather than keeping a second copy of the rule."""
+    assert mp.build_post(_night(first_pitch), verbose=False)[0].startswith(
+        f"{expected} #1 PLAY")
+
+
+def test_a_half_unit_stake_keeps_its_decimal():
+    night = _night()
+    night["stake"] = 7.5
+    assert "🔥 7.5 UNIT PLAY" in mp.build_post(night, verbose=False)[0]
+
+
+def test_a_plus_price_keeps_its_sign():
+    night = _night()
+    night["odds"] = 125.0
+    assert "🎰 Market odds: +125" in mp.build_post(night, verbose=False)[0]
 
 
 def test_the_template_fallback_states_only_real_figures():

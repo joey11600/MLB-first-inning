@@ -61,7 +61,7 @@ MODEL_FALLBACKS = [
     "openai/gpt-4o-mini",
 ]
 
-MAX_WORDS = 50
+MAX_WORDS = 40
 
 
 def _mc():
@@ -263,14 +263,18 @@ against whom; do not infer it.
 - Do not name the ballpark, stadium or city. You are not told where the game \
 is played, and clubs do play neutral-site series. "Anaheim" for an Angels \
 home game is a guess that happens to land.
-- Do not repeat the price, the units or the word "unit" - they are already \
-printed above your paragraph.
+- The post already shows, on its own lines above you: the two clubs, the \
+side of the bet, OUR MODEL'S PROBABILITY, the market odds and the stake in \
+units. Do not restate any of them. Never write the model percentage, the \
+price, or the word "unit". Your job is the REASON, which is the one thing \
+those lines cannot carry.
 - Do not give instructions or advice to the reader. Do not say "take", \
 "bet", "lock", "hammer", "smash", or "free money".
 - No emojis. No hashtags. No links. No quotation marks around the whole \
 thing. Do not start with the word "The".
 
-STYLE. TWO SENTENCES. 25 to 45 words total. Punchy and declarative.
+STYLE. TWO SENTENCES. 20 to 35 words total. Punchy and declarative. It sits \
+between a block of figures and a sign-off, so it has to earn its space fast.
 
 - Open on the single strongest concrete reason this first inning looks live \
 - a pitcher's number, or the hitters due up. No wind-up.
@@ -395,17 +399,47 @@ def template(n: dict) -> str:
 
 # ---- assembly ----------------------------------------------------------------
 def build_post(n: dict, verbose: bool = True) -> tuple[str, str]:
-    """The whole post. Header is ours; only the paragraph is generated."""
+    """The whole post, to the operator's 2026-08-15 layout.
+
+    EVERYTHING EXCEPT THE ONE PARAGRAPH IS BUILT HERE. The play, the side,
+    the model number, the price and the stake each get their own scannable
+    line, straight off the ledger row — a reader should be able to take the
+    bet without reading a sentence. The model fills exactly one slot, the
+    reasoning, and is told the figures are already on screen so it does not
+    recite them back.
+
+    `_daypart` is `make_card`'s, not a second copy: "TONIGHT'S" over a 1:10
+    first pitch is the kind of wrong a reader notices before anything else.
+
+    Plain ASCII "-135" here rather than the card's typographic minus. The
+    card wants it for a monospace row; a post gets pasted into an editor and
+    should carry nothing surprising.
+    """
     a, h = n["clubs"]["away"], n["clubs"]["home"]
     mc = _mc()
-    side = ("Either team scores in the 1st" if n["side"] == "YRFI"
-            else "No runs in the 1st inning")
-    para, how = analysis(n, verbose)
+    when = "TONIGHT’S" if mc._daypart(n.get("first_pitch", "")).startswith(
+        "Tonight") else "TODAY’S"
+    side = ("Either Team to Score in the 1st — YES" if n["side"] == "YRFI"
+            else "No Runs in the 1st Inning — YES")
     stake = f"{n['stake']:.1f}".rstrip("0").rstrip(".")
-    header = (f"🚨 NO.1 PLAY — {stake}u\n"
-              f"{a['club'].title()} at {h['club'].title()} · {side} · "
-              f"{mc.fmt_odds(n['odds'])}")
-    return f"{header}\n\n{para}", how
+    para, how = analysis(n, verbose)
+
+    return "\n".join([
+        f"{when} #1 PLAY 🚨",
+        "",
+        f"⚾ {a['club'].title()} @ {h['club'].title()}",
+        f"🎯 {side}",
+        "",
+        f"📈 Model Probability: {n['model']:.1f}%",
+        f"🎰 Market odds: {n['odds']:+.0f}",
+        f"🔥 {stake} UNIT PLAY",
+        "",
+        para,
+        "",
+        "Let’s cash. 💰👊",
+        "",
+        "#MLB #MLBBets #SportsBetting #BackfistBets",
+    ]), how
 
 
 def publish(date_iso: str, text: str) -> str:
@@ -449,7 +483,12 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     text, how = build_post(night)
+    # X's free limit is 280. The layout's fixed furniture is already ~250 of
+    # it, so print the count rather than let it be a surprise after pasting.
+    n_chars = len(text)
     print(f"source : {how}")
+    print(f"length : {n_chars} characters"
+          f"{'  (over 280 — needs X Premium)' if n_chars > 280 else ''}")
     print("-" * 64)
     print(text)
     print("-" * 64)
