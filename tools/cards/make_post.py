@@ -61,7 +61,7 @@ MODEL_FALLBACKS = [
     "openai/gpt-4o-mini",
 ]
 
-MAX_WORDS = 80
+MAX_WORDS = 50
 
 
 def _mc():
@@ -250,6 +250,10 @@ HARD RULES.
 or streak that is not in them. If you want to say something you were not \
 given, say something else instead.
 - Do not do arithmetic. Every number you need is already written out.
+- Do not compress a fact into something that means something else. "Allowed \
+a first-inning run in three of his last five starts" is a count of STARTS; \
+"three first-inning runs allowed" is a count of RUNS, and it is a different \
+claim. Keep the supplied wording where the meaning is load-bearing.
 - The bet is on the FIRST INNING ONLY, and it wins if EITHER team scores. \
 Never write it as a bet on one team, and never call it a bet on the game.
 - Each club's hitters face the OTHER club's starter. A starter's weakness is \
@@ -266,10 +270,36 @@ printed above your paragraph.
 - No emojis. No hashtags. No links. No quotation marks around the whole \
 thing. Do not start with the word "The".
 
-STYLE. Two or three sentences, 45 to 70 words. Plain, confident, specific. \
-Lead with the concrete reason this first inning looks live - a pitcher's \
-number or the hitters due up - not with a summary of the bet. Sound like a \
-sharp person explaining their reasoning, not like an advert."""
+STYLE. TWO SENTENCES. 25 to 45 words total. Punchy and declarative.
+
+- Open on the single strongest concrete reason this first inning looks live \
+- a pitcher's number, or the hitters due up. No wind-up.
+- Cut throat-clearing. Not "brings a 5.92 ERA into this one" but "5.92 ERA, \
+and he has allowed a first-inning run in three of his last five."
+- Every clause carries a fact. At least one hard figure from the list above.
+- No scene-setting, no "sets up well", no summarising the bet back at the \
+reader, no closing flourish.
+- Fragments are fine if they hit harder. Sound like a sharp person with ten \
+seconds, not an advert."""
+
+
+def _trim(text: str, max_words: int = MAX_WORDS) -> str:
+    """Drop WHOLE SENTENCES from the end until it fits the budget.
+
+    The old rule sliced at the word limit and bolted a full stop on, which at
+    an 80-word budget rarely fired. At 50 it would fire often, and produce
+    things like "...sending Meckler, Trout and." Losing a whole sentence is
+    survivable; losing half of one is not. The first sentence is always kept,
+    however long — a truncated lead is worse than an over-long one.
+    """
+    if len(text.split()) <= max_words:
+        return text
+    kept: list[str] = []
+    for sent in re.split(r"(?<=[.!?])\s+", text):
+        if kept and len(" ".join(kept + [sent]).split()) > max_words:
+            break
+        kept.append(sent)
+    return " ".join(kept)
 
 
 def _call(model: str, facts: list[str], daypart: str, extra: str = "") -> str:
@@ -345,9 +375,7 @@ def analysis(n: dict, verbose: bool = True) -> tuple[str, str]:
                     print(f"  ! {model} kept inventing numbers ({', '.join(bad)})"
                           " — falling back to the template", file=sys.stderr)
                 return template(n), "template (failed number check)"
-            if len(out.split()) > MAX_WORDS:
-                out = " ".join(out.split()[:MAX_WORDS]).rstrip(",;:") + "."
-            return out, model
+            return _trim(out), model
     return template(n), "template (no model reachable)"
 
 
