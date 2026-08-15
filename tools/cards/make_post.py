@@ -483,12 +483,13 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     text, how = build_post(night)
-    # X's free limit is 280. The layout's fixed furniture is already ~250 of
-    # it, so print the count rather than let it be a surprise after pasting.
-    n_chars = len(text)
+    # THE 280 LIMIT DOES NOT APPLY HERE — do not shorten this to fit it.
+    # The operator has X Premium (confirmed 2026-08-15) and chose this layout
+    # knowing it runs ~380 characters; the fixed furniture alone is ~200
+    # before the paragraph starts. Premium's ceiling is 25,000, so the count
+    # is printed as information, not as a problem to solve.
     print(f"source : {how}")
-    print(f"length : {n_chars} characters"
-          f"{'  (over 280 — needs X Premium)' if n_chars > 280 else ''}")
+    print(f"length : {len(text)} characters (X Premium limit 25,000)")
     print("-" * 64)
     print(text)
     print("-" * 64)
