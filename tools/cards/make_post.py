@@ -472,11 +472,17 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
     ap.add_argument("--publish", action="store_true")
+    ap.add_argument("--allow-uncommitted", action="store_true",
+                    help="also consider a STRONG YRFI the sizer staked but "
+                         "that never reached bet_placed=Y")
     ap.add_argument("--show-facts", action="store_true",
                     help="print what the model is given, and stop")
     a = ap.parse_args()
 
-    night = _mc().load_night(a.date)
+    night = _mc().load_night(a.date, allow_uncommitted=a.allow_uncommitted)
+    if not night["committed"]:
+        print("  ! NOT COMMITTED — bet_placed is not Y. Accurate, but this "
+              "night will not appear in pl_calc.", file=sys.stderr)
     if a.show_facts:
         for f in build_facts(night):
             print(" -", f)

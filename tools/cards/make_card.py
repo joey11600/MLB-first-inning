@@ -573,8 +573,28 @@ def fmt_odds(o: float) -> str:
     return f"+{o:.0f}" if o > 0 else f"\u2212{abs(o):.0f}"
 
 
-def load_night(date_iso: str) -> dict:
-    """The night's No.1, chosen by the SAME gate the alerts use."""
+def load_night(date_iso: str, allow_uncommitted: bool = False) -> dict:
+    """The night's No.1, chosen by the SAME gate the alerts use.
+
+    `allow_uncommitted` (operator, 2026-08-16) also considers a STRONG YRFI
+    that the sizer STAKED but that never got `bet_placed=Y`.
+
+    WHY THIS IS NOT THE T8.30 FAILURE. That incident published a pick
+    quarter-Kelly had REFUSED — `units_risked` 0. Its rule is "key off what
+    the system STAKED, not what it RANKED", and its three states are
+    stake > 0 = staked, stake == 0 = refused, stake None = unpriced. A row
+    with `units_risked = 2` is the FIRST of those. What failed here is the
+    commit flag, not the sizing: CLAUDE.md T2.24 has STRONG auto-committing
+    regardless of edge, so `bet_placed=N` on a staked STRONG is a plumbing
+    gap, and a card that silently refuses to draw it stacks a second failure
+    on the first.
+
+    IT STAYS OPT-IN ANYWAY, because `pl_calc` counts only `bet_placed=Y`.
+    Posting an uncommitted play means the published record and the tracked
+    P&L disagree about that night — which is the mismatch T8.30 is really
+    about. The caller is told, loudly, so that is a decision and not a
+    side effect.
+    """
     sys.path.insert(0, str(REPO))
     import importlib.util
     spec = importlib.util.spec_from_file_location("_plc", REPO / "tools" / "pl_calc.py")
@@ -598,7 +618,15 @@ def load_night(date_iso: str) -> dict:
         if (r.get("pick_side") or "").strip().upper() != "YRFI":
             continue
         if (r.get("bet_placed") or "").strip().upper() != "Y":
-            continue
+            if not allow_uncommitted:
+                continue
+            # Only a STRONG the sizer actually staked. A LEAN is track-only
+            # by design and a zero stake is a REFUSAL — neither is a missing
+            # commit, and neither may be published as a play.
+            if (r.get("pick_strength") or "").strip().upper() != "STRONG":
+                continue
+            if (_f(r.get("units_risked")) or 0) <= 0:
+                continue
         p, o = _f(r.get("nrfi_prob")), _f(r.get("market_yrfi_odds"))
         if p is None or o is None or o == 0:
             continue          # unpriced stays unpriced — never guessed
@@ -633,6 +661,9 @@ def load_night(date_iso: str) -> dict:
         "odds": odds, "implied": implied(odds) * 100,
         "stake": _f(top.get("units_risked")) or 0.0,
         "result": (top.get("graded_result") or "").strip().upper(),
+        # False = the sizer staked it but nothing ever committed it, so this
+        # night will NOT appear in `pl_calc`. Callers must say so out loud.
+        "committed": (top.get("bet_placed") or "").strip().upper() == "Y",
         "clubs": {
             "away": _club_block(top, "away", away, names.get(away, away)),
             "home": _club_block(top, "home", home, names.get(home, home)),
@@ -741,9 +772,18 @@ if __name__ == "__main__":
     ap.add_argument("--plate", default="leather", choices=names + ["all"])
     ap.add_argument("--publish", action="store_true",
                     help="also upload to Supabase so the dashboard and your phone can see it")
+    ap.add_argument("--allow-uncommitted", action="store_true",
+                    help="also consider a STRONG YRFI the sizer staked but "
+                         "that never reached bet_placed=Y (it will NOT be in "
+                         "pl_calc — see load_night)")
     a = ap.parse_args()
 
-    night = load_night(a.date)
+    night = load_night(a.date, allow_uncommitted=a.allow_uncommitted)
+    if not night["committed"]:
+        print("  ! NOT COMMITTED — bet_placed is not Y on this row. The card "
+              "is accurate, but this night\n"
+              "    will NOT appear in pl_calc, so posting it splits the "
+              "published record from the ledger.", file=sys.stderr)
     card = top_pick_card(night)
     picked = names if a.plate == "all" else [a.plate]
 
