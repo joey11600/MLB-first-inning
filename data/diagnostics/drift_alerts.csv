@@ -291,3 +291,4 @@ date,severity,metric,note
 2026-08-13,MEDIUM,home_pitcher_q=live,home_pitcher_q=live: today=100.0% baseline=79.2% shift=+20.8%
 2026-08-13,MEDIUM,away_whiff_pct_rank_extreme,"away_whiff_pct_rank has 2/9 extreme values (outside [5.0, 95.0]); max=100.00"
 2026-08-16,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 3/15 extreme values (outside [5.0, 95.0]); max=100.00"
+2026-08-16,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 3/15 extreme values (outside [5.0, 95.0]); max=100.00"
