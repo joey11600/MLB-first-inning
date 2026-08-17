@@ -1,7 +1,7 @@
 {
   "date": "2026-08-17",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-17T15:03:39Z",
+  "fitted_at": "2026-08-17T15:24:16Z",
   "n_picks": 11,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1019,12 +1019,12 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2674,
-      "raw_p_run_b1": 0.3168,
-      "raw_p_nrfi": 0.5005,
-      "calibrated_p_nrfi": 0.5011,
+      "raw_p_run_t1": 0.247,
+      "raw_p_run_b1": 0.3283,
+      "raw_p_nrfi": 0.5058,
+      "calibrated_p_nrfi": 0.5044,
       "calibrator_band": {
-        "band": "bin_4-5",
+        "band": "bin_5-6",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -1055,19 +1055,19 @@
           "outlier": false
         },
         {
+          "name": "era_gap_t1",
+          "value": -0.574,
+          "z": -0.667,
+          "weight": 0.0923,
+          "contribution": -0.0615,
+          "outlier": false
+        },
+        {
           "name": "fi_park_nrfi_rate",
           "value": 0.5121,
           "z": 0.351,
           "weight": -0.141,
           "contribution": -0.0494,
-          "outlier": false
-        },
-        {
-          "name": "away_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.562,
-          "weight": 0.0856,
-          "contribution": -0.0481,
           "outlier": false
         }
       ],
@@ -1115,12 +1115,12 @@
       ],
       "priors_vs_raw": {
         "home_xera_raw": 4.2,
-        "home_xera_pooled": null,
+        "home_xera_pooled": 4.2,
         "away_xera_raw": 4.2,
         "away_xera_pooled": 4.2
       },
       "pitcher_q": {
-        "home_pitcher_q": "avg",
+        "home_pitcher_q": "sm",
         "away_pitcher_q": "ltd"
       },
       "warnings": []
