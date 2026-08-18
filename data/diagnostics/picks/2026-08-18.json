@@ -1,7 +1,7 @@
 {
   "date": "2026-08-18",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-18T21:34:59Z",
+  "fitted_at": "2026-08-18T22:04:48Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -11,9 +11,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3836,
-      "raw_p_run_b1": 0.4692,
-      "raw_p_nrfi": 0.3272,
+      "raw_p_run_t1": 0.3831,
+      "raw_p_run_b1": 0.4685,
+      "raw_p_nrfi": 0.3279,
       "calibrated_p_nrfi": 0.2872,
       "calibrator_band": {
         "band": "below_min",
@@ -96,10 +96,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 32.0,
-          "z": 1.856,
+          "value": 31.6,
+          "z": 1.787,
           "weight": 0.0483,
-          "contribution": 0.0897,
+          "contribution": 0.0864,
           "outlier": false
         }
       ],
@@ -570,10 +570,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2552,
-      "raw_p_run_b1": 0.3687,
-      "raw_p_nrfi": 0.4702,
-      "calibrated_p_nrfi": 0.4876,
+      "raw_p_run_t1": 0.2554,
+      "raw_p_run_b1": 0.369,
+      "raw_p_nrfi": 0.4698,
+      "calibrated_p_nrfi": 0.4875,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
@@ -682,10 +682,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2776,
-      "raw_p_run_b1": 0.2869,
-      "raw_p_nrfi": 0.5151,
-      "calibrated_p_nrfi": 0.5114,
+      "raw_p_run_t1": 0.2781,
+      "raw_p_run_b1": 0.288,
+      "raw_p_nrfi": 0.514,
+      "calibrated_p_nrfi": 0.5106,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -794,10 +794,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2991,
-      "raw_p_run_b1": 0.2741,
-      "raw_p_nrfi": 0.5088,
-      "calibrated_p_nrfi": 0.5066,
+      "raw_p_run_t1": 0.2973,
+      "raw_p_run_b1": 0.2702,
+      "raw_p_nrfi": 0.5128,
+      "calibrated_p_nrfi": 0.5097,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -881,10 +881,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 29.2,
-          "z": 1.372,
+          "value": 28.9,
+          "z": 1.321,
           "weight": 0.0483,
-          "contribution": 0.0664,
+          "contribution": 0.0638,
           "outlier": false
         }
       ],
@@ -908,10 +908,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2939,
-      "raw_p_run_b1": 0.2981,
-      "raw_p_nrfi": 0.4956,
-      "calibrated_p_nrfi": 0.4987,
+      "raw_p_run_t1": 0.2931,
+      "raw_p_run_b1": 0.2966,
+      "raw_p_nrfi": 0.4972,
+      "calibrated_p_nrfi": 0.4995,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -1134,10 +1134,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.1892,
-      "raw_p_run_b1": 0.3586,
-      "raw_p_nrfi": 0.5201,
-      "calibrated_p_nrfi": 0.5136,
+      "raw_p_run_t1": 0.1891,
+      "raw_p_run_b1": 0.3583,
+      "raw_p_nrfi": 0.5204,
+      "calibrated_p_nrfi": 0.5137,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -1220,11 +1220,11 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_iso",
-          "value": 0.1869,
-          "z": 0.163,
-          "weight": 0.2289,
-          "contribution": 0.0372,
+          "name": "wx_wind_kmh",
+          "value": 7.9,
+          "z": -0.762,
+          "weight": 0.0497,
+          "contribution": -0.0378,
           "outlier": false
         }
       ],
@@ -1246,10 +1246,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.1952,
-      "raw_p_run_b1": 0.3185,
-      "raw_p_nrfi": 0.5485,
-      "calibrated_p_nrfi": 0.5328,
+      "raw_p_run_t1": 0.1958,
+      "raw_p_run_b1": 0.3203,
+      "raw_p_nrfi": 0.5466,
+      "calibrated_p_nrfi": 0.5305,
       "calibrator_band": {
         "band": "bin_7-8",
         "is_flat": false,
@@ -1358,10 +1358,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2591,
-      "raw_p_run_b1": 0.2928,
-      "raw_p_nrfi": 0.524,
-      "calibrated_p_nrfi": 0.5147,
+      "raw_p_run_t1": 0.2575,
+      "raw_p_run_b1": 0.2889,
+      "raw_p_nrfi": 0.528,
+      "calibrated_p_nrfi": 0.5158,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -1403,10 +1403,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 25.1,
-          "z": 0.664,
+          "value": 25.0,
+          "z": 0.647,
           "weight": 0.0347,
-          "contribution": 0.023,
+          "contribution": 0.0224,
           "outlier": false
         }
       ],
@@ -1470,10 +1470,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.1971,
-      "raw_p_run_b1": 0.2521,
-      "raw_p_nrfi": 0.6005,
-      "calibrated_p_nrfi": 0.5963,
+      "raw_p_run_t1": 0.1995,
+      "raw_p_run_b1": 0.2584,
+      "raw_p_nrfi": 0.5936,
+      "calibrated_p_nrfi": 0.5816,
       "calibrator_band": {
         "band": "bin_9-10",
         "is_flat": false,
@@ -1540,11 +1540,19 @@
           "outlier": false
         },
         {
+          "name": "wx_wind_kmh",
+          "value": 20.2,
+          "z": 1.845,
+          "weight": 0.0497,
+          "contribution": 0.0916,
+          "outlier": false
+        },
+        {
           "name": "wx_temp_c",
-          "value": 31.0,
-          "z": 1.684,
+          "value": 31.5,
+          "z": 1.77,
           "weight": 0.0483,
-          "contribution": 0.0814,
+          "contribution": 0.0856,
           "outlier": false
         },
         {
@@ -1553,14 +1561,6 @@
           "z": 0.181,
           "weight": -0.398,
           "contribution": -0.0721,
-          "outlier": false
-        },
-        {
-          "name": "era_gap_b1",
-          "value": 1.053,
-          "z": 1.229,
-          "weight": 0.058,
-          "contribution": 0.0713,
           "outlier": false
         }
       ],
@@ -1584,12 +1584,12 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2501,
-      "raw_p_run_b1": 0.2861,
-      "raw_p_nrfi": 0.5353,
-      "calibrated_p_nrfi": 0.5178,
+      "raw_p_run_t1": 0.2489,
+      "raw_p_run_b1": 0.2833,
+      "raw_p_nrfi": 0.5383,
+      "calibrated_p_nrfi": 0.5208,
       "calibrator_band": {
-        "band": "bin_6-7",
+        "band": "bin_7-8",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
