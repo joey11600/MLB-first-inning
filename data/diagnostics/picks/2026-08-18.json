@@ -1,7 +1,7 @@
 {
   "date": "2026-08-18",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-18T21:04:56Z",
+  "fitted_at": "2026-08-18T21:15:34Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -12,8 +12,8 @@
       "pick_strength": "STRONG",
       "graded_result": "",
       "raw_p_run_t1": 0.401,
-      "raw_p_run_b1": 0.5025,
-      "raw_p_nrfi": 0.298,
+      "raw_p_run_b1": 0.4692,
+      "raw_p_nrfi": 0.318,
       "calibrated_p_nrfi": 0.2872,
       "calibrator_band": {
         "band": "below_min",
@@ -71,14 +71,6 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_slg",
-          "value": 0.4168,
-          "z": -0.368,
-          "weight": -0.398,
-          "contribution": 0.1466,
-          "outlier": false
-        },
-        {
           "name": "away_fip",
           "value": 5.264,
           "z": 2.479,
@@ -92,6 +84,14 @@
           "z": -1.276,
           "weight": -0.1011,
           "contribution": 0.129,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_slg",
+          "value": 0.4586,
+          "z": 0.284,
+          "weight": -0.398,
+          "contribution": -0.1131,
           "outlier": false
         },
         {
