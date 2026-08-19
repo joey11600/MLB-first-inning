@@ -1658,18 +1658,43 @@ def fetch_weather_season(home_abbr: str, season: int, use_cache: bool = True) ->
     Pull a season's worth of historical weather for a park in ONE API call.
     Returns a dict keyed by date_iso -> {temp_c, wind_kmh, wind_deg, humidity}.
     Picks the hourly value at a 7pm local-ish slot (game time proxy).
-    Cached per (park, season).
+    Cached per (park, season, archive end date).
     """
     if home_abbr not in PARK_COORDS:
         return {}
-    cache_key = f"{home_abbr}_{season}"
-    cached = _cache_get("weather_season", cache_key, use_cache)
-    if cached is not None:
-        return cached
 
     lat, lon = PARK_COORDS[home_abbr]
     start = f"{season}-04-01"
     end   = f"{season}-09-30"
+
+    # The archive endpoint rejects a future end_date outright --
+    #   {"error":true,"reason":"Parameter 'end_date' is out of allowed
+    #    range from 1940-01-01 to <today>"}
+    # -- so EVERY in-season call 400'd: Sep 30 hasn't happened yet.  Clamp
+    # to yesterday.  The archive only carries settled days, and today's
+    # games take their weather from the live-forecast fallback in
+    # mlb_first_inning_predictor.fetch_game_weather regardless.
+    #
+    # The clamped end joins the CACHE KEY because weather_season has TTL=0
+    # (see CACHE_TTL_SECONDS -- "historical archive doesn't change" is true
+    # of a FINISHED season and false of the one in progress).  Without that,
+    # the first fetch of the live season would pin a short window forever.
+    # It also sidesteps the pre-fix cache: every park had already stored {}
+    # under the old <PARK>_<SEASON> key from the 400s, and with no TTL that
+    # would have made this fix a silent no-op on any warm cache.
+    archive_end = (date.today() - timedelta(days=1)).isoformat()
+    if end > archive_end:
+        end = archive_end
+        cache_key = f"{home_abbr}_{season}_{end}"
+    else:
+        cache_key = f"{home_abbr}_{season}"
+    if start > end:
+        return {}                       # season hasn't opened yet
+
+    cached = _cache_get("weather_season", cache_key, use_cache)
+    if cached is not None:
+        return cached
+
     url = (
         "https://archive-api.open-meteo.com/v1/archive"
         f"?latitude={lat}&longitude={lon}"

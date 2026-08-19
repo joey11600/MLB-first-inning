@@ -61,6 +61,43 @@ the one config fix that was actually warranted.
 
   Model, gates, staking and the ledger were **not touched**.
 
+**Fixed**
+
+- **The weather archive had been returning nothing, all season, for every
+  park (`T8.37`).** `backtest.fetch_weather_season` asked Open-Meteo's
+  *archive* endpoint for `{season}-04-01 → {season}-09-30`. In-season, Sep 30
+  is a **future** date, and the archive refuses the request outright:
+  `"Parameter 'end_date' is out of allowed range from 1940-01-01 to
+  2026-08-19"`. Every outdoor park, every run — the Railway log has been
+  printing `[weather PIT 2026] error: HTTP Error 400` on a loop.
+
+  **Picks were not wrong.** `fetch_game_weather` falls back to the live
+  *forecast* endpoint, so live slates still received real temperature, wind
+  and humidity. The costs were elsewhere: ~7 seconds burned per park on each
+  cold start — the first predict cycle after a restart ran **86.5s against
+  19.2s** for the next — and any *historical* lookup (grading, backtests) got
+  league-mean defaults instead of the weather that actually occurred.
+
+  The cache made it self-concealing. `weather_season` is set to **TTL=0** on
+  the reasoning *"historical archive doesn't change"* — true of a finished
+  season, false of the one in progress. All 22 parks had `{}` stored under
+  `<PARK>_<SEASON>` with no expiry, so clamping the date alone would have
+  been a **silent no-op on any warm cache**. The fix therefore does both:
+  clamps `end_date` to yesterday (the archive only carries settled days, and
+  today's games take the forecast path regardless) *and* folds the clamped
+  end into the cache key — so the live season re-fetches a one-day-longer
+  window each day while finished seasons keep the plain key and stay cached
+  forever.
+
+  Verified against the live API: 2026 went **0 → 140 dates** (Apr 1 → Aug 18),
+  PHI 2026-08-15 now returns `temp 30.3°C / wind 10.7 km/h / humidity 31%`
+  instead of blanks, Tropicana still correctly reports `is_dome=1` with
+  neutral defaults, 2025 still returns its full 183 dates on the plain key,
+  and the call takes ~1.2s instead of timing out. **234 tests green.**
+
+  No model weights, gates, thresholds or staking logic were touched — this
+  restores an input that was already supposed to be arriving.
+
 ---
 
 ## [2026-08-15b] - First live generation: one crash and three unsourced claims

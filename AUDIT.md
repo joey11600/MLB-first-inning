@@ -298,6 +298,41 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [x] **T8.37 — the weather archive returned nothing, all season, for every park** ✅ 2026-08-19
+  `backtest.fetch_weather_season` asked Open-Meteo's **archive** endpoint for
+  `{season}-04-01 → {season}-09-30`. In-season, Sep 30 is a FUTURE date, and
+  the archive rejects the whole request:
+  `{"error":true,"reason":"Parameter 'end_date' is out of allowed range from
+  1940-01-01 to 2026-08-19"}`. Every outdoor park, every run, all season —
+  visible in the Railway log as `[weather PIT 2026] error: HTTP Error 400`.
+  **Picks were not wrong**: `fetch_game_weather` falls back to the live
+  forecast endpoint, so live slates still got real temp/wind/humidity. Two
+  real costs: (1) ~7s wasted per park per cold start — the first predict
+  cycle after each restart took **86.5s vs 19.2s** for the next one; (2) any
+  *historical* lookup (grading, backtests) silently got league-mean defaults
+  instead of the weather that actually occurred.
+  **Compounded by the cache**: `weather_season` has **TTL=0** on the
+  reasoning "historical archive doesn't change" — true of a finished season,
+  false of the one in progress. All 22 parks had `{}` stored under
+  `<PARK>_<SEASON>` and it would never expire, so a date-only fix would have
+  been a silent no-op on every warm cache. Fixed by clamping `end_date` to
+  yesterday AND folding the clamped end into the cache key, so the live
+  season re-fetches a one-day-longer window daily and past seasons keep the
+  plain key. Verified: 2026 went 0 → **140 dates**, 234 tests green.
+
+- [x] **T8.36 — Railway rebuilt both services on every cron data commit** ✅ 2026-08-19
+  `railway.json` carried no `watchPatterns`, so all ~17 daily `auto: predict`
+  commits — which touch only `data/` outputs — triggered a full rebuild and
+  restart of the predictor AND the live scoreboard. Confirmed 08-19: deploy
+  14:27:27 → `Starting Container` 14:28:37 / 14:29:23. `predictor_loop.py`
+  already listed "mid-cycle redeploy" among the drift it has to heal.
+  Fixed with a **narrow** exclusion list — deliberately not `!/data/**` as
+  the strikeouts repo uses, because this repo keeps the model
+  (`lr_t1.json`, `calibration_v*.json`) and operator config
+  (`manual_odds_overrides.csv`, `cluster_demotions.json`) inside `data/`;
+  blanket-excluding it would have frozen operator overrides on a
+  long-lived container. Only verified write-only/ephemeral outputs excluded.
+
 - [x] **T8.35 — the No.1 locked mid-outage: MLB withdrew the lineup card** ✅ 2026-08-13
   2026-08-13 CIN@CWS, the night's **No.1**, published at YRFI 66.87% and
   staked **2u** where the rule says **7u**. It won: +1.667u booked instead
