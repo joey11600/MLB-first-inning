@@ -11,6 +11,58 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-19] - Railway: stop the cron's own data commits from restarting the workers
+
+Operator reported "the runs on Railway keep failing" for both first-inning and
+strikeouts. Neither model was broken — both were running. Diagnosis below, plus
+the one config fix that was actually warranted.
+
+**What was NOT wrong** (recorded so the next session doesn't re-chase it):
+
+- **strikeouts: the wall of `SKIPPED` deploys is by design.** That worker
+  commits `dashboard/public/data.json` every 5 min and pushes to its own repo,
+  which asks Railway to redeploy the worker that just pushed. `railway.json`
+  there carries `watchPatterns` with `!/dashboard/**`, so Railway correctly
+  declines. ~290 grey rows/day is the loop-breaker working, not a failure.
+  Note it also means the *container image* only rolls on a code commit — but
+  the worker `git reset`s to origin every cycle, so Python changes still land
+  within 5 min; only `requirements.txt` / `Dockerfile` changes need a redeploy.
+- **first-inning: the 5 `FAILED` deploys were a burst on 08-18, 15:39–23:29 UTC,
+  and stopped on their own.** Builds all succeeded (image pushed); they died at
+  container start with zero deploy log lines, and the predictor and
+  live-scoreboard services failed at *identical* timestamps (21:35, 23:05,
+  23:29). Two independent processes don't fail at the same instant for their
+  own reasons — that was platform-side. No code fix applied, none warranted.
+
+**Changed**
+
+- **`railway.json` now carries `watchPatterns`.** first-inning had none, so all
+  ~17 daily `auto: predict` commits from the GHA cron rebuilt and restarted
+  *both* Railway services. Confirmed on 08-19: deploy at 14:27:27 →
+  `Starting Container` at 14:28:37 (predictor) and 14:29:23 (scoreboard).
+  `workers/predictor_loop.py` already names "mid-cycle redeploy" as drift it
+  has to heal from; this removes the cause.
+
+  The exclusion list is deliberately **narrow, not `!/data/**`** the way the
+  strikeouts repo does it. That repo keeps its model in `models/`; this one
+  keeps the model *and* operator config inside `data/` — `lr_t1.json`,
+  `calibration_v*.json`, `fi_park_factors.json`, `manual_odds_overrides.csv`,
+  `cluster_demotions.json`. Excluding all of `data/` would have frozen the
+  operator's odds overrides and cluster demotions on a long-lived container.
+  Only the six churning *outputs* are excluded (plus `backups/`), each verified
+  write-only or ephemeral before being added:
+  - `picks_2026.csv` — `predictor_loop.py` header: *"the container's local CSV
+    is ephemeral — that's fine… Supabase is the source of truth."*
+  - `thresholds.json` / `season_record.json` — exports **for the dashboard**;
+    the live gates are Python constants, `_write_thresholds_json()` only
+    publishes them outward.
+  - `pick_changes.csv`, `system_errors.csv`, `boards/`, `diagnostics/` — journals
+    and run artifacts, never read back by the predict path.
+
+  Model, gates, staking and the ledger were **not touched**.
+
+---
+
 ## [2026-08-15b] - First live generation: one crash and three unsourced claims
 
 The operator added `OPENROUTER_API_KEY` and the AI path ran for real for the

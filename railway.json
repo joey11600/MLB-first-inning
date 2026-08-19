@@ -1,7 +1,18 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "watchPatterns": [
+      "**",
+      "!/data/picks_2026.csv",
+      "!/data/pick_changes.csv",
+      "!/data/system_errors.csv",
+      "!/data/season_record.json",
+      "!/data/thresholds.json",
+      "!/data/boards/**",
+      "!/data/diagnostics/**",
+      "!/data/backups/**"
+    ]
   },
   "deploy": {
     "restartPolicyType": "ALWAYS",
