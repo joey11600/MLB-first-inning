@@ -339,7 +339,19 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   the same scripts GHA uses).
 - `Procfile` — `worker: python workers/live_state.py` (default service).
 - `railway.json` — Nixpacks builder config; `startCommand` deliberately
-  NOT set (would override per-service UI customizations).
+  NOT set (would override per-service UI customizations). Also carries
+  `watchPatterns` (T8.36, 2026-08-19): the cron's own `auto: predict`
+  commits touch only `data/` outputs, and without this every one of the
+  ~17 daily commits rebuilt and restarted BOTH services mid-cycle. The
+  list excludes only verified write-only/ephemeral outputs
+  (`picks_2026.csv`, `pick_changes.csv`, `system_errors.csv`,
+  `thresholds.json`, `season_record.json`, `boards/`, `diagnostics/`,
+  `backups/`). **Do NOT widen it to `!/data/**`** — unlike the
+  MLB-Strikeouts repo, this one keeps the model (`lr_t1.json`,
+  `calibration_v*.json`) and operator config
+  (`manual_odds_overrides.csv`, `cluster_demotions.json`) inside
+  `data/`; excluding those would freeze an operator edit on a
+  long-lived container.
 - Railway project: **capable-nourishment** (workspace `joey1160`).
   Two services in one project:
   1. `worker` → live_state.py (default Procfile)
