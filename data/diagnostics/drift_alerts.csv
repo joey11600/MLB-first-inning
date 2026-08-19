@@ -293,3 +293,4 @@ date,severity,metric,note
 2026-08-16,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 3/15 extreme values (outside [5.0, 95.0]); max=100.00"
 2026-08-16,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 3/15 extreme values (outside [5.0, 95.0]); max=100.00"
 2026-08-18,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
+2026-08-18,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
