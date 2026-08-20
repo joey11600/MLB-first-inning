@@ -11,6 +11,55 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-20] - Odds source switched to The Odds API, priced at FanDuel
+
+Operator: *"the odds are not working. we need to use odds api."* Correct — the
+whole 08-20 slate had no price at all, with a STRONG YRFI due to lock at 13:10 ET.
+
+**The documented plan was refuted by the first live call.**
+
+`odds_source_strategy` assumed we could buy *DraftKings'* number from The Odds
+API — "same book, different pipe", which is what kept the published series
+continuous. **DraftKings does not offer `totals_1st_1_innings` there.** Measured,
+not inferred: DK returns a normal moneyline quote on the same event and nothing
+on the first-inning total, while FanDuel / BetOnline.ag / BetRivers / BetMGM
+each cover 9 of 9 games. So enabling the feed with its default `--book
+draftkings` was a silent no-op — it returned nothing and cost nothing.
+
+**Changed**
+
+- `PREDICTOR_ODDS_API=enabled`, `ODDS_API_BOOK=fanduel` on Railway. Operator
+  chose FanDuel over BetMGM / BetOnline / best-of-N because the picks are sold
+  and the published price must be one a subscriber can actually take (BetOnline
+  is offshore). Cost of that choice, stated plainly: FanDuel was the *worst* of
+  the three on the day's STRONG — -122 against BetOnline's -103 and BetMGM's
+  -110, a 19-cent spread worth roughly two stake steps. n=1; measure over a week.
+- `PREDICTOR_SCRAPE_DK=skip`, so a recovered DraftKings scraper cannot write its
+  price into the same file and leave the ledger silently mixing two bases.
+- **The book name is read from the row, never hardcoded.** Three subscriber
+  Telegram bodies and one Discord line printed a literal "DK" beside the price.
+  A follower reading "DK -122" would open DraftKings and find a different number
+  against a FanDuel-sized stake — T8.30's rule applied to the book name.
+  `tracker._book_label` mirrors `shortBook()` in `BoardRow.tsx`, and a test
+  parses the TSX to assert the two agree.
+
+**Unchanged, deliberately**
+
+- **Every past night keeps its DraftKings price.** Nothing is re-priced;
+  2026-08-20 is recorded as the date the source changed. Re-pricing history
+  would alter the record of games already played.
+- Dashboard copy describing the DK-priced *record* is left as-is — still true.
+
+**Verified**
+
+- 3 of 9 games priced at 15:25Z with `book=FanDuel` (STL@CIN -104, TOR@TB +102,
+  SF@CLE +128); the rest price as they enter the 120:55 window.
+- Measured cost: **9 credits per full-slate sweep** — the event list is free,
+  1 credit per game. Free tier is 500/month; the $30 "20K" tier covers it.
+- 13 tests in `tests/test_book_label.py`. Suite 264 green. `tsc --noEmit` clean.
+
+---
+
 ## [2026-08-19b] - The night's card now publishes when the pick locks, not when GitHub gets round to it
 
 Operator: *"it is Wednesday, August 19 but the cards section still only has the

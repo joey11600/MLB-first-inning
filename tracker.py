@@ -1952,6 +1952,37 @@ def _notify_event_telegram(event_type: str, event_key: str, body: str) -> bool:
     return ok
 
 
+def _book_label(row: dict) -> str:
+    """The book the captured price ACTUALLY came from, short form.
+
+    HARDCODING "DK" IN AN ALERT WAS A LIE WAITING TO HAPPEN, and on
+    2026-08-20 it became one.  DraftKings does not offer the first-inning
+    market through The Odds API -- verified live: it quotes moneyline on the
+    same event but returns nothing for `totals_1st_1_innings`, while
+    FanDuel / BetMGM / BetRivers / BetOnline cover 9 of 9 games -- so the
+    price source moved to FanDuel while every subscriber alert still said
+    "DK".  A follower who read that word and opened DraftKings would find a
+    DIFFERENT number, against a stake quarter-Kelly sized for FanDuel's.
+    That is T8.30's rule (publish what the system actually did) applied to
+    the book name instead of the stake.
+
+    Mirrors `shortBook()` in `dashboard/components/BoardRow.tsx` -- change
+    one, change both, exactly like the No.1 rule.  Falls back to the plain
+    column value rather than guessing, and to "Market" when the row names no
+    book at all, because no label is safer than a wrong one.
+    """
+    name = (row.get("sportsbook") or "").strip()
+    if not name:
+        return "Market"
+    low = name.lower()
+    if low.startswith("draftking"): return "DK"
+    if low.startswith("fanduel"):   return "FD"
+    if low.startswith("betmgm"):    return "MGM"
+    if low.startswith("caesars"):   return "CAE"
+    if low.startswith("pinnacle"):  return "PIN"
+    return name
+
+
 def _dashboard_link(date_iso: str = "") -> str:
     """Build the trailing 'View on dashboard →' anchor used in nearly
     every notification body."""
@@ -2362,7 +2393,7 @@ def _notify_strong_locked_telegram(row: dict,
     body = "\n".join([
         f"🔒 <b>BET LOCKED · STRONG {side}</b>",
         f"{away} @ {home} · {game_time}",
-        f"DK {price} · {units}u{edge_str}",
+        f"{_book_label(row)} {price} · {units}u{edge_str}",
         "(Pick is committed -- model verdict frozen until grade.)",
         "",
         _dashboard_link(iso_date),
@@ -2430,7 +2461,7 @@ def _notify_strong_graded_telegram(row: dict, today_record: tuple[int, int, int]
 
     body = "\n".join([
         f"{icon} <b>STRONG {side}</b> · {away} @ {home} · {grade}",
-        f"DK {price} · {units}u risked → <b>{pl_line}</b>",
+        f"{_book_label(row)} {price} · {units}u risked → <b>{pl_line}</b>",
         score_line,
         today_line,
         "",
@@ -2970,7 +3001,7 @@ def _notify_strong_pregame_telegram(row: dict, minutes_to_first_pitch: int) -> N
     body = "\n".join([
         f"⏰ <b>{minutes_to_first_pitch} min</b> to first pitch",
         f"<b>STRONG {side}</b> · {away} @ {home} · {game_time}",
-        f"DK {price}" + (f" · edge {edge_pct}" if edge_pct else "") + f" · {units}u",
+        f"{_book_label(row)} {price}" + (f" · edge {edge_pct}" if edge_pct else "") + f" · {units}u",
         "Last call to lock in the bet.",
         "",
         _dashboard_link(iso_date),

@@ -1055,13 +1055,13 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
       <span
         className={`${styles.oddsChip} ${toneClass}`}
         title={
-          `Bet placed: ${row.pickSide} (no DK price captured at lock).` +
+          `Bet placed: ${row.pickSide} (no price captured at lock).` +
           `\nP&L computed at the standard -110 payout fallback.` +
-          `\nThis happens when DK closes the market before the scraper` +
+          `\nThis happens when the book closes the market before the feed` +
           ` reaches the game.`
         }
       >
-        <span className={styles.oddsBook}>DK</span>
+        <span className={styles.oddsBook}>—</span>
         <span className={styles.oddsPair}>
           <span className={styles.oddsSideLabel}>{sideLabel}</span>
           <span className={styles.oddsPrice}>-110*</span>
@@ -1089,7 +1089,7 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
       <span
         className={`${styles.oddsChip} ${toneClass}`}
         title={
-          `Market on ${detail.sportsbook || "DK"}: `
+          `Market on ${detail.sportsbook || "the book"}: `
           + (nrfiPrice ? `NRFI ${nrfiPrice}` : "NRFI —")
           + " · "
           + (yrfiPrice ? `YRFI ${yrfiPrice}` : "YRFI —")

@@ -253,7 +253,7 @@ export function TopPlayHero({ rows, details, date, report }: TopPlayHeroProps) {
           {placed ? (
             <>The bet is in the ledger at {odds != null ? formatAmerican(odds) : "its captured price"}.</>
           ) : odds == null ? (
-            <>Waiting on a DraftKings price — the stake is sized the moment one is captured.</>
+            <>Waiting on a price — the stake is sized the moment one is captured.</>
           ) : minsToLock != null && minsToLock > 0 ? (
             <>
               Pick locks at {lockAt ? formatLockTime(lockAt) : "—"} ET ·{" "}

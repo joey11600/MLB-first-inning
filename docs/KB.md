@@ -174,7 +174,7 @@ inning) prediction system. Daily pipeline:
 1. **Predict** — pulls schedule + pitcher/team stats from MLB StatsAPI,
    feeds a 4-feature logistic regression, produces a board of picks (STRONG
    NRFI / LEAN NRFI / PASS / LEAN YRFI / STRONG YRFI per game).
-2. **Track** — appends picks to `data/picks_2026.csv`, captures DraftKings
+2. **Track** — appends picks to `data/picks_2026.csv`, captures FanDuel
    odds on the picked side, computes edge vs implied prob, and flags
    `bet_placed=Y` when edge clears the 2% threshold.
 3. **Grade** — re-pulls box scores; writes `graded_result` (WIN/LOSS/PASS),
@@ -224,7 +224,7 @@ how few games clear both "odds captured" AND "edge ≥ 2%".
 ## Architecture (post-Phase-1.5/2/3/4/6 — current)
 
 ```
-              MLB Stats API   Open-Meteo   DraftKings
+              MLB Stats API   Open-Meteo   The Odds API
                    │              │            │
                    ▼              ▼            ▼
    ┌────────────────────────────────────────────────────────┐
@@ -233,7 +233,7 @@ how few games clear both "odds captured" AND "edge ≥ 2%".
    │     1. catch-up grade yesterday                        │
    │     2. live-grade today's completed 1sts               │
    │     3. predict → mlb_first_inning_predictor.py         │
-   │     4. scrape_dk_odds.py                               │
+   │     4. fetch_odds_api.py  (FanDuel; T8.39)             │
    │     5. import_odds → tracker.import_odds               │
    │     6. tools/lock_commit.py  (T8.18 PART 2)            │
    │     … pre-game alert, reconcile, Discord, watchdog     │
@@ -292,7 +292,7 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
 | Inning ends, bet graded | ~10 sec | same |
 | Lineup posts | ~5 min | predictor cycle catches it on next tick |
 | Pick flips on weather/lineup | ~5 min | same |
-| DK odds drift | ~5 min | scrape → import → upsert in same cycle |
+| Odds drift | ~5 min | fetch → import → upsert in same cycle |
 | Bet placed (manual via dashboard chip) | <1 sec | local state |
 
 ---

@@ -298,6 +298,50 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [x] **T8.39 — the odds source moved to FanDuel, because DK does not sell the market** ✅ 2026-08-20
+  Operator: *"the odds are not working. we need to use odds api."* True — all
+  9 games on the 08-20 slate had NO price at all: blank `market_*_odds`, blank
+  `sportsbook`, blank `odds_captured_at`, with a STRONG YRFI on ATL@CWS due to
+  lock at 13:10 ET.
+  **THE PLAN OF RECORD WAS REFUTED BY THE FIRST LIVE CALL.**
+  `odds_source_strategy` (2026-08-06) is built on "keep DK as the NAMED price,
+  stop SCRAPING it — same book, same number, different pipe", which is what
+  makes the published series continuous with no track-record reset. It does
+  not survive contact: **DraftKings does not offer `totals_1st_1_innings`
+  through The Odds API.** Measured, not inferred — DK returns a normal
+  moneyline quote on the very same event, and 0 books on the first-inning
+  total, while FanDuel / BetOnline.ag / BetRivers / BetMGM each cover **9 of
+  9 games**. So `PREDICTOR_ODDS_API=enabled` with the default
+  `--book draftkings` is a silent NO-OP: it returns nothing and costs nothing.
+  That is also why `fetch_odds_api.py`'s own header warned "UNTESTED PATHS …
+  treat the first live run as a verification step" — it had never run.
+  **Operator chose FanDuel** (2026-08-20) over BetMGM / BetOnline / best-of-N:
+  the picks are SOLD, so the published price has to be one a subscriber can
+  actually take, and BetOnline is offshore. Cost: FanDuel was the WORST of the
+  three on that day's STRONG (-122 vs BetOnline's -103, BetMGM -110) — a
+  19-cent spread, which their own notes price at roughly two stake steps.
+  n=1; worth measuring over a week.
+  **Switched:** `ODDS_API_BOOK=fanduel`, `PREDICTOR_ODDS_API=enabled`,
+  `PREDICTOR_SCRAPE_DK=skip` — the last so a recovered DK scraper cannot write
+  its price into the same file and leave the ledger silently mixing two bases.
+  **History is untouched and the boundary is marked**, per the operator: every
+  past night keeps its DraftKings price, nothing is re-priced, and 2026-08-20
+  is the date the source changed. Re-pricing history would alter the record of
+  games already played — a different product wearing this one's label.
+  **The book name is no longer a constant.** Three subscriber Telegram bodies
+  and one Discord line printed a literal "DK"/"DraftKings" beside the captured
+  price; a follower reading "DK -122" would open DraftKings and find a
+  different number against a FanDuel-sized stake — T8.30's rule applied to the
+  book name. `tracker._book_label` reads the row's `sportsbook` column and
+  mirrors `shortBook()` in `BoardRow.tsx`; a test parses the TSX and asserts
+  the two agree. The dashboard's hardcoded "DK" chip and its no-price tooltip
+  are neutral now. Historical copy that describes the DK-priced RECORD is
+  deliberately left alone — it is still true.
+  Verified live: 3 of 9 games priced at 15:25Z, `book=FanDuel`
+  (STL@CIN -104, TOR@TB +102, SF@CLE +128), the rest pricing as they enter
+  the 120:55 window. Measured cost **9 credits per full-slate sweep**
+  (event list is free). 13 tests in `tests/test_book_label.py`; suite 264.
+
 - [x] **T8.38 — the night's card could publish AFTER first pitch** ✅ 2026-08-19
   Operator: *"it is Wednesday, August 19 but the cards section still only has
   the x post for Tuesday."* Two independent faults, and only the second is the

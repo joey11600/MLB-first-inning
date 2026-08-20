@@ -810,10 +810,19 @@ def build_board(date_iso: str, rows: list[dict],
     # "11 of 11 priced" beneath a one-game board reads as a mistake.
     priced = sum(1 for r in live if side_price(r) is not None)
     L.append("")
+    # NAME THE BOOK THE ROWS ACTUALLY CARRY, never a constant.  This line
+    # said "DraftKings" on 2026-08-20 while the captured prices had moved to
+    # FanDuel (DK does not serve the first-inning market through The Odds
+    # API), which would send a subscriber to the wrong book for a number
+    # sized against a different one.  See tracker._book_label.
+    books = sorted({(r.get("sportsbook") or "").strip()
+                    for r in live if (r.get("sportsbook") or "").strip()})
+    book_str = (books[0] if len(books) == 1
+                else " / ".join(books) if books else "the market")
     L.append(f"_Prices captured for {priced} of {len(live)} listed "
              f"game{'s' if len(live) != 1 else ''} — most books post "
              f"first-inning lines close to game time. Prices shown are "
-             f"DraftKings; if your book differs, the stake still holds so "
+             f"{book_str}; if your book differs, the stake still holds so "
              f"long as you are inside the 'don't take worse than' number._")
     return "\n".join(L)
 
