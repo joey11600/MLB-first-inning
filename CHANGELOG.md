@@ -48,6 +48,11 @@ number one pick locks."* Two separate faults sat behind that one symptom.
   be ~200 renders and ~200 OpenRouter calls a day to upsert three identical
   objects. The cache is a module global — the worker is long-lived, and the
   worst a restart costs is one redundant render.
+- **The card and the post carry SEPARATE cache markers.** With one shared
+  marker, a post stuck failing (the `cards` bucket rejected `text/plain` with a
+  415 once already) would redraw the three heavy Pillow plates every 5 minutes
+  all night — ~200 renders and ~660MB of uploads to retry one small text
+  object. Split, the cheap half retries on its own.
 - **Committed picks only** — `--allow-uncommitted` is deliberately not passed.
   `pl_calc` counts only `bet_placed=Y`, so publishing an uncommitted play would
   put a bet on the public card that the tracked P&L does not contain (T8.30).

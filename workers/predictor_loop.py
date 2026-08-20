@@ -475,6 +475,13 @@ def step_discord_broadcasts() -> int:
 # minutes.  See step_publish_cards' docstring for why this is a module
 # global rather than a file.
 _LAST_CARD_SIG: tuple | None = None
+# The post is cached SEPARATELY from the card, and the split is deliberate.
+# If they shared one marker, a post that keeps failing (the `cards` bucket
+# rejected `text/plain` with a 415 once already) would force the three heavy
+# Pillow plates to be redrawn and re-uploaded every 5 minutes all night --
+# ~200 renders and ~660MB of uploads to retry one small text object.  Two
+# markers let the cheap half retry on its own.
+_LAST_POST_SIG: tuple | None = None
 
 
 def step_publish_cards() -> int:
@@ -517,7 +524,7 @@ def step_publish_cards() -> int:
     denies.  When there is no committed No.1, `load_night` raises and
     this step does nothing.
     """
-    global _LAST_CARD_SIG
+    global _LAST_CARD_SIG, _LAST_POST_SIG
     if os.environ.get("PREDICTOR_PUBLISH_CARDS", "on").strip().lower() == "off":
         return 0
 
@@ -538,31 +545,39 @@ def step_publish_cards() -> int:
         # most of the day, not a fault -- stay quiet about it.  Clearing
         # the cache matters: if the No.1 is withdrawn and later returns
         # identical, the card must be redrawn rather than assumed present.
-        _LAST_CARD_SIG = None
+        _LAST_CARD_SIG = _LAST_POST_SIG = None
         msg = str(exc).strip()
         if msg and "no priced STRONG YRFI play" not in msg and "no rows for" not in msg:
             print(f"[predictor] [cards] skipped ({exc!r})", file=sys.stderr, flush=True)
         return 0
 
-    if sig == _LAST_CARD_SIG:
-        return 0        # same No.1, same price, same stake -- nothing to redraw
+    if sig == _LAST_CARD_SIG and sig == _LAST_POST_SIG:
+        return 0        # same No.1, same price, same stake -- nothing to do
 
-    rc = run(
-        ["python", "tools/cards/make_card.py",
-         "--date", date_iso, "--plate", "all", "--publish"],
-        TIMEOUT_CARDS, "cards",
-    )
+    if sig != _LAST_CARD_SIG:
+        rc = run(
+            ["python", "tools/cards/make_card.py",
+             "--date", date_iso, "--plate", "all", "--publish"],
+            TIMEOUT_CARDS, "cards",
+        )
+        if rc != 0:
+            print(f"[predictor] [cards] render failed (rc={rc}); continuing",
+                  file=sys.stderr, flush=True)
+            return 0    # marker stays unset, so the next cycle retries
+        _LAST_CARD_SIG = sig
+
+    # The post only ever follows a card that actually drew -- a post with no
+    # card is a tweet about a bet the system did not publish.  Its marker is
+    # set only on success, so a failed upload retries WITHOUT redrawing the
+    # three plates the card marker above has already banked.
+    rc = run(["python", "tools/cards/make_post.py",
+              "--date", date_iso, "--publish"], TIMEOUT_CARDS, "cards-post")
     if rc != 0:
-        print(f"[predictor] [cards] render failed (rc={rc}); continuing",
-              file=sys.stderr, flush=True)
-        return 0        # leave the cache unset so the next cycle retries
+        print(f"[predictor] [cards] post failed (rc={rc}); card is published, "
+              f"will retry the post next cycle", file=sys.stderr, flush=True)
+        return 0
+    _LAST_POST_SIG = sig
 
-    # The post only ever follows a card that actually drew -- a post with
-    # no card is a tweet about a bet the system did not publish.
-    run(["python", "tools/cards/make_post.py", "--date", date_iso, "--publish"],
-        TIMEOUT_CARDS, "cards-post")
-
-    _LAST_CARD_SIG = sig
     print(f"[predictor] [cards] published {night['matchup']} "
           f"{night['stake']}u @ {night['odds']:+.0f}", flush=True)
     return 0

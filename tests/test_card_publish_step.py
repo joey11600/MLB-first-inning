@@ -48,6 +48,7 @@ def spy(monkeypatch):
     monkeypatch.setattr(pl, "run", lambda cmd, t, label: calls.append(label) or 0)
     monkeypatch.setattr(pl, "today_iso", lambda: "2026-08-19")
     monkeypatch.setattr(pl, "_LAST_CARD_SIG", None, raising=False)
+    monkeypatch.setattr(pl, "_LAST_POST_SIG", None, raising=False)
     monkeypatch.delenv("PREDICTOR_PUBLISH_CARDS", raising=False)
     return calls
 
@@ -151,6 +152,44 @@ def test_a_failed_render_is_retried_next_cycle(spy, monkeypatch):
     monkeypatch.setattr(pl, "run", lambda cmd, t, label: 1)
     pl.step_publish_cards()
     assert pl._LAST_CARD_SIG is None
+
+
+def test_a_failed_post_retries_without_redrawing_the_card(spy, monkeypatch):
+    """THE REASON THE TWO MARKERS ARE SEPARATE. The `cards` bucket rejected
+    `text/plain` with a 415 once already. If one marker covered both, a post
+    stuck in that state would redraw three heavy Pillow plates every 5 minutes
+    all night to retry one small text object."""
+    _night(monkeypatch, NIGHT)
+
+    def only_post_fails(cmd, t, label):
+        spy.append(label)
+        return 1 if label == "cards-post" else 0
+
+    monkeypatch.setattr(pl, "run", only_post_fails)
+    pl.step_publish_cards()
+    assert spy == ["cards", "cards-post"]
+    assert pl._LAST_CARD_SIG is not None      # the card DID publish
+    assert pl._LAST_POST_SIG is None          # the post did not
+
+    spy.clear()
+    pl.step_publish_cards()
+    assert spy == ["cards-post"], "the card must not be redrawn to retry a post"
+
+
+def test_a_recovered_post_stops_retrying(spy, monkeypatch):
+    """Once the post lands, the step goes quiet again."""
+    _night(monkeypatch, NIGHT)
+    monkeypatch.setattr(pl, "run",
+                        lambda cmd, t, label: spy.append(label) or
+                        (1 if label == "cards-post" else 0))
+    pl.step_publish_cards()
+    monkeypatch.setattr(pl, "run", lambda cmd, t, label: spy.append(label) or 0)
+    spy.clear()
+    pl.step_publish_cards()
+    assert spy == ["cards-post"]
+    spy.clear()
+    pl.step_publish_cards()
+    assert spy == []
 
 
 def test_the_kill_switch_stops_it_dead(spy, monkeypatch):
