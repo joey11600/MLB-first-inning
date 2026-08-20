@@ -48,6 +48,14 @@ number one pick locks."* Two separate faults sat behind that one symptom.
   be ~200 renders and ~200 OpenRouter calls a day to upsert three identical
   objects. The cache is a module global — the worker is long-lived, and the
   worst a restart costs is one redundant render.
+- **A host without `OPENROUTER_API_KEY` publishes the card but NOT the post.**
+  `make_post`'s template fallback is correct when one host renders — absent,
+  not broken. With two hosts it becomes a *downgrade*: GitHub Actions holds the
+  key and writes the real paragraph, and Railway (which does not) would upsert
+  the generic template over it, ~6x more often. Caught live on the first night
+  this step ran. The card carries no generated text and cannot be degraded, so
+  it still publishes every cycle. Setting `OPENROUTER_API_KEY` on the Railway
+  service is all it takes to get the post same-cycle too.
 - **The card and the post carry SEPARATE cache markers.** With one shared
   marker, a post stuck failing (the `cards` bucket rejected `text/plain` with a
   415 once already) would redraw the three heavy Pillow plates every 5 minutes

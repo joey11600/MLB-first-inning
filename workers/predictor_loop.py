@@ -566,6 +566,33 @@ def step_publish_cards() -> int:
             return 0    # marker stays unset, so the next cycle retries
         _LAST_CARD_SIG = sig
 
+    # A HOST WITHOUT THE MODEL KEY MUST NOT PUBLISH THE POST.
+    #
+    # `make_post` falls back to a deterministic template when
+    # OPENROUTER_API_KEY is absent, and that fallback is correct when ONE
+    # host renders -- absent, not broken. With TWO hosts it stops being a
+    # fallback and becomes a DOWNGRADE: GitHub Actions holds the key and
+    # writes the real paragraph, this worker did not and would upsert the
+    # generic template over it. Railway renders ~6x more often, so the
+    # template would win nearly every night. Measured 2026-08-19, the first
+    # night this step ran: GHA wrote "Kyle Freeland brings a 5.95 ERA and has
+    # allowed a first-inning run in three of his last five starts", Railway
+    # replaced it four minutes later with "Roki Sasaki and Kyle Freeland open
+    # this one, and our model makes...".
+    #
+    # So the card -- which has no generated content and cannot be degraded --
+    # still publishes every cycle, and the post is left to whichever host can
+    # actually write it. Set OPENROUTER_API_KEY on the Railway service to get
+    # the post same-cycle too; until then GHA's ~30-minute tick owns it.
+    if not (os.environ.get("OPENROUTER_API_KEY") or "").strip():
+        if _LAST_POST_SIG != sig:
+            print("[predictor] [cards] card published; leaving the POST to "
+                  "GitHub Actions (OPENROUTER_API_KEY unset here, and the "
+                  "template would overwrite the model-written paragraph)",
+                  flush=True)
+            _LAST_POST_SIG = sig
+        return 0
+
     # The post only ever follows a card that actually drew -- a post with no
     # card is a tweet about a bet the system did not publish.  Its marker is
     # set only on success, so a failed upload retries WITHOUT redrawing the

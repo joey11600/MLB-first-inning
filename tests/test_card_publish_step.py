@@ -50,6 +50,9 @@ def spy(monkeypatch):
     monkeypatch.setattr(pl, "_LAST_CARD_SIG", None, raising=False)
     monkeypatch.setattr(pl, "_LAST_POST_SIG", None, raising=False)
     monkeypatch.delenv("PREDICTOR_PUBLISH_CARDS", raising=False)
+    # Most tests assume this host CAN write the real paragraph; the
+    # downgrade-guard tests below clear it explicitly.
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     return calls
 
 
@@ -190,6 +193,42 @@ def test_a_recovered_post_stops_retrying(spy, monkeypatch):
     spy.clear()
     pl.step_publish_cards()
     assert spy == []
+
+
+def test_a_host_without_the_model_key_publishes_the_card_but_not_the_post(
+        spy, monkeypatch):
+    """THE REGRESSION THIS GUARDS. `make_post` falls back to a deterministic
+    template with no OPENROUTER_API_KEY, which is correct for ONE renderer and
+    a DOWNGRADE for two: GitHub Actions holds the key and writes the real
+    paragraph, and this worker would upsert the template over it — measured
+    live on 2026-08-19, four minutes after GHA wrote the good one.
+
+    The card carries no generated text and cannot be degraded, so it still
+    publishes every cycle."""
+    _night(monkeypatch, NIGHT)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    assert pl.step_publish_cards() == 0
+    assert spy == ["cards"], "the card must still publish; only the post waits"
+
+
+def test_the_keyless_host_does_not_redraw_the_card_every_cycle(spy, monkeypatch):
+    """The guard must not become an infinite redraw: an unchanged No.1 on a
+    keyless host settles to doing nothing at all."""
+    _night(monkeypatch, NIGHT)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    pl.step_publish_cards()
+    spy.clear()
+    pl.step_publish_cards()
+    assert spy == []
+
+
+def test_adding_the_key_lets_the_post_publish(spy, monkeypatch):
+    """Setting OPENROUTER_API_KEY on the worker is all it takes to get the
+    post same-cycle as well."""
+    _night(monkeypatch, NIGHT)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "now-i-have-one")
+    assert pl.step_publish_cards() == 0
+    assert spy == ["cards", "cards-post"]
 
 
 def test_the_kill_switch_stops_it_dead(spy, monkeypatch):
