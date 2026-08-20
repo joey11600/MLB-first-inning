@@ -79,6 +79,10 @@ TIMEOUT_GRADE      = int(os.environ.get("PREDICTOR_GRADE_TIMEOUT_S",   "180"))
 TIMEOUT_PREDICT    = int(os.environ.get("PREDICTOR_PREDICT_TIMEOUT_S", "300"))
 TIMEOUT_SCRAPE     = int(os.environ.get("PREDICTOR_SCRAPE_TIMEOUT_S",  "120"))
 TIMEOUT_IMPORT     = int(os.environ.get("PREDICTOR_IMPORT_TIMEOUT_S",  "120"))
+# Three Pillow plates plus one OpenRouter call for the post paragraph.
+# The render is ~5s locally; the model call is the variable part and
+# make_post falls back to a template rather than hanging.
+TIMEOUT_CARDS      = int(os.environ.get("PREDICTOR_CARDS_TIMEOUT_S",   "180"))
 
 
 # ---------------------------------------------------------------------------
@@ -466,6 +470,104 @@ def step_discord_broadcasts() -> int:
         return 0    # NEVER surface as a cycle failure -- marketing is not money
 
 
+# The No.1 the cards were last drawn for, so an unchanged slate does not
+# redraw three identical objects (and pay an OpenRouter call) every 5
+# minutes.  See step_publish_cards' docstring for why this is a module
+# global rather than a file.
+_LAST_CARD_SIG: tuple | None = None
+
+
+def step_publish_cards() -> int:
+    """Draw + publish the Backfist cards and the X post for tonight's No.1,
+    in the SAME cycle the pick commits.  Soft-fail, always returns 0.
+
+    WHY THIS EXISTS.  The renderer was wired only into the GitHub Actions
+    predict step, so the published card lagged the lock by however long it
+    took the next GHA tick to fire.  Measured live on 2026-08-19: LAD@COL
+    committed at 20:30 ET for a 20:40 first pitch, and the next GHA tick
+    was 21:00 -- the "tonight's play" post would have appeared twenty
+    minutes AFTER the game it was advertising had started.  Railway is
+    already the host that commits the pick (T8.18 lock-commit runs here),
+    so this is the only place the card CAN be same-cycle.  GHA keeps its
+    own copy of the step: two hosts upserting the same three
+    date+plate-named objects is a redundancy, not a race, and the card
+    must survive either host being down.
+
+    WHY IT RUNS LAST, AFTER THE WATCHDOG.  Same rule as the Discord
+    broadcasts: everything above owns money, data or monitoring, this owns
+    marketing, and a slow Pillow render or a stalled model call must never
+    push a bet commit, a pre-game ping or the dead-man's switch later.
+
+    WHY THE SIGNATURE CACHE.  The cycle is 5 minutes across a ~17-hour
+    active window, so rendering unconditionally would mean ~200 renders
+    and ~200 OpenRouter calls a day to publish the same three objects.
+    The card is a function of the No.1 alone, so it is redrawn only when
+    the No.1 CHANGES -- which is exactly the transition the operator
+    wants published (the ledger genuinely moves during the day: on
+    2026-08-12 the afternoon No.1 was COL@ARI and the evening No.1 was
+    TEX@LAA, and both were true when drawn).  The cache is a module
+    global, not a file: this worker is a long-lived process, and the
+    worst a restart can cost is one redundant render.
+
+    COMMITTED PICKS ONLY -- `--allow-uncommitted` is deliberately NOT
+    passed.  `pl_calc` counts only `bet_placed=Y`, so publishing an
+    uncommitted play would put a bet on the public card that the tracked
+    P&L does not contain.  That mismatch is what T8.30 is about, and a
+    stale card is a much smaller failure than a published bet the ledger
+    denies.  When there is no committed No.1, `load_night` raises and
+    this step does nothing.
+    """
+    global _LAST_CARD_SIG
+    if os.environ.get("PREDICTOR_PUBLISH_CARDS", "on").strip().lower() == "off":
+        return 0
+
+    date_iso = today_iso()
+    try:
+        sys.path.insert(0, str(REPO_ROOT))
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_mc_worker", REPO_ROOT / "tools" / "cards" / "make_card.py")
+        mc = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mc)
+        # The ONE definition of the No.1 -- reused, never re-implemented.
+        night = mc.load_night(date_iso)
+        sig = (date_iso, night["matchup"], night["side"],
+               night["stake"], night["odds"], night["committed"])
+    except (Exception, SystemExit) as exc:   # noqa: BLE001
+        # No committed, priced STRONG YRFI yet is the NORMAL state for
+        # most of the day, not a fault -- stay quiet about it.  Clearing
+        # the cache matters: if the No.1 is withdrawn and later returns
+        # identical, the card must be redrawn rather than assumed present.
+        _LAST_CARD_SIG = None
+        msg = str(exc).strip()
+        if msg and "no priced STRONG YRFI play" not in msg and "no rows for" not in msg:
+            print(f"[predictor] [cards] skipped ({exc!r})", file=sys.stderr, flush=True)
+        return 0
+
+    if sig == _LAST_CARD_SIG:
+        return 0        # same No.1, same price, same stake -- nothing to redraw
+
+    rc = run(
+        ["python", "tools/cards/make_card.py",
+         "--date", date_iso, "--plate", "all", "--publish"],
+        TIMEOUT_CARDS, "cards",
+    )
+    if rc != 0:
+        print(f"[predictor] [cards] render failed (rc={rc}); continuing",
+              file=sys.stderr, flush=True)
+        return 0        # leave the cache unset so the next cycle retries
+
+    # The post only ever follows a card that actually drew -- a post with
+    # no card is a tweet about a bet the system did not publish.
+    run(["python", "tools/cards/make_post.py", "--date", date_iso, "--publish"],
+        TIMEOUT_CARDS, "cards-post")
+
+    _LAST_CARD_SIG = sig
+    print(f"[predictor] [cards] published {night['matchup']} "
+          f"{night['stake']}u @ {night['odds']:+.0f}", flush=True)
+    return 0
+
+
 def step_pregame_alert_check() -> int:
     """T2.38 #2: scan today's STRONG bets for any whose first pitch is
     inside the pre-game alert window (25-35 min from now in ET).  Ping
@@ -646,6 +748,13 @@ def cycle() -> None:
     except (Exception, SystemExit) as exc:   # noqa: BLE001
         print(f"[predictor] [watchdog] step failed ({exc!r}); continuing",
               file=sys.stderr, flush=True)
+
+    # 11: the Backfist card + X post for tonight's No.1.  DEAD LAST on
+    # purpose -- it is marketing, like the Discord broadcasts, and the
+    # steps above own money, data and monitoring.  Same cycle as the
+    # commit above is the whole point: the card used to wait for the next
+    # GitHub tick and could land after first pitch.  Always returns 0.
+    step_publish_cards()
 
     dur = time.time() - started
     print(f"[predictor] === cycle end ({dur:.1f}s) ===", flush=True)

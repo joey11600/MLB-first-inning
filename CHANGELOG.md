@@ -11,6 +11,74 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-19b] - The night's card now publishes when the pick locks, not when GitHub gets round to it
+
+Operator: *"it is Wednesday, August 19 but the cards section still only has the
+x post for Tuesday … make sure that it updates every single day right as the
+number one pick locks."* Two separate faults sat behind that one symptom.
+
+**Fixed**
+
+- **T8.38 / T8.18 PART 2 — the No.1 was never committing, so no card could
+  exist.** DraftKings started 403ing the Railway worker; `odds_captured_at`
+  froze at 15:19 UTC across all 15 rows and stayed frozen for nine hours. A
+  pick only commits inside `_apply_odds_to_row`, which runs *only when a fresh
+  price arrives* — so LAD@COL sat at `bet_placed=N` with a 7u stake and a -145
+  price well past its 19:40 ET lock cutoff, and `make_card` (correctly) refuses
+  to draw an uncommitted pick. `tools/lock_commit.py` exists for exactly this
+  and was switched off. **`NRFI_LOCK_COMMIT=enabled` set on Railway**, ten days
+  after PART 1 and only after checking the documented precondition:
+  `stake_drift.py` reported **0 violations over 28 locked STRONG rows on 16
+  slates**. Rollback is deleting the Railway variable.
+- **T8.38 — the card render only ever ran on GitHub Actions, so it could land
+  after first pitch.** `workers.predictor_loop.step_publish_cards` now draws and
+  publishes the cards + X post in the SAME Railway cycle that commits the pick.
+  Measured on the night it shipped: the commit landed 00:30 UTC and the next
+  GHA tick was 01:00 — the "tonight's play" post would have appeared twenty
+  minutes after the game it advertised had started.
+
+**Changed**
+
+- The new step runs **dead last in the cycle, after the watchdog** — same rule
+  as the Discord broadcasts: everything above owns money, data or monitoring,
+  this owns marketing, and a slow Pillow render must never push a bet commit or
+  the dead-man's switch later.
+- It redraws **only when the No.1's signature changes** (matchup, side, stake,
+  price, committed). A 5-minute cycle across a 17-hour window would otherwise
+  be ~200 renders and ~200 OpenRouter calls a day to upsert three identical
+  objects. The cache is a module global — the worker is long-lived, and the
+  worst a restart costs is one redundant render.
+- **Committed picks only** — `--allow-uncommitted` is deliberately not passed.
+  `pl_calc` counts only `bet_placed=Y`, so publishing an uncommitted play would
+  put a bet on the public card that the tracked P&L does not contain (T8.30).
+  A stale card is a much smaller failure than a published bet the ledger denies.
+- GHA keeps its own copy of the step. Two hosts upserting the same three
+  date+plate-named objects is redundancy, not a race, and the card must survive
+  either host being down.
+- Kill switch: `PREDICTOR_PUBLISH_CARDS=off`.
+
+**Verified**
+
+- Wednesday's cards + post published at 00:34 UTC — 4 minutes after the lock,
+  6 minutes before first pitch — carrying **3u @ -160**, matching the committed
+  row exactly. The stake had correctly re-derived 7u → 3u as DK moved to -160
+  and p(YRFI) fell to 66.1% (T8.18 PART 1 doing its job).
+- `tests/test_card_publish_step.py` — 12 tests covering redraw-on-change,
+  skip-when-unchanged, committed-only, no-post-without-a-card, retry after a
+  failed render, the kill switch, soft-fail, and the cycle ordering. Suite 246
+  green (was 234).
+
+**Not touched:** model weights, gates, thresholds, calibration, the staking
+formula, and every money column in `tracker.py`. The only money-path change is
+the Railway flag flip, which is the shipped-dark T8.18 PART 2 being armed.
+
+**Open:** DraftKings now 403s Railway intermittently — the wall that has been
+on GitHub Actions since May. Railway is the only working capture source, so
+this is the real underlying risk; operator has asked to price a paid odds feed
+rather than keep scraping.
+
+---
+
 ## [2026-08-19] - Railway: stop the cron's own data commits from restarting the workers
 
 Operator reported "the runs on Railway keep failing" for both first-inning and

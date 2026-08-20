@@ -235,6 +235,9 @@ how few games clear both "odds captured" AND "edge ≥ 2%".
    │     3. predict → mlb_first_inning_predictor.py         │
    │     4. scrape_dk_odds.py                               │
    │     5. import_odds → tracker.import_odds               │
+   │     6. tools/lock_commit.py  (T8.18 PART 2)            │
+   │     … pre-game alert, reconcile, Discord, watchdog     │
+   │    11. cards + X post  (T8.38, LAST — marketing)       │
    │   ALL writes dual-write to Supabase via                │
    │   db/supabase_writer.py (Phase 1.5)                    │
    └────────────────────────────────────────────────────────┘
@@ -336,7 +339,13 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   10am-2am ET, quiet sleep otherwise.
 - `workers/predictor_loop.py` — Phase 3. 5min cycle running the full
   predict+grade+scrape+import flow. Subprocess-based (shells out to
-  the same scripts GHA uses).
+  the same scripts GHA uses). Ends with `step_publish_cards` (T8.38,
+  2026-08-19), which draws the Backfist cards + X post in the SAME cycle
+  that commits the No.1 — the render used to run only on the GHA tick and
+  could publish "tonight's play" after first pitch. It sits below the
+  watchdog so marketing can never delay money, data or monitoring, and
+  redraws only when the No.1's signature changes. `PREDICTOR_PUBLISH_CARDS=off`
+  disables it.
 - `Procfile` — `worker: python workers/live_state.py` (default service).
 - `railway.json` — Nixpacks builder config; `startCommand` deliberately
   NOT set (would override per-service UI customizations). Also carries

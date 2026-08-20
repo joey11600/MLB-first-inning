@@ -298,6 +298,36 @@ the live ledger's own columns are healthy.
   is still documented converts into a false assurance, which is a worse
   state than never having had it.
 
+- [x] **T8.38 — the night's card could publish AFTER first pitch** ✅ 2026-08-19
+  Operator: *"it is Wednesday, August 19 but the cards section still only has
+  the x post for Tuesday."* Two independent faults, and only the second is the
+  one they asked about.
+  **Fault 1 — the No.1 had not committed.** DraftKings began 403ing the Railway
+  worker; `odds_captured_at` froze at 15:19 UTC on all 15 rows and stayed there
+  for nine hours. A pick only commits inside `_apply_odds_to_row`, which runs
+  only when a FRESH price lands, so LAD@COL sat `bet_placed=N` with a 7u stake
+  and a -145 price *past* its 19:40 ET lock cutoff. `make_card` refuses an
+  uncommitted pick by design, so no card, no post, and `/cards` stayed on
+  Tuesday. This is precisely the case T8.18 PART 2 exists for and it was
+  switched off — see the PART 2 note there; armed the same day.
+  (The 403 wall proved intermittent: a price landed at 00:30 UTC, the row
+  committed 10 min before first pitch, and the stake correctly RE-DERIVED
+  7u → 3u as the price moved to -160 and p(YRFI) fell to 66.1% — PART 1
+  working exactly as specified.)
+  **Fault 2 — the render only ever ran on GitHub Actions.** Even once a pick
+  commits, the card waited for the next GHA predict tick. Measured live: the
+  commit landed 00:30 UTC and the next tick was 01:00 — the "tonight's play"
+  post would have gone up **twenty minutes after the game it advertised had
+  started**. Fixed by `workers.predictor_loop.step_publish_cards`, which draws
+  and publishes in the SAME Railway cycle that commits the pick. Runs dead last
+  (after the watchdog) so marketing can never delay money, data or monitoring;
+  redraws only when the No.1's signature changes, so a 5-minute cycle does not
+  become ~200 renders and ~200 OpenRouter calls a day; committed picks only, so
+  the published card can never contain a bet `pl_calc` does not (T8.30).
+  GHA keeps its copy — two hosts upserting the same three date+plate objects is
+  redundancy, not a race. Kill switch `PREDICTOR_PUBLISH_CARDS=off`.
+  12 tests in `tests/test_card_publish_step.py`; suite 246 green.
+
 - [x] **T8.37 — the weather archive returned nothing, all season, for every park** ✅ 2026-08-19
   `backtest.fetch_weather_season` asked Open-Meteo's **archive** endpoint for
   `{season}-04-01 → {season}-09-30`. In-season, Sep 30 is a FUTURE date, and
@@ -954,6 +984,13 @@ Total estimated effort: ~3.5 hours of focused work plus testing.
   Live drift today: 08-02 DET@OAK (7u vs 1u) and 08-04 SD@ARI (9u vs 8u) still
   flagged, both WINS, correcting them LOWERS recorded P&L by ~4.97u — awaiting
   operator decision. 07-31 correctly classified cap-order, not drift.
+  **PART 2 ARMED ✅ 2026-08-19** — `NRFI_LOCK_COMMIT=enabled` set on the Railway
+  service, ten days after PART 1. The documented precondition was met before
+  flipping it: `stake_drift.py` reported **0 violations over 28 locked STRONG
+  rows on 16 slates** (2 cap-order days, 2 operator-exempt), and PART 1 had run
+  a full slate with the published stake tracking the model into the lock. Both
+  flags now on; the ordering rule (PART 1 before PART 2, never the reverse) was
+  respected. Rollback is deleting the Railway variable.
 
 - [x] **T8.23** ✅ 2026-08-09 — THIRTEEN COLUMNS WIPED ON EVERY PREDICT TICK,
   and it is the answer to "why is CLV unmeasurable" (open since 2026-07-27).
