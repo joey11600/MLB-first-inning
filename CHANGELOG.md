@@ -11,6 +11,71 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-20] - Repair validation: it is the LEVEL, not the weights (tools/refit2026)
+
+Follow-on to the decay investigation. Operator approved building and validating
+the proposed combined repair (refit weights + fix the collinear feature pair +
+properly-shrunk park factors). Built, validated three ways, and **most of the
+proposal did not survive** — the parts that did point somewhere else.
+
+**Added** — `tools/refit2026/` (validation only; writes nothing to `data/`, the
+ledger, or any model artifact). Park factors are rebuilt inside every split from
+training seasons only, so no result here can be contaminated the way the shipped
+file was. See its README for the traps.
+
+**What did not survive**
+
+- *Fixing the collinear slg/iso pair does nothing.* Dropping either half moves
+  AUC by ≤0.002 in either direction and fails all three splits. The L2 penalty
+  was already absorbing it. This was the headline of the proposal and it is dead.
+- *Re-shrinking the park factor does nothing either* — ≤0.0002 AUC. Correct in
+  principle (the file is ~3× under-shrunk) but there is no signal to recover.
+
+**What did survive, and how far**
+
+- *Raising L2 from 0.05 to 0.5* is the only variant that beats shipped on AUC in
+  all three splits (+0.0053 / +0.0031 / +0.0053), with a smooth bias/variance
+  curve rather than a spike, and better logloss in all three.
+
+**The confound that reframed everything.** `money.py` first showed L2=0.5 at
++33.8% ROI on 2026 against shipped's +18.4%. That is not skill. Flat ROI at the
+0.42 gate tracks the *direction of the train/test base-rate gap* almost
+perfectly (2024→2025 −3.8pp gap → +3.7%; 2025→2024 +3.8pp → −12.0%;
+24+25→2026 −2.3pp → +18.4%). Giving the **shipped** model an oracle level
+correction swings it from −12.0% to +2.9% and from +3.7% to −6.0%. A gate is a
+cut point on a level, so a wrong level *is* the result. L2 does survive that
+control (+6.7 / +1.5 / +9.9 pp) but is a minor term beside it.
+
+**Where that leads: refit the calibrator more often.** A calibrator is a
+monotone map — it cannot change ranking, so it cannot make the discrimination
+problem worse, and it needs no weight refit (so it does not disturb the frozen
+feature standardisation a park-file change would). Walk-forward on the live 2026
+ledger, fitting only on games graded strictly earlier:
+
+- logloss better in **18 of 18** window/cadence settings (0.694–0.696 v 0.70059)
+- level bias **+0.0243 → +0.008…+0.019**, in all 18
+- flat ROI better in all 18 (+9.9%…+20.7% v +4.9%), bets 121–177 v 326 at a
+  higher hit rate (0.588–0.645 v 0.561)
+
+**Deferred, and why.** Not shipped. The money case is directional, not
+established: the day-level bootstrap is **+4.58pp, 90% CI [−3.95, +12.99],
+P=82%** — it does not exclude zero. And by month it is better in June and July
+but *worse in August* (+12.2% v +16.0% on 20 v 29 bets), which is the month the
+repair was motivated by. Calibration quality and level bias improve reliably;
+money does not yet clear the bar in `feature_test_methodology`.
+
+**One correction to this session's own output.** `recal_walkforward.py` briefly
+printed an AUC gain for the refit series. A monotone map cannot move ranking;
+that number is an artifact of pooling calibrator vintages (the ledger's
+`nrfi_prob` spans the 2026-07-28 CIR swap — after it spearman(raw, shipped) is
+1.0000 and the AUCs agree exactly at 0.4926; before it spearman is 0.9649). The
+script now prints raw/shipped/refit side by side and says the repair is
+level-only.
+
+Tests: 264 passed. No model, gate, staking, or ledger code touched.
+
+---
+
 ## [2026-08-20] - Model decay investigation: four defects, three verdicts
 
 Operator: *"the model has been doing terrible lately. do NOT just respond with
