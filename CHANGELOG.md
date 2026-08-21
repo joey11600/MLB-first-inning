@@ -11,6 +11,57 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-20] - Drift monitors could never dedup, and never logged (T8.40)
+
+Operator: *"the model has been doing terrible lately. do NOT just respond with
+'its variance'."* Investigating that turned up an ops defect first.
+
+`notifications_log` has **zero rows for `calibration_drift` and `feature_drift`,
+ever** — going back to the table's first row on 2026-05-02 — while every other
+event type logs normally (`strong_graded` 318, `daily_heartbeat` 33,
+`stake_drift` 4). Both monitors run in the same `daily.yml` grade job as
+`stake_drift` and call the same `tracker._notify_event_telegram`.
+
+**Root cause:** four steps passed `TELEGRAM_*` but not `SUPABASE_*`.
+`notifications_log` lives in Supabase and *both* halves of the notify contract
+read it:
+
+- `_notify_event_dedup_check` → `_get_client()` is None → returns `False`
+  (fail-open) → **every run re-pings**
+- `_notify_event_record` → `_get_client()` is None → returns early →
+  **no audit row, ever**
+
+So these alerts fired *every single day* with no dedup and left no trace. That
+is exactly the spam the operator reported on 2026-08-13 (*"i keep getting
+telegram notifications saying calibration drift"*), and it explains why the
+fix that day — registering `"calibration_drift": 7 * 24 * 60` in
+`_DEDUP_WINDOW_M` — did nothing: **the dedup window is read from a database
+the step could not reach.** Fourth instance of an alert-plumbing gap after
+discord_board (8/06), watchdog (8/07), calibration_drift (8/13).
+
+The cost is not a missing alert, it is a *devalued* one. The monitor did detect
+the August decay — `deep_yrfi` hit rate **77% → 54%**, Brier 0.2306 → 0.2651 —
+but arrived looking identical to the previous hundred daily pings.
+
+**Fixed**
+
+- `.github/workflows/daily.yml` — added `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`
+  to the 4 Telegram-sending steps that lacked them: *Feature drift monitor
+  (T4.5)*, *Calibration drift monitor (R3)*, *V2.1 vs V2.2 shadow comparison*,
+  *Cluster demotion re-eval reminder (R4)*. All 10 Telegram steps now carry
+  both credential pairs.
+- `tools/calibration_drift_monitor.py` — the closing line said
+  `"NOT sent (dedup or no creds)"`, which lumped four distinct states into one
+  string and actively misled this investigation. It now names which: no creds
+  (and which one), Supabase missing (*and warns that dedup is failing open*),
+  deduped (with the key), or send rejected. The dedup state is sampled
+  **before** the send, because a failed send still writes a row with
+  `delivered=False` and would otherwise be misreported as a dedup hit.
+
+Tests: 264 passed. No model, gate, staking, or ledger code touched.
+
+---
+
 ## [2026-08-20] - Odds source switched to The Odds API, priced at FanDuel
 
 Operator: *"the odds are not working. we need to use odds api."* Correct — the

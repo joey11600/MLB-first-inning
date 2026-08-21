@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import sys
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -302,8 +303,43 @@ def main() -> int:
     iso_week = datetime.fromisoformat(end_iso).strftime("%G-W%V")
     sig = ",".join(sorted(set(drifting))) or "none"
     event_key = f"calibration_drift:{iso_week}:{sig}"
+    # 2026-08-20: "dedup or no creds" lumped three very different states
+    # into one line and cost an investigation.  They are NOT equivalent:
+    # no-creds means the operator is flying blind; dedup means they were
+    # told recently; a no-Supabase run means dedup FAILED OPEN, i.e. they
+    # are being pinged every single day AND nothing is being logged.
+    #
+    # The dedup state has to be sampled BEFORE the send: a failed send
+    # still writes a notifications_log row (delivered=False), so asking
+    # afterwards would report every send failure as a dedup hit.
+    _tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    _tg_chat  = os.environ.get("TELEGRAM_CHAT_ID",   "").strip()
+    try:
+        from db.supabase_writer import _get_client as _gc
+        _supabase_up = _gc() is not None
+    except Exception:      # noqa: BLE001
+        _supabase_up = False
+    _was_deduped = (
+        bool(_tg_token) and bool(_tg_chat) and _supabase_up
+        and tracker._notify_event_dedup_check("calibration_drift", event_key)
+    )
+
     sent = tracker._notify_event_telegram("calibration_drift", event_key, body)
-    print(f"\n  Alert {'sent' if sent else 'NOT sent (dedup or no creds)'}.")
+    if sent:
+        print("\n  Alert sent.")
+    else:
+        if not _tg_token or not _tg_chat:
+            why = "no Telegram creds (" + ", ".join(
+                n for n, v in (("TELEGRAM_BOT_TOKEN", _tg_token),
+                               ("TELEGRAM_CHAT_ID", _tg_chat)) if not v) + " missing)"
+        elif not _supabase_up:
+            why = ("SUPABASE creds missing -- dedup FAILS OPEN (this alert "
+                   "re-fires every run) and notifications_log is not written")
+        elif _was_deduped:
+            why = f"deduped (already pinged for {event_key})"
+        else:
+            why = "Telegram rejected the send (see notifications_log delivered=False)"
+        print(f"\n  Alert NOT sent: {why}.")
     return 0
 
 

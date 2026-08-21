@@ -884,6 +884,20 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 2026-08-20: these four steps had Telegram creds but NOT Supabase.
+          # notifications_log lives in Supabase and BOTH halves of the notify
+          # contract read it: _notify_event_dedup_check fails OPEN when the
+          # client is None (so every run re-pinged) and _notify_event_record
+          # returns early (so nothing was ever logged).  Net effect: the two
+          # drift monitors pinged EVERY DAY with no dedup and left zero audit
+          # rows -- which is why the 2026-08-13 7-day dedup window registered
+          # for "calibration_drift" was inert, and why the operator's
+          # "i keep getting telegram notifications saying calibration drift"
+          # was never actually fixed.  A daily alert that never changes reads
+          # as noise, so the Aug decay (deep_yrfi 77% -> 54% hit) arrived
+          # looking exactly like the previous hundred pings.
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           set +e
           python tools/feature_drift_monitor.py 2>&1 \
@@ -901,6 +915,20 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 2026-08-20: these four steps had Telegram creds but NOT Supabase.
+          # notifications_log lives in Supabase and BOTH halves of the notify
+          # contract read it: _notify_event_dedup_check fails OPEN when the
+          # client is None (so every run re-pinged) and _notify_event_record
+          # returns early (so nothing was ever logged).  Net effect: the two
+          # drift monitors pinged EVERY DAY with no dedup and left zero audit
+          # rows -- which is why the 2026-08-13 7-day dedup window registered
+          # for "calibration_drift" was inert, and why the operator's
+          # "i keep getting telegram notifications saying calibration drift"
+          # was never actually fixed.  A daily alert that never changes reads
+          # as noise, so the Aug decay (deep_yrfi 77% -> 54% hit) arrived
+          # looking exactly like the previous hundred pings.
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           set +e
           python tools/calibration_drift_monitor.py 2>&1 \
@@ -915,6 +943,20 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 2026-08-20: these four steps had Telegram creds but NOT Supabase.
+          # notifications_log lives in Supabase and BOTH halves of the notify
+          # contract read it: _notify_event_dedup_check fails OPEN when the
+          # client is None (so every run re-pinged) and _notify_event_record
+          # returns early (so nothing was ever logged).  Net effect: the two
+          # drift monitors pinged EVERY DAY with no dedup and left zero audit
+          # rows -- which is why the 2026-08-13 7-day dedup window registered
+          # for "calibration_drift" was inert, and why the operator's
+          # "i keep getting telegram notifications saying calibration drift"
+          # was never actually fixed.  A daily alert that never changes reads
+          # as noise, so the Aug decay (deep_yrfi 77% -> 54% hit) arrived
+          # looking exactly like the previous hundred pings.
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           set +e
           python tools/v21_vs_v22_compare.py 2>&1 \
@@ -942,6 +984,20 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 2026-08-20: these four steps had Telegram creds but NOT Supabase.
+          # notifications_log lives in Supabase and BOTH halves of the notify
+          # contract read it: _notify_event_dedup_check fails OPEN when the
+          # client is None (so every run re-pinged) and _notify_event_record
+          # returns early (so nothing was ever logged).  Net effect: the two
+          # drift monitors pinged EVERY DAY with no dedup and left zero audit
+          # rows -- which is why the 2026-08-13 7-day dedup window registered
+          # for "calibration_drift" was inert, and why the operator's
+          # "i keep getting telegram notifications saying calibration drift"
+          # was never actually fixed.  A daily alert that never changes reads
+          # as noise, so the Aug decay (deep_yrfi 77% -> 54% hit) arrived
+          # looking exactly like the previous hundred pings.
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           set +e
           python tools/demotion_reeval_reminder.py 2>&1 \
