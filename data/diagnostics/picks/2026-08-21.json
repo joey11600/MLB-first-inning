@@ -1,7 +1,7 @@
 {
   "date": "2026-08-21",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-21T19:05:52Z",
+  "fitted_at": "2026-08-21T19:21:53Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -790,15 +790,15 @@
     {
       "matchup": "SF@BOS",
       "game_pk": "824721",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
       "raw_p_run_t1": 0.2772,
-      "raw_p_run_b1": 0.2923,
-      "raw_p_nrfi": 0.5115,
-      "calibrated_p_nrfi": 0.5087,
+      "raw_p_run_b1": 0.2538,
+      "raw_p_nrfi": 0.5394,
+      "calibrated_p_nrfi": 0.522,
       "calibrator_band": {
-        "band": "bin_5-6",
+        "band": "bin_7-8",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -847,19 +847,19 @@
       ],
       "top_drivers_b1": [
         {
-          "name": "home_top3c_slg",
-          "value": 0.4052,
-          "z": -0.549,
-          "weight": -0.398,
-          "contribution": 0.2186,
-          "outlier": false
-        },
-        {
           "name": "away_fip",
           "value": 3.053,
           "z": -1.816,
           "weight": 0.055,
           "contribution": -0.0999,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_slg",
+          "value": 0.4554,
+          "z": 0.234,
+          "weight": -0.398,
+          "contribution": -0.0932,
           "outlier": false
         },
         {
@@ -871,19 +871,19 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_obp",
-          "value": 0.3223,
-          "z": -0.622,
-          "weight": 0.1015,
-          "contribution": -0.0631,
-          "outlier": false
-        },
-        {
           "name": "home_obp",
           "value": 0.322,
           "z": 0.71,
           "weight": 0.081,
           "contribution": 0.0574,
+          "outlier": false
+        },
+        {
+          "name": "home_top3_ops_vs_oppHand",
+          "value": 0.72,
+          "z": -0.513,
+          "weight": 0.1016,
+          "contribution": -0.0521,
           "outlier": false
         }
       ],
@@ -1465,12 +1465,12 @@
       "matchup": "STL@PHI",
       "game_pk": "823420",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2331,
-      "raw_p_run_b1": 0.3744,
-      "raw_p_nrfi": 0.4798,
-      "calibrated_p_nrfi": 0.4907,
+      "raw_p_run_t1": 0.2414,
+      "raw_p_run_b1": 0.3669,
+      "raw_p_nrfi": 0.4802,
+      "calibrated_p_nrfi": 0.4909,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -1521,11 +1521,27 @@
       ],
       "top_drivers_b1": [
         {
+          "name": "home_top3c_iso",
+          "value": 0.2183,
+          "z": 0.81,
+          "weight": 0.2289,
+          "contribution": 0.1855,
+          "outlier": false
+        },
+        {
           "name": "home_top3c_slg",
-          "value": 0.4016,
-          "z": -0.605,
+          "value": 0.4687,
+          "z": 0.442,
           "weight": -0.398,
-          "contribution": 0.241,
+          "contribution": -0.1758,
+          "outlier": false
+        },
+        {
+          "name": "away_whiff_pct_rank",
+          "value": 19.0,
+          "z": -1.319,
+          "weight": -0.1011,
+          "contribution": 0.1333,
           "outlier": false
         },
         {
@@ -1537,39 +1553,23 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_obp",
-          "value": 0.3124,
-          "z": -0.964,
-          "weight": 0.1015,
-          "contribution": -0.0979,
-          "outlier": false
-        },
-        {
           "name": "wx_wind_kmh",
           "value": 4.7,
           "z": -1.44,
           "weight": 0.0497,
           "contribution": -0.0715,
           "outlier": false
-        },
-        {
-          "name": "away_p_last10_pitcher_nrfi",
-          "value": 0.5,
-          "z": -1.251,
-          "weight": -0.057,
-          "contribution": 0.0713,
-          "outlier": false
         }
       ],
       "priors_vs_raw": {
         "home_xera_raw": 3.2,
         "home_xera_pooled": 3.2004,
-        "away_xera_raw": 4.2,
-        "away_xera_pooled": null
+        "away_xera_raw": 3.833,
+        "away_xera_pooled": 3.8331
       },
       "pitcher_q": {
         "home_pitcher_q": "live",
-        "away_pitcher_q": "avg"
+        "away_pitcher_q": "live"
       },
       "warnings": []
     },
