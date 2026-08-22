@@ -1,0 +1,28 @@
+category,metric,today,baseline,delta,severity,note
+categorical,home_pitcher_q=avg,0.0000,0.0213,-0.0213,OK,home_pitcher_q=avg: today=0.0% baseline=2.1% shift=-2.1%
+categorical,home_pitcher_q=live,0.9333,0.7660,+0.1674,LOW,home_pitcher_q=live: today=93.3% baseline=76.6% shift=+16.7%
+categorical,home_pitcher_q=ltd,0.0667,0.1702,-0.1035,LOW,home_pitcher_q=ltd: today=6.7% baseline=17.0% shift=-10.4%
+categorical,home_pitcher_q=sm,0.0000,0.0426,-0.0426,OK,home_pitcher_q=sm: today=0.0% baseline=4.3% shift=-4.3%
+categorical,away_pitcher_q=avg,0.0000,0.0106,-0.0106,OK,away_pitcher_q=avg: today=0.0% baseline=1.1% shift=-1.1%
+categorical,away_pitcher_q=live,0.9333,0.7021,+0.2312,MEDIUM,away_pitcher_q=live: today=93.3% baseline=70.2% shift=+23.1%
+categorical,away_pitcher_q=ltd,0.0667,0.2340,-0.1674,LOW,away_pitcher_q=ltd: today=6.7% baseline=23.4% shift=-16.7%
+categorical,away_pitcher_q=sm,0.0000,0.0532,-0.0532,OK,away_pitcher_q=sm: today=0.0% baseline=5.3% shift=-5.3%
+categorical,home_top3c_source=lineup,1.0000,1.0000,+0.0000,OK,home_top3c_source=lineup: today=100.0% baseline=100.0% shift=+0.0%
+categorical,away_top3c_source=lineup,1.0000,1.0000,+0.0000,OK,away_top3c_source=lineup: today=100.0% baseline=100.0% shift=+0.0%
+numeric_mean,home_xera_mean,4.0994,3.8821,z=+0.22,OK,home_xera mean 4.099 vs baseline 3.882 (z=+0.22)
+numeric_mean,away_xera_mean,3.5188,4.3237,z=-0.89,OK,away_xera mean 3.519 vs baseline 4.324 (z=-0.89)
+numeric_mean,home_whiff_pct_rank_mean,56.6000,57.4043,z=-0.03,OK,home_whiff_pct_rank mean 56.600 vs baseline 57.404 (z=-0.03)
+numeric_mean,away_whiff_pct_rank_mean,56.2000,46.0851,z=+0.49,OK,away_whiff_pct_rank mean 56.200 vs baseline 46.085 (z=+0.49)
+numeric_mean,home_top3c_obp_mean,0.3395,0.3465,z=-0.38,OK,home_top3c_obp mean 0.339 vs baseline 0.346 (z=-0.38)
+numeric_mean,away_top3c_obp_mean,0.3388,0.3405,z=-0.10,OK,away_top3c_obp mean 0.339 vs baseline 0.341 (z=-0.10)
+numeric_mean,home_top3c_iso_mean,0.1896,0.1820,z=+0.22,OK,home_top3c_iso mean 0.190 vs baseline 0.182 (z=+0.22)
+numeric_mean,away_top3c_iso_mean,0.1667,0.1829,z=-0.45,OK,away_top3c_iso mean 0.167 vs baseline 0.183 (z=-0.45)
+numeric_mean,home_p_last5_pitcher_nrfi_mean,0.8000,0.7273,z=+0.38,OK,home_p_last5_pitcher_nrfi mean 0.800 vs baseline 0.727 (z=+0.38)
+numeric_mean,away_p_last5_pitcher_nrfi_mean,0.7378,0.7878,z=-0.24,OK,away_p_last5_pitcher_nrfi mean 0.738 vs baseline 0.788 (z=-0.24)
+numeric_mean,home_p_last10_pitcher_nrfi_mean,0.7733,0.7175,z=+0.37,OK,home_p_last10_pitcher_nrfi mean 0.773 vs baseline 0.717 (z=+0.37)
+numeric_mean,away_p_last10_pitcher_nrfi_mean,0.7244,0.7562,z=-0.19,OK,away_p_last10_pitcher_nrfi mean 0.724 vs baseline 0.756 (z=-0.19)
+numeric_mean,away_top3_ops_vs_oppHand_mean,0.7771,0.7983,z=-0.29,OK,away_top3_ops_vs_oppHand mean 0.777 vs baseline 0.798 (z=-0.29)
+numeric_mean,home_top3_ops_vs_oppHand_mean,0.8070,0.8011,z=+0.08,OK,home_top3_ops_vs_oppHand mean 0.807 vs baseline 0.801 (z=+0.08)
+default_rate,away_top3_ops_vs_oppHand_default_rate,0.0667,0.7200,1/15,OK,away_top3_ops_vs_oppHand defaulted to 0.72 in 1/15 rows (7%); heavy defaulting = predict pipeline failed
+default_rate,home_top3_ops_vs_oppHand_default_rate,0.0000,0.7200,0/15,OK,home_top3_ops_vs_oppHand defaulted to 0.72 in 0/15 rows (0%); heavy defaulting = predict pipeline failed
+pick_cluster,max_cluster_size,3,-,-,LOW,largest cluster of picks within 0.005 calibrated P(NRFI): 3 (>=4 = MEDIUM; informational -- not predictive of pick quality)
