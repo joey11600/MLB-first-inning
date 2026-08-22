@@ -145,6 +145,49 @@ with a stored std of 0.0408 and a properly shrunk file is 2.3× narrower.
 
 ---
 
+## [2026-08-21] - No.1 autopsy, wind retested on live data, candidate-factor sweep
+
+Operator asked three things: what separates the winning No.1s from the losing
+ones, retest wind direction ("I think that one direction might"), and hunt new
+stats. All three run under the full feature_test_methodology protocol.
+
+**No.1 autopsy** (`tools/refit2026/no1_autopsy.py`). The win window
+(08-01..08-13, 8W-3L) and loss window (08-14.., 1W-6L) are the *same bets*:
+same parks dominating both (COL/LAA/CWS; LAD@COL lost 8/17, won 8/18, lost
+8/19), confidence 0.677 v 0.661, price 0.576 v 0.565. Season-long, winners vs
+losers across 49 features: the best split (home_obp, 0.425 SD) is SMALLER than
+the average best split the same sweep finds on shuffled labels (0.472 SD),
+selection-aware p = 0.68. At the No.1's 61.1% season hit rate the expected
+longest streaks are ~8W/~4L over 108 slates; actual 10W/3L. One actionable
+cell: No.1s at LAA are 4-8, -11.1u -- handed to the loss-cluster pipeline
+(discovery -> monitor), NOT acted on directly per CLUSTER_DISCOVERY.md.
+
+**Wind direction, third test** (`tools/refit2026/wind_2026_retest.py`). New
+angle honoring the operator's reaffirmation: 2026 live games -- never tested
+before because the predictor does not record wind direction. Backfilled
+wind_deg from the open-meteo archive for all 1380 outdoor graded games (100%
+coverage). League-wide corr(wind_out, YRFI) +0.030 with the crosswind placebo
+at -0.043 (placebo bigger, again). By direction: OUT-to-CF 51.8% YRFI vs IN
+48.6%, but placebo directions spread wider. On our own bets: corr(win,
+wind_out) = -0.0002, permutation p = 0.997. Refuted a third time, now on the
+bets themselves.
+
+**Candidate sweep** (`tools/refit2026/candidate_factors.py`). 12 unused
+columns (k9/bb9/hr9/whip/era/rpg/slg sums, mins/maxes, lefty count;
+pitcher_q/batting_q excluded at 0% coverage) tested for incremental value over
+the refit shipped model, three splits + selection-aware null (250 full-sweep
+trials). Sole survivor: rpg_sum (both teams' runs/game), mean +1.05e-3
+logloss, selection-aware p = 0.052 -- borderline. Confirming test FAILED: as a
+per-half refit feature (away_rpg to T1, home_rpg to B1) it is worse in all
+three splits. Status: a stacking-only lead, backlogged, not shipped. It
+converges with the legacy-Poisson finding (the one model built from team run
+environments out-ranks the LR on 2026): the under-used signal is the
+game-level scoring environment.
+
+No model, gate, staking, or ledger code touched. Tests: 264 passed.
+
+---
+
 ## [2026-08-20] - Drift monitors could never dedup, and never logged (T8.40)
 
 Operator: *"the model has been doing terrible lately. do NOT just respond with
