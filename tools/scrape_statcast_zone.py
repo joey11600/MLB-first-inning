@@ -96,7 +96,14 @@ URL = (
 WINDOWS = {
     2024: ("2024-03-20", "2024-10-01"),
     2025: ("2025-03-18", "2025-10-01"),
-    2026: ("2026-03-25", "2026-08-03"),
+    # 2026-08-21: the live-season upper bound was hardcoded to the day of the
+    # original scrape ("2026-08-03"), so every later run reported "skipped,
+    # already cached" and fetched nothing -- the pooled first-inning factor
+    # (tools/refit2026/build_fi_pitcher_pooled.py) would have frozen at Aug 3
+    # in production.  Clamp to YESTERDAY: Savant has settled data for
+    # finished days only, and today's games take nothing from this cache.
+    2026: ("2026-03-25", min("2026-10-01",
+                             (dt.date.today() - dt.timedelta(days=1)).isoformat())),
 }
 
 

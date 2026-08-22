@@ -145,6 +145,73 @@ with a stored std of 0.0408 and a properly shrunk file is 2.3× narrower.
 
 ---
 
+## [2026-08-21] - FIRST VALIDATED MODEL IMPROVEMENT: pooled first-inning xwOBA (candidate, not shipped)
+
+Operator: *"keep going and don't stop until you find something that improves
+the model."* Found one -- the first of ~65 candidates tested in this repo to
+clear the full `feature_test_methodology` bar.
+
+**What it is.** A starter's first-inning expected-wOBA allowed (`fi_xwoba`),
+built from the local Statcast pitch-level cache (`data/cache/statcast_zone`,
+all innings, 2024-03 .. yesterday), POOLED ACROSS SEASONS (earlier seasons
+x0.6), empirical-Bayes shrunk toward the league mean (K_PA=60), and computed
+strictly from plate appearances before each game date. Batch 1 on 2026-08-02
+built the season-to-date version and it failed for the sample-size reason that
+memory itself diagnosed; the pooled version it prescribed had never been built.
+Home pitcher's value -> T1, away pitcher's -> B1.
+
+**Evidence** (`tools/refit2026/test_fi_pooled.py`, `test_fi_money.py`,
+`robust_fi.py`):
+
+- Coverage 89 / 95 / 96%; real variation (sd 0.0245, 1155 distinct values).
+- Stacking over the refit shipped model, three splits: +0.63 / +0.96 / +1.39
+  (x1e-3 logloss) -- survivor. Selection-aware null (8 candidates, 200 full
+  sweeps on permuted columns): best-mean in noise 0.223, 90th pct 0.449;
+  observed 0.993 -> **p = 0.000**.
+- As a real per-half refit feature: dAUC +0.0015 / +0.0012 / +0.0071; logloss
+  CI above zero on 2 of 3 splits. Coefficient POSITIVE and stable in every
+  split, both halves.
+- Robust: ALL+ at K_PA 30/60/120 and prior-season weight 0.3/0.6/1.0 -- a
+  plateau, not a spike. Stacks with the L2 0.05->0.50 change.
+- **Combined (fi_xwoba + L2 0.5) vs today's model: AUC +0.0070 / +0.0049 /
+  +0.0129**, logloss +3.96 / +9.30 / +1.40 (x1e-3).
+- Independent leakage audit: one July game's value recomputed from raw pitches
+  strictly before the date, 0.3144 = 0.3144; zero cache rows with
+  game_date != file date.
+- At the gate (LR -> CIR -> 0.42), 2026: 152 bets @ 63.2% +18.1% -> 161 @
+  65.8% +23.1%; August 17 @ 52.9% -> 21 @ 71.4%. Slate-day bootstrap dROI
+  +5.07pp [-1.46, +11.88], P(better) 91%; level-fixed dROI +3.1 / -2.8 / +6.7.
+  Money is directional, not yet past the CI -- stated plainly.
+
+**Added**
+- `tools/refit2026/build_fi_pitcher_pooled.py` -- the factor builder; also
+  dumps `data/candidates/fi_pitcher_pooled_current.json` (613 pitchers, as of
+  2026-08-21) for predict-time use.
+- `tools/refit2026/refit_candidate.py` -- candidate `lr_t1.json`, `lr_b1.json`,
+  `calibration_v2.json` in the predictor's exact schema, under
+  `data/candidates/refit2026_fixwoba/`. Weights on the feature +0.0328 (T1)
+  / +0.0240 (B1). **Not written to `data/lr_*.json`.**
+- `tools/refit2026/test_fi_pooled.py`, `test_fi_money.py`, `robust_fi.py`,
+  `fetch_linescores_full.py` (per-inning linescores for a multi-inning-target
+  test, still running at commit time).
+
+**Fixed**
+- `tools/scrape_statcast_zone.py` -- the 2026 window was hardcoded to end
+  2026-08-03 (the day of the original scrape), so every later run reported
+  "skipped, already cached" and fetched nothing. Clamped to yesterday. Cache
+  now 544 day-files through 2026-08-21.
+
+**Deferred -- the production wiring, which waits for the operator's go**
+(money-path change): append `home_fi_xwoba` / `away_fi_xwoba` to
+`_T1/_B1_EXPECTED_FEATURES`, load the current-state JSON in
+`mlb_first_inning_predictor` (league-mean default), add a daily
+`scrape_statcast_zone.py --seasons 2026` + rebuild step to the grade cron,
+swap in the candidate artifacts, and refit on the sliding-window cadence.
+
+No model, gate, staking, or ledger code touched. Tests: 264 passed.
+
+---
+
 ## [2026-08-21] - No.1 autopsy, wind retested on live data, candidate-factor sweep
 
 Operator asked three things: what separates the winning No.1s from the losing

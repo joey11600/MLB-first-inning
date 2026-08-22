@@ -13,6 +13,12 @@ Companion to:
 
 ---
 
+## 🧪 Validated, awaiting the operator's go (Aug 2026)
+
+| item | validated | what |
+|---|---|---|
+| **Pooled first-inning xwOBA allowed + L2 0.50** (`tools/refit2026/`) | 2026-08-21 | The first candidate in ~65 tested here to clear the full protocol. A starter's first-inning expected-wOBA allowed, pooled across 2024-26 from the local Statcast cache with empirical-Bayes shrinkage, strictly pre-game. Three splits + selection-aware null **p = 0.000** (observed 0.993e-3 vs noise 90th pct 0.449e-3); positive, sign-stable coefficient in every split and both halves; robust across five shrinkage settings; stacks with L2 0.50. Combined vs today's model: **AUC +0.007 / +0.005 / +0.013**. At the gate on 2026: 152 bets @ 63.2% → 161 @ 65.8%, ROI +18.1% → +23.1% (day-bootstrap +5.1pp, P=91% — money directional, not yet past the CI). Candidate artifacts in `data/candidates/refit2026_fixwoba/`; predictor wiring (feature lists, state-file loader, daily Statcast scrape step) is a money-path change and waits for a go. |
+
 ## ✅ Recently shipped (Aug 2026)
 
 | item | shipped | what |
