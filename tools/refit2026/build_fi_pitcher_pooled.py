@@ -56,10 +56,12 @@ K_FB = 40.0                   # shrinkage prior for the velocity delta, in 1st-i
 
 
 class Acc:
-    __slots__ = ("pa", "woba", "k", "bb", "pitches", "csw", "fb1_n", "fb1_s", "fb_n", "fb_s")
+    __slots__ = ("pa", "woba", "k", "bb", "pitches", "csw", "fb1_n", "fb1_s", "fb_n", "fb_s",
+                 "fp_n", "fp_strk", "zone_in")
     def __init__(self):
         self.pa = self.woba = self.k = self.bb = self.pitches = self.csw = 0.0
         self.fb1_n = self.fb1_s = self.fb_n = self.fb_s = 0.0
+        self.fp_n = self.fp_strk = self.zone_in = 0.0
 
 
 def main() -> int:
@@ -98,7 +100,11 @@ def main() -> int:
             d_own = comb("fb1_s") / n1 - comb("fb_s") / n_all
             d_lg = lg.fb1_s / lg.fb1_n - lg.fb_s / lg.fb_n
             velo = (n1 * d_own + K_FB * d_lg) / (n1 + K_FB)
-        return xw, k, bb, cs, pa, velo
+        # first-pitch strike rate (inning 1) and zone rate (inning 1), pooled + shrunk
+        fpn = comb("fp_n"); kfp = K_PA
+        fstr = (comb("fp_strk") + kfp * lg.fp_strk / max(lg.fp_n, 1.0)) / (fpn + kfp) if fpn + kfp > 0 else None
+        zn = (comb("zone_in") + kp * lg.zone_in / lpit) / (pit + kp) if pit + kp > 0 else None
+        return xw, k, bb, cs, pa, velo, fstr, zn
 
     for date in dates:
         yr = date[:4]
@@ -116,14 +122,17 @@ def main() -> int:
             for pid in (apid, hpid):
                 e = est(pid) if pid is not None else None
                 if e is None:
-                    vals.append(["", "", "", "", "", ""]); blank += 1
+                    vals.append([""] * 8); blank += 1
                 else:
                     vals.append([f"{e[0]:.4f}", f"{e[1]:.4f}", f"{e[2]:.4f}",
                                  "" if e[3] is None else f"{e[3]:.4f}", f"{e[4]:.0f}",
-                                 "" if e[5] is None else f"{e[5]:.3f}"])
+                                 "" if e[5] is None else f"{e[5]:.3f}",
+                                 "" if e[6] is None else f"{e[6]:.4f}",
+                                 "" if e[7] is None else f"{e[7]:.4f}"])
                     emitted += 1
             a, h = vals
-            rows.append([date, gp, a[0], h[0], a[1], h[1], a[2], h[2], a[3], h[3], a[4], h[4], a[5], h[5]])
+            rows.append([date, gp, a[0], h[0], a[1], h[1], a[2], h[2], a[3], h[3], a[4], h[4],
+                         a[5], h[5], a[6], h[6], a[7], h[7]])
         # 2) INGEST today's first-inning pitches
         path = files.get(date)
         if not path:
@@ -156,6 +165,15 @@ def main() -> int:
                 a.pitches += 1; lg.pitches += 1
                 if row[cd] in CSW:
                     a.csw += 1; lg.csw += 1
+                if row[ix["balls"]] == "0" and row[ix["strikes"]] == "0":
+                    a.fp_n += 1; lg.fp_n += 1
+                    if row[cd] not in ("ball", "blocked_ball", "hit_by_pitch", "pitchout", "intent_ball"):
+                        a.fp_strk += 1; lg.fp_strk += 1
+                try:
+                    if 1 <= int(float(row[ix["zone"]])) <= 9:
+                        a.zone_in += 1; lg.zone_in += 1
+                except ValueError:
+                    pass
                 ev = row[ce]
                 if not ev:
                     continue                 # not a PA-ending pitch
@@ -183,7 +201,9 @@ def main() -> int:
         if e is not None:
             cur_state[str(pid)] = {"fi_xwoba": round(e[0], 4), "fi_k": round(e[1], 4),
                                    "fi_bb": round(e[2], 4), "fi_pa": int(e[4]),
-                                   "fi_velo": (None if e[5] is None else round(e[5], 3))}
+                                   "fi_velo": (None if e[5] is None else round(e[5], 3)),
+                                   "fi_fstrike": (None if e[6] is None else round(e[6], 4)),
+                                   "fi_zone": (None if e[7] is None else round(e[7], 4))}
     import json as _json
     state_path = ROOT / "data" / "candidates" / f"fi_pitcher_pooled_current{_SUF}.json"
     state_path.write_text(_json.dumps({
@@ -198,7 +218,8 @@ def main() -> int:
         w = csv.writer(fh)
         w.writerow(["date", "game_pk", "away_fi_xwoba", "home_fi_xwoba", "away_fi_k", "home_fi_k",
                     "away_fi_bb", "home_fi_bb", "away_fi_csw", "home_fi_csw", "away_fi_pa", "home_fi_pa",
-                    "away_fi_velo", "home_fi_velo"])
+                    "away_fi_velo", "home_fi_velo", "away_fi_fstrike", "home_fi_fstrike",
+                    "away_fi_zone", "home_fi_zone"])
         w.writerows(rows)
     print(f"[out] {OUT}  rows={len(rows)}  pitcher-slots emitted={emitted} blank={blank}")
     return 0

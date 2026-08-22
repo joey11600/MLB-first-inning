@@ -33,6 +33,7 @@ from money import GATE_NRFI  # noqa: E402
 
 FACTORS = {   # csv name -> (feature stem, kind)
     "factor_fi_pooled.csv": None,                                  # already has named cols
+    "factor_batter_pooled.csv": None,                              # already has named cols
     "factor_starter_velo_vs_own_mean.csv": ("velo_vs_own", "pitcher"),
     "factor_top3_chase_rate.csv": ("top3_chase", "batter"),
     "factor_top3_k_rate.csv": ("top3_k", "batter"),
@@ -68,12 +69,20 @@ SPECS = {
     "fi_xwoba":        ("home_fi_xwoba",      "away_fi_xwoba",      "pitcher"),
     "fi_velo":         ("home_fi_velo",       "away_fi_velo",       "pitcher"),
     "fi_k":            ("home_fi_k",          "away_fi_k",          "pitcher"),
+    "fi_fstrike":      ("home_fi_fstrike",    "away_fi_fstrike",    "pitcher"),
+    "fi_zone":         ("home_fi_zone",       "away_fi_zone",       "pitcher"),
     "fi_bb":           ("home_fi_bb",         "away_fi_bb",         "pitcher"),
     "velo_vs_own":     ("home_velo_vs_own",   "away_velo_vs_own",   "pitcher"),
     "top3_chase":      ("away_top3_chase",    "home_top3_chase",    "batter"),
     "top3_k":          ("away_top3_k",        "home_top3_k",        "batter"),
     "top3_xwoba_con":  ("away_top3_xwoba_con", "home_top3_xwoba_con", "batter"),
     "cold_x_lineup":   ("t1_cold_x_lineup",   "b1_cold_x_lineup",   "interaction"),
+    # batter side, pooled across seasons (build_batter_pooled.py)
+    "top3_xwoba_pool": ("away_top3_xwoba",    "home_top3_xwoba",    "batter"),
+    "top3_k_pool":     ("away_top3_k",        "home_top3_k",        "batter"),
+    "top3_fi_xwoba":   ("away_top3_fi_xwoba", "home_top3_fi_xwoba", "batter"),
+    "lead_xwoba":      ("away_lead_xwoba",    "home_lead_xwoba",    "batter"),
+    "platoon_xwoba":   ("t1_platoon_xwoba",   "b1_platoon_xwoba",   "matchup"),
 }
 
 
