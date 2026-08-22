@@ -170,6 +170,53 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-22] - The No.1 product metric, and the second feature sweep on the new base
+
+Operator: *"our number one pick model was seeming to be the best... we are not
+stopping until we find something to improve the model and become more
+profitable and make better picks."* Two things done in response.
+
+**1. The No.1 itself is now measured** (`tools/refit2026/no1_sim.py`). Out of
+sample on 2026 (fit on 2024+25), through the real shape (LR -> CIR -> gate
+0.42), each night's No.1 = the lowest calibrated p_nrfi among gate-firing
+games:
+
+| config | slates | No.1 hit | flat P&L (-112) |
+|---|---|---|---|
+| TODAY (shipped, L2 0.05) | 99 | .657 | +24.0u |
+| L2 0.50 only | 83 | .759 | +36.3u |
+| feature only (+fi_xwoba, L2 0.05) | 99 | .657 | +24.0u |
+| **CANDIDATE (+fi_xwoba, L2 0.50)** | **87** | **.736** | **+34.1u** |
+
+Candidate vs today on the 82 common nights: .695 -> .732, dHIT +0.038
+[+0.000, +0.085], P(better) 89%, same game picked 90% of nights. By month the
+candidate beats today in 4 of 5; **August .538 -> .769** (13 slates each). The
+L2 change drives most of the No.1 lift; the pitcher feature drives the broad
+AUC/logloss gain and keeps the lift while firing more nights. L2 is a plateau
+on this metric (0.5 -> 2.0: .735-.744); 0.5 keeps the best 2026 logloss.
+
+**2. Second sweep on the new base** (`tools/refit2026/test_feature_set.py`,
+per-half refit over fi_xwoba + L2 0.5, three splits, plus the No.1 metric):
+
+| candidate | 3-split | note |
+|---|---|---|
+| fi_k (pooled 1st-inning K%) | ALL+ | correct negative sign, but No.1 hit .736 -> .698 -- not added |
+| fi_velo (pooled 1st-inning FB velo minus own all-inning mean; builder extended) | fails 24->25 | |
+| velo_vs_own (old season-reset build) | excluded | 53-69% coverage |
+| top3 chase / K / contact-quality (old CSVs, as features) | fail | mixed signs |
+| cold-pitcher x lineup OBP interaction | fails | |
+| team_fi_score (own 1st-inning scoring history, pooled, from linescores) | fails | already carried by lineup/pitcher features |
+| team_fi_allow | ALL+ by <=0.001 | sign flips on shipped base; doubles gate bets, No.1 .736 -> .684 |
+| recency-weighted training (half-life 60-480d) | fails | neutral at 480, harmful at <=120 |
+
+Pending the lineup-card fetch (`fetch_batting_orders.py`): pooled top-3 xwOBA /
+K%, top-3 first-inning xwOBA, leadoff alone, slots 4-5, pitcher platoon xwOBA
+vs the lineup's sides, pooled first-pitch-strike and zone rates.
+
+No model, gate, staking, or ledger code touched.
+
+---
+
 ## [2026-08-21] - FIRST VALIDATED MODEL IMPROVEMENT: pooled first-inning xwOBA (candidate, not shipped)
 
 Operator: *"keep going and don't stop until you find something that improves
