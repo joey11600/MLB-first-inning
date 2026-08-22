@@ -170,6 +170,20 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-22] - Schedule/fatigue factors and the rpg stacking term: tested, dead
+
+`tools/refit2026/build_schedule.py` (from the per-inning linescores): extra
+innings yesterday (#17), consecutive game days (#19), games in the last 7.
+All three fail both bases and lower the No.1 hit (.736 -> .699-.709); null:
+survivors none. The game-level `rpg_sum` stacking term that survived over the
+SHIPPED base at p=0.052 does not survive over the candidate (-0.44 on 25->24):
+L2 0.5 + fi_xwoba absorb it.
+
+With this the Statcast 20-factor backlog is exhausted in the pooled form.
+Candidate unchanged: fi_xwoba + L2 0.5.
+
+---
+
 ## [2026-08-22] - Team defense and sprint speed: tested, dead
 
 `tools/refit2026/build_defense_speed.py`: the fielding team's PRIOR-season Outs

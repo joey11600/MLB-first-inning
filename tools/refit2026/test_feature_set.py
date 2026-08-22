@@ -36,6 +36,7 @@ FACTORS = {   # csv name -> (feature stem, kind)
     "factor_batter_pooled.csv": None,                              # already has named cols
     "factor_team_fi.csv": None,                                    # already has named cols
     "factor_defense_speed.csv": None,                              # already has named cols
+    "factor_schedule.csv": None,                                   # already has named cols
     "factor_starter_velo_vs_own_mean.csv": ("velo_vs_own", "pitcher"),
     "factor_top3_chase_rate.csv": ("top3_chase", "batter"),
     "factor_top3_k_rate.csv": ("top3_k_old", "batter"),
@@ -94,6 +95,9 @@ SPECS = {
     "pool_x":          ("t1_pool_x",          "b1_pool_x",          "interaction"),
     "def_oaa":         ("home_def_oaa",       "away_def_oaa",       "defense"),
     "rpg":             ("away_rpg",           "home_rpg",           "team"),
+    "sched_xi":        ("away_xi_yday",       "home_xi_yday",       "schedule"),
+    "sched_consec":    ("away_consec",        "home_consec",        "schedule"),
+    "sched_g7":        ("away_g7",            "home_g7",            "schedule"),
     "top3_sprint":     ("away_top3_sprint",   "home_top3_sprint",   "batter"),
     "team_fi_score":   ("away_team_fi_score", "home_team_fi_score", "team"),
     "team_fi_allow":   ("home_team_fi_allow", "away_team_fi_allow", "team"),
