@@ -62,7 +62,7 @@ def top3_sources():
         try:
             j = json.loads(open(f, encoding="utf-8").read())
             if len(j.get("away", [])) >= 3 and len(j.get("home", [])) >= 3:
-                bo[os.path.basename(f)[:-5]] = (j["away"][:3], j["home"][:3])
+                bo[os.path.basename(f)[:-5]] = (j["away"][:5], j["home"][:5])
         except Exception:  # noqa: BLE001
             pass
     lj = {}
@@ -70,9 +70,9 @@ def top3_sources():
                     usecols=["game_pk", "away_lineup_json", "home_lineup_json"]).dropna()
     for _, r in d.iterrows():
         try:
-            a = [int(x["id"]) for x in json.loads(r.away_lineup_json)[:3]]
-            h = [int(x["id"]) for x in json.loads(r.home_lineup_json)[:3]]
-            if len(a) == 3 and len(h) == 3:
+            a = [int(x["id"]) for x in json.loads(r.away_lineup_json)[:5]]
+            h = [int(x["id"]) for x in json.loads(r.home_lineup_json)[:5]]
+            if len(a) >= 3 and len(h) >= 3:
                 lj[str(int(r.game_pk))] = (a, h)
         except Exception:  # noqa: BLE001
             pass
@@ -157,9 +157,15 @@ def main() -> int:
                 bat_cur, pit_cur = defaultdict(A), defaultdict(P)
             season = yr
         for gp, apid, hpid, t in sorted(by_date.get(date, []), key=lambda x: x[0]):
-            out = [date, gp] + [""] * 12
+            out = [date, gp] + [""] * 14
             if t is not None:
-                a3, h3 = t
+                a5, h5 = t
+                a3, h3 = a5[:3], h5[:3]
+                # slots 4-5: the bats that follow if anyone reaches (the model only sees 1-3)
+                ma = [bat_est(b) for b in a5[3:5]]; mh = [bat_est(b) for b in h5[3:5]]
+                ma = [e for e in ma if e]; mh = [e for e in mh if e]
+                out[14] = "" if not ma else f"{sum(e[0] for e in ma)/len(ma):.4f}"
+                out[15] = "" if not mh else f"{sum(e[0] for e in mh)/len(mh):.4f}"
                 ea = [bat_est(b) for b in a3]; eh = [bat_est(b) for b in h3]
                 # leadoff hitter ALONE (backlog #11): he is guaranteed to bat
                 la, lh = ea[0], eh[0]
@@ -212,7 +218,8 @@ def main() -> int:
         w = csv.writer(fh)
         w.writerow(["date", "game_pk", "away_top3_xwoba", "home_top3_xwoba", "away_top3_k", "home_top3_k",
                     "away_top3_fi_xwoba", "home_top3_fi_xwoba", "t1_platoon_xwoba", "b1_platoon_xwoba",
-                    "away_top3_n", "home_top3_n", "away_lead_xwoba", "home_lead_xwoba"])
+                    "away_top3_n", "home_top3_n", "away_lead_xwoba", "home_lead_xwoba",
+                    "away_mid_xwoba", "home_mid_xwoba"])
         w.writerows(rows)
     print(f"[out] {OUT} rows={len(rows)} {dict(diag)}")
     return 0

@@ -34,6 +34,7 @@ from money import GATE_NRFI  # noqa: E402
 FACTORS = {   # csv name -> (feature stem, kind)
     "factor_fi_pooled.csv": None,                                  # already has named cols
     "factor_batter_pooled.csv": None,                              # already has named cols
+    "factor_team_fi.csv": None,                                    # already has named cols
     "factor_starter_velo_vs_own_mean.csv": ("velo_vs_own", "pitcher"),
     "factor_top3_chase_rate.csv": ("top3_chase", "batter"),
     "factor_top3_k_rate.csv": ("top3_k", "batter"),
@@ -55,6 +56,10 @@ def attach_all(d: pd.DataFrame) -> pd.DataFrame:
             for c in (f"away_{stem}", f"home_{stem}"):
                 x[c] = pd.to_numeric(x[c], errors="coerce")
         d = d.merge(x, on="game_pk", how="left")
+    # derived: pooled pitcher x pooled lineup (both first-inning-specific)
+    if "home_fi_xwoba" in d.columns and "away_top3_xwoba" in d.columns:
+        d["t1_pool_x"] = pd.to_numeric(d["home_fi_xwoba"], errors="coerce") *             pd.to_numeric(d["away_top3_xwoba"], errors="coerce")
+        d["b1_pool_x"] = pd.to_numeric(d["away_fi_xwoba"], errors="coerce") *             pd.to_numeric(d["home_top3_xwoba"], errors="coerce")
     # derived: interaction of cold-pitcher quality with the lineup he faces
     if "home_fi_xwoba" in d.columns:
         d["t1_cold_x_lineup"] = pd.to_numeric(d["home_fi_xwoba"], errors="coerce") * \
@@ -83,6 +88,11 @@ SPECS = {
     "top3_fi_xwoba":   ("away_top3_fi_xwoba", "home_top3_fi_xwoba", "batter"),
     "lead_xwoba":      ("away_lead_xwoba",    "home_lead_xwoba",    "batter"),
     "platoon_xwoba":   ("t1_platoon_xwoba",   "b1_platoon_xwoba",   "matchup"),
+    # team first-inning history from linescores (build_team_fi.py)
+    "mid_xwoba":       ("away_mid_xwoba",     "home_mid_xwoba",     "batter"),
+    "pool_x":          ("t1_pool_x",          "b1_pool_x",          "interaction"),
+    "team_fi_score":   ("away_team_fi_score", "home_team_fi_score", "team"),
+    "team_fi_allow":   ("home_team_fi_allow", "away_team_fi_allow", "team"),
 }
 
 
