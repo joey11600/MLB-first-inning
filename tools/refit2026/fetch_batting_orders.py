@@ -29,10 +29,15 @@ def main() -> int:
               "data/backtests/backtest_2025-04-01_to_2025-09-30_truepit_ptfix.csv",
               "data/picks_2026.csv"]:
         pks |= set(int(x) for x in pd.read_csv(ROOT / f, low_memory=False, usecols=["game_pk"])["game_pk"].dropna())
+    import sys as _sys
     todo = [pk for pk in sorted(pks) if not (OUT / f"{pk}.json").exists()]
+    if "--reverse" in _sys.argv:          # second instance walks from the other end
+        todo = todo[::-1]
     print(f"games {len(pks)}  to fetch {len(todo)}", flush=True)
     s = requests.Session(); ok = fail = 0; t0 = time.time()
     for i, pk in enumerate(todo, 1):
+        if (OUT / f"{pk}.json").exists():      # another instance got it
+            continue
         try:
             r = s.get(URL.format(pk=pk), timeout=20)
             if r.status_code == 200:
