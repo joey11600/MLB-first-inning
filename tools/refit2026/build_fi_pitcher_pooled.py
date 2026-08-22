@@ -51,10 +51,15 @@ K_EVENTS = {"strikeout", "strikeout_double_play"}
 BB_EVENTS = {"walk", "hit_by_pitch", "intent_walk"}
 
 
+FASTBALLS = {"FF", "SI", "FC"}
+K_FB = 40.0                   # shrinkage prior for the velocity delta, in 1st-inning fastballs
+
+
 class Acc:
-    __slots__ = ("pa", "woba", "k", "bb", "pitches", "csw")
+    __slots__ = ("pa", "woba", "k", "bb", "pitches", "csw", "fb1_n", "fb1_s", "fb_n", "fb_s")
     def __init__(self):
         self.pa = self.woba = self.k = self.bb = self.pitches = self.csw = 0.0
+        self.fb1_n = self.fb1_s = self.fb_n = self.fb_s = 0.0
 
 
 def main() -> int:
@@ -85,7 +90,15 @@ def main() -> int:
         bb = (comb("bb") + K_PA * lg.bb / lpa) / (pa + K_PA)
         pit = comb("pitches"); kp = K_PA * 3.8
         cs = (comb("csw") + kp * lg.csw / lpit) / (pit + kp) if pit + kp > 0 else None
-        return xw, k, bb, cs, pa
+        # first-inning fastball velocity MINUS the pitcher's own all-inning fastball
+        # velocity, pooled; shrunk toward the league delta.  Negative = a cold starter.
+        n1, n_all = comb("fb1_n"), comb("fb_n")
+        velo = None
+        if n1 >= 10 and n_all >= 50 and lg.fb1_n > 0 and lg.fb_n > 0:
+            d_own = comb("fb1_s") / n1 - comb("fb_s") / n_all
+            d_lg = lg.fb1_s / lg.fb1_n - lg.fb_s / lg.fb_n
+            velo = (n1 * d_own + K_FB * d_lg) / (n1 + K_FB)
+        return xw, k, bb, cs, pa, velo
 
     for date in dates:
         yr = date[:4]
@@ -103,13 +116,14 @@ def main() -> int:
             for pid in (apid, hpid):
                 e = est(pid) if pid is not None else None
                 if e is None:
-                    vals.append(["", "", "", "", ""]); blank += 1
+                    vals.append(["", "", "", "", "", ""]); blank += 1
                 else:
                     vals.append([f"{e[0]:.4f}", f"{e[1]:.4f}", f"{e[2]:.4f}",
-                                 "" if e[3] is None else f"{e[3]:.4f}", f"{e[4]:.0f}"])
+                                 "" if e[3] is None else f"{e[3]:.4f}", f"{e[4]:.0f}",
+                                 "" if e[5] is None else f"{e[5]:.3f}"])
                     emitted += 1
             a, h = vals
-            rows.append([date, gp, a[0], h[0], a[1], h[1], a[2], h[2], a[3], h[3], a[4], h[4]])
+            rows.append([date, gp, a[0], h[0], a[1], h[1], a[2], h[2], a[3], h[3], a[4], h[4], a[5], h[5]])
         # 2) INGEST today's first-inning pitches
         path = files.get(date)
         if not path:
@@ -118,12 +132,25 @@ def main() -> int:
             r = csv.reader(fh); hdr = next(r); ix = {h: i for i, h in enumerate(hdr)}
             ci, cp, cd, ce, cx = ix["inning"], ix["pitcher"], ix["description"], ix["events"], \
                 ix["estimated_woba_using_speedangle"]
+            ct, cv = ix["pitch_type"], ix["release_speed"]
             for row in r:
-                if row[ci] != "1":
-                    continue
                 try:
                     pid = int(row[cp])
                 except ValueError:
+                    continue
+                # fastball velocity, ALL innings (the pitcher's own baseline) and
+                # inning 1 separately -- the delta is the cold-start signal
+                if row[ct] in FASTBALLS and row[cv]:
+                    try:
+                        v = float(row[cv])
+                    except ValueError:
+                        v = None
+                    if v is not None and 50.0 <= v <= 110.0:
+                        a0 = cur[pid]
+                        a0.fb_n += 1; a0.fb_s += v; lg.fb_n += 1; lg.fb_s += v
+                        if row[ci] == "1":
+                            a0.fb1_n += 1; a0.fb1_s += v; lg.fb1_n += 1; lg.fb1_s += v
+                if row[ci] != "1":
                     continue
                 a = cur[pid]
                 a.pitches += 1; lg.pitches += 1
@@ -155,7 +182,8 @@ def main() -> int:
         e = est(pid)
         if e is not None:
             cur_state[str(pid)] = {"fi_xwoba": round(e[0], 4), "fi_k": round(e[1], 4),
-                                   "fi_bb": round(e[2], 4), "fi_pa": int(e[4])}
+                                   "fi_bb": round(e[2], 4), "fi_pa": int(e[4]),
+                                   "fi_velo": (None if e[5] is None else round(e[5], 3))}
     import json as _json
     state_path = ROOT / "data" / "candidates" / f"fi_pitcher_pooled_current{_SUF}.json"
     state_path.write_text(_json.dumps({
@@ -169,7 +197,8 @@ def main() -> int:
     with open(OUT, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["date", "game_pk", "away_fi_xwoba", "home_fi_xwoba", "away_fi_k", "home_fi_k",
-                    "away_fi_bb", "home_fi_bb", "away_fi_csw", "home_fi_csw", "away_fi_pa", "home_fi_pa"])
+                    "away_fi_bb", "home_fi_bb", "away_fi_csw", "home_fi_csw", "away_fi_pa", "home_fi_pa",
+                    "away_fi_velo", "home_fi_velo"])
         w.writerows(rows)
     print(f"[out] {OUT}  rows={len(rows)}  pitcher-slots emitted={emitted} blank={blank}")
     return 0
