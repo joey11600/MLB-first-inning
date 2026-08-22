@@ -145,6 +145,31 @@ with a stored std of 0.0408 and a properly shrunk file is 2.3× narrower.
 
 ---
 
+## [2026-08-21] - Target horizon: the same inputs rank 3- and 5-inning scoring far better than the 1st inning
+
+`tools/refit2026/fetch_linescores_full.py` pulled per-inning linescores for
+all 6,611 games in the three datasets from MLB statsapi (0 failures; H=1
+totals match the ledger on 99.8-100% of rows). `target_horizon.py` then refit
+the two-stage model -- SAME 19 features per half -- against "runs through
+inning H exceed the train-season median":
+
+| H | 2024->2025 | 2025->2024 | 24+25->2026 |
+|---|---|---|---|
+| 1 (the product) | 0.5198 | 0.5174 | 0.5259 |
+| 3 | 0.5308 | 0.5372 | **0.5790** |
+| 5 (F5) | 0.5398 | 0.5441 | **0.5691** |
+| 9 | 0.5332 | 0.5535 | 0.5735 |
+
+AUC climbs with the horizon in all three splits: the inputs are informative
+and a single inning is too noisy a target for them to surface. On 2026 the
+H=1 -> H=3 gain (+5.3 points) exceeds every model improvement ever validated
+here combined. NOT shown: whether we beat the F5 market -- no F5 odds have
+ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
+6.55% on the 1st-inning total). Strategic finding, recorded in memory
+`2026-08-21_target_horizon`; no product change.
+
+---
+
 ## [2026-08-21] - FIRST VALIDATED MODEL IMPROVEMENT: pooled first-inning xwOBA (candidate, not shipped)
 
 Operator: *"keep going and don't stop until you find something that improves
