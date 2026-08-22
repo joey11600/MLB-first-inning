@@ -37,7 +37,7 @@ FACTORS = {   # csv name -> (feature stem, kind)
     "factor_team_fi.csv": None,                                    # already has named cols
     "factor_starter_velo_vs_own_mean.csv": ("velo_vs_own", "pitcher"),
     "factor_top3_chase_rate.csv": ("top3_chase", "batter"),
-    "factor_top3_k_rate.csv": ("top3_k", "batter"),
+    "factor_top3_k_rate.csv": ("top3_k_old", "batter"),
     "factor_top3_contact_quality.csv": ("top3_xwoba_con", "batter"),
 }
 
@@ -79,7 +79,7 @@ SPECS = {
     "fi_bb":           ("home_fi_bb",         "away_fi_bb",         "pitcher"),
     "velo_vs_own":     ("home_velo_vs_own",   "away_velo_vs_own",   "pitcher"),
     "top3_chase":      ("away_top3_chase",    "home_top3_chase",    "batter"),
-    "top3_k":          ("away_top3_k",        "home_top3_k",        "batter"),
+    "top3_k_old":      ("away_top3_k_old",    "home_top3_k_old",    "batter"),
     "top3_xwoba_con":  ("away_top3_xwoba_con", "home_top3_xwoba_con", "batter"),
     "cold_x_lineup":   ("t1_cold_x_lineup",   "b1_cold_x_lineup",   "interaction"),
     # batter side, pooled across seasons (build_batter_pooled.py)

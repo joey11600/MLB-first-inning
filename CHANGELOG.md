@@ -170,6 +170,32 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-22] - Batter side and platoon, pooled: tested, no addition survives
+
+`tools/refit2026/build_batter_pooled.py` over all 6,611 games (lineup cards
+from `fetch_batting_orders.py`, 6,595 resolved): top-3 pooled xwOBA and K%,
+top-3 first-inning xwOBA, leadoff alone, slots 4-5, the opposing starter's
+pooled xwOBA vs each hitter's side (platoon), a pooled pitcher x lineup
+interaction, plus pooled first-pitch-strike and zone rates for the pitcher.
+Per-half refit on BOTH bases (shipped; fi_xwoba + L2 0.5), three splits, the
+No.1 metric, and the search-aware stacking null over the nine:
+
+- **Survivors: none.** Noise yields >=1 survivor 37.5% of the time; observed 0.
+- Near-miss: `platoon_xwoba` -- dAUC positive in all six cells (both bases x
+  three splits; +0.0106 on 2026 over shipped, +0.0049 over the new base) but
+  logloss negative on 25->24 in both, and it LOWERS the No.1 hit on both bases
+  (.736 -> .679; .657 -> .646) while firing ~50% more bets.
+- `mid_xwoba` is ALL+ on the shipped base with a NEGATIVE coefficient (better
+  4-5 hitters -> fewer runs) -- a wrong-sign survivor is noise.
+- `pool_x` ALL+ on the shipped base only; balloons the gate 152 -> 279 bets.
+- `top3_fi_xwoba` raises the No.1 hit to .762 on the new base but fails 2026.
+
+Reading: the first-inning signal lives in the pitcher (~15-20 pitches, ~4
+batters); the lineup side the model already carries (top-3 OBP/SLG) is
+sufficient. The candidate stays fi_xwoba + L2 0.5.
+
+---
+
 ## [2026-08-22] - The No.1 product metric, and the second feature sweep on the new base
 
 Operator: *"our number one pick model was seeming to be the best... we are not
