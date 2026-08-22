@@ -35,6 +35,7 @@ FACTORS = {   # csv name -> (feature stem, kind)
     "factor_fi_pooled.csv": None,                                  # already has named cols
     "factor_batter_pooled.csv": None,                              # already has named cols
     "factor_team_fi.csv": None,                                    # already has named cols
+    "factor_defense_speed.csv": None,                              # already has named cols
     "factor_starter_velo_vs_own_mean.csv": ("velo_vs_own", "pitcher"),
     "factor_top3_chase_rate.csv": ("top3_chase", "batter"),
     "factor_top3_k_rate.csv": ("top3_k_old", "batter"),
@@ -91,6 +92,9 @@ SPECS = {
     # team first-inning history from linescores (build_team_fi.py)
     "mid_xwoba":       ("away_mid_xwoba",     "home_mid_xwoba",     "batter"),
     "pool_x":          ("t1_pool_x",          "b1_pool_x",          "interaction"),
+    "def_oaa":         ("home_def_oaa",       "away_def_oaa",       "defense"),
+    "rpg":             ("away_rpg",           "home_rpg",           "team"),
+    "top3_sprint":     ("away_top3_sprint",   "home_top3_sprint",   "batter"),
     "team_fi_score":   ("away_team_fi_score", "home_team_fi_score", "team"),
     "team_fi_allow":   ("home_team_fi_allow", "away_team_fi_allow", "team"),
 }

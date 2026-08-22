@@ -170,6 +170,21 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-22] - Team defense and sprint speed: tested, dead
+
+`tools/refit2026/build_defense_speed.py`: the fielding team's PRIOR-season Outs
+Above Average (Savant fielder leaderboard summed per club; the all-teams pull
+silently returns one club, so it is fetched club by club) and the batting
+top-3's prior-season mean sprint speed (backlog #12), 100% / 99.5% coverage.
+Both bases, three splits, No.1 metric, null:
+
+- `def_oaa`: +0.0021 / +0.0014 / **-0.0026** AUC on the new base; doubles the
+  gate's bets (121 -> 236) and lowers the No.1 hit (.736 -> .678). Dead.
+- `top3_sprint`: **-0.0053** on 24->25 (CI below zero), flat elsewhere. Dead.
+- Null over the pair: survivors none.
+
+---
+
 ## [2026-08-22] - Batter side and platoon, pooled: tested, no addition survives
 
 `tools/refit2026/build_batter_pooled.py` over all 6,611 games (lineup cards
