@@ -170,6 +170,38 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-22] - Two foot-guns removed: the recalibrate action and the official trainer
+
+Follow-ups #3 and #4 of the rollout plan.
+
+**`recalibrate_v2.py`** (the `recalibrate` workflow_dispatch action) was failing
+safe -- its own hardcoded 19-name feature list no longer matched the live
+weights, so it exited before writing. Ported properly: feature lists are now
+**imported from the predictor** (they can no longer drift), the pooled
+first-inning xwOBA is supplied per game from the committed point-in-time
+factor file (league mean where absent), the 2025 source is the `_ptfix`
+leakage-repaired file (it read `truepit`), and the fit is **CIR** -- the shape
+that has shipped since 2026-07-28 and that the 0.42 gate was re-derived on --
+not PAV. Dry-run: 4,279 games scored, 20-long vectors, writes `kind: cir`;
+the shipped calibrator was restored after the dry run (unchanged).
+
+**`two_stage_model.py`** gains `--fi-xwoba`: the 20-feature set that ships,
+values from the factor file, and a **production-path guard** -- saving any
+other feature set to `data/lr_t1.json` / `lr_b1.json` is refused (the live
+loader would reject it and fall back to the legacy path) unless
+`--allow-legacy-save`. Found and fixed an L2-units trap in the process:
+`lr_baseline.LogReg.fit` penalises the SUM of log-losses, so `--l2 0.05` was
+~0.05/N per sample (nearly unregularised); the validated fitter penalises the
+MEAN. With `--fi-xwoba`, `--l2` is read in the validated per-sample units and
+scaled by N. The trainer now reproduces the shipped fit: fi_xwoba weight
+0.0330 vs 0.0328, mean |Δw| 0.001. The one difference is the park input (the
+trainer reads `fi_park_factors.json`, the same source the predictor feeds; the
+ship refit used a pool-rebuilt map) -- measured on the gate's 3,728-game
+holdout, shipped Brier 0.247740 vs trainer 0.247928, so the shipped weights
+stay and the trainer is the canonical path for the next refit.
+
+---
+
 ## [2026-08-22] - Rollout plan, ledger continuity, model gate taught the new feature
 
 - **`docs/PLAN_2026-08-22_model_v3_rollout.md`** -- the operating plan: the

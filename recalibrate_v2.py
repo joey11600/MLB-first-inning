@@ -35,13 +35,13 @@ try:
 except ImportError:
     sys.exit("Missing numpy. Run: pip install numpy")
 
-from calibration import ProbCalibrator
+from calibration import ProbCalibrator, CIRCalibrator
 
 ROOT          = Path(__file__).parent
 LR_T1_PATH    = ROOT / "data" / "lr_t1.json"
 LR_B1_PATH    = ROOT / "data" / "lr_b1.json"
 FI_PARK_PATH  = ROOT / "data" / "fi_park_factors.json"
-BT_2025_PATH  = ROOT / "data" / "backtests" / "backtest_2025-04-01_to_2025-09-30_truepit.csv"
+BT_2025_PATH  = ROOT / "data" / "backtests" / "backtest_2025-04-01_to_2025-09-30_truepit_ptfix.csv"  # _ptfix = the leakage repair
 PICKS_2026    = ROOT / "data" / "picks_2026.csv"
 CAL_OUT_PATH  = ROOT / "data" / "calibration_v2.json"
 
@@ -60,40 +60,16 @@ LEAGUE_AVG_XERA     = 4.20
 NEUTRAL_PCT_RANK    = 50
 
 # Must match the feature_names saved by two_stage_model.py --phase-e3.
-T1_FEATURES = [
-    "fi_park_nrfi_rate", "home_fip", "away_obp",
-    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
-    "home_p_last5_pitcher_nrfi",
-    "away_top3c_obp",
-    "home_plate_ump_nrfi_rate",
-    "home_xera",
-    "home_whiff_pct_rank",
-    "era_gap_t1",
-    "home_p_last10_pitcher_nrfi",
-    "away_top3c_slg",
-    "away_top3c_iso",
-    "home_pvt_nrfi_rate",
-    "home_avg_ip_per_start",
-    # 2026-05-19 VSHAND: top-3 OPS vs opposing starter's hand
-    "away_top3_ops_vs_oppHand",
-]
-B1_FEATURES = [
-    "fi_park_nrfi_rate", "away_fip", "home_obp",
-    "wx_temp_c", "wx_wind_kmh", "wx_humidity", "wx_is_dome",
-    "away_p_last5_pitcher_nrfi",
-    "home_top3c_obp",
-    "home_plate_ump_nrfi_rate",
-    "away_xera",
-    "away_whiff_pct_rank",
-    "era_gap_b1",
-    "away_p_last10_pitcher_nrfi",
-    "home_top3c_slg",
-    "home_top3c_iso",
-    "away_pvt_nrfi_rate",
-    "away_avg_ip_per_start",
-    # 2026-05-19 VSHAND: top-3 OPS vs opposing starter's hand
-    "home_top3_ops_vs_oppHand",
-]
+# 2026-08-22: the feature lists are the PREDICTOR'S, imported -- this file used
+# to carry its own copy, which silently fell out of date when the 20-feature
+# model shipped (it then refused to run, which was the safe outcome, but a
+# copy that has to be maintained by hand will fall out of date again).
+try:
+    from mlb_first_inning_predictor import (_T1_EXPECTED_FEATURES as T1_FEATURES,
+                                            _B1_EXPECTED_FEATURES as B1_FEATURES)
+except Exception as _e:   # noqa: BLE001
+    sys.exit(f"cannot import the predictor's feature lists: {_e!r}")
+
 LEAGUE_AVG_OPS_VSHAND = 0.720    # matches archive backfill convention
 
 
@@ -164,8 +140,38 @@ def _weather_block(r) -> list[float]:
     ]
 
 
+_FI_FACTOR = None
+_FI_LEAGUE = None
+
+
+def _fi_xwoba_for_game(game_pk):
+    """(away_fi_xwoba, home_fi_xwoba): the point-in-time pooled value from
+    data/candidates/factor_fi_pooled.csv, else the pool's league mean -- the
+    predictor's own default for an unseen starter (see fi_pitcher_pool.py)."""
+    global _FI_FACTOR, _FI_LEAGUE
+    if _FI_FACTOR is None:
+        _FI_FACTOR = {}
+        fp = ROOT / "data" / "candidates" / "factor_fi_pooled.csv"
+        if fp.exists():
+            with open(fp, encoding="utf-8") as fh:
+                for rr in csv.DictReader(fh):
+                    try:
+                        a = float(rr["away_fi_xwoba"]) if rr.get("away_fi_xwoba") else None
+                        h = float(rr["home_fi_xwoba"]) if rr.get("home_fi_xwoba") else None
+                    except ValueError:
+                        a = h = None
+                    _FI_FACTOR[str(rr["game_pk"]).strip()] = (a, h)
+        try:
+            import fi_pitcher_pool as _fp
+            _FI_LEAGUE = _fp.league_mean(_fp.load_state())
+        except Exception:   # noqa: BLE001
+            _FI_LEAGUE = 0.32
+    a, h = _FI_FACTOR.get(str(game_pk or "").strip(), (None, None))
+    return (a if a is not None else _FI_LEAGUE, h if h is not None else _FI_LEAGUE)
+
+
 def _build_t1_b1_phase_e3(r, fi_park):
-    """Build T1 + B1 feature vectors for Phase E.3 + era_gap schema (13 each)."""
+    """Build T1 + B1 feature vectors in the predictor's declared order."""
     wx = _weather_block(r)
     ump_rate = coerce_float(r.get("home_plate_ump_nrfi_rate"), LEAGUE_NRFI_RATE)
     h_era = coerce_float(r.get("home_era"), LEAGUE_AVG_ERA)
@@ -190,6 +196,8 @@ def _build_t1_b1_phase_e3(r, fi_park):
         # 2026-05-19 VSHAND:
         coerce_float(r.get("away_top3_ops_vs_oppHand"),  LEAGUE_AVG_OPS_VSHAND),
     ]
+    _fa, _fh = _fi_xwoba_for_game(r.get("game_pk"))
+    t1_vec.append(_fh)                 # 2026-08-22: HOME starter's pooled 1st-inning xwOBA
     b1_vec = [
         fi_park,
         coerce_float(r.get("away_fip"), LEAGUE_AVG_ERA),
@@ -210,6 +218,10 @@ def _build_t1_b1_phase_e3(r, fi_park):
         # 2026-05-19 VSHAND:
         coerce_float(r.get("home_top3_ops_vs_oppHand"),  LEAGUE_AVG_OPS_VSHAND),
     ]
+    b1_vec.append(_fa)                 # 2026-08-22: AWAY starter's pooled 1st-inning xwOBA
+    if len(t1_vec) != len(T1_FEATURES) or len(b1_vec) != len(B1_FEATURES):
+        raise RuntimeError(f"vector length {len(t1_vec)}/{len(b1_vec)} != feature lists "
+                           f"{len(T1_FEATURES)}/{len(B1_FEATURES)} -- this file is out of step with the predictor")
     return t1_vec, b1_vec
 
 
@@ -353,8 +365,14 @@ def main():
 
     # Fit new calibrator on combined
     n_bins = max(5, min(20, len(y_all) // 130))  # target ~130 picks/bin
-    print(f"\nFitting ProbCalibrator on combined N={len(y_all)} with {n_bins} bins...")
-    new_cal = ProbCalibrator.fit(
+    # 2026-08-22: CIR, not PAV.  The shipped calibrator has been CIR since
+    # 2026-07-28 (centered isotonic: one knot per PAV pool, no flat steps) and
+    # the 0.42 gate was re-derived on that scale.  Writing a PAV file here would
+    # move the distribution under the gate (memory:
+    # 2026-07-30_gate_calibrator_interaction).  The predictor's loader reads
+    # both shapes; only the fit changes.
+    print(f"\nFitting CIRCalibrator on combined N={len(y_all)} with {n_bins} bins...")
+    new_cal = CIRCalibrator.fit(
         predictions   = p_all.tolist(),
         actuals       = y_all.tolist(),
         n_bins        = n_bins,

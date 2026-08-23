@@ -114,18 +114,16 @@ Nothing here auto-reverts. Revert is a human decision, and it is one commit (§7
 
 ---
 
-## 6. Things that must NOT be run as they stand
+## 6. The two foot-guns -- CLOSED 2026-08-22 (same day)
 
-- The `recalibrate` workflow_dispatch action (`recalibrate_v2.py`) writes a
-  **PAV** calibrator, not CIR, from the live model's predictions. Running it would
-  silently swap the calibrator shape under the gate (see memory
-  `2026-07-30_gate_calibrator_interaction`). **Follow-up:** port it to
-  `CIRCalibrator` or retire the action. Until then: do not run it.
-- Any weights refit must include the feature. `two_stage_model.py` does not know
-  it yet; the loader will **reject** a 19-feature file (safe), but a rejected
-  model makes the predictor fall back to the legacy path. **Follow-up:** add the
-  feature to `two_stage_model.py` (or refit via `tools/refit2026/refit_candidate.py`,
-  which already does) before any refit. The weekly auto-refit is OFF; keep it off.
+- `recalibrate_v2.py` now imports the predictor's feature lists, supplies the
+  pooled first-inning xwOBA per game, reads the `_ptfix` 2025 file, and fits
+  **CIR** (the shipped shape). It is safe to run as a manual, OOS-checked
+  recalibration again (see its playbook in `calibration_drift_monitor`).
+- `two_stage_model.py --fi-xwoba --l2 0.5` reproduces the shipped fit (same
+  20 names, fi_xwoba weight 0.0330 vs 0.0328) and **refuses** to write any other
+  feature set to the production paths. This is the canonical path for the next
+  refit. The weekly auto-refit is OFF; keep it off.
 
 ---
 

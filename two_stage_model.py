@@ -168,6 +168,41 @@ B1_PHASE_G_FEATURES = B1_PHASE_E3_FEATURES + [
 T1_PHASE_E3_VSHAND_FEATURES = T1_PHASE_E3_FEATURES + ["away_top3_ops_vs_oppHand"]
 B1_PHASE_E3_VSHAND_FEATURES = B1_PHASE_E3_FEATURES + ["home_top3_ops_vs_oppHand"]
 
+# 2026-08-22 (--fi-xwoba): + the starter's pooled FIRST-INNING xwOBA allowed,
+# the 20-feature set that SHIPS (mlb_first_inning_predictor._T1/_B1_EXPECTED_
+# FEATURES).  The value is not a CSV column: it is point-in-time per game from
+# data/candidates/factor_fi_pooled.csv (built by tools/refit2026/
+# build_fi_pitcher_pooled.py), league mean where a game has none.  The
+# validated recipe is this set at --l2 0.5 (CHANGELOG 2026-08-22).
+T1_PHASE_E3_VSHAND_FI_FEATURES = T1_PHASE_E3_VSHAND_FEATURES + ["home_fi_xwoba"]
+B1_PHASE_E3_VSHAND_FI_FEATURES = B1_PHASE_E3_VSHAND_FEATURES + ["away_fi_xwoba"]
+_FI_FACTOR = None
+_FI_LEAGUE = None
+
+
+def _fi_xwoba_for_game(game_pk):
+    """(away_fi_xwoba, home_fi_xwoba) for a game, point-in-time, else league mean."""
+    global _FI_FACTOR, _FI_LEAGUE
+    if _FI_FACTOR is None:
+        _FI_FACTOR = {}
+        fp = ROOT / "data" / "candidates" / "factor_fi_pooled.csv"
+        if fp.exists():
+            with open(fp, encoding="utf-8") as fh:
+                for rr in csv.DictReader(fh):
+                    try:
+                        a = float(rr["away_fi_xwoba"]) if rr.get("away_fi_xwoba") else None
+                        h = float(rr["home_fi_xwoba"]) if rr.get("home_fi_xwoba") else None
+                    except ValueError:
+                        a = h = None
+                    _FI_FACTOR[str(rr["game_pk"]).strip()] = (a, h)
+        try:
+            import fi_pitcher_pool as _fp
+            _FI_LEAGUE = _fp.league_mean(_fp.load_state())
+        except Exception:   # noqa: BLE001
+            _FI_LEAGUE = 0.32
+    a, h = _FI_FACTOR.get(str(game_pk or "").strip(), (None, None))
+    return (a if a is not None else _FI_LEAGUE, h if h is not None else _FI_LEAGUE)
+
 # Phase E.3 + VSHAND_DIFF (2026-05-19): engineered orthogonal-to-OPS variant.
 T1_PHASE_E3_VSHAND_DIFF_FEATURES = T1_PHASE_E3_FEATURES + ["away_top3_vs_oppHand_diff"]
 B1_PHASE_E3_VSHAND_DIFF_FEATURES = B1_PHASE_E3_FEATURES + ["home_top3_vs_oppHand_diff"]
@@ -202,7 +237,7 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
            phase_e3: bool = False, phase_g: bool = False,
            phase_e3_vshand: bool = False, phase_e3_vshand_diff: bool = False,
            ump_cache=None, ump_rates_data=None,
-           clean_only: bool = False) -> dict:
+           clean_only: bool = False, fi_xwoba: bool = False) -> dict:
     """Returns dict of stacked numpy arrays for both halves' features and
     binary labels (1 if that half had a run).
 
@@ -299,6 +334,10 @@ def gather(csv_path: Path, fi_park_map=None, slim: bool = False,
                 if phase_e3_vshand:
                     t1_x.append(coerce(r.get("away_top3_ops_vs_oppHand"), LEAGUE_AVG_OPS))
                     b1_x.append(coerce(r.get("home_top3_ops_vs_oppHand"), LEAGUE_AVG_OPS))
+                if fi_xwoba:
+                    _fa, _fh = _fi_xwoba_for_game(r.get("game_pk"))
+                    t1_x.append(_fh)          # HOME starter pitches the top of the 1st
+                    b1_x.append(_fa)
                 # Phase E.3 + VSHAND_DIFF: engineered orthogonal-to-OPS variant.
                 if phase_e3_vshand_diff:
                     a_vsh = coerce(r.get("away_top3_ops_vs_oppHand"), None)
@@ -444,6 +483,12 @@ def main():
     ap.add_argument("--phase-g", action="store_true",
                     help="Phase G: phase-e3 + top-3 batters' last-10-games OBP/SLG/ISO "
                          "(21 features per half).  Requires --phase-e3.  Test before deploy.")
+    ap.add_argument("--fi-xwoba", action="store_true",
+                    help="Phase E3+VSHAND + pooled first-inning pitcher xwOBA (the 20-feature "
+                         "set that ships, 2026-08-22).  Use with --l2 0.5, the validated setting.")
+    ap.add_argument("--allow-legacy-save", action="store_true",
+                    help="Permit saving a feature set the live predictor would REJECT to the "
+                         "production paths (data/lr_t1.json / lr_b1.json).  Off by default.")
     ap.add_argument("--phase-e3-vshand", action="store_true",
                     help="Phase E.3 + raw VSHAND OPS (19 features per half).")
     ap.add_argument("--phase-e3-vshand-diff", action="store_true",
@@ -475,6 +520,12 @@ def main():
         t1_feats = T1_PHASE_G_FEATURES
         b1_feats = B1_PHASE_G_FEATURES
         variant = "PHASE_G"
+    elif args.fi_xwoba:
+        args.phase_e3 = True
+        args.phase_e3_vshand = True
+        t1_feats = T1_PHASE_E3_VSHAND_FI_FEATURES
+        b1_feats = B1_PHASE_E3_VSHAND_FI_FEATURES
+        variant = "PHASE_E3_VSHAND_FI (ships 2026-08-22)"
     elif args.phase_e3_vshand:
         if not args.phase_e3:
             args.phase_e3 = True
@@ -533,7 +584,7 @@ def main():
                            slim_weather=args.slim_weather,
                            phase_e3=args.phase_e3, phase_g=args.phase_g, phase_e3_vshand=args.phase_e3_vshand, phase_e3_vshand_diff=args.phase_e3_vshand_diff,
                            ump_cache=ump_cache, ump_rates_data=ump_rates_data,
-                           clean_only=args.clean_only)
+                           clean_only=args.clean_only, fi_xwoba=args.fi_xwoba)
                     for p in args.train]
     train_blocks = [b for b in train_blocks if b is not None]
     if not train_blocks:
@@ -546,8 +597,30 @@ def main():
     print(f"  T1 base rate : {yt.mean()*100:.2f}% (away team scored in T1)")
     print(f"  B1 base rate : {yb.mean()*100:.2f}% (home team scored in B1)")
 
-    m_t1 = LogReg.fit(Xt, yt, t1_feats, l2=args.l2)
-    m_b1 = LogReg.fit(Xb, yb, b1_feats, l2=args.l2)
+    # 2026-08-22: L2 UNITS.  lr_baseline.LogReg.fit penalises the SUM of
+    # log-losses (0.5 * l2 * ||w||^2 against sum_i nll_i), so "--l2 0.05" is
+    # ~0.05/N per sample -- nearly unregularised at N~6,600.  The validated
+    # fitter (tools/refit2026/harness.fit_lr, which produced the shipped
+    # 2026-08-22 weights) penalises the MEAN log-loss, so its "0.5" is a
+    # genuine shrinkage.  With --fi-xwoba, --l2 is read in the validated
+    # (per-sample) units and scaled by N here, so the trainer reproduces the
+    # shipped fit instead of silently re-fitting an almost-unregularised model.
+    l2_eff = args.l2 * len(yt) if args.fi_xwoba else args.l2
+    if args.fi_xwoba:
+        print(f"  --fi-xwoba: --l2 {args.l2} is per-sample (validated units); "
+              f"passing {l2_eff:.1f} to LogReg.fit (sum-loss units, N={len(yt)})")
+    m_t1 = LogReg.fit(Xt, yt, t1_feats, l2=l2_eff)
+    m_b1 = LogReg.fit(Xb, yb, b1_feats, l2=l2_eff)
+    # 2026-08-22 GUARD: the live predictor expects the 20-feature set and its
+    # loader REJECTS any other list -- and a rejected model silently drops the
+    # predictor to the legacy path.  Refuse to write a non-matching set to the
+    # production paths unless explicitly allowed.
+    _prod = {str(Path("data/lr_t1.json").resolve()), str(Path("data/lr_b1.json").resolve())}
+    _targets = {str(Path(args.save_t1).resolve()), str(Path(args.save_b1).resolve())}
+    if (_prod & _targets) and not args.fi_xwoba and not args.allow_legacy_save:
+        sys.exit("REFUSING to save a feature set the live predictor would reject to the "
+                 "production paths.  Use --fi-xwoba (the shipped 20-feature set, with --l2 0.5), "
+                 "or --save-t1/--save-b1 elsewhere, or --allow-legacy-save if you really mean it.")
     m_t1.save(args.save_t1)
     m_b1.save(args.save_b1)
 
@@ -571,7 +644,7 @@ def main():
     te = gather(Path(args.test), park, slim=args.slim, slim_k9=args.slim_k9,
                 slim_weather=args.slim_weather, phase_e3=args.phase_e3, phase_g=args.phase_g, phase_e3_vshand=args.phase_e3_vshand, phase_e3_vshand_diff=args.phase_e3_vshand_diff,
                 ump_cache=ump_cache, ump_rates_data=ump_rates_data,
-                clean_only=False)
+                clean_only=False, fi_xwoba=args.fi_xwoba)
     if not te:
         sys.exit("No test rows.")
 
