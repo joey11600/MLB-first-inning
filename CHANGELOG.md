@@ -170,6 +170,36 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-22] - Rollout plan follow-ups #2, #5, #6/#7 shipped
+
+- **#2 Dashboard** -- `/history` now carries a "Since the Aug 22 model update"
+  block (`TopPickReport.sinceUpdate`: record, at Kelly, flat, staked -- the
+  identical rule over nights >= `MODEL_UPDATED_FROM`), rendered beside the
+  season figures and never blended into them, plus a dashed `--rule` marker on
+  the cumulative-units chart at the first settled night under the updated
+  model. Verified live. `CURRENT_SYSTEM_FROM` stays 2026-05-26 on purpose.
+- **#5 Ledger columns** -- `home_fi_xwoba` / `away_fi_xwoba` (the model inputs
+  as the predictor saw them at pick time) appended LAST to `tracker.FIELDS`,
+  written from the predictor's result dict, **frozen with the bet** once
+  `bet_placed=Y` (added to the locked-row preserve list, like the lambdas),
+  mapped in `db/supabase_writer.PICKS_CONVERTERS` and
+  `db/migrate_csv_to_supabase.py`. Supabase `picks_2026` gained the two
+  nullable double-precision columns by migration
+  `picks_2026_add_fi_xwoba_columns` BEFORE the writer change shipped
+  (106 -> 108 columns; the CSV is 117 -> 119; the mirror-is-not-the-CSV gap
+  is unchanged in kind). `tests/test_sizing_prob_stamp.py` now asserts the
+  tail of the schema explicitly so a reorder or an insertion ahead of
+  `sizing_prob` fails. Suite: 271 passed.
+- **#6/#7 Odds** -- `tools/fetch_odds_api.py --markets ... --raw-output` and
+  `.github/workflows/odds_diagnostic.yml` (17:00 UTC daily + manual): every
+  book's first-inning AND first-5-innings totals into
+  `data/diagnostics/odds/raw_<date>.csv`, long format, diagnostic only.
+  **Waits on one thing:** the `ODDS_API_KEY` repository secret for GitHub
+  Actions (the key lives on Railway). Until then the job prints the
+  click-by-click instruction and exits clean. ~30 credits/day.
+
+---
+
 ## [2026-08-22] - Two foot-guns removed: the recalibrate action and the official trainer
 
 Follow-ups #3 and #4 of the rollout plan.

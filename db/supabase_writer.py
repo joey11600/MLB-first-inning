@@ -271,6 +271,10 @@ PICKS_CONVERTERS: dict[str, Any] = {
     # T8.35: the probability the Kelly sizer actually used when it last
     # wrote units_risked.  Blank = current stake is not probability-sized.
     "sizing_prob":        _to_float,
+    # 2026-08-22: pooled first-inning pitcher xwOBA inputs at pick time.
+    # Columns added to picks_2026 by migration picks_2026_add_fi_xwoba_columns.
+    "home_fi_xwoba":      _to_float,
+    "away_fi_xwoba":      _to_float,
     "edge_nrfi":          _to_float,
     "edge_yrfi":          _to_float,
     "edge_on_pick":       _to_float,

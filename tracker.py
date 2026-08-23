@@ -168,6 +168,12 @@ FIELDS = [
     # rewrites the whole file with the new header on first touch, and
     # appending never disturbs column positions for external readers.
     "sizing_prob",
+    # 2026-08-22: the model's pooled first-inning pitcher xwOBA inputs as the
+    # predictor saw them at pick time (fi_pitcher_pool.py).  The pool state
+    # moves daily, so without these the value behind a past pick is not
+    # recoverable.  Appended last for the same reason as sizing_prob;
+    # frozen with the bet once bet_placed=Y (see the locked-row preserve list).
+    "home_fi_xwoba", "away_fi_xwoba",
 ]
 
 # ---------------------------------------------------------------------------
@@ -812,6 +818,9 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             "lambda_lr_t1":   _fmt(g.get("lambda_lr_t1"),    4),
             "lambda_lr_b1":   _fmt(g.get("lambda_lr_b1"),    4),
             "lambda_lr_total":_fmt(g.get("lambda_lr_total"), 4),
+            # 2026-08-22: pooled first-inning pitcher xwOBA at pick time
+            "home_fi_xwoba":  _fmt(g.get("home_fi_xwoba"), 4),
+            "away_fi_xwoba":  _fmt(g.get("away_fi_xwoba"), 4),
             "nrfi_prob":      _fmt(g["nrfi_prob"], 4),
             "yrfi_prob":      _fmt(g["yrfi_prob"], 4),
             # 2026-07-28 AUDIT FIX: both raw columns are declared in FIELDS
@@ -992,6 +1001,9 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     "combined_lambda",
                     "over_1_5_prob", "under_1_5_prob",
                     "blended_inputs",
+                    # 2026-08-22: the model inputs that produced the locked
+                    # probability stay with it; the pool moves daily.
+                    "home_fi_xwoba", "away_fi_xwoba",
                 ]
 
             # 2026-05-11: Cluster-demotion preserve.  When a row has been

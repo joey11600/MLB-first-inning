@@ -189,7 +189,12 @@ def test_column_is_wired_end_to_end():
     from db import supabase_writer
     from tools import sync_csv_from_supabase as sync_mod
     assert "sizing_prob" in tracker.FIELDS
-    assert tracker.FIELDS[-1] == "sizing_prob"     # appended, never reordered
+    # Appended, never reordered.  Columns added AFTER sizing_prob must be
+    # appended behind it, and each one has to be named here on purpose --
+    # so a reorder fails, and a silent insertion ahead of it fails.
+    tail = tracker.FIELDS[tracker.FIELDS.index("sizing_prob"):]
+    assert tail == ["sizing_prob",
+                    "home_fi_xwoba", "away_fi_xwoba"]   # 2026-08-22 model inputs
     assert "sizing_prob" in supabase_writer.PICKS_CONVERTERS
     # Preserve-on-blank keeps a predict-path mirror from wiping the
     # sizer's stamp, and its membership auto-enrolls the column in the

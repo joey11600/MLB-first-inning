@@ -2966,6 +2966,11 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             "lambda_lr_t1":     lambda_t1,
             "lambda_lr_b1":     lambda_b1,
             "lambda_lr_total":  lambda_lr_total,
+            # 2026-08-22: the pooled first-inning pitcher xwOBA inputs as fed
+            # to the model for this game (last element of each half's vector),
+            # so the ledger records what the model actually saw.
+            "home_fi_xwoba":    (t1_feats[-1] if t1_feats else ""),
+            "away_fi_xwoba":    (b1_feats[-1] if b1_feats else ""),
             # Weather inputs persisted so retro re-bets / calibration use the
             # exact values the live predictor saw at pick time.  Domed parks
             # use neutral defaults with is_dome=1 (model's "ignore weather"

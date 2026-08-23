@@ -143,9 +143,10 @@ The loader's name/weights check means a half-revert cannot silently run.)
 
 1. ~~Dashboard sub-total + marker~~ — done 2026-08-22.
 2. ~~Retire or port the `recalibrate` action to CIR~~ — done 2026-08-22 (ported).
-3. **Ledger columns** `home_fi_xwoba` / `away_fi_xwoba` for auditability — touches
-   the tracker's column list AND the Supabase mirror (memory
-   `supabase_mirror_is_not_the_csv`); do it deliberately, not in passing.
+3. ~~Ledger columns~~ — done 2026-08-22: Supabase migration first (additive,
+   nullable), then tracker schema (appended last, frozen with the bet), predictor,
+   writer maps. Verify after the next predict tick: the CSV header ends with
+   `…,sizing_prob,home_fi_xwoba,away_fi_xwoba` and Supabase rows carry values.
 4. ~~Teach `two_stage_model.py` the feature~~ — done 2026-08-22 (`--fi-xwoba`, guard, L2 units).
 5. **Line shopping measurement** — IN PLACE 2026-08-22: `.github/workflows/odds_diagnostic.yml`
    captures every book's first-inning AND first-5-innings totals daily into
