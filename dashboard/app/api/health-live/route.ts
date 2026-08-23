@@ -227,6 +227,38 @@ export async function GET() {
     }));
   } catch { /* swallow */ }
 
+  // 3b. 2026-08-23: The Odds API credit balance, per host.  Written by
+  // tools/fetch_odds_api.py on every run into system_status (key
+  // "odds_api_credits:<host>").  Two hosts spend from this account --
+  // Railway (the lock-time money path) and GitHub Actions (the daily
+  // multi-book snapshot) -- and on 2026-08-23 they held DIFFERENT keys
+  // (Railway the exhausted free one), which is why it is per host and
+  // the card shows both when they disagree.  Railway is the one that can
+  // unprice a slate, so only its balance escalates the status.
+  type CreditRow = { host: string; remaining: number; used: number | null; checkedAt: string };
+  let oddsCredits: CreditRow[] = [];
+  try {
+    const { data } = await sb
+      .from("system_status")
+      .select("key, value, updated_at")
+      .like("key", "odds_api_credits:%");
+    const threeDaysAgo = now.getTime() - 3 * 24 * 60 * 60 * 1000;
+    oddsCredits = ((data ?? []) as Array<{
+      key: string; value: Record<string, unknown> | null; updated_at?: string;
+    }>)
+      .map(r => {
+        const v = r.value ?? {};
+        return {
+          host:      String(v.host ?? r.key.split(":")[1] ?? ""),
+          remaining: Number(v.remaining),
+          used:      typeof v.used === "number" ? v.used : null,
+          checkedAt: String(v.checked_at ?? r.updated_at ?? ""),
+        };
+      })
+      // a host that has not reported for 3 days is not spending; ignore it
+      .filter(c => Number.isFinite(c.remaining) && Date.parse(c.checkedAt) > threeDaysAgo);
+  } catch { /* swallow -- advisory, never breaks health */ }
+
   // T3.14: informational steps -- not actual failures.  Surfaced in the
   // expanded card under a separate "Notices" section instead of counting
   // against the error count or escalating health status.  Currently:
@@ -333,6 +365,19 @@ export async function GET() {
     reasons.push(`${errorsLastHour} error(s) in the last hour`);
   }
 
+  // 2026-08-23: credit balance.  Under 100 on Railway means the next slate
+  // locks unpriced -> degraded.  Under 2,000 anywhere -> warn (the snapshot
+  // refuses below 2,000 by design, so the money path keeps a reserve).
+  const railwayCredits = oddsCredits.find(c => c.host === "railway");
+  const lowCredits = oddsCredits.filter(c => c.remaining < 2000);
+  if (railwayCredits && railwayCredits.remaining < 100) {
+    if (status === "ok" || status === "warn") status = "degraded";
+    reasons.push(`Odds API credits nearly gone on Railway (${railwayCredits.remaining}) -- lock-time prices will stop`);
+  } else if (lowCredits.length > 0) {
+    if (status === "ok") status = "warn";
+    reasons.push(`Odds API credits low: ${lowCredits.map(c => `${c.host} ${c.remaining}`).join(", ")}`);
+  }
+
   return NextResponse.json(
     {
       status,
@@ -353,6 +398,8 @@ export async function GET() {
       errorsLast24h:       errorRows.length,
       errorsLastHour,
       errorCountsByStep,
+      // 2026-08-23: The Odds API balance per host (see 3b).
+      oddsCredits,
       // Cap response size; UI only shows the top-5 most recent.
       // Message truncation happens HERE (not at parse time) so the
       // known-noise classifier above saw the full stderr tail.

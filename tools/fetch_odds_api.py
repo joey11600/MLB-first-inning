@@ -55,6 +55,11 @@ Usage:
     # the money path -- one book, into the file the importer already reads:
     python tools/fetch_odds_api.py --book draftkings \
         --output data/odds/dk_2026-08-11.csv
+    # the money path since 2026-08-23 -- every US book in ONE call (same
+    # cost), FanDuel to the ledger file, every book to the line-shopping file:
+    python tools/fetch_odds_api.py --regions us --ledger-book fanduel \
+        --windows 65:50 --skip-started --merge --output data/odds/dk_2026-08-23.csv \
+        --raw-output data/diagnostics/odds/lock_2026-08-23.csv --raw-append
     # diagnostic only -- every book, NEVER imported:
     python tools/fetch_odds_api.py --output data/odds/api_2026-08-11.csv
     python tools/fetch_odds_api.py --self-test
@@ -82,6 +87,54 @@ SPORT = "baseball_mlb"
 MARKET = "totals_1st_1_innings"
 ET = ZoneInfo("America/New_York")
 
+RAW_FIELDS = ["captured_at_utc", "commence_time", "away_team", "home_team",
+              "book_key", "book", "market", "point", "outcome", "price"]
+
+
+def _host_label() -> str:
+    """Which machine is spending: the two can hold DIFFERENT keys (2026-08-23:
+    Railway had the exhausted free key while GitHub Actions had the 20K one),
+    so the balance is recorded per host and the dashboard shows both."""
+    if any(os.environ.get(k) for k in ("RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME",
+                                       "RAILWAY_SERVICE_NAME", "RAILWAY_SERVICE_ID")):
+        return "railway"
+    if os.environ.get("GITHUB_ACTIONS"):
+        return "gha"
+    return "local"
+
+
+def _record_credit_balance(used, remaining, quiet: bool = False) -> None:
+    """Best-effort: write the balance the API just reported into Supabase
+    `system_status` (key `odds_api_credits:<host>`) so the dashboard's Ops
+    Health card shows it and can warn before the money path runs dry.  No
+    Supabase credentials -> silently skipped; any error -> one stderr line,
+    never a failure (this tool's exit code is money-path signal)."""
+    if remaining is None:
+        return
+    try:
+        rem_i = int(remaining)
+    except (TypeError, ValueError):
+        return
+    try:
+        from db.supabase_writer import _get_client   # lazy: keeps --self-test dependency-free
+        client = _get_client()
+        if client is None:
+            return
+        host = _host_label()
+        try:
+            used_i = int(used) if used not in (None, "") else None
+        except (TypeError, ValueError):
+            used_i = None
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        client.table("system_status").upsert({
+            "key": f"odds_api_credits:{host}",
+            "value": {"remaining": rem_i, "used": used_i, "host": host, "checked_at": now},
+            "updated_at": now,
+        }, on_conflict="key").execute()
+    except Exception as exc:    # noqa: BLE001
+        if not quiet:
+            print(f"  (credit balance not recorded: {exc!r})", file=sys.stderr)
+
 # The Odds API returns full team names; the ledger uses these abbrs.
 TEAM_TO_ABBR = {
     "Arizona Diamondbacks": "ARI", "Atlanta Braves": "ATL",
@@ -105,7 +158,13 @@ TEAM_TO_ABBR = {
 
 FIELDS = ["date", "game_pk", "away_team", "home_team",
           "market_nrfi_odds", "market_yrfi_odds", "sportsbook",
-          "start_time_utc"]
+          "start_time_utc", "captured_at_utc"]
+# `captured_at_utc` (2026-08-23): when THIS row's price was actually fetched.
+# A --merge file carries rows from earlier cycles, and the importer used to
+# stamp every row with the import time -- so an unlocked game's "captured X
+# ago" moved every five minutes although its price had not been re-fetched
+# since the morning. The importer now uses this column when present and
+# falls back to the import time for files that lack it (scrape_dk_odds.py).
 
 
 def abbr(name: str) -> str | None:
@@ -149,6 +208,16 @@ def _parse_iso(iso: str | None) -> datetime | None:
 
 def odds_params(key: str, book: str | None, regions: str, markets: str = MARKET) -> dict:
     """Query params for one event's odds -- and the whole cost model.
+
+    2026-08-23 ADDENDUM -- the cost model flipped once the book was FanDuel.
+    FanDuel posts the first-inning line by the morning (measured: the price
+    was already up at T-120 for 100% of games, Aug 20-22), so the "ask for
+    one book, pay nothing until it quotes" saving no longer exists, while
+    the OTHER half of the rule still holds: cost = markets x regions, and
+    `regions=us` is ONE region however many books it returns. So a call for
+    every US book costs exactly what a FanDuel-only call costs. That is
+    what `--ledger-book` exploits: one credit buys the ledger's FanDuel
+    number AND every other book's quote for line shopping.
 
     ASK FOR THE ONE BOOK, NOT THE WHOLE REGION. Measured against the live
     API 2026-08-11: cost is [unique markets RETURNED] x [regions], up to
@@ -468,6 +537,17 @@ def main() -> int:
     ap.add_argument("--markets", default=MARKET,
                     help="Comma-separated Odds API market keys to request "
                          "(default: the first-inning total).")
+    ap.add_argument("--ledger-book", default=None, metavar="KEY",
+                    help="Request EVERY book in --regions (same credit cost "
+                         "as one book: cost is markets x regions) but write "
+                         "only this book's rows to --output, the file the "
+                         "ledger imports. Every book's rows go to "
+                         "--raw-output for line shopping. Mutually exclusive "
+                         "with --book. (2026-08-23)")
+    ap.add_argument("--raw-append", action="store_true",
+                    help="Append to --raw-output instead of overwriting it "
+                         "(header written once). For the at-lock cycles, "
+                         "which add a few rows each to one daily file.")
     ap.add_argument("--raw-output", type=Path, metavar="CSV",
                     help="Also write every book x market x outcome row here "
                          "(diagnostic; not importable).")
@@ -514,6 +594,17 @@ def main() -> int:
 
     if args.self_test:
         return self_test()
+    if args.book and args.ledger_book:
+        sys.exit("--book and --ledger-book are mutually exclusive: --book asks "
+                 "the API for one book; --ledger-book asks for every book in "
+                 "--regions and keeps one for the ledger file.")
+    if args.ledger_book and not args.raw_output:
+        print("note: --ledger-book without --raw-output keeps only the ledger "
+              "book; the other books' quotes are fetched and discarded.",
+              file=sys.stderr)
+    # The LOCAL filter for the ledger file: --book (one-book request) or
+    # --ledger-book (whole-region request, one book kept).
+    ledger_filter = args.book or args.ledger_book
 
     key = (os.getenv("ODDS_API_KEY") or "").strip()
     if not key:
@@ -527,6 +618,7 @@ def main() -> int:
     except urllib.error.HTTPError as e:
         sys.exit(f"event list failed: HTTP {e.code} {e.reason}")
     print(f"{len(events)} upcoming MLB events  (credits used {used}, remaining {rem})")
+    _record_credit_balance(used, rem)
 
     # WINDOW THE SLATE BEFORE SPENDING ANYTHING. Every event costs a
     # credit, and DK does not post a first-inning line until roughly an
@@ -579,7 +671,9 @@ def main() -> int:
 
     rows, failed = [], 0
     raw_rows = []
-    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    # "Z" form, the same shape tracker._now_utc() writes, so the ledger's
+    # capture stamps stay uniform whichever path wrote them.
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     for ev in events:
         try:
             detail, rem, used = _get(
@@ -603,7 +697,10 @@ def main() -> int:
             # it. It is the guard that keeps the ledger a DraftKings-priced
             # series; a server-side parameter is not something to stake the
             # record on if the API ever widens what it returns.
-            rows.extend(parse_event(detail, args.book))
+            fresh = parse_event(detail, ledger_filter)
+            for r_ in fresh:
+                r_["captured_at_utc"] = now_iso
+            rows.extend(fresh)
         except urllib.error.HTTPError as e:
             failed += 1
             print(f"  {ev.get('away_team')} @ {ev.get('home_team')}: "
@@ -613,14 +710,19 @@ def main() -> int:
             print(f"  {ev.get('away_team')} @ {ev.get('home_team')}: "
                   f"{type(e).__name__}", file=sys.stderr)
 
+    # the per-event calls are the ones that cost; record the balance they left
+    _record_credit_balance(used, rem, quiet=True)
+
     if args.raw_output:
         args.raw_output.parent.mkdir(parents=True, exist_ok=True)
-        with open(args.raw_output, "w", newline="", encoding="utf-8") as fh:
-            w = csv.DictWriter(fh, fieldnames=["captured_at_utc", "commence_time", "away_team",
-                                               "home_team", "book_key", "book", "market", "point",
-                                               "outcome", "price"])
-            w.writeheader(); w.writerows(raw_rows)
-        print(f"raw diagnostic: {len(raw_rows)} rows over {len(events)} events -> {args.raw_output}")
+        append = args.raw_append and args.raw_output.exists() and args.raw_output.stat().st_size > 0
+        with open(args.raw_output, "a" if append else "w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=RAW_FIELDS)
+            if not append:
+                w.writeheader()
+            w.writerows(raw_rows)
+        print(f"raw {'appended' if append else 'diagnostic'}: {len(raw_rows)} rows over "
+              f"{len(events)} events -> {args.raw_output}")
         if not args.output:
             return 0
 
@@ -635,8 +737,8 @@ def main() -> int:
             print("no prices yet for the events in this window "
                   "(the book has not posted them). Nothing written.")
             return 0
-        if args.book:
-            sys.exit(f"no first-inning 0.5 prices for --book {args.book!r} -- "
+        if ledger_filter:
+            sys.exit(f"no first-inning 0.5 prices for book {ledger_filter!r} -- "
                      f"nothing written. Either that book was not quoting the "
                      f"market, or the name is wrong (try the aggregator's key, "
                      f"e.g. 'draftkings'). Nothing is written rather than "

@@ -52,6 +52,25 @@ interface HealthResponse {
   // T3.14: informational notices (e.g. calibration-drift) -- NOT errors.
   noticesLast24h?:      number;
   recentNotices?:       ErrorRow[];
+  // 2026-08-23: The Odds API credit balance per spending host (railway =
+  // the lock-time money path, gha = the daily multi-book snapshot).
+  oddsCredits?:         { host: string; remaining: number; used: number | null; checkedAt: string }[];
+}
+
+/** "19,790" for one host, or "Railway 27 · GHA 19,790" when the two hosts
+ *  plainly hold different keys (2026-08-23: they did).  The same key read
+ *  at two moments differs by a handful of credits, so a small gap is shown
+ *  as the most recent reading. */
+function creditsText(rows: { host: string; remaining: number; checkedAt: string }[]): string {
+  if (rows.length === 0) return "";
+  const fmt = (n: number) => n.toLocaleString("en-US");
+  const label = (h: string) => h === "railway" ? "Railway" : h === "gha" ? "GHA" : h;
+  const sorted = [...rows].sort((a, b) => Date.parse(b.checkedAt) - Date.parse(a.checkedAt));
+  if (sorted.length === 1) return fmt(sorted[0].remaining);
+  const min = Math.min(...sorted.map(r => r.remaining));
+  const max = Math.max(...sorted.map(r => r.remaining));
+  if (max - min <= 300) return fmt(sorted[0].remaining);
+  return sorted.map(r => `${label(r.host)} ${fmt(r.remaining)}`).join(" · ");
 }
 
 const POLL_MS = 30_000;
@@ -147,6 +166,7 @@ export function OpsHealthCard() {
   const { status, reasons, minutesSincePredict, lastWorkerAt,
           errorsLastHour, errorsLast24h, errorCountsByStep = {},
           recentErrors = [], noticesLast24h = 0, recentNotices = [],
+          oddsCredits = [],
           // T4.13: grade-freshness fields (optional -- older deploys
           // of the API route won't return them; default to safe values
           // so the card still renders against a stale endpoint).
@@ -169,6 +189,22 @@ export function OpsHealthCard() {
   const predictAge = formatAge(minutesSincePredict);
   const workerAge  = formatWorkerAge(lastWorkerAt);
   const gradeAge   = formatAge(minutesSinceGrade);
+
+  // 2026-08-23: odds credits chip.  Amber under 2,000 (the snapshot's own
+  // reserve line), red under 100 on Railway (the next slate locks unpriced).
+  const creditsLabel = creditsText(oddsCredits);
+  const railwayRem = oddsCredits.find(c => c.host === "railway")?.remaining;
+  const creditsCritical = railwayRem !== undefined && railwayRem < 100;
+  const creditsLow = !creditsCritical && oddsCredits.some(c => c.remaining < 2000);
+  const creditsTitle = oddsCredits.length === 0 ? "" :
+    "The Odds API credits remaining, as reported on the last run:\n" +
+    oddsCredits.map(c =>
+      `${c.host === "railway" ? "Railway (lock-time prices)" : c.host === "gha" ? "GitHub Actions (daily snapshot)" : c.host}: ` +
+      `${c.remaining.toLocaleString("en-US")} left` +
+      (c.used !== null ? ` (${c.used.toLocaleString("en-US")} used this cycle)` : "") +
+      ` -- ${formatWorkerAge(c.checkedAt)}`,
+    ).join("\n") +
+    "\nBudget: ~75/day on the 20,000/month plan. Railway and GitHub must hold the SAME key.";
 
   // FIX 3 — the collapsed row has to be USEFUL on its own, or closing the
   // panel by default just hides the problem.  The newest failing step name
@@ -254,6 +290,18 @@ export function OpsHealthCard() {
             </span>
           )}
         </span>
+        {creditsLabel && (
+          <>
+            <span className={styles.sep}>·</span>
+            <span
+              className={`${styles.metric} ${creditsCritical ? styles.metricErrs : creditsLow ? styles.metricWarn : ""}`}
+              title={creditsTitle}
+            >
+              <span className={styles.metricLabel}>odds credits</span>
+              <span className={`num ${styles.metricValue}`}>{creditsLabel}</span>
+            </span>
+          </>
+        )}
         {errorsLast24h > 0 && (
           <>
             <span className={styles.sep}>·</span>

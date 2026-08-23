@@ -5139,7 +5139,17 @@ def import_odds(
 
     Odds file format (header required):
       date, game_pk, away_team, home_team, market_nrfi_odds, market_yrfi_odds
-      Optional columns: sportsbook, start_time_utc
+      Optional columns: sportsbook, start_time_utc, captured_at_utc
+
+    captured_at_utc (2026-08-23): when THAT ROW's price was fetched.  The
+    Railway odds file is --merge'd, so it carries rows from earlier cycles;
+    stamping every row with the import time made an unlocked game's
+    odds_captured_at move every five minutes although its price had not
+    been re-fetched since the morning ("captured just now", all evening).
+    When the column is present and parses, it is the stamp; otherwise the
+    import time is, exactly as before (scrape_dk_odds.py writes no such
+    column).  advance_capture_ts is a high-water mark, so a preserved row
+    re-imported with its ORIGINAL stamp is a no-op, which is the point.
 
     Matching priority (T2.21):
       1. date + game_pk                                    (exact)
@@ -5201,7 +5211,7 @@ def import_odds(
     matched_indices: list[int] = []
     # T8.19: matching and SIZING are now two passes.  Matching stays in
     # DK-file order; sizing runs best-bet-first.  See the sort below.
-    pending: list[tuple[int, str, str, str]] = []
+    pending: list[tuple[int, str, str, str, str]] = []
 
     with open(odds_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -5216,6 +5226,10 @@ def import_odds(
             yrfi_o   = cols.get("market_yrfi_odds", "")
             book     = cols.get("sportsbook", "")
             start_iso = cols.get("start_time_utc", "")  # T2.21
+            # 2026-08-23: the row's own capture time when the file carries
+            # one (see the docstring); the import time otherwise.
+            cap_raw  = cols.get("captured_at_utc", "")
+            captured = cap_raw if (cap_raw and parse_capture_ts(cap_raw) is not None) else now
 
             # Attempt match
             idx         = None
@@ -5260,7 +5274,7 @@ def import_odds(
                 team_matched_n += 1
 
             dates_covered.add(iso_date)
-            pending.append((idx, nrfi_o, yrfi_o, book))
+            pending.append((idx, nrfi_o, yrfi_o, book, captured))
 
     # ---- T8.19: ALLOCATE BEST BET FIRST ------------------------------
     #
@@ -5294,8 +5308,8 @@ def import_odds(
     # (T8.18: `game_date` reaches Kelly only when committing), so on most
     # slates this reorders nothing.  It bites exactly when two picks
     # commit in the same batch.
-    def _alloc_key(item: tuple[int, str, str, str]) -> tuple:
-        i, n_o, y_o, _book = item
+    def _alloc_key(item: tuple[int, str, str, str, str]) -> tuple:
+        i, n_o, y_o, _book, _cap = item
         r    = rows[i]
         side = (r.get("pick_side") or "").strip().upper()
         name = (f"{(r.get('away_team') or '').strip().upper()}"
@@ -5309,10 +5323,10 @@ def import_odds(
 
     pending.sort(key=_alloc_key)
 
-    for idx, nrfi_o, yrfi_o, book in pending:
+    for idx, nrfi_o, yrfi_o, book, captured in pending:
         rows[idx] = _apply_odds_to_row(
             rows[idx], nrfi_o, yrfi_o, book, min_edge,
-            units_lean, units_strong, now,
+            units_lean, units_strong, captured,
             # T8.18: thread the season so the daily cap stops silently
             # reading picks_2026.csv regardless of which season is live.
             season=season,

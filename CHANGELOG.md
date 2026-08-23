@@ -11,6 +11,79 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-23] - Odds credits: one price per game at the lock, every book in the same call (~315/day -> ~75/day)
+
+Operator: *"we need to plan a better way to save on credits ... for the number
+one pick we need to get the accurate odds at the time that the pick is locking
+... for everything else let's come up with a plan"* -> *"go with what you feel
+is best."*
+
+### The measurement that changed the design
+
+The lock-time fetch was built for DraftKings, which posted the first-inning
+line a median 63 min before first pitch -- so a 5-minute poll from T-120 paid
+only once DK quoted (~3 credits/game). **FanDuel posts by the morning.** On
+every priced row of Aug 20-22, `opened_captured_at` sits at T-114..119, i.e.
+the price was already up when the window opened; the 1 PM snapshot on Aug 23
+showed all 15 games quoted by 4-5 books ten hours before the late games. Under
+`120:55` every one of the ~13 cycles per game therefore cost a credit:
+**~195/day** -- which is exactly how the free key died in 2.5 days -- plus the
+4x/day snapshots at ~120/day. Status quo ≈ 315/day ≈ 9,500/month.
+
+### Changed
+
+- **Window `120:55` -> `65:50`** (Railway `ODDS_API_WINDOWS`; code default
+  updated): ~3 fetches per game, the last one being the lock cycle. The bet
+  still locks on the first cycle at/after T-60 with a price fetched in that
+  same cycle, so the №1's ledger price -- and the edge-vs-market check -- are
+  exactly as accurate as before at ~1/4 the cost. ~45/day for a full slate.
+  Set at 2:20 PM ET, before the evening windows opened.
+- **One call, every book** -- `tools/fetch_odds_api.py --regions us
+  --ledger-book fanduel`: The Odds API charges *markets x regions* and "us" is
+  one region however many books answer, so asking for every US book costs
+  exactly what FanDuel-alone cost. FanDuel still goes to the ledger file (the
+  one-book rule is intact -- `--book`/`--ledger-book` are mutually exclusive,
+  the local filter still applies); every book's quote is appended to
+  `data/diagnostics/odds/lock_<date>.csv` (`--raw-append`) and mirrored into
+  Supabase `odds_multibook` by the loop (`odds-multibook` step, display only).
+  **The board's "best price" and the hero's "best price" are now the best
+  price AT THE LOCK** -- the moment the BET LOCKED alert fires -- not a 1 PM
+  snapshot. +0 credits. `workers/predictor_loop.py step_fetch_odds_api`.
+- **Snapshots 4x/day -> 1x/day at 1 PM ET** (`odds_diagnostic.yml`): keeps
+  the morning view of all books and the F5 lines for the research questions;
+  freshness at the lock now comes from the at-lock call. 120 -> ~30/day.
+- **Credit balance on the Ops Health card.** `fetch_odds_api.py` writes the
+  balance the API reports into Supabase `system_status`
+  (`odds_api_credits:<host>`, migration `system_status_table`, anon read);
+  `/api/health-live` returns it; the card shows "odds credits 19,790" (amber
+  under 2,000, red under 100 on Railway, which also sets status warn/degraded
+  with a plain reason). Per HOST, because Railway and GitHub Actions held
+  different keys today -- when they disagree by more than a few hundred the
+  chip says "Railway 27 · GHA 19,790" until they hold the same key.
+- **The odds file carries each row's own capture time** (`captured_at_utc`,
+  last column) and `tracker.import_odds` uses it as the stamp when present.
+  Fixes a display defect: the `--merge`d file re-imported preserved rows every
+  cycle and the importer stamped them with the import time, so an unlocked
+  game read "captured just now" all evening although its price was from 1 PM.
+  Locked rows were never affected (T2.23 freezes them first).
+  `tests/test_odds_capture_stamp.py` (+7). 284 tests pass.
+
+### Budget after
+
+~45/day at the lock + ~30/day snapshot ≈ **75/day ≈ 2,300/month, 11% of the
+20,000 plan** (was ~315/day), with the №1's best-available price more accurate
+than before. Floors: Railway `ODDS_API_MIN_CREDITS=1` (set today to spend the
+old key's last credits; the money path is now cadence-bounded so the floor is
+moot), snapshot `--min-credits 2000` (the reserve line).
+
+### Still on the operator
+
+Paste the 20K key into Railway (see the previous section). The card's credit
+chip will read "Railway 27" -- and the status amber -- until it is done; that
+is the chip doing its job.
+
+---
+
 ## [2026-08-23] - Ops: the odds-key mix-up, a reconcile notice storm, a red tests badge, and "clear the errors"
 
 Operator: *"there's multiple errors in the dashboard some of which are relating

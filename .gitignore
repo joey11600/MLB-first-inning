@@ -28,3 +28,8 @@ data/odds/template_*.csv
 # `git add -f` in that workflow, and editing .github/workflows/ requires
 # GitHub `workflow` OAuth scope this client lacks.  Left out to avoid a
 # half-applied change that would silently break the retrain backup commit.
+
+# 2026-08-23: at-lock multi-book quotes, appended per Railway cycle; Supabase
+# odds_multibook is the durable copy (Railway does not commit), so a local
+# --once run must not leave these behind as untracked files.
+data/diagnostics/odds/lock_*.csv

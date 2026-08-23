@@ -340,9 +340,37 @@ def step_fetch_odds_api() -> int:
     price the MOMENT it appears rather than at the next window boundary --
     so the ~11% of games with an early line get real movement history.
 
+    2026-08-23 -- THE COST MODEL ABOVE DIED WITH THE MOVE TO FANDUEL, AND
+    THE DESIGN CHANGED WITH IT.  FanDuel posts the first-inning line by the
+    morning: measured Aug 20-22, the price was already up at T-120 for
+    100% of games (opened_captured_at = T-114..119 on every priced row).
+    So under `120:55` every one of the ~13 cycles per game cost a credit:
+    ~195/day, and the free-tier key (500/month) was gone in 2.5 days.
+    Operator: "for the number one pick we need to get the accurate odds at
+    the time that the pick is locking ... for everything else let's come
+    up with a plan ... more efficient."  So:
+
+      * WINDOW `65:50` (env ODDS_API_WINDOWS): ~3 fetches per game, the
+        last of which IS the lock cycle (the bet still locks on the first
+        cycle at/after T-60 with a price fetched in that same cycle), so
+        the ledger price is as accurate as before at ~1/4 the cost.
+        ~45/day for a full slate.
+      * ONE CALL, EVERY BOOK (`--regions us --ledger-book fanduel`): The
+        Odds API charges markets x regions, and "us" is one region however
+        many books answer, so asking for every US book costs exactly what
+        FanDuel-alone cost.  FanDuel still goes to the ledger file (the
+        one-book rule is intact); every book's quote is appended to
+        data/diagnostics/odds/lock_<date>.csv and mirrored into Supabase
+        `odds_multibook`, so the board's "best price" is the best price AT
+        THE LOCK, not a 1 PM snapshot.  +0 credits.
+      * The balance the API reports is written to Supabase
+        `system_status` (key odds_api_credits:<host>) on every run, and
+        the Ops Health card shows it.
+
     `--skip-started` drops games whose first inning is already being
     played.  `--merge` keeps the earlier games' captured prices in the
-    file rather than overwriting them.
+    file rather than overwriting them (each row now carries its own
+    captured_at_utc, so a preserved row does not re-stamp the ledger).
 
     OFF BY DEFAULT, exactly like `PREDICTOR_SCRAPE_DK`, so the money path
     does not change until an operator sets the variable -- and can be
@@ -361,18 +389,36 @@ def step_fetch_odds_api() -> int:
               "no odds will be captured", file=sys.stderr, flush=True)
         return 0
     odds_csv = REPO_ROOT / "data" / "odds" / f"dk_{today_iso()}.csv"
-    return run(
+    # every book's quote at the lock, one daily file (appended per cycle);
+    # Supabase `odds_multibook` is the durable copy -- Railway does not
+    # commit to git, so this file lives only until the next redeploy.
+    raw_csv = REPO_ROOT / "data" / "diagnostics" / "odds" / f"lock_{today_iso()}.csv"
+    rc = run(
         [
             "python", "tools/fetch_odds_api.py",
-            "--book",        os.environ.get("ODDS_API_BOOK", "draftkings"),
-            "--windows",     os.environ.get("ODDS_API_WINDOWS", "120:55"),
+            "--regions",     os.environ.get("ODDS_API_REGIONS", "us"),
+            "--ledger-book", os.environ.get("ODDS_API_BOOK", "fanduel"),
+            "--windows",     os.environ.get("ODDS_API_WINDOWS", "65:50"),
             "--min-credits", os.environ.get("ODDS_API_MIN_CREDITS", "50"),
             "--skip-started",
             "--merge",
-            "--output",         str(odds_csv),
+            "--output",      str(odds_csv),
+            "--raw-output",  str(raw_csv),
+            "--raw-append",
         ],
         TIMEOUT_SCRAPE, "odds-api",
     )
+    # Mirror the lock-time quotes for line shopping (display only; never
+    # the ledger's price basis).  Only when this cycle actually appended --
+    # a cycle with no game in its window leaves the file untouched.
+    try:
+        if (rc == 0 and raw_csv.exists() and raw_csv.stat().st_size
+                and raw_csv.stat().st_mtime > time.time() - 120):
+            run(["python", "tools/odds_multibook_to_supabase.py", str(raw_csv)],
+                60, "odds-multibook")
+    except Exception as exc:  # noqa: BLE001 -- display path, never money path
+        print(f"[predictor] [odds-multibook] skipped: {exc!r}", file=sys.stderr, flush=True)
+    return rc
 
 
 def step_import_odds() -> int:

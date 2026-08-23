@@ -18,9 +18,13 @@
 # price the ledger at whichever book came last; see tools/fetch_odds_api.py).
 #
 # COST. ~1 credit per event per region per market returned: ~15 events x 2
-# markets = ~30 credits per run, 4 runs/day = ~120/day (~3,600/month) against
-# the 20,000-credit plan (2026-08-23). The money path on Railway spends ~50/day
-# on the same plan once it carries the same key.
+# markets = ~30 credits per run. ONE run a day (1 PM ET) since 2026-08-23 --
+# the lock-time fetch on Railway now asks every book in the same call it uses
+# for the ledger (tools/fetch_odds_api.py --ledger-book), so the board's "best
+# price" is refreshed AT THE LOCK for every game and the afternoon snapshots
+# were redundant. This run keeps the morning view of all books and the F5
+# lines (the research questions). ~30/day here + ~45/day on Railway = ~75/day,
+# ~2,300/month of the 20,000 plan.
 #
 # THE MONEY PATH COMES FIRST. `--min-credits 2000` makes THIS capture refuse
 # to spend once fewer than 2,000 credits would remain, so a runaway cadence
@@ -34,10 +38,10 @@ name: odds diagnostic (multi-book + F5)
 
 on:
   schedule:
-    # Four snapshots through the day so the board's "best price" stays fresh:
-    # 13:00 / 15:00 / 17:00 / 19:00 ET.  ~15 events x 2 markets = ~30 credits
-    # per run, ~120/day, against the 20,000 the key showed on 2026-08-23.
-    - cron: "0 17,19,21,23 * * *"
+    # One snapshot a day at 13:00 ET (~30 credits). Freshness at the lock
+    # comes from the Railway at-lock fetch, which mirrors every book's quote
+    # into the same table (see COST above). Was 4x/day on 2026-08-23.
+    - cron: "0 17 * * *"
   workflow_dispatch:
 
 permissions:

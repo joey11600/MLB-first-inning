@@ -335,11 +335,11 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   UTC 12-23. 8-attempt push retry with `--ours` for CSV conflicts (T1.6).
   Now also dual-writes to Supabase via the SUPABASE_URL/KEY secrets.
 - `.github/workflows/backup.yml` — daily 5am ET snapshot (T3.4).
-- `.github/workflows/odds_diagnostic.yml` — 4x/day (13/15/17/19 ET)
-  multi-book first-inning + F5 totals via The Odds API → CSV under
-  `data/diagnostics/odds/` + Supabase `odds_multibook` (the board's
-  "best price" chip). `--min-credits 2000` keeps a reserve for the
-  money path (2026-08-23).
+- `.github/workflows/odds_diagnostic.yml` — 1x/day (13:00 ET; was 4x on
+  2026-08-23) multi-book first-inning + F5 totals via The Odds API → CSV
+  under `data/diagnostics/odds/` + Supabase `odds_multibook`. Freshness at
+  the lock comes from the Railway at-lock call (same table).
+  `--min-credits 2000` keeps a reserve for the money path.
 - `requirements.txt` — pinned with upper bounds (T3.6); includes
   `supabase>=2.0,<3.0` + `python-dotenv>=1.0,<2.0` for the dual-write.
 
@@ -501,14 +501,22 @@ If something is broken:
 - **`odds-api: refusing to start: would leave N credits…`**: The Odds API
   key on the Railway service is near its plan's floor. Both places that
   use the key must carry the SAME key: Railway service variable
-  `ODDS_API_KEY` (the lock-time money path, ~50 credits/day) and the GHA
-  secret `ODDS_API_KEY` (the 4x/day multi-book snapshot, ~120/day, which
-  refuses below 2,000 remaining so it can never starve the money path).
-  Plan since 2026-08-23: 20,000 credits/month (~5,100/month used). The
-  Railway floor is `ODDS_API_MIN_CREDITS` (service variable; set to 5 on
-  2026-08-23 while the old free-tier key's last credits were spent).
-  Every cycle's first Railway log line prints `credits used N, remaining M`
-  -- that is the live balance of whatever key Railway holds.
+  `ODDS_API_KEY` (the lock-time money path) and the GHA secret
+  `ODDS_API_KEY` (the daily multi-book snapshot, which refuses below 2,000
+  remaining so it can never starve the money path). Plan since
+  2026-08-23: 20,000 credits/month; spend ≈ 75/day (≈ 45 at the lock +
+  ≈ 30 for the 1 PM snapshot) ≈ 2,300/month. The Ops Health card shows
+  the balance per host ("odds credits"); amber under 2,000, red under 100
+  on Railway. Every cycle's first Railway log line prints `credits used N,
+  remaining M` -- the live balance of whatever key Railway holds.
+- **How the price feed spends (2026-08-23 design):** one call per game per
+  cycle in the `65:50` window (~3 per game, the last IS the lock cycle),
+  asking every US book at once (`--regions us --ledger-book fanduel`; same
+  cost as one book because the API charges markets x regions). FanDuel ->
+  ledger file (`data/odds/dk_<date>.csv`); every book -> Supabase
+  `odds_multibook` (board "best price", lock-fresh). Knobs are Railway
+  service variables: `ODDS_API_WINDOWS` (65:50), `ODDS_API_BOOK`
+  (fanduel), `ODDS_API_REGIONS` (us), `ODDS_API_MIN_CREDITS` (1).
 
 ---
 

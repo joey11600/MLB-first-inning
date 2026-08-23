@@ -158,6 +158,12 @@ The loader's name/weights check means a half-revert cannot silently run.)
 6. **F5 odds capture** — same workflow, same file (`market = totals_1st_5_innings`).
    After ~2 weeks of captures: measure the F5 market's AUC vs ours and the
    cross-book spread on the first-inning total.
+7. **Credit plan (2026-08-23, later the same day)** — operator: *"a better way
+   to save on credits"*. Window `65:50` (one price per game at the lock),
+   every US book in the same call (`--ledger-book fanduel`), snapshot 1x/day,
+   balance on the Ops Health card. ~315/day → ~75/day; the №1's ledger price
+   is the same lock-cycle FanDuel price, and its "best price" is now the best
+   at the lock. CHANGELOG 2026-08-23 "Odds credits".
 
 ---
 
