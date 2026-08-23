@@ -413,6 +413,61 @@ async function loadPickChanges(iso: string): Promise<PickChange[]> {
  *    - the requested date has zero rows in Supabase yet
  *      (e.g. today's slate before the next cron firing populates it)
  *  Caller should fall back to the CSV path in those cases. */
+/**
+ * 2026-08-23: best available first-inning price per game from the latest
+ * multi-book snapshot.  Keyed "AWAY@HOME".  Returns {} on any failure so the
+ * board renders exactly as before when the table is empty or unreadable.
+ *
+ * "Best" for the bettor is the LARGEST American number (+130 beats +114
+ * beats -105 beats -115).  Only the 0.5 line counts -- books also quote
+ * 1.5, and that is a different bet.
+ */
+async function loadBestOdds(
+  iso: string,
+): Promise<Record<string, NonNullable<GameDetail["bestOdds"]>>> {
+  const sb = getServerSupabase();
+  if (!sb) return {};
+  try {
+    const { data, error } = await sb
+      .from("odds_multibook")
+      .select("captured_at_utc, away_team, home_team, book, book_key, outcome, price, point")
+      .eq("date_et", iso)
+      .eq("market", "totals_1st_1_innings")
+      .eq("point", 0.5)
+      .order("captured_at_utc", { ascending: false })
+      .limit(5000);
+    if (error || !data) return {};
+    type R = { captured_at_utc: string; away_team: string; home_team: string;
+               book: string | null; book_key: string; outcome: string; price: number; point: number };
+    const rows = data as R[];
+    // latest snapshot per game, then the best price per side within it
+    const latestByGame = new Map<string, string>();
+    for (const r of rows) {
+      const k = `${r.away_team}@${r.home_team}`;
+      const cur = latestByGame.get(k);
+      if (!cur || r.captured_at_utc > cur) latestByGame.set(k, r.captured_at_utc);
+    }
+    const out: Record<string, NonNullable<GameDetail["bestOdds"]>> = {};
+    const books: Record<string, Set<string>> = {};
+    for (const r of rows) {
+      const k = `${r.away_team}@${r.home_team}`;
+      if (r.captured_at_utc !== latestByGame.get(k)) continue;
+      const side = /^over/i.test(r.outcome) ? "yrfi" : /^under/i.test(r.outcome) ? "nrfi" : null;
+      if (!side || !Number.isFinite(r.price)) continue;
+      const entry = out[k] ?? (out[k] = { books: 0, capturedAt: r.captured_at_utc });
+      (books[k] ?? (books[k] = new Set())).add(r.book_key);
+      const price = r.price > 0 ? `+${r.price}` : `${r.price}`;
+      const prev = entry[side];
+      const prevNum = prev ? Number(prev.price) : -Infinity;
+      if (!prev || r.price > prevNum) entry[side] = { price, book: r.book || r.book_key };
+    }
+    for (const k of Object.keys(out)) out[k].books = books[k]?.size ?? 0;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export async function loadBoardFromSupabase(
   requestedIso: string | null,
   season: number = 2026,
@@ -494,6 +549,14 @@ export async function loadBoardFromSupabase(
     const t = str(r.updated_at) || str(r.created_at);
     return t > max ? t : max;
   }, "") || null;
+
+  // 2026-08-23: attach the best available price per game (line shopping).
+  // Additive: a game with no snapshot renders exactly as before.
+  const best = await loadBestOdds(iso);
+  for (const k of Object.keys(best)) {
+    const d = details[k];
+    if (d) d.bestOdds = best[k];
+  }
 
   const [pickChanges, thresholds] = await Promise.all([
     loadPickChanges(iso),

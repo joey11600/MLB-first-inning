@@ -170,6 +170,41 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-23] - Line shopping is live: multi-book capture 4x/day, mirrored to Supabase, best price on the board
+
+Operator added the `ODDS_API_KEY` secret; the capture ran on the first try
+(356 rows over 15 games, 20,000 credits remaining). **Day-one measurement:**
+across the slate, the best of 4-5 books vs the worst moves the first-inning
+break-even from 53.6% to **50.6% -- ~3 points** -- edge-sized against a system
+whose measured edge at one book was ~0 vs a 56.2% break-even. Best book varies
+by game (FanDuel best on CLE@COL at -138 vs BetMGM -155; Caesars +130 vs
+FanDuel +114 on STL@PHI). Mean overround by book: FanDuel 6.05%, BetMGM 6.16%,
+Caesars 6.42%, BetOnline 6.97%, BetRivers 7.44%. F5 totals also returned
+(3.5-6.0 lines, seven books).
+
+**Shipped**
+- `.github/workflows/odds_diagnostic.yml` now runs **four snapshots a day**
+  (13:00/15:00/17:00/19:00 ET, ~120 credits/day), one CSV per snapshot
+  (`data/diagnostics/odds/raw_<date>_<HHMM>.csv`), and mirrors each into
+  Supabase via `tools/odds_multibook_to_supabase.py`.
+- Supabase table `odds_multibook` (migration `odds_multibook_table`): natural
+  unique key for idempotent upserts, indexed by slate date + game, RLS with the
+  same anon/authenticated read policies as `picks_2026`. Today's 356 rows loaded.
+- Dashboard: `GameDetail.bestOdds` (best NRFI/YRFI price + book, books counted,
+  snapshot time) attached in `board-supabase.ts` from the **latest snapshot per
+  game** (0.5 line only; "best" = largest American number). `OddsChip` prints
+  **"best -105 MGM"** after the ledger price only when a better price for the
+  *same side* exists elsewhere -- an instruction about where to bet, never a
+  replacement for the ledger's number -- and the tooltip lists best NRFI/YRFI
+  with book count and age on every priced chip, including PASS rows.
+  Additive: a game with no snapshot renders exactly as before.
+
+**Not changed, on purpose:** the ledger's price basis (one book, captured at
+lock). Line shopping is surfaced for the bettor; changing what the record is
+measured at is a product decision (memory `odds_source_strategy`).
+
+---
+
 ## [2026-08-22] - Rollout plan follow-ups #2, #5, #6/#7 shipped
 
 - **#2 Dashboard** -- `/history` now carries a "Since the Aug 22 model update"

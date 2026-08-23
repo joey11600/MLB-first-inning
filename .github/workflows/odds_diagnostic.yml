@@ -28,7 +28,10 @@ name: odds diagnostic (multi-book + F5)
 
 on:
   schedule:
-    - cron: "0 17 * * *"          # 13:00 ET daily, after most lineups are posted
+    # Four snapshots through the day so the board's "best price" stays fresh:
+    # 13:00 / 15:00 / 17:00 / 19:00 ET.  ~15 events x 2 markets = ~30 credits
+    # per run, ~120/day, against the 20,000 the key showed on 2026-08-23.
+    - cron: "0 17,19,21,23 * * *"
   workflow_dispatch:
 
 permissions:
@@ -56,7 +59,9 @@ jobs:
 
       - name: Capture every book's first-inning and F5 totals (diagnostic)
         env:
-          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_API_KEY:         ${{ secrets.ODDS_API_KEY }}
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           set +e
           if [ -z "${ODDS_API_KEY}" ]; then
@@ -64,12 +69,18 @@ jobs:
             exit 0
           fi
           D=$(TZ=America/New_York date +%F)
+          T=$(TZ=America/New_York date +%H%M)
+          # one file per snapshot (the CSV is the record; Supabase is the mirror)
           python tools/fetch_odds_api.py \
             --regions us \
             --markets totals_1st_1_innings,totals_1st_5_innings \
             --skip-started \
-            --raw-output "data/diagnostics/odds/raw_${D}.csv" \
+            --raw-output "data/diagnostics/odds/raw_${D}_${T}.csv" \
             || echo "::warning::odds diagnostic capture failed (non-blocking)"
+          # mirror into Supabase so the dashboard can show the best available
+          # price per pick (table odds_multibook; anon read, like picks_2026)
+          python tools/odds_multibook_to_supabase.py "data/diagnostics/odds/raw_${D}_${T}.csv" \
+            || echo "::warning::odds_multibook mirror failed (non-blocking; CSV committed regardless)"
 
       - name: Commit the capture
         run: |

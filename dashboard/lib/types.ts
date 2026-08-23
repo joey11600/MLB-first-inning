@@ -140,6 +140,19 @@ export interface GameDetail {
   openedYrfiOdds:   string;
   openedCapturedAt: string;      // ISO timestamp; empty when no opened odds
   clvPct:           number | null; // (close implied prob - open implied prob) on the picked side
+  /**
+   * 2026-08-23: the BEST available first-inning price across every book in
+   * the latest multi-book snapshot (table odds_multibook, captured by
+   * odds_diagnostic.yml several times a day).  Display only: the ledger's
+   * price basis is the one captured at lock and is NOT changed by this.
+   * Absent when no snapshot covers the game.
+   */
+  bestOdds?: {
+    nrfi?: { price: string; book: string };   // American format, e.g. "+105"
+    yrfi?: { price: string; book: string };
+    books: number;                             // distinct books quoting the 0.5 line
+    capturedAt: string;                        // ISO timestamp of the snapshot
+  };
   // T-V21-LOCKIN-2026-05-06: removed v3 (Variant K shadow) grading.
   away: {
     team: string;

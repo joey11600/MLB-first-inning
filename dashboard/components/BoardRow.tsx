@@ -1030,6 +1030,19 @@ function LimitChip({
  *  rendering -- they live in GameDetails LineDriftNotice now.  The
  *  row stays cleaner; the operator can drill into the details panel
  *  to see whether the market moved toward or away from the pick. */
+/** 2026-08-23: the best price across every book in the latest snapshot, for
+ *  the tooltip.  "" when no snapshot covers the game. */
+function bestSuffixText(detail: GameDetail): string {
+  const b = detail.bestOdds;
+  if (!b || (!b.nrfi && !b.yrfi)) return "";
+  const parts = [
+    b.nrfi ? `NRFI ${b.nrfi.price} @ ${b.nrfi.book}` : "",
+    b.yrfi ? `YRFI ${b.yrfi.price} @ ${b.yrfi.book}` : "",
+  ].filter(Boolean).join(" · ");
+  const age = relAge(b.capturedAt);
+  return `\nBest available (${b.books} books${age ? `, ${age}` : ""}): ${parts}`;
+}
+
 function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefined }) {
   if (!detail) return null;
 
@@ -1095,6 +1108,7 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
           + (yrfiPrice ? `YRFI ${yrfiPrice}` : "YRFI —")
           + "\nModel declined or pending; no bet."
           + ageSuffix
+          + bestSuffixText(detail)
         }
       >
         {book && <span className={styles.oddsBook}>{book}</span>}
@@ -1154,13 +1168,20 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
       ? `\nCLV: ${clvPp > 0 ? "+" : "−"}${Math.abs(clvPp).toFixed(2)}pp`
       : "";
 
+  const bestForSide = row.pickSide === "NRFI" ? detail.bestOdds?.nrfi
+    : row.pickSide === "YRFI" ? detail.bestOdds?.yrfi : undefined;
+  // Show the shop-able price only when it BEATS the ledger's number: the
+  // ledger price is what the bet was (or would be) placed at; a better one
+  // elsewhere is an instruction, an equal or worse one is noise.
+  const betterElsewhere = bestForSide && Number(bestForSide.price) > Number(price) ? bestForSide : null;
   const titleText = (bet === "Y"
     ? `Bet placed: ${row.pickSide} @ ${price} (edge ${edgeStr})`
     : bet === "N"
       ? `Skipped: edge ${edgeStr || "below threshold"} on ${row.pickSide} @ ${price}`
       : `${row.pickSide} @ ${price}${edgeStr ? ` (edge ${edgeStr})` : ""}`)
     + clvSuffix
-    + ageSuffix;
+    + ageSuffix
+    + bestSuffixText(detail);
 
   return (
     <span
@@ -1175,6 +1196,18 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
       {edgeStr && (
         <span className={styles.oddsEdge} aria-label={`edge ${edgeStr}`}>
           {edgeStr}
+        </span>
+      )}
+      {betterElsewhere && (
+        // 2026-08-23 LINE SHOPPING: a better price for the SAME side exists at
+        // another book in the latest snapshot.  Printed as an instruction
+        // ("best -105 MGM"), never as a replacement for the ledger price: the
+        // chip's main number stays what the bet was placed at.
+        <span
+          className={styles.oddsBest}
+          aria-label={`best available ${betterElsewhere.price} at ${betterElsewhere.book}`}
+        >
+          best {betterElsewhere.price} {shortBook(betterElsewhere.book)}
         </span>
       )}
     </span>

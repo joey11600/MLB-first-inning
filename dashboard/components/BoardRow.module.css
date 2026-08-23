@@ -882,6 +882,17 @@
   position: relative;
   top: -1px;
 }
+/* 2026-08-23: "best -105 MGM" -- a better price for the same side at another
+   book (latest multi-book snapshot). Figures in mono, ink not a money hue:
+   it is an instruction about WHERE to bet, not a result. */
+.oddsBest {
+  margin-left: 0.45em;
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
 .oddsEdge {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
