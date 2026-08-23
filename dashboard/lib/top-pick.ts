@@ -172,12 +172,33 @@ export interface TopPickReport {
    * +5u night in August are the same height of line.
    */
   cumulative: { date: string; units: number }[];
+  /**
+   * The same rule applied to nights on/after MODEL_UPDATED_FROM only: the
+   * updated model's own record, beside -- never blended into -- the season
+   * figure. `bets` is 0 until its first No.1 settles.
+   */
+  sinceUpdate: {
+    from: string;
+    bets: number;
+    wins: number;
+    losses: number;
+    atKelly: number;
+    atFlat1u: number;
+    staked: number;
+  };
 }
 
 /** The live model weights were fit on this date. Everything before it
  *  was picked by a model that no longer exists, and April's prices were
  *  barely captured, so the series starts here. */
 export const CURRENT_SYSTEM_FROM = "2026-05-26";
+
+/** 2026-08-22: the live weights were updated (pooled first-inning pitcher
+ *  xwOBA + L2 0.5, 20 features). THE SERIES DOES NOT RESET -- the operator's
+ *  rule is one continuous ledger, the new model's picks append -- but the
+ *  nights from this date are ALSO summed on their own so the updated model
+ *  can be read next to the season figure without blending into it. */
+export const MODEL_UPDATED_FROM = "2026-08-22";
 
 const num = (v: string | undefined): number | null => {
   if (v == null) return null;
@@ -452,6 +473,19 @@ export async function loadTopPickReport(
     noEdgeUnderKelly,
     byMonth: [...months.keys()].sort().map((m) => slice(months.get(m)!, m)),
     all: [...tops].reverse(),
+    sinceUpdate: (() => {
+      const sel = tops.filter((b) => b.date >= MODEL_UPDATED_FROM);
+      const wins = sel.filter((b) => b.win).length;
+      return {
+        from: MODEL_UPDATED_FROM,
+        bets: sel.length,
+        wins,
+        losses: sel.length - wins,
+        atKelly: sel.reduce((a, b) => a + b.kellyPnl, 0),
+        atFlat1u: sel.reduce((a, b) => a + (b.win ? payout(b.odds) : -1), 0),
+        staked: sel.reduce((a, b) => a + b.kellyStake, 0),
+      };
+    })(),
     cumulative: (() => {
       const byDate = new Map<string, number>();
       for (const b of tops) {

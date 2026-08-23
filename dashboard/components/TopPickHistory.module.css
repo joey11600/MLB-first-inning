@@ -283,6 +283,14 @@
   stroke-width: 1;
 }
 
+/* The model-update marker: a boundary that MEANS something, so --rule
+   (3.4:1+), not the hairline; dashed so it cannot be read as data. */
+.chartMarker {
+  stroke: var(--rule);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
 /* Ink, not a money hue: the LINE is a shape, and the sign is carried by
    the endpoint figure under it. */
 .chartLine {

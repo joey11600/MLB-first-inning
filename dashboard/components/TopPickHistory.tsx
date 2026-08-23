@@ -86,7 +86,7 @@ export function TopPickHistory({
   splitAgainst?: TopPickReport | null;
 }) {
   if (!report || report.all.length === 0) return null;
-  const { last10, byMonth, all, totals, noEdgeUnderKelly, cumulative } = report;
+  const { last10, byMonth, all, totals, noEdgeUnderKelly, cumulative, sinceUpdate } = report;
   const season = report.windows[0];
   const nights = new Set(all.map((b) => b.date)).size;
   /* A night's P&L is a single point in time, so this is a real quantity
@@ -217,11 +217,58 @@ export function TopPickHistory({
         </div>
       </div>
 
+      {/* ---- since the model update: the updated model's OWN record, beside
+          the season figure and never blended into it (operator, 2026-08-22). ---- */}
+      <h3 className={styles.h3}>Since the Aug 22 model update</h3>
+      {sinceUpdate.bets === 0 ? (
+        <p className={styles.note}>
+          Nothing settled yet under the updated model (pooled first-inning
+          pitcher xwOBA, 20 features). Its bets will be summed here as they
+          settle, and they also continue the season series above.
+        </p>
+      ) : (
+        <>
+          <div className={`${styles.figures} ${styles.figuresThree}`}>
+            <div className={styles.fig}>
+              <span className={styles.figBasis}>Record</span>
+              <span className={styles.figValue}>
+                {sinceUpdate.wins}-{sinceUpdate.losses}
+              </span>
+              <span className={styles.figLabel}>
+                {sinceUpdate.bets} settled {sinceUpdate.bets === 1 ? "bet" : "bets"} from {sinceUpdate.from}
+              </span>
+            </div>
+            <div className={styles.fig}>
+              <span className={styles.figBasis}>At quarter-Kelly</span>
+              <span className={styles.figValue} data-money={tone(sinceUpdate.atKelly)}>
+                {formatFlatUnits(asFlat(sinceUpdate.atKelly))}
+              </span>
+              <span className={styles.figLabel}>
+                {sinceUpdate.staked > 0
+                  ? `${formatReturn(sinceUpdate.atKelly / sinceUpdate.staked, 1)} per unit risked`
+                  : "nothing staked yet"}
+              </span>
+            </div>
+            <div className={styles.fig}>
+              <span className={styles.figBasis}>At a flat 1 unit</span>
+              <span className={styles.figValue} data-money={tone(sinceUpdate.atFlat1u)}>
+                {formatFlatUnits(asFlat(sinceUpdate.atFlat1u))}
+              </span>
+              <span className={styles.figLabel}>the same nights at one unit each</span>
+            </div>
+          </div>
+          <p className={styles.note}>
+            These nights are also inside the season figures above; this block
+            only reads the updated model on its own. Same rule, same prices.
+          </p>
+        </>
+      )}
+
       {/* ---- the curve ---- */}
       {cumulative.length > 1 && (
         <>
           <h3 className={styles.h3}>Cumulative units</h3>
-          <CumulativeChart points={cumulative} />
+          <CumulativeChart points={cumulative} markerDate={sinceUpdate.from} />
           <p className={styles.note}>
             A running sum at quarter-Kelly, one point per settled night. Not a
             bankroll: nothing compounds, so a five-unit night in May is drawn
@@ -303,8 +350,17 @@ export function TopPickHistory({
 /** A plain line of the running total. No axis furniture beyond the zero
  *  rule and the endpoints, because the only questions it answers are
  *  "which way" and "how far". */
-function CumulativeChart({ points }: { points: { date: string; units: number }[] }) {
+function CumulativeChart({
+  points,
+  markerDate,
+}: {
+  points: { date: string; units: number }[];
+  /** A vertical rule at the first settled night on/after this date (the
+   *  model update). Drawn only if such a night exists. */
+  markerDate?: string;
+}) {
   const W = 1000, H = 150, PAD = 4;
+  const markerIdx = markerDate ? points.findIndex((p) => p.date >= markerDate) : -1;
   const vals = points.map((p) => p.units);
   const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
   const span = hi - lo || 1;
@@ -321,10 +377,18 @@ function CumulativeChart({ points }: { points: { date: string; units: number }[]
         aria-label={`Cumulative units at quarter-Kelly, ending at ${last.units.toFixed(2)} units after ${points.length} settled nights`}
       >
         <line x1={PAD} x2={W - PAD} y1={y(0)} y2={y(0)} className={styles.chartZero} />
+        {markerIdx > 0 && (
+          <line
+            x1={x(markerIdx)} x2={x(markerIdx)} y1={PAD} y2={H - PAD}
+            className={styles.chartMarker}
+          >
+            <title>model updated {markerDate}</title>
+          </line>
+        )}
         <path d={d} className={styles.chartLine} />
       </svg>
       <div className={styles.chartFoot}>
-        <span>{points[0].date}</span>
+        <span>{points[0].date}{markerIdx > 0 ? ` · dashed rule: model updated ${markerDate}` : ""}</span>
         <span className={styles.chartEnd} data-money={last.units >= 0 ? "up" : "down"}>
           {formatFlatUnits(asFlat(last.units))}
         </span>

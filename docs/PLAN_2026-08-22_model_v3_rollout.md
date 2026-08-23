@@ -66,15 +66,15 @@ which should print a pooled value and a league mean around 0.32, with the state
 
 ---
 
-## 3. Dashboard continuity (small, do in the next session)
+## 3. Dashboard continuity -- DONE 2026-08-22
 
 1. **Copy** on `/history` now states the continuity rule (done, `TopPickHistory.tsx`).
-2. **Sub-total "since the Aug 22 model update"** in `TopPickReport`: record,
-   at-Kelly, flat, nights — computed with the identical rule over nights ≥ 2026-08-22.
-   Files: `dashboard/lib/top-pick.ts` (add a `sinceUpdate` slice reusing the
-   existing per-night loop), `dashboard/components/TopPickHistory.tsx` (one more
-   figure block under "Units profit").
-3. **Marker** on the cumulative-units chart at 2026-08-22 ("model updated").
+2. **Sub-total "Since the Aug 22 model update"** (done): `TopPickReport.sinceUpdate`
+   — record, at-Kelly, flat, staked — same rule over nights ≥ `MODEL_UPDATED_FROM`;
+   rendered as its own figure block on `/history` ("Nothing settled yet…" until the
+   first bet settles). Never blended into the season figure.
+3. **Marker** on the cumulative-units chart (done): a dashed `--rule` vertical at
+   the first settled night on/after 2026-08-22, with a footer note.
 4. Deploy via the normal path only: commit → push → auto-deploy; verify the live
    page shows the new copy (`curl -sL https://nrfi-terminal.vercel.app/history | grep -c "Aug 22"`).
 
@@ -141,12 +141,12 @@ The loader's name/weights check means a half-revert cannot silently run.)
 
 ## 8. Follow-ups, in priority order
 
-1. **Dashboard sub-total + marker** (§3) — small, user-visible.
-2. **Retire or port the `recalibrate` action to CIR** (§6) — removes a foot-gun.
+1. ~~Dashboard sub-total + marker~~ — done 2026-08-22.
+2. ~~Retire or port the `recalibrate` action to CIR~~ — done 2026-08-22 (ported).
 3. **Ledger columns** `home_fi_xwoba` / `away_fi_xwoba` for auditability — touches
    the tracker's column list AND the Supabase mirror (memory
    `supabase_mirror_is_not_the_csv`); do it deliberately, not in passing.
-4. **Teach `two_stage_model.py` the feature** so the official trainer can refit.
+4. ~~Teach `two_stage_model.py` the feature~~ — done 2026-08-22 (`--fi-xwoba`, guard, L2 units).
 5. **Line shopping measurement** (one command, `fetch_odds_api.py` multi-book) —
    the remaining un-measured lever on the price side; independent of the model.
 6. **F5 odds capture** — strategic (`2026-08-21_target_horizon`), separate product
