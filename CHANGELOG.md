@@ -199,6 +199,13 @@ Caesars 6.42%, BetOnline 6.97%, BetRivers 7.44%. F5 totals also returned
   with book count and age on every priced chip, including PASS rows.
   Additive: a game with no snapshot renders exactly as before.
 
+- Same day, two more surfaces: a muted **"mkt" chip** on the board BEFORE the
+  ledger has a price (the snapshot is often earlier than the ledger's ~1h-
+  before-lock capture, which is exactly when a bettor shops) showing the best
+  NRFI/YRFI with book abbreviations; and **"best price"** beside "bet up to" on
+  the No.1 hero card for the pick's side. Verified live: 15 "mkt" chips on the
+  08-23 board with 4-5-book tooltips. `shortBook` learned RIV/BOL/BOV/BUS/MYB.
+
 **Not changed, on purpose:** the ledger's price basis (one book, captured at
 lock). Line shopping is surfaced for the bettor; changing what the record is
 measured at is a product decision (memory `odds_source_strategy`).
