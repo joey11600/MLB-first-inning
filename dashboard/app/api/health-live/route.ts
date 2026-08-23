@@ -199,6 +199,12 @@ export async function GET() {
   } catch { /* swallow -- grade-freshness is advisory, must never break health */ }
 
   // 3. system_errors in last 24h (grouped by step for the card UI)
+  //
+  // 2026-08-23: rows with `resolved_at` set are EXCLUDED.  An error whose
+  // cause has been found and fixed is stamped resolved (column added the
+  // same day; the row itself is never deleted -- system_errors is a log),
+  // so the card clears the moment the operator has dealt with it rather
+  // than 24 hours later.  An unresolved row still counts for the full day.
   const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   let recentErrors: SystemError[] = [];
   try {
@@ -206,6 +212,7 @@ export async function GET() {
       .from("system_errors")
       .select("captured_at_utc, step, exit_code, message")
       .gte("captured_at_utc", cutoff)
+      .is("resolved_at", null)
       .order("captured_at_utc", { ascending: false })
       .limit(100);
     // NOTE: keep the FULL message here -- the known-noise classifier

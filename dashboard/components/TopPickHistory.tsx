@@ -103,7 +103,7 @@ export function TopPickHistory({
       <p className={styles.lead}>
         {what} since May 26, staked at quarter-Kelly &mdash; the rule the
         system actually publishes. One continuous ledger: the model was
-        updated on Aug 22 (pooled first-inning pitcher xwOBA, 20 features)
+        updated on Aug 23 (pooled first-inning pitcher xwOBA, 20 features)
         and its picks simply continue the series from there; nothing before
         that date is rewritten.{" "}
         {all.length} bets over {nights} nights. NRFI is excluded because it
@@ -218,8 +218,9 @@ export function TopPickHistory({
       </div>
 
       {/* ---- since the model update: the updated model's OWN record, beside
-          the season figure and never blended into it (operator, 2026-08-22). ---- */}
-      <h3 className={styles.h3}>Since the Aug 22 model update</h3>
+          the season figure and never blended into it (operator, 2026-08-22;
+          the weights went live 2026-08-23, see MODEL_UPDATED_FROM). ---- */}
+      <h3 className={styles.h3}>Since the Aug 23 model update</h3>
       {sinceUpdate.bets === 0 ? (
         <p className={styles.note}>
           Nothing settled yet under the updated model (pooled first-inning

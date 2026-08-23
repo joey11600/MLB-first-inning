@@ -41,6 +41,9 @@ import tracker  # noqa: E402
     ("BetMGM",       "MGM"),
     ("Caesars",      "CAE"),
     ("Pinnacle",     "PIN"),
+    ("BetRivers",    "RIV"),
+    ("BetOnline.ag", "BOL"),
+    ("Bovada",       "BOV"),
 ])
 def test_the_label_follows_the_stored_book(stored, shown):
     assert tracker._book_label({"sportsbook": stored}) == shown
@@ -48,7 +51,7 @@ def test_the_label_follows_the_stored_book(stored, shown):
 
 def test_an_unknown_book_is_named_in_full_rather_than_guessed():
     """Better a long, correct name than a clever, wrong abbreviation."""
-    assert tracker._book_label({"sportsbook": "BetOnline.ag"}) == "BetOnline.ag"
+    assert tracker._book_label({"sportsbook": "Circa Sports"}) == "Circa Sports"
 
 
 @pytest.mark.parametrize("row", [{}, {"sportsbook": ""}, {"sportsbook": "   "}])

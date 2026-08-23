@@ -1,6 +1,6 @@
 # Rollout plan — first-inning model v3 (pooled first-inning pitcher xwOBA + L2 0.50)
 
-**Date:** 2026-08-22 · **Live since:** commit `f7952566` (gate fix `1008367f`) ·
+**Date:** 2026-08-22 (plan) · **Live since:** commit `f7952566`, pushed **2026-08-23 10:18 ET** (gate fix `1008367f`); the 08-22 slate was still picked by the previous weights, so `MODEL_UPDATED_FROM` = 2026-08-23 ·
 **Revert point:** tag `pre-fixwoba-2026-08-22` / branch `backup/pre-fixwoba-2026-08-22`
 
 This is the operating plan for the change, written for whoever picks it up —
@@ -69,12 +69,13 @@ which should print a pooled value and a league mean around 0.32, with the state
 ## 3. Dashboard continuity -- DONE 2026-08-22
 
 1. **Copy** on `/history` now states the continuity rule (done, `TopPickHistory.tsx`).
-2. **Sub-total "Since the Aug 22 model update"** (done): `TopPickReport.sinceUpdate`
-   — record, at-Kelly, flat, staked — same rule over nights ≥ `MODEL_UPDATED_FROM`;
+2. **Sub-total "Since the Aug 23 model update"** (done): `TopPickReport.sinceUpdate`
+   — record, at-Kelly, flat, staked — same rule over nights ≥ `MODEL_UPDATED_FROM`
+   (= 2026-08-23, the first slate the new weights priced; corrected 2026-08-23);
    rendered as its own figure block on `/history` ("Nothing settled yet…" until the
    first bet settles). Never blended into the season figure.
 3. **Marker** on the cumulative-units chart (done): a dashed `--rule` vertical at
-   the first settled night on/after 2026-08-22, with a footer note.
+   the first settled night on/after 2026-08-23, with a footer note.
 4. Deploy via the normal path only: commit → push → auto-deploy; verify the live
    page shows the new copy (`curl -sL https://nrfi-terminal.vercel.app/history | grep -c "Aug 22"`).
 
@@ -103,7 +104,7 @@ Watch weekly (`python tools/refit2026/no1_since_may26.py` + `tools/pl_calc.py`):
 
 | signal | healthy | act if |
 |---|---|---|
-| No.1 record since Aug 22 | trending ≥ 62% over 30+ nights (validated ≈ 69–74%) | < 55% over 30 nights → investigate, consider revert |
+| No.1 record since Aug 23 | trending ≥ 62% over 30+ nights (validated ≈ 69–74%) | < 55% over 30 nights → investigate, consider revert |
 | gate volume | ~80–85% of the old rate | < 60% or > 120% → check the pool state and the calibrator file |
 | claimed vs actual on STRONG bets | overshoot ≤ ~5 points | overshoot > 10 points for 3 weeks → recalibrate (CIR, §6) |
 | `calibration_drift_monitor` | no weekly alert (now deduped + logged, T8.40) | alert → follow its playbook |

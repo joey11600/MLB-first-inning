@@ -1992,6 +1992,12 @@ def _book_label(row: dict) -> str:
     if low.startswith("betmgm"):    return "MGM"
     if low.startswith("caesars"):   return "CAE"
     if low.startswith("pinnacle"):  return "PIN"
+    # 2026-08-23: the books the multi-book snapshot (line shopping) returns.
+    if low.startswith("betrivers"): return "RIV"
+    if low.startswith("betonline"): return "BOL"
+    if low.startswith("bovada"):    return "BOV"
+    if low.startswith("betus"):     return "BUS"
+    if low.startswith("mybookie"):  return "MYB"
     return name
 
 

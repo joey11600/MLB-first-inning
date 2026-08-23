@@ -193,12 +193,15 @@ export interface TopPickReport {
  *  barely captured, so the series starts here. */
 export const CURRENT_SYSTEM_FROM = "2026-05-26";
 
-/** 2026-08-22: the live weights were updated (pooled first-inning pitcher
- *  xwOBA + L2 0.5, 20 features). THE SERIES DOES NOT RESET -- the operator's
- *  rule is one continuous ledger, the new model's picks append -- but the
- *  nights from this date are ALSO summed on their own so the updated model
- *  can be read next to the season figure without blending into it. */
-export const MODEL_UPDATED_FROM = "2026-08-22";
+/** 2026-08-23: the live weights were updated (pooled first-inning pitcher
+ *  xwOBA + L2 0.5, 20 features; ship commit f7952566, pushed 10:18 ET on
+ *  Aug 23 -- the Aug 22 slate was still picked by the previous weights, which
+ *  is why this is the 23rd even though the work is logged under Aug 22).
+ *  THE SERIES DOES NOT RESET -- the operator's rule is one continuous ledger,
+ *  the new model's picks append -- but the nights from this date are ALSO
+ *  summed on their own so the updated model can be read next to the season
+ *  figure without blending into it. */
+export const MODEL_UPDATED_FROM = "2026-08-23";
 
 const num = (v: string | undefined): number | null => {
   if (v == null) return null;

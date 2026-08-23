@@ -39,6 +39,19 @@ I4.  "every graded STRONG bet has a strong_graded notification"
      bet_placed='Y' → notifications_log MUST have a strong_graded
      entry.  Heal: fire _notify_strong_graded_telegram.
 
+     I3/I4 APPLY ONLY TO THE NIGHT'S №1 PLAY (2026-08-23).  Since the
+     №1-only policy (2026-08-05) the notifiers themselves fire ONLY for
+     the night's top pick and return early -- with no dedup row -- for
+     every other STRONG bet.  Left as written, these two invariants
+     treated the runner-up as "never notified", healed it, the notifier
+     declined, and the next cycle found the same anomaly: 326 heal
+     notices in 36 hours on 2026-08-22/23 for two bets that were never
+     meant to ping.  The invariant now mirrors the gate
+     (tracker._row_is_nights_top_pick, ranked against the same night's
+     rows from Supabase): a STRONG bet the policy would not notify about
+     is not an anomaly.  Fails OPEN like the gate -- if the ranking
+     errors, the row is treated as the №1 and checked as before.
+
 I5.  "a locked STRONG stake still matches the sizing rule"  (T8.18)
      REPORT-ONLY -- this invariant NEVER heals, and that is a
      deliberate design decision, not a gap someone forgot to fill.
@@ -383,6 +396,23 @@ def _stringify_row(row: dict) -> dict:
     return out
 
 
+def _is_nights_top_pick(row: dict, same_night_rows: list[dict]) -> bool:
+    """Mirror of the №1-only gate for I3/I4: is `row` the night's top
+    play, ranked against the other rows of the same slate (Supabase
+    rows, so they are stringified the way the gate expects)?  Fails OPEN
+    -- any error makes the row count as the №1, so a broken ranking can
+    only over-report anomalies, never hide one."""
+    try:
+        from tracker import _row_is_nights_top_pick
+        rivals = [_stringify_row(x) for x in same_night_rows]
+        return _row_is_nights_top_pick(_stringify_row(row), rivals)
+    except Exception as exc:    # noqa: BLE001 -- fail open, like the gate
+        print(f"[reconcile] №1 gate failed open for "
+              f"{row.get('date')}/{row.get('game_pk')}: {exc!r}",
+              file=sys.stderr)
+        return True
+
+
 def _record_dedup_only(client, event_type: str, event_key: str) -> None:
     """Insert a notifications_log row WITHOUT firing telegram.  Used
     when reconcile detects a missing dedup entry on an OLD game --
@@ -613,8 +643,17 @@ def reconcile(
                     if _heal_i2_pl_drift(client, r, correct, dry_run):
                         stats.i2_pl_corrections += 1
 
+        # ---- №1-only policy gate for I3/I4 (see module docstring) -----
+        # Only the night's top pick is ever notified, so only the night's
+        # top pick can be MISSING a notification.  Fail open: a ranking
+        # error treats the row as the №1, exactly like the gate itself.
+        is_nights_top = True
+        if strength == "STRONG" and bet == "Y" and side in ("NRFI", "YRFI"):
+            is_nights_top = _is_nights_top_pick(r, rows_by_date.get(r["date"], []))
+
         # ---- I3: strong_locked fired for placed STRONG ---------------
-        if (strength == "STRONG"
+        if (is_nights_top
+                and strength == "STRONG"
                 and bet == "Y"
                 and side in ("NRFI", "YRFI")
                 and _within_lock_window(r.get("game_time_et") or "",
@@ -628,7 +667,8 @@ def reconcile(
                     notes.add(key1)
 
         # ---- I4: strong_graded fired for graded STRONG ---------------
-        if (strength == "STRONG"
+        if (is_nights_top
+                and strength == "STRONG"
                 and bet == "Y"
                 and grade in ("WIN", "LOSS")
                 and side in ("NRFI", "YRFI")):

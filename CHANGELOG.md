@@ -11,162 +11,87 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
-## [2026-08-20] - Repair validation: it is the LEVEL, not the weights (tools/refit2026)
+## [2026-08-23] - Ops: the odds-key mix-up, a reconcile notice storm, a red tests badge, and "clear the errors"
 
-Follow-on to the decay investigation. Operator approved building and validating
-the proposed combined repair (refit weights + fix the collinear feature pair +
-properly-shrunk park factors). Built, validated three ways, and **most of the
-proposal did not survive** — the parts that did point somewhere else.
+Operator: *"there's multiple errors in the dashboard some of which are relating
+to credits from the odds API. I have now upped my membership to the $30 a month
+with 20,000 credits a month. go through each error... then clear the errors."*
+Four distinct things were behind the red badge; all four are dealt with.
 
-**Added** — `tools/refit2026/` (validation only; writes nothing to `data/`, the
-ledger, or any model artifact). Park factors are rebuilt inside every split from
-training seasons only, so no result here can be contaminated the way the shipped
-file was. See its README for the traps.
+### Found
 
-**What did not survive**
+1. **`odds-api` x 91 (the errors).** Every 5-minute Railway cycle since
+   2026-08-22 17:07Z logged *"refusing to start: would leave 47 credits, below the
+   --min-credits floor of 50"*. The guard did its job: the key on **Railway** is
+   the OLD free-tier key (500 credits/month -- the 2026-08-11 FanDuel-at-lock
+   loop at ~50/day ran it down in 11 days, exactly as `fetch_odds_api.py`'s own
+   header predicted). The key the operator added to **GitHub Actions** the same
+   morning is a DIFFERENT key on the 20,000-credit plan (`used 0, remaining
+   20000` on its first run at 15:57Z, while Railway's key read `used 450,
+   remaining 50` at 17:47Z). The Odds API keeps the key on an in-place upgrade,
+   so the 20K key is a second key -- and Railway never got it.
+   **Consequence:** no lock-time FanDuel price was captured from 08-22 ~1 PM ET
+   until 08-23 2 PM ET (2 of 15 games priced on 08-22, 0 of 15 on 08-23 until
+   the fix). No bet was affected -- neither night produced a STRONG pick -- but
+   CLV/opened-price tracking was blind for both slates.
+2. **`reconcile-heal` x 326 (notices, not errors).** `tools/reconcile.py`
+   invariants I3/I4 expect a `strong_locked` / `strong_graded` notification for
+   EVERY placed STRONG bet, but since the №1-only policy (2026-08-05) the
+   notifiers fire only for the night's top pick and return early with no dedup
+   row. On the 08-21 slate (two STRONG bets) the runner-up was therefore
+   "healed" every 5 minutes for 36 hours (`NOTIFY_FRESHNESS_HOURS`), 2026-08-22
+   00:00Z -> 2026-08-23 13:40Z. Nothing was changed by those heals.
+3. **`tests` workflow red on the last three pushes.** `shortBook()` in
+   `BoardRow.tsx` gained RIV/BOL/BOV/BUS/MYB for line shopping (commit 58eef763)
+   and `tracker._book_label` did not -- `test_the_python_and_typescript_rules_agree`
+   caught the split exactly as designed.
+4. **`MODEL_UPDATED_FROM` was off by one day.** The ship commit was pushed
+   2026-08-23 10:18 ET; the 08-22 slate was picked by the previous weights.
+   The `/history` sub-total said "Since the Aug 22 model update". No figure was
+   affected (no No.1 bet on 08-22), the label was wrong.
 
-- *Fixing the collinear slg/iso pair does nothing.* Dropping either half moves
-  AUC by ≤0.002 in either direction and fails all three splits. The L2 penalty
-  was already absorbing it. This was the headline of the proposal and it is dead.
-- *Re-shrinking the park factor does nothing either* — ≤0.0002 AUC. Correct in
-  principle (the file is ~3× under-shrunk) but there is no signal to recover.
+### Fixed
 
-**What did survive, and how far**
+- **Railway floor lowered for the old key's last credits** -- `ODDS_API_MIN_CREDITS=5`
+  (service variable; was 50). The next cycle priced the two games in window
+  ("wrote 2 rows across 1 books ... credits remaining: 48"). The real fix is the
+  operator pasting the 20K key into the Railway service variable `ODDS_API_KEY`
+  (click-by-click given in chat); until then the old key's ~45 credits cover
+  roughly one evening slate.
+- **The diagnostic capture can never starve the money path** --
+  `.github/workflows/odds_diagnostic.yml` now passes `--min-credits 2000`: the
+  4x/day multi-book snapshot refuses to spend once fewer than 2,000 credits
+  would remain, leaving the lock-time fetch (~50/day) 40 days of headroom in
+  the worst case. Budget on the 20K plan: ~120/day diagnostic + ~50/day money
+  path = ~5,100/month.
+- **`tracker._book_label`** mirrors `shortBook()` again (RIV/BOL/BOV/BUS/MYB);
+  the "unknown book is named in full" test now uses Circa Sports, which neither
+  side abbreviates. 277 tests pass.
+- **`tools/reconcile.py` I3/I4 honour the №1-only policy** -- new
+  `_is_nights_top_pick(row, same_night_rows)` mirrors
+  `tracker._row_is_nights_top_pick` (ranked against the same slate's Supabase
+  rows, fail-OPEN like the gate) and a STRONG bet the policy would not notify
+  about is no longer an anomaly. `tests/test_reconcile_no1_gate.py` (+3) pins
+  it, including the fail-open case.
+- **`MODEL_UPDATED_FROM = "2026-08-23"`**; `/history` copy and the sub-total
+  heading now say Aug 23; the four ship sections below are re-dated.
+- **"Clear the errors": `system_errors.resolved_at` / `resolved_note`**
+  (Supabase migration `system_errors_add_resolved_columns`, partial index on
+  unresolved rows). `/api/health-live` excludes resolved rows, so the Ops
+  Health card clears when a fault has been dealt with instead of 24 hours
+  later. Rows are stamped, never deleted -- the log is intact. Stamped today:
+  91 `odds-api` refusals and 325 spurious `reconcile-heal` notices, each with a
+  note saying why. To clear a future batch: `update system_errors set
+  resolved_at = now(), resolved_note = '<why>' where step = '<step>' and
+  resolved_at is null and captured_at_utc < '<ts>'` (Supabase SQL editor or
+  ask the agent).
 
-- *Raising L2 from 0.05 to 0.5* is the only variant that beats shipped on AUC in
-  all three splits (+0.0053 / +0.0031 / +0.0053), with a smooth bias/variance
-  curve rather than a spike, and better logloss in all three.
+### Operator action still needed
 
-**The confound that reframed everything.** `money.py` first showed L2=0.5 at
-+33.8% ROI on 2026 against shipped's +18.4%. That is not skill. Flat ROI at the
-0.42 gate tracks the *direction of the train/test base-rate gap* almost
-perfectly (2024→2025 −3.8pp gap → +3.7%; 2025→2024 +3.8pp → −12.0%;
-24+25→2026 −2.3pp → +18.4%). Giving the **shipped** model an oracle level
-correction swings it from −12.0% to +2.9% and from +3.7% to −6.0%. A gate is a
-cut point on a level, so a wrong level *is* the result. L2 does survive that
-control (+6.7 / +1.5 / +9.9 pp) but is a minor term beside it.
-
-**Where that leads: refit the calibrator more often.** A calibrator is a
-monotone map — it cannot change ranking, so it cannot make the discrimination
-problem worse, and it needs no weight refit (so it does not disturb the frozen
-feature standardisation a park-file change would). Walk-forward on the live 2026
-ledger, fitting only on games graded strictly earlier:
-
-- logloss better in **18 of 18** window/cadence settings (0.694–0.696 v 0.70059)
-- level bias **+0.0243 → +0.008…+0.019**, in all 18
-- flat ROI better in all 18 (+9.9%…+20.7% v +4.9%), bets 121–177 v 326 at a
-  higher hit rate (0.588–0.645 v 0.561)
-
-**Deferred, and why.** Not shipped. The money case is directional, not
-established: the day-level bootstrap is **+4.58pp, 90% CI [−3.95, +12.99],
-P=82%** — it does not exclude zero. And by month it is better in June and July
-but *worse in August* (+12.2% v +16.0% on 20 v 29 bets), which is the month the
-repair was motivated by. Calibration quality and level bias improve reliably;
-money does not yet clear the bar in `feature_test_methodology`.
-
-**One correction to this session's own output.** `recal_walkforward.py` briefly
-printed an AUC gain for the refit series. A monotone map cannot move ranking;
-that number is an artifact of pooling calibrator vintages (the ledger's
-`nrfi_prob` spans the 2026-07-28 CIR swap — after it spearman(raw, shipped) is
-1.0000 and the AUCs agree exactly at 0.4926; before it spearman is 0.9649). The
-script now prints raw/shipped/refit side by side and says the repair is
-level-only.
-
-Tests: 264 passed. No model, gate, staking, or ledger code touched.
-
----
-
-## [2026-08-20] - Model decay investigation: four defects, three verdicts
-
-Operator: *"the model has been doing terrible lately. do NOT just respond with
-'its variance'. its not. something is wrong."* Correct. Last 7 days 1W-7L
-(-29.484u), last 30 days 28W-28L (-3.802u), season still +36.697u / 58.2%
-(all figures from `tools/pl_calc.py`).
-
-**Finding 1 — the league moved ~20% and the model did not.** First-inning runs
-league-wide: 1.17 (Jun-a) → 0.99 (Jul-b) → 0.89 (Aug-a). `lambda_lr_total` over
-the same span: 0.783 → 0.771 → 0.772. Decomposed against the model's own
-training SDs, the total predicted shift in T1 log-lambda is **+0.027** — the
-wrong direction. All 19 features are season-cumulative rate stats that
-under-react by design; there is no league-level or date term; and the largest
-actual mover is temperature (+1.44 SD, April cold → August hot) carrying a
-POSITIVE weight. Consequence: STRONG bets since Jul 15 said 63.8%, hit **52.7%**.
-Quarter-Kelly sizes hardest exactly where the model is most wrong.
-
-**Finding 2 — the market out-ranks us, and our disagreement is inverted.**
-n=1435 priced games: model AUC **0.510** [0.485, 0.535], market **0.548**;
-paired bootstrap says market better with 99.4% confidence. Games where we call
-YRFI likelier than the market hit 48.1% (Jun), 46.3% (Jul), **40.7%** (Aug);
-where we call it less likely, **67.5%** in Aug.
-
-**Finding 3 — the park factor has no out-of-sample value (corrects an earlier
-read in this same session).** `data/fi_park_factors.json` was built 2026-05-19
-*from* `picks_2026.csv`. Split on its build date: in-sample **+0.690**
-[+0.518, +0.841], out-of-sample **−0.057** [−0.384, +0.277]. The first pass
-here reported "+0.569 Apr–Jun, dead from July" — that was the file measured
-against its own training data. Underneath, park FI rates barely repeat
-(2024↔2025 r=+0.16, 2025↔2026 r=+0.17, all CIs span zero; split-half within a
-season r≈0.26). Correct shrinkage is ~3× heavier than shipped (prior ~309 vs
-`PRIOR_GAMES=50`).
-
-**Finding 4 — swapping back to the legacy Poisson: TESTED, REFUTED.** On 2026
-production data `combined_lambda` out-ranks the shipped two-stage LR 0.5560 vs
-0.5124 (n=1499, +0.044, P=99.6%), and it is *not* the calibrator (LR raw 0.5113
-vs calibrated 0.5124 — identical, as a monotone map must be). But the 2024/2025
-backtests cannot test this as they sit: they were generated by the legacy
-pipeline, where `lambda_total` and `yrfi_prob` correlate **0.997**. Re-scored
-through the shipped `lr_t1.json`/`lr_b1.json`, the three splits are
-2024 shipped **0.5406** vs 0.4992, 2025 shipped **0.5700** vs 0.5134,
-2026 shipped 0.5124 vs legacy **0.5560**. One direction only → rejected.
-
-**What the re-score did establish:** the shipped model scores 0.54/0.57 on
-2024/2025 and ~0.52 on 2026, and within 2026 its in-sample (0.5208) and
-out-of-sample (0.5241) AUCs are the same. Not overfitting — a relationship that
-held in 2024–25 and no longer holds. August: 0.4915 [0.4327, 0.5491].
-
-**A rolling level correction does not fix it — tested.** Walk-forward
-intercept-only recalibration (14/21/30/45/60/90d windows, offset fitted only on
-prior games) removes the bias but worsens logloss *and* Brier at every window.
-On bets it is period-dependent: season-wide it drops 121 that hit **62.8%**
-while keeping 318 that hit 54.7%; from Jul 15 it drops 39 that hit 46.2% and
-keeps 40 that hit 60.0%. Helping only inside the window where the problem was
-found is a fitted fix, not a fix.
-
-**Wind direction — tested, refuted.** See `wind_direction_dead` memory. The
-crosswind placebo matches or beats the real out-component at every stage
-(raw +0.0312 vs +0.0342; within park-month +0.0337 vs +0.0257; best sweep z
-+2.58 vs +2.05). Fails the three-split rule (2024→2025 better by 0.0006,
-2025→2024 worse by 0.0041), permutation p=0.0625, and Wrigley — the one park
-where the effect is universally accepted — is flat at +0.062, z=0.60.
-
-**Deferred** — no model, gate, staking, or ledger code changed. Park rebuild and
-any refit are ONE change, because the model standardises `fi_park_nrfi_rate`
-with a stored std of 0.0408 and a properly shrunk file is 2.3× narrower.
-
----
-
-## [2026-08-21] - Target horizon: the same inputs rank 3- and 5-inning scoring far better than the 1st inning
-
-`tools/refit2026/fetch_linescores_full.py` pulled per-inning linescores for
-all 6,611 games in the three datasets from MLB statsapi (0 failures; H=1
-totals match the ledger on 99.8-100% of rows). `target_horizon.py` then refit
-the two-stage model -- SAME 19 features per half -- against "runs through
-inning H exceed the train-season median":
-
-| H | 2024->2025 | 2025->2024 | 24+25->2026 |
-|---|---|---|---|
-| 1 (the product) | 0.5198 | 0.5174 | 0.5259 |
-| 3 | 0.5308 | 0.5372 | **0.5790** |
-| 5 (F5) | 0.5398 | 0.5441 | **0.5691** |
-| 9 | 0.5332 | 0.5535 | 0.5735 |
-
-AUC climbs with the horizon in all three splits: the inputs are informative
-and a single inning is too noisy a target for them to surface. On 2026 the
-H=1 -> H=3 gain (+5.3 points) exceeds every model improvement ever validated
-here combined. NOT shown: whether we beat the F5 market -- no F5 odds have
-ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
-6.55% on the 1st-inning total). Strategic finding, recorded in memory
-`2026-08-21_target_horizon`; no product change.
+Paste the 20K key into Railway -> project **mlb-first-inning** -> service
+**MLB-first-inning** -> Variables -> `ODDS_API_KEY` -> Deploy. The moment it
+is live, the Railway log's first line per cycle reads `credits used N,
+remaining 19xxx` instead of `remaining 4x`.
 
 ---
 
@@ -212,7 +137,7 @@ measured at is a product decision (memory `odds_source_strategy`).
 
 ---
 
-## [2026-08-22] - Rollout plan follow-ups #2, #5, #6/#7 shipped
+## [2026-08-23] - Rollout plan follow-ups #2, #5, #6/#7 shipped
 
 - **#2 Dashboard** -- `/history` now carries a "Since the Aug 22 model update"
   block (`TopPickReport.sinceUpdate`: record, at Kelly, flat, staked -- the
@@ -242,7 +167,7 @@ measured at is a product decision (memory `odds_source_strategy`).
 
 ---
 
-## [2026-08-22] - Two foot-guns removed: the recalibrate action and the official trainer
+## [2026-08-23] - Two foot-guns removed: the recalibrate action and the official trainer
 
 Follow-ups #3 and #4 of the rollout plan.
 
@@ -274,7 +199,7 @@ stay and the trainer is the canonical path for the next refit.
 
 ---
 
-## [2026-08-22] - Rollout plan, ledger continuity, model gate taught the new feature
+## [2026-08-23] - Rollout plan, ledger continuity, model gate taught the new feature
 
 - **`docs/PLAN_2026-08-22_model_v3_rollout.md`** -- the operating plan: the
   ledger is continuous (the No.1 strategy's +66.2u since May 26 stands; the new
@@ -300,7 +225,12 @@ stay and the trainer is the canonical path for the next refit.
 
 ---
 
-## [2026-08-22] - SHIPPED: pooled first-inning pitcher xwOBA + L2 0.50 (20-feature model)
+## [2026-08-23] - SHIPPED: pooled first-inning pitcher xwOBA + L2 0.50 (20-feature model)
+
+> Date note: the ship commit `f7952566` was pushed **2026-08-23 10:18 ET**. This
+> and the three sections above were first logged under 08-22 (the session's
+> working date); the 08-22 slate was still picked by the previous weights, so
+> the dashboard's `MODEL_UPDATED_FROM` is 2026-08-23.
 
 Operator: *"so this whole time the model never knew we were focused on the first
 inning only... don't forget about the fixes to make though."* Both done.
@@ -463,6 +393,31 @@ No model, gate, staking, or ledger code touched.
 
 ---
 
+## [2026-08-21] - Target horizon: the same inputs rank 3- and 5-inning scoring far better than the 1st inning
+
+`tools/refit2026/fetch_linescores_full.py` pulled per-inning linescores for
+all 6,611 games in the three datasets from MLB statsapi (0 failures; H=1
+totals match the ledger on 99.8-100% of rows). `target_horizon.py` then refit
+the two-stage model -- SAME 19 features per half -- against "runs through
+inning H exceed the train-season median":
+
+| H | 2024->2025 | 2025->2024 | 24+25->2026 |
+|---|---|---|---|
+| 1 (the product) | 0.5198 | 0.5174 | 0.5259 |
+| 3 | 0.5308 | 0.5372 | **0.5790** |
+| 5 (F5) | 0.5398 | 0.5441 | **0.5691** |
+| 9 | 0.5332 | 0.5535 | 0.5735 |
+
+AUC climbs with the horizon in all three splits: the inputs are informative
+and a single inning is too noisy a target for them to surface. On 2026 the
+H=1 -> H=3 gain (+5.3 points) exceeds every model improvement ever validated
+here combined. NOT shown: whether we beat the F5 market -- no F5 odds have
+ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
+6.55% on the 1st-inning total). Strategic finding, recorded in memory
+`2026-08-21_target_horizon`; no product change.
+
+---
+
 ## [2026-08-21] - FIRST VALIDATED MODEL IMPROVEMENT: pooled first-inning xwOBA (candidate, not shipped)
 
 Operator: *"keep going and don't stop until you find something that improves
@@ -570,6 +525,140 @@ environments out-ranks the LR on 2026): the under-used signal is the
 game-level scoring environment.
 
 No model, gate, staking, or ledger code touched. Tests: 264 passed.
+
+---
+
+## [2026-08-20] - Repair validation: it is the LEVEL, not the weights (tools/refit2026)
+
+Follow-on to the decay investigation. Operator approved building and validating
+the proposed combined repair (refit weights + fix the collinear feature pair +
+properly-shrunk park factors). Built, validated three ways, and **most of the
+proposal did not survive** — the parts that did point somewhere else.
+
+**Added** — `tools/refit2026/` (validation only; writes nothing to `data/`, the
+ledger, or any model artifact). Park factors are rebuilt inside every split from
+training seasons only, so no result here can be contaminated the way the shipped
+file was. See its README for the traps.
+
+**What did not survive**
+
+- *Fixing the collinear slg/iso pair does nothing.* Dropping either half moves
+  AUC by ≤0.002 in either direction and fails all three splits. The L2 penalty
+  was already absorbing it. This was the headline of the proposal and it is dead.
+- *Re-shrinking the park factor does nothing either* — ≤0.0002 AUC. Correct in
+  principle (the file is ~3× under-shrunk) but there is no signal to recover.
+
+**What did survive, and how far**
+
+- *Raising L2 from 0.05 to 0.5* is the only variant that beats shipped on AUC in
+  all three splits (+0.0053 / +0.0031 / +0.0053), with a smooth bias/variance
+  curve rather than a spike, and better logloss in all three.
+
+**The confound that reframed everything.** `money.py` first showed L2=0.5 at
++33.8% ROI on 2026 against shipped's +18.4%. That is not skill. Flat ROI at the
+0.42 gate tracks the *direction of the train/test base-rate gap* almost
+perfectly (2024→2025 −3.8pp gap → +3.7%; 2025→2024 +3.8pp → −12.0%;
+24+25→2026 −2.3pp → +18.4%). Giving the **shipped** model an oracle level
+correction swings it from −12.0% to +2.9% and from +3.7% to −6.0%. A gate is a
+cut point on a level, so a wrong level *is* the result. L2 does survive that
+control (+6.7 / +1.5 / +9.9 pp) but is a minor term beside it.
+
+**Where that leads: refit the calibrator more often.** A calibrator is a
+monotone map — it cannot change ranking, so it cannot make the discrimination
+problem worse, and it needs no weight refit (so it does not disturb the frozen
+feature standardisation a park-file change would). Walk-forward on the live 2026
+ledger, fitting only on games graded strictly earlier:
+
+- logloss better in **18 of 18** window/cadence settings (0.694–0.696 v 0.70059)
+- level bias **+0.0243 → +0.008…+0.019**, in all 18
+- flat ROI better in all 18 (+9.9%…+20.7% v +4.9%), bets 121–177 v 326 at a
+  higher hit rate (0.588–0.645 v 0.561)
+
+**Deferred, and why.** Not shipped. The money case is directional, not
+established: the day-level bootstrap is **+4.58pp, 90% CI [−3.95, +12.99],
+P=82%** — it does not exclude zero. And by month it is better in June and July
+but *worse in August* (+12.2% v +16.0% on 20 v 29 bets), which is the month the
+repair was motivated by. Calibration quality and level bias improve reliably;
+money does not yet clear the bar in `feature_test_methodology`.
+
+**One correction to this session's own output.** `recal_walkforward.py` briefly
+printed an AUC gain for the refit series. A monotone map cannot move ranking;
+that number is an artifact of pooling calibrator vintages (the ledger's
+`nrfi_prob` spans the 2026-07-28 CIR swap — after it spearman(raw, shipped) is
+1.0000 and the AUCs agree exactly at 0.4926; before it spearman is 0.9649). The
+script now prints raw/shipped/refit side by side and says the repair is
+level-only.
+
+Tests: 264 passed. No model, gate, staking, or ledger code touched.
+
+---
+
+## [2026-08-20] - Model decay investigation: four defects, three verdicts
+
+Operator: *"the model has been doing terrible lately. do NOT just respond with
+'its variance'. its not. something is wrong."* Correct. Last 7 days 1W-7L
+(-29.484u), last 30 days 28W-28L (-3.802u), season still +36.697u / 58.2%
+(all figures from `tools/pl_calc.py`).
+
+**Finding 1 — the league moved ~20% and the model did not.** First-inning runs
+league-wide: 1.17 (Jun-a) → 0.99 (Jul-b) → 0.89 (Aug-a). `lambda_lr_total` over
+the same span: 0.783 → 0.771 → 0.772. Decomposed against the model's own
+training SDs, the total predicted shift in T1 log-lambda is **+0.027** — the
+wrong direction. All 19 features are season-cumulative rate stats that
+under-react by design; there is no league-level or date term; and the largest
+actual mover is temperature (+1.44 SD, April cold → August hot) carrying a
+POSITIVE weight. Consequence: STRONG bets since Jul 15 said 63.8%, hit **52.7%**.
+Quarter-Kelly sizes hardest exactly where the model is most wrong.
+
+**Finding 2 — the market out-ranks us, and our disagreement is inverted.**
+n=1435 priced games: model AUC **0.510** [0.485, 0.535], market **0.548**;
+paired bootstrap says market better with 99.4% confidence. Games where we call
+YRFI likelier than the market hit 48.1% (Jun), 46.3% (Jul), **40.7%** (Aug);
+where we call it less likely, **67.5%** in Aug.
+
+**Finding 3 — the park factor has no out-of-sample value (corrects an earlier
+read in this same session).** `data/fi_park_factors.json` was built 2026-05-19
+*from* `picks_2026.csv`. Split on its build date: in-sample **+0.690**
+[+0.518, +0.841], out-of-sample **−0.057** [−0.384, +0.277]. The first pass
+here reported "+0.569 Apr–Jun, dead from July" — that was the file measured
+against its own training data. Underneath, park FI rates barely repeat
+(2024↔2025 r=+0.16, 2025↔2026 r=+0.17, all CIs span zero; split-half within a
+season r≈0.26). Correct shrinkage is ~3× heavier than shipped (prior ~309 vs
+`PRIOR_GAMES=50`).
+
+**Finding 4 — swapping back to the legacy Poisson: TESTED, REFUTED.** On 2026
+production data `combined_lambda` out-ranks the shipped two-stage LR 0.5560 vs
+0.5124 (n=1499, +0.044, P=99.6%), and it is *not* the calibrator (LR raw 0.5113
+vs calibrated 0.5124 — identical, as a monotone map must be). But the 2024/2025
+backtests cannot test this as they sit: they were generated by the legacy
+pipeline, where `lambda_total` and `yrfi_prob` correlate **0.997**. Re-scored
+through the shipped `lr_t1.json`/`lr_b1.json`, the three splits are
+2024 shipped **0.5406** vs 0.4992, 2025 shipped **0.5700** vs 0.5134,
+2026 shipped 0.5124 vs legacy **0.5560**. One direction only → rejected.
+
+**What the re-score did establish:** the shipped model scores 0.54/0.57 on
+2024/2025 and ~0.52 on 2026, and within 2026 its in-sample (0.5208) and
+out-of-sample (0.5241) AUCs are the same. Not overfitting — a relationship that
+held in 2024–25 and no longer holds. August: 0.4915 [0.4327, 0.5491].
+
+**A rolling level correction does not fix it — tested.** Walk-forward
+intercept-only recalibration (14/21/30/45/60/90d windows, offset fitted only on
+prior games) removes the bias but worsens logloss *and* Brier at every window.
+On bets it is period-dependent: season-wide it drops 121 that hit **62.8%**
+while keeping 318 that hit 54.7%; from Jul 15 it drops 39 that hit 46.2% and
+keeps 40 that hit 60.0%. Helping only inside the window where the problem was
+found is a fitted fix, not a fix.
+
+**Wind direction — tested, refuted.** See `wind_direction_dead` memory. The
+crosswind placebo matches or beats the real out-component at every stage
+(raw +0.0312 vs +0.0342; within park-month +0.0337 vs +0.0257; best sweep z
++2.58 vs +2.05). Fails the three-split rule (2024→2025 better by 0.0006,
+2025→2024 worse by 0.0041), permutation p=0.0625, and Wrigley — the one park
+where the effect is universally accepted — is flat at +0.062, z=0.60.
+
+**Deferred** — no model, gate, staking, or ledger code changed. Park rebuild and
+any refit are ONE change, because the model standardises `fi_park_nrfi_rate`
+with a stored std of 0.0408 and a properly shrunk file is 2.3× narrower.
 
 ---
 

@@ -18,12 +18,18 @@
 # price the ledger at whichever book came last; see tools/fetch_odds_api.py).
 #
 # COST. ~1 credit per event per region per market returned: ~15 events x 2
-# markets = ~30 credits/day at the 17:00 UTC run. The money path's two-phase
-# polling is ~101/day (T8.31). Lower the cadence here if credits get tight.
+# markets = ~30 credits per run, 4 runs/day = ~120/day (~3,600/month) against
+# the 20,000-credit plan (2026-08-23). The money path on Railway spends ~50/day
+# on the same plan once it carries the same key.
 #
-# REQUIRES the `ODDS_API_KEY` repository secret. It is NOT currently set for
-# GitHub Actions (the key lives on Railway). Until it is, the run prints what
-# to do and exits 0 -- nothing fails, nothing is captured.
+# THE MONEY PATH COMES FIRST. `--min-credits 2000` makes THIS capture refuse
+# to spend once fewer than 2,000 credits would remain, so a runaway cadence
+# here can never starve the lock-time price fetch (which needs ~50/day). The
+# Railway fetch keeps its own, much lower floor (ODDS_API_MIN_CREDITS).
+#
+# REQUIRES the `ODDS_API_KEY` repository secret (set 2026-08-23 with the
+# 20K-credit key). Without it the run prints what to do and exits 0 --
+# nothing fails, nothing is captured.
 name: odds diagnostic (multi-book + F5)
 
 on:
@@ -65,7 +71,7 @@ jobs:
         run: |
           set +e
           if [ -z "${ODDS_API_KEY}" ]; then
-            echo "::notice::ODDS_API_KEY is not set for GitHub Actions. To enable this capture: GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret -> Name ODDS_API_KEY, Value = the key used on Railway."
+            echo "::notice::ODDS_API_KEY is not set for GitHub Actions. To enable this capture: GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret -> Name ODDS_API_KEY, Value = your The Odds API key (the same one Railway uses)."
             exit 0
           fi
           D=$(TZ=America/New_York date +%F)
@@ -75,6 +81,7 @@ jobs:
             --regions us \
             --markets totals_1st_1_innings,totals_1st_5_innings \
             --skip-started \
+            --min-credits 2000 \
             --raw-output "data/diagnostics/odds/raw_${D}_${T}.csv" \
             || echo "::warning::odds diagnostic capture failed (non-blocking)"
           # mirror into Supabase so the dashboard can show the best available

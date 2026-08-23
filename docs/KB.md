@@ -335,6 +335,11 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   UTC 12-23. 8-attempt push retry with `--ours` for CSV conflicts (T1.6).
   Now also dual-writes to Supabase via the SUPABASE_URL/KEY secrets.
 - `.github/workflows/backup.yml` — daily 5am ET snapshot (T3.4).
+- `.github/workflows/odds_diagnostic.yml` — 4x/day (13/15/17/19 ET)
+  multi-book first-inning + F5 totals via The Odds API → CSV under
+  `data/diagnostics/odds/` + Supabase `odds_multibook` (the board's
+  "best price" chip). `--min-credits 2000` keeps a reserve for the
+  money path (2026-08-23).
 - `requirements.txt` — pinned with upper bounds (T3.6); includes
   `supabase>=2.0,<3.0` + `python-dotenv>=1.0,<2.0` for the dual-write.
 
@@ -484,6 +489,26 @@ If something is broken:
   + read `data/system_errors.csv` for structured failure rows.
 - **Dashboard offline**: check Vercel deployment status. Service worker
   caches the shell so a brief outage still renders last-known UI.
+- **Ops Health card shows errors** (the "System" strip on the board): it
+  counts Supabase `system_errors` rows from the last 24 h whose
+  `resolved_at` is NULL (`/api/health-live`). Diagnose the step named in
+  the newest row (Railway deploy logs for `odds-api` / `predict` / …,
+  GHA logs for cron steps), fix the cause, then STAMP the rows resolved
+  -- never delete them, the table is a log:
+  `update system_errors set resolved_at = now(), resolved_note = '<why>'
+  where step = '<step>' and resolved_at is null and captured_at_utc < now();`
+  (Supabase SQL editor). Columns added 2026-08-23.
+- **`odds-api: refusing to start: would leave N credits…`**: The Odds API
+  key on the Railway service is near its plan's floor. Both places that
+  use the key must carry the SAME key: Railway service variable
+  `ODDS_API_KEY` (the lock-time money path, ~50 credits/day) and the GHA
+  secret `ODDS_API_KEY` (the 4x/day multi-book snapshot, ~120/day, which
+  refuses below 2,000 remaining so it can never starve the money path).
+  Plan since 2026-08-23: 20,000 credits/month (~5,100/month used). The
+  Railway floor is `ODDS_API_MIN_CREDITS` (service variable; set to 5 on
+  2026-08-23 while the old free-tier key's last credits were spent).
+  Every cycle's first Railway log line prints `credits used N, remaining M`
+  -- that is the live balance of whatever key Railway holds.
 
 ---
 
