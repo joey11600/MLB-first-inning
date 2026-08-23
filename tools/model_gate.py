@@ -166,6 +166,35 @@ def _outcome(row: dict) -> int | None:
     return 1 if (a == 0 and h == 0) else 0
 
 
+_FI_FACTOR: dict | None = None
+_FI_LEAGUE: float | None = None
+
+
+def _fi_xwoba_for_game(game_pk) -> tuple[float, float]:
+    """(away_fi_xwoba, home_fi_xwoba) for a holdout game: the point-in-time
+    pooled value from data/candidates/factor_fi_pooled.csv, else the pool's
+    league mean (the predictor's own default for an unseen starter)."""
+    global _FI_FACTOR, _FI_LEAGUE
+    if _FI_FACTOR is None:
+        _FI_FACTOR = {}
+        fp = ROOT / "data" / "candidates" / "factor_fi_pooled.csv"
+        if fp.exists():
+            for r in csv.DictReader(fp.open(encoding="utf-8")):
+                try:
+                    a = float(r["away_fi_xwoba"]) if r.get("away_fi_xwoba") else None
+                    h = float(r["home_fi_xwoba"]) if r.get("home_fi_xwoba") else None
+                except ValueError:
+                    a = h = None
+                _FI_FACTOR[str(r["game_pk"]).strip()] = (a, h)
+        try:
+            import fi_pitcher_pool as _fp
+            _FI_LEAGUE = _fp.league_mean(_fp.load_state())
+        except Exception:    # noqa: BLE001
+            _FI_LEAGUE = 0.32
+    a, h = _FI_FACTOR.get(str(game_pk).strip(), (None, None))
+    return (a if a is not None else _FI_LEAGUE, h if h is not None else _FI_LEAGUE)
+
+
 def _feats(row: dict, names: list[str], derived: dict) -> list[float] | None:
     """Build a feature vector in the model's declared order.
 
@@ -219,6 +248,17 @@ def score_holdout() -> dict:
             # See LEAGUE_NRFI_RATE: the 2024/2025 files have no umpire column.
             if "home_plate_ump_nrfi_rate" not in row:
                 derived["home_plate_ump_nrfi_rate"] = LEAGUE_NRFI_RATE
+            # 2026-08-22: the pooled first-inning pitcher xwOBA is not a holdout
+            # column -- it is a point-in-time value per game.  Supply it from the
+            # committed per-game factor file (strictly pre-game values, the same
+            # ones validated in tools/refit2026), and where a game has none use
+            # the pool's league mean -- which is exactly what the live predictor
+            # feeds an unseen starter, NOT a zero-filled placeholder.  Without
+            # this the gate scored 0 rows on the first 20-feature push.
+            if any(n in ("home_fi_xwoba", "away_fi_xwoba") for n in t1_names + b1_names):
+                fa, fh = _fi_xwoba_for_game(row.get("game_pk"))
+                derived["home_fi_xwoba"] = fh
+                derived["away_fi_xwoba"] = fa
 
             t1 = _feats(row, t1_names, derived)
             b1 = _feats(row, b1_names, derived)
