@@ -11,6 +11,57 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-23] - Weather at first pitch, wind direction round 4: built, tested, NOT shipped
+
+Operator: *"make sure all [factors] are focused on first inning stats only ...
+what about only focusing on the weather forecast for the first 10 minutes from
+game time ... wind direction ... could potentially help carry a ball."* All
+three answered the same evening: `tools/refit2026/wx_gamehour.py`
+(--build/--test), `wx_wind_null.py`, factor file
+`data/candidates/factor_wx_gamehour.csv` (4,867 outdoor games 2024-26 with
+weather at the true first-pitch hour; MLB schedule API x open-meteo archive;
+coverage 100/100/99.1%).
+
+### Found on the way
+
+**The shipped model never used the game hour.** Training
+(`backtest.fetch_weather_season`) and live (`_fetch_open_meteo_forecast`)
+both take the 19:00 America/New_York slot for EVERY game -- a 1:35 PM start
+gets weather from five hours after its first inning. Train == serve (no
+skew), but the input is a proxy; the true game-hour input differs by
+|dT| mean 1.3-2.1 C, p90 ~4 C.
+
+### Tested, and the verdicts
+
+- **Game-hour weather swap** (wx_temp_c / wx_wind_kmh / wx_humidity on the
+  live 20-feature set, L2 0.5): 2024->2025 **-1.92 [-3.04,-0.90]** x1000
+  logloss (worse, CI clear of zero), 2025->2024 +2.59, 24+25->2026 -0.31;
+  No.1 sim .736 -> .733. Helps in one direction only -> **rejected** by the
+  standing methodology. (Hourly is the practical "first 10 minutes": the
+  inning lasts ~20 min and within-hour drift is far below forecast error.)
+- **Wind direction as a feature, at game-hour** -- the retest
+  `wind_direction_dead` explicitly allowed. Closest result in four rounds:
+  out-to-CF component ALL+ across the splits (+0.246/+0.067/+0.132) with the
+  crosswind placebo negative in all three; within-park permutation null:
+  P(mean >= obs) = 0.017 but P(ALL+ pattern by chance) = 0.092; and the
+  decisive product check: **No.1 hit .736 -> .694** (the same failure that
+  rejected fi_k in the v3 sprint). **Not shipped.** Season-end re-score rule
+  recorded in the memory `2026-08-23_wx_gamehour`.
+
+### The first-inning audit (operator's first question)
+
+7 of the 20 live features are first-inning-specific (park/ump/pitcher-last-5
+/pitcher-last-10/pitcher-vs-team first-inning rates + pooled fi_xwoba), the
+batter side uses only the top-3 hitters by construction, and first-inning
+versions of the season-wide remainder (fi_k/fi_bb/fi_csw/fi_velo/fi_fstrike/
+fi_zone, batter pooled, team FI propensity, FI runs allowed) were built and
+tested in the v3 sprint -- only fi_xwoba survived; fi_k passed accuracy but
+dropped the No.1 and was rejected. Nothing in the model is a whole-game stat
+because nobody checked; the season-wide ones are there because their
+first-inning versions lost.
+
+---
+
 ## [2026-08-23] - Odds credits: one price per game at the lock, every book in the same call (~315/day -> ~75/day)
 
 Operator: *"we need to plan a better way to save on credits ... for the number
