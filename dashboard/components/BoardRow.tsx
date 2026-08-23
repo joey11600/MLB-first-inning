@@ -124,6 +124,12 @@ function shortBook(name: string): string {
   if (n.startsWith("betmgm"))      return "MGM";
   if (n.startsWith("caesars"))     return "CAE";
   if (n.startsWith("pinnacle"))    return "PIN";
+  // 2026-08-23: the books the multi-book snapshot returns
+  if (n.startsWith("betrivers"))   return "RIV";
+  if (n.startsWith("betonline"))   return "BOL";
+  if (n.startsWith("bovada"))      return "BOV";
+  if (n.startsWith("betus"))       return "BUS";
+  if (n.startsWith("mybookie"))    return "MYB";
   return name.slice(0, 3).toUpperCase();
 }
 
@@ -1060,6 +1066,44 @@ function OddsChip({ row, detail }: { row: BoardRow; detail: GameDetail | undefin
     const isPlacedStrong =
       detail.betPlaced === "Y" &&
       (row.pickSide === "NRFI" || row.pickSide === "YRFI");
+    // 2026-08-23 LINE SHOPPING, PRE-LOCK. The ledger captures its one-book
+    // price about an hour before first pitch; the multi-book snapshot is
+    // often earlier. Before the ledger has a number, show the best
+    // available price on each side from the snapshot, in the pending tone,
+    // labelled "mkt" -- market information, not a placed price.
+    const b = detail.bestOdds;
+    if (!isPlacedStrong && b && (b.nrfi || b.yrfi)) {
+      const age = relAge(b.capturedAt);
+      return (
+        <span
+          className={`${styles.oddsChip} ${styles.oddsPending}`}
+          title={
+            `Best available first-inning price across ${b.books} books` +
+            (age ? ` (${age})` : "") +
+            (b.nrfi ? `\nNRFI ${b.nrfi.price} @ ${b.nrfi.book}` : "") +
+            (b.yrfi ? `\nYRFI ${b.yrfi.price} @ ${b.yrfi.book}` : "") +
+            `\nThe ledger has not captured its price for this game yet.`
+          }
+        >
+          <span className={styles.oddsBook}>mkt</span>
+          {b.nrfi && (
+            <span className={styles.oddsPair}>
+              <span className={styles.oddsSideLabel}>N</span>
+              <span className={styles.oddsPrice}>{b.nrfi.price}</span>
+              <span className={styles.oddsBest}>{shortBook(b.nrfi.book)}</span>
+            </span>
+          )}
+          {b.nrfi && b.yrfi && <span className={styles.oddsSep}>·</span>}
+          {b.yrfi && (
+            <span className={styles.oddsPair}>
+              <span className={styles.oddsSideLabel}>Y</span>
+              <span className={styles.oddsPrice}>{b.yrfi.price}</span>
+              <span className={styles.oddsBest}>{shortBook(b.yrfi.book)}</span>
+            </span>
+          )}
+        </span>
+      );
+    }
     if (!isPlacedStrong) return null;
     const sideLabel = row.pickSide === "NRFI" ? "N" : "Y";
     const toneClass =
