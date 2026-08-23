@@ -162,6 +162,12 @@ export function TopPlayHero({ rows, details, date, report }: TopPlayHeroProps) {
     ? d.unitsRisked
     : (odds != null ? stakeUnitsFor(sideP, odds) : null);
   const ladder = odds != null ? buildPriceLadder(sideP, odds) : null;
+  // 2026-08-23 LINE SHOPPING: the best price for THIS side across every book
+  // in the latest multi-book snapshot (GameDetail.bestOdds).  Shown once the
+  // play is named and until it settles; it is where to bet, not what the
+  // ledger recorded.  Before the ledger has a price it is the only number.
+  const bestSide = row.pickSide === "NRFI" ? d?.bestOdds?.nrfi
+    : row.pickSide === "YRFI" ? d?.bestOdds?.yrfi : undefined;
   const graded = (d?.gradedResult || "").trim().toUpperCase();
   const placed = d?.betPlaced === "Y";
   const won = graded === "WIN";
@@ -238,6 +244,17 @@ export function TopPlayHero({ rows, details, date, report }: TopPlayHeroProps) {
             <span className={styles.moneyLabel}>bet up to</span>
             <span className={styles.moneyValueStrong}>
               {formatAmerican(ladder.passAt)}
+            </span>
+          </span>
+        )}
+        {!settled && bestSide && (
+          <span
+            className={styles.moneyItem}
+            title={`Best available ${row.pickSide} price across ${d?.bestOdds?.books ?? 0} books in the latest snapshot. Where to bet, not what the ledger recorded.`}
+          >
+            <span className={styles.moneyLabel}>best price</span>
+            <span className={styles.moneyValue}>
+              {bestSide.price} {bestSide.book}
             </span>
           </span>
         )}
