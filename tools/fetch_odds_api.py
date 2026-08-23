@@ -147,7 +147,7 @@ def _parse_iso(iso: str | None) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def odds_params(key: str, book: str | None, regions: str) -> dict:
+def odds_params(key: str, book: str | None, regions: str, markets: str = MARKET) -> dict:
     """Query params for one event's odds -- and the whole cost model.
 
     ASK FOR THE ONE BOOK, NOT THE WHOLE REGION. Measured against the live
@@ -171,7 +171,7 @@ def odds_params(key: str, book: str | None, regions: str) -> dict:
     `regions` is the fallback for a deliberate multi-book DIAGNOSTIC pull,
     which is the only case where paying for other books is the point.
     """
-    params = {"apiKey": key, "markets": MARKET, "oddsFormat": "american"}
+    params = {"apiKey": key, "markets": markets, "oddsFormat": "american"}
     if book:
         # The API wants the bookmaker KEY ("draftkings"), while --book
         # also accepts the display title ("DraftKings") for the local
@@ -458,6 +458,19 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", type=Path)
     ap.add_argument("--regions", default="us")
+    # 2026-08-22 DIAGNOSTIC CAPTURE (rollout plan #6/#7).  --markets widens the
+    # request (comma list; default = the first-inning total the ledger uses) and
+    # --raw-output dumps EVERY book x market x outcome for the fetched events as
+    # long-format rows.  Used by odds_diagnostic.yml to measure two things the
+    # ledger never captured: cross-book dispersion on the first-inning total
+    # (line shopping) and the first-5-innings total (target_horizon memory).
+    # A raw file is NEVER importable into the ledger -- different shape.
+    ap.add_argument("--markets", default=MARKET,
+                    help="Comma-separated Odds API market keys to request "
+                         "(default: the first-inning total).")
+    ap.add_argument("--raw-output", type=Path, metavar="CSV",
+                    help="Also write every book x market x outcome row here "
+                         "(diagnostic; not importable).")
     ap.add_argument("--book",
                     help="Keep ONLY this sportsbook (case-insensitive match "
                          "on the book's title or key, e.g. --book draftkings). "
@@ -565,11 +578,27 @@ def main() -> int:
             pass
 
     rows, failed = [], 0
+    raw_rows = []
+    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for ev in events:
         try:
             detail, rem, used = _get(
                 f"{API_BASE}/sports/{SPORT}/events/{ev['id']}/odds",
-                odds_params(key, args.book, args.regions))
+                odds_params(key, args.book, args.regions, args.markets))
+            if args.raw_output:
+                a_, h_ = abbr(detail.get("away_team")), abbr(detail.get("home_team"))
+                for bk in detail.get("bookmakers") or []:
+                    for mk in bk.get("markets") or []:
+                        for oc in mk.get("outcomes") or []:
+                            raw_rows.append({
+                                "captured_at_utc": now_iso,
+                                "commence_time": detail.get("commence_time") or "",
+                                "away_team": a_ or detail.get("away_team"),
+                                "home_team": h_ or detail.get("home_team"),
+                                "book_key": bk.get("key"), "book": bk.get("title"),
+                                "market": mk.get("key"), "point": oc.get("point"),
+                                "outcome": oc.get("name"), "price": oc.get("price"),
+                            })
             # The --book filter STAYS even though the API already narrowed
             # it. It is the guard that keeps the ledger a DraftKings-priced
             # series; a server-side parameter is not something to stake the
@@ -583,6 +612,17 @@ def main() -> int:
             failed += 1
             print(f"  {ev.get('away_team')} @ {ev.get('home_team')}: "
                   f"{type(e).__name__}", file=sys.stderr)
+
+    if args.raw_output:
+        args.raw_output.parent.mkdir(parents=True, exist_ok=True)
+        with open(args.raw_output, "w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=["captured_at_utc", "commence_time", "away_team",
+                                               "home_team", "book_key", "book", "market", "point",
+                                               "outcome", "price"])
+            w.writeheader(); w.writerows(raw_rows)
+        print(f"raw diagnostic: {len(raw_rows)} rows over {len(events)} events -> {args.raw_output}")
+        if not args.output:
+            return 0
 
     if not rows:
         # A WINDOWED RUN LEGITIMATELY FINDS NOTHING, AND THAT IS NOT AN

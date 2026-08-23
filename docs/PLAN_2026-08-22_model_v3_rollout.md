@@ -147,10 +147,16 @@ The loader's name/weights check means a half-revert cannot silently run.)
    the tracker's column list AND the Supabase mirror (memory
    `supabase_mirror_is_not_the_csv`); do it deliberately, not in passing.
 4. ~~Teach `two_stage_model.py` the feature~~ — done 2026-08-22 (`--fi-xwoba`, guard, L2 units).
-5. **Line shopping measurement** (one command, `fetch_odds_api.py` multi-book) —
-   the remaining un-measured lever on the price side; independent of the model.
-6. **F5 odds capture** — strategic (`2026-08-21_target_horizon`), separate product
-   question; no model change implied.
+5. **Line shopping measurement** — IN PLACE 2026-08-22: `.github/workflows/odds_diagnostic.yml`
+   captures every book's first-inning AND first-5-innings totals daily into
+   `data/diagnostics/odds/raw_<date>.csv` (long format, diagnostic only, never imported).
+   **Needs one thing from the operator:** the `ODDS_API_KEY` repository secret for
+   GitHub Actions (GitHub → repo → Settings → Secrets and variables → Actions → New
+   repository secret → name `ODDS_API_KEY`, value = the key used on Railway). Until
+   then the job prints that instruction and exits clean. ~30 credits/day.
+6. **F5 odds capture** — same workflow, same file (`market = totals_1st_5_innings`).
+   After ~2 weeks of captures: measure the F5 market's AUC vs ours and the
+   cross-book spread on the first-inning total.
 
 ---
 

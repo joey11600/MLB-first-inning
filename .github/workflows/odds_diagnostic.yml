@@ -1,0 +1,89 @@
+# Odds diagnostic capture -- the two prices the ledger never recorded.
+#
+# WHY (rollout plan 2026-08-22, items #6 and #7).
+#   1. LINE SHOPPING. Every bet is priced at ONE book carrying a 6.55% vig
+#      (measured over 1,472 priced 2026 games; a normal sides market is 4.76%),
+#      while FanDuel / BetMGM / BetRivers / BetOnline all quote the first-inning
+#      total. The size of the cross-book spread has never been measured because
+#      no multi-book file was ever kept (sportsbook column: 1,448 DraftKings,
+#      24 FanDuel). This captures it daily.
+#   2. THE F5 QUESTION. The same model inputs rank first-5-innings scoring far
+#      better than the first inning (memory 2026-08-21_target_horizon: 2026 AUC
+#      .526 -> .569) and the F5 total carries a standard ~4.5% vig. Whether we
+#      beat THAT market is unknown because its price was never captured.
+#
+# WHAT IT WRITES. data/diagnostics/odds/raw_<ET date>.csv: every book x market x
+# outcome for today's events, long format. DIAGNOSTIC ONLY -- a different shape
+# from the ledger's odds files, and never imported (tracker.import_odds would
+# price the ledger at whichever book came last; see tools/fetch_odds_api.py).
+#
+# COST. ~1 credit per event per region per market returned: ~15 events x 2
+# markets = ~30 credits/day at the 17:00 UTC run. The money path's two-phase
+# polling is ~101/day (T8.31). Lower the cadence here if credits get tight.
+#
+# REQUIRES the `ODDS_API_KEY` repository secret. It is NOT currently set for
+# GitHub Actions (the key lives on Railway). Until it is, the run prints what
+# to do and exits 0 -- nothing fails, nothing is captured.
+name: odds diagnostic (multi-book + F5)
+
+on:
+  schedule:
+    - cron: "0 17 * * *"          # 13:00 ET daily, after most lineups are posted
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: odds-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Capture every book's first-inning and F5 totals (diagnostic)
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          set +e
+          if [ -z "${ODDS_API_KEY}" ]; then
+            echo "::notice::ODDS_API_KEY is not set for GitHub Actions. To enable this capture: GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret -> Name ODDS_API_KEY, Value = the key used on Railway."
+            exit 0
+          fi
+          D=$(TZ=America/New_York date +%F)
+          python tools/fetch_odds_api.py \
+            --regions us \
+            --markets totals_1st_1_innings,totals_1st_5_innings \
+            --skip-started \
+            --raw-output "data/diagnostics/odds/raw_${D}.csv" \
+            || echo "::warning::odds diagnostic capture failed (non-blocking)"
+
+      - name: Commit the capture
+        run: |
+          set -e
+          git config user.name  "nrfi-bot"
+          git config user.email "nrfi-bot@users.noreply.github.com"
+          git add data/diagnostics/odds/ 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "auto: odds diagnostic capture $(TZ=America/New_York date +%F)"
+          # the predict cron pushes ~hourly; rebase onto whatever landed meanwhile
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD:"${GITHUB_REF_NAME}" && break
+            sleep 10
+          done
