@@ -37,6 +37,7 @@ FACTORS = {   # csv name -> (feature stem, kind)
     "factor_team_fi.csv": None,                                    # already has named cols
     "factor_defense_speed.csv": None,                              # already has named cols
     "factor_schedule.csv": None,                                   # already has named cols
+    "factor_fi_ra.csv": None,                                      # already has named cols
     "factor_starter_velo_vs_own_mean.csv": ("velo_vs_own", "pitcher"),
     "factor_top3_chase_rate.csv": ("top3_chase", "batter"),
     "factor_top3_k_rate.csv": ("top3_k_old", "batter"),
@@ -76,6 +77,7 @@ SPECS = {
     "fi_xwoba":        ("home_fi_xwoba",      "away_fi_xwoba",      "pitcher"),
     "fi_velo":         ("home_fi_velo",       "away_fi_velo",       "pitcher"),
     "fi_k":            ("home_fi_k",          "away_fi_k",          "pitcher"),
+    "fi_ra":           ("home_fi_ra",         "away_fi_ra",         "pitcher"),
     "fi_fstrike":      ("home_fi_fstrike",    "away_fi_fstrike",    "pitcher"),
     "fi_zone":         ("home_fi_zone",       "away_fi_zone",       "pitcher"),
     "fi_bb":           ("home_fi_bb",         "away_fi_bb",         "pitcher"),

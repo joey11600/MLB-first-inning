@@ -908,6 +908,11 @@ _LR_B1_PATH         = Path(__file__).parent / "data" / "lr_b1.json"
 _LR_MODEL_PATH      = Path(__file__).parent / "data" / "lr_model.json"  # legacy V2 single-LR (kept for autopsy/backtests; unused at inference)
 _LR_CAL_PATH        = Path(__file__).parent / "data" / "calibration_v2.json"
 _FI_PARK_PATH       = Path(__file__).parent / "data" / "fi_park_factors.json"
+# 2026-08-22: pooled first-inning pitcher xwOBA allowed (fi_pitcher_pool.py).
+# The state file is committed and advances one day at a time from Savant; the
+# loader below refreshes it when behind and fails OPEN to the last good state.
+_FI_POOL_PATH       = Path(__file__).parent / "data" / "fi_pitcher_pool.json"
+_FI_XWOBA_DEFAULT   = 0.32      # league-ish fallback if the state cannot be read at all
 _FI_PARK_NRFI_DEFAULT = 0.50
 
 # Calibrated probability thresholds for pick zones (from calibration.py)
@@ -1258,6 +1263,57 @@ _lr_cal_loaded = False
 _fi_park_rates: dict | None = None
 _fi_park_loaded = False
 
+# 2026-08-22: pooled first-inning pitcher xwOBA state (fi_pitcher_pool.py)
+_fi_pool_state: dict | None = None
+_fi_pool_loaded = False
+
+
+def _load_fi_pitcher_pool() -> dict:
+    """Load data/fi_pitcher_pool.json once per process.  If the state is behind
+    (as_of < yesterday) and FI_POOL_REFRESH is not "0", advance it from Savant,
+    bounded to a few days, and persist it so the cron's commit step carries it
+    forward.  Every failure path keeps the last good state: a stale estimate
+    moves slowly; a crash or an all-league-average slate would be far worse."""
+    global _fi_pool_state, _fi_pool_loaded
+    if _fi_pool_loaded:
+        return _fi_pool_state or {}
+    _fi_pool_loaded = True
+    try:
+        import fi_pitcher_pool as _fp
+        st = _fp.load_state(_FI_POOL_PATH)
+        if not st.get("as_of"):
+            print(f"  WARNING: first-inning pitcher pool missing/empty at {_FI_POOL_PATH}; "
+                  f"all starters take the league mean for home/away_fi_xwoba.", file=sys.stderr)
+            _fi_pool_state = st
+            return st
+        if os.environ.get("FI_POOL_REFRESH", "1").strip() != "0":
+            try:
+                yday = _fp.yesterday_et()          # ET: never ingest today's partial slate
+                if st["as_of"] < yday:
+                    n = _fp.update(st, through=yday, log=lambda m: print("  " + m, file=sys.stderr))
+                    if n:
+                        _fp.save_state(st, _FI_POOL_PATH)
+            except Exception as e:      # noqa: BLE001 -- fail open on the last good state
+                print(f"  [warn] fi_pitcher_pool refresh failed: {e}", file=sys.stderr)
+        _fi_pool_state = st
+    except Exception as e:              # noqa: BLE001
+        print(f"  [warn] fi_pitcher_pool unavailable: {e}", file=sys.stderr)
+        _fi_pool_state = {}
+    return _fi_pool_state
+
+
+def _fi_xwoba_for(pitcher_id) -> float:
+    """The model input for one starter: pooled first-inning xwOBA allowed, else
+    the pool's league mean, else the static default."""
+    st = _load_fi_pitcher_pool()
+    if not st:
+        return _FI_XWOBA_DEFAULT
+    try:
+        import fi_pitcher_pool as _fp
+        return float(_fp.value_or_default(st, pitcher_id))
+    except Exception:                   # noqa: BLE001
+        return _FI_XWOBA_DEFAULT
+
 # Expected feature order for each half-inning model.
 # Updated 2026-04-29: added SIGNED ERA GAP between starters as the 13th
 # feature per half.  Encodes the user's "worse pitcher gives up the run"
@@ -1285,6 +1341,11 @@ _T1_EXPECTED_FEATURES = [
     "home_avg_ip_per_start",   # last-5 avg IP; <3 IP suggests opener
     # 2026-05-19 (VSHAND): top-3 OPS vs opposing starter's hand
     "away_top3_ops_vs_oppHand",
+    # 2026-08-22: the HOME starter's pooled first-inning xwOBA allowed.  The
+    # first input that measures the first inning specifically; validated in
+    # tools/refit2026/ (three splits, search-aware null p=0.000, No.1 .657->.736
+    # with L2 0.5).  Every other pitcher input is a whole-game season average.
+    "home_fi_xwoba",
 ]
 _B1_EXPECTED_FEATURES = [
     "fi_park_nrfi_rate", "away_fip", "home_obp",
@@ -1303,6 +1364,7 @@ _B1_EXPECTED_FEATURES = [
     "away_avg_ip_per_start",
     # 2026-05-19 (VSHAND): top-3 OPS vs opposing starter's hand
     "home_top3_ops_vs_oppHand",
+    "away_fi_xwoba",                # 2026-08-22: AWAY starter's pooled first-inning xwOBA allowed
 ]
 
 # Defaults for new features when fetch fails (used in feature builders below)
@@ -1811,6 +1873,7 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
                  home_pvt_nrfi:   float = _LEAGUE_NRFI_RATE,
                  home_avg_ip_per_start: float = 5.0,
                  away_top3_ops_vs_oppHand: float = _LEAGUE_AVG_OPS_VSHAND,
+                 home_fi_xwoba: float = _FI_XWOBA_DEFAULT,
                  season: int = 2026,
                  date_iso: str | None = None) -> list[float]:
     """T1 (top of 1st) feature vector: home pitcher vs away offense at home park.
@@ -1853,6 +1916,7 @@ def t1_features(home_abbr: str, home_pitcher: dict, away_offense: dict,
         home_pvt_nrfi,                # Phase F: pitcher vs this team familiarity
         home_avg_ip_per_start,        # Phase F: opener detection (low IP -> opener)
         away_top3_ops_vs_oppHand,     # 2026-05-19 VSHAND: top3 OPS vs home pitcher's hand
+        home_fi_xwoba,                # 2026-08-22: HOME starter's pooled first-inning xwOBA allowed
     ]
 
 
@@ -1869,6 +1933,7 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
                  away_pvt_nrfi:   float = _LEAGUE_NRFI_RATE,
                  away_avg_ip_per_start: float = 5.0,
                  home_top3_ops_vs_oppHand: float = _LEAGUE_AVG_OPS_VSHAND,
+                 away_fi_xwoba: float = _FI_XWOBA_DEFAULT,
                  season: int = 2026,
                  date_iso: str | None = None) -> list[float]:
     """B1 (bottom of 1st) feature vector: away pitcher vs home offense at home park.
@@ -1905,6 +1970,7 @@ def b1_features(home_abbr: str, away_pitcher: dict, home_offense: dict,
         away_pvt_nrfi,                # Phase F: pitcher vs this team familiarity
         away_avg_ip_per_start,        # Phase F: opener detection
         home_top3_ops_vs_oppHand,     # 2026-05-19 VSHAND: top3 OPS vs away pitcher's hand
+        away_fi_xwoba,                # 2026-08-22: AWAY starter's pooled first-inning xwOBA allowed
     ]
 
 
@@ -2711,6 +2777,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             home_pvt_nrfi=home_pvt_nrfi,           # Phase F: familiarity
             home_avg_ip_per_start=home_avg_ip,     # Phase F: opener detection
             away_top3_ops_vs_oppHand=away_top3_ops_vs_oppHand,   # 2026-05-19 VSHAND
+            home_fi_xwoba=_fi_xwoba_for(game["home_pitcher_id"]),  # 2026-08-22 pooled 1st-inning xwOBA
             season=season,
             date_iso=target_iso,                   # T4.2: priors-pooled Statcast
         )
@@ -2727,6 +2794,7 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             away_pvt_nrfi=away_pvt_nrfi,
             away_avg_ip_per_start=away_avg_ip,
             home_top3_ops_vs_oppHand=home_top3_ops_vs_oppHand,   # 2026-05-19 VSHAND
+            away_fi_xwoba=_fi_xwoba_for(game["away_pitcher_id"]),  # 2026-08-22 pooled 1st-inning xwOBA
             season=season,
             date_iso=target_iso,                   # T4.2: priors-pooled Statcast
         )

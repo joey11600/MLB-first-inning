@@ -903,6 +903,19 @@ jobs:
           python tools/feature_drift_monitor.py 2>&1 \
             || echo "::warning::feature_drift_monitor failed (non-blocking)"
 
+      - name: Advance first-inning pitcher pool (fi_pitcher_pool.py)
+        if: steps.action.outputs.what == 'grade'
+        # 2026-08-22: the model's pooled first-inning xwOBA input lives in
+        # data/fi_pitcher_pool.json, a set of running per-pitcher sums that
+        # advances one day at a time from Savant.  The predictor also refreshes
+        # it at predict time (fail-open), but this nightly step keeps the
+        # COMMITTED copy current so every host starts from yesterday, and the
+        # "Commit data changes" step below carries it forward.  Soft-fail: a
+        # Savant outage leaves the last good state in place.
+        run: |
+          set +e
+          python fi_pitcher_pool.py --update 2>&1             || echo "::warning::fi_pitcher_pool --update failed (non-blocking; last good state kept)"
+
       - name: Calibration drift monitor (R3 — replaces the auto-recalibrator)
         if: steps.action.outputs.what == 'grade'
         # 2026-05-11: with the weekly auto-recalibrate cron disabled, this

@@ -87,6 +87,9 @@ const FEATURE_TO_REASON: Record<string, string> = {
   away_xera: "away-pitcher",
   home_whiff_pct_rank: "home-pitcher",
   away_whiff_pct_rank: "away-pitcher",
+  // 2026-08-22: pooled first-inning xwOBA allowed (fi_pitcher_pool.py)
+  home_fi_xwoba: "home-pitcher",
+  away_fi_xwoba: "away-pitcher",
 };
 
 export interface ModelDriver {

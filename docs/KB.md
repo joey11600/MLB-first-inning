@@ -9,8 +9,9 @@ it nightly).  See [CHANGELOG.md](../CHANGELOG.md) for the 2026-05-04 entry.
 
 ## TL;DR for someone picking this up cold
 
-The model is a logistic-regression NRFI predictor with **18 features per
-half-inning**, calibrated by isotonic regression.  As of 2026-05-04 the
+The model is a logistic-regression NRFI predictor with **20 features per
+half-inning** (19 season-average inputs + the 2026-08-22 pooled
+first-inning pitcher xwOBA, L2 0.5), calibrated by isotonic regression.  As of 2026-05-04 the
 production pipeline reads pitcher xera/whiff via **Bayesian-pooled
 priors** (2025 prior + 2026 cumulative-thru-yesterday) instead of the
 raw season cache, because raw 2026 small-sample stats produced extreme
@@ -307,6 +308,10 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
 - `data/lr_model.json` — production LR weights/bias/standardization.
 - `data/fi_park_factors.json` — empirical first-inning NRFI rate per park.
 - `data/calibration_v2.json` — isotonic P(NRFI) calibrator.
+- `data/fi_pitcher_pool.json` — 2026-08-22: per-starter pooled FIRST-INNING
+  xwOBA allowed, as running sums (`fi_pitcher_pool.py`). Advances one day at
+  a time from Savant (nightly cron step + predict-time self-refresh, fail-open).
+  Rebuild from the research cache: `python fi_pitcher_pool.py --rebuild`.
 - `data/thresholds.json` — written every run; sourced by both Python and
   TS classifiers (T2.9).
 - `lr_baseline.py` — LR fit/eval CLI. `--save PATH` writes a production model.
@@ -459,6 +464,8 @@ every 5 min, GHA backs it up hourly. Manual interventions:
 | Force a fresh predict on Railway | redeploy "MLB-first-inning" service in Railway |
 | Re-grade a date | `python mlb_first_inning_predictor.py --date 2026-04-30 --grade` |
 | Re-scrape DK odds | `python scrape_dk_odds.py` |
+| Advance the first-inning pitcher pool to yesterday | `python fi_pitcher_pool.py --update` |
+| One starter's pooled first-inning xwOBA | `python fi_pitcher_pool.py --show <pitcher_id>` |
 | Smoke-test predictor loop locally | `python workers/predictor_loop.py --once` |
 | Smoke-test live-state worker locally | `python workers/live_state.py --once --debug` |
 | Check parity (CSV vs Supabase) | `python -m db.supabase_writer` |

@@ -170,6 +170,67 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-22] - SHIPPED: pooled first-inning pitcher xwOBA + L2 0.50 (20-feature model)
+
+Operator: *"so this whole time the model never knew we were focused on the first
+inning only... don't forget about the fixes to make though."* Both done.
+
+**What shipped (one commit, code + weights + state + cron + docs together, because
+`_load_one` refuses a weights file whose feature list disagrees with the code):**
+
+- `fi_pitcher_pool.py` (repo root, imported by the predictor) -- the pooled
+  first-inning pitcher xwOBA as a **running-sums state**: per pitcher, this
+  season's and prior seasons' (PA, wOBA) plus league totals; K_PA=60 shrinkage,
+  prior seasons x0.6 at rollover (folded only for pitchers who appeared in the
+  season being closed -- mirrors the validated batch builder; the incremental
+  rebuild matches it to max |diff| 0.00005 over all 613 pitchers). Advances one
+  day at a time from Savant; "yesterday" is computed in **Eastern time** so a
+  UTC runner can never ingest today's partial slate and freeze it as complete.
+  `data/fi_pitcher_pool.json` (81 KB, 1,283 pitchers, as of 2026-08-22) is
+  committed. `--rebuild` regenerates it from the research cache.
+- `mlb_first_inning_predictor.py` -- `home_fi_xwoba` appended to
+  `_T1_EXPECTED_FEATURES`, `away_fi_xwoba` to `_B1_EXPECTED_FEATURES`;
+  `t1_features`/`b1_features` take the value (league-mean default); call sites
+  pass `_fi_xwoba_for(pitcher_id)`. `_load_fi_pitcher_pool()` loads once,
+  refreshes when behind (bounded 12 days, `FI_POOL_REFRESH=0` disables) and
+  **fails open** to the last good state on any error.
+- `data/lr_t1.json`, `data/lr_b1.json`, `data/calibration_v2.json` -- the
+  candidate artifacts (20 features, L2 0.50, CIR refit on 2024-26, train_n 6673;
+  feature weight +0.0328 T1 / +0.0240 B1). Backups:
+  `data/*.bak-2026-08-22-pre-fixwoba`.
+- `.github/workflows/daily.yml` -- grade job step "Advance first-inning pitcher
+  pool" (`python fi_pitcher_pool.py --update`, soft-fail); the existing commit
+  step carries the state forward.
+- `dashboard/lib/pick-reasons.ts` -- the two names mapped to home-/away-pitcher
+  so the brief can attribute them (unmapped names are never sentenced).
+- `tests/test_fi_pitcher_pool.py` -- 7 tests (ingest, idempotence, shrinkage,
+  rollover semantics, ET date, roundtrip, batch-equivalence when the cache is
+  present). Suite: 271 passed.
+
+**Verified locally before push:** models load with 20 names; both feature
+vectors are 20 long; synthetic game -- both starters cold (0.36) p(YRFI) .527,
+league-average .513, both sharp (0.28) .499: higher xwOBA allowed -> more runs.
+
+**The operator's question -- which other inputs have the same whole-game-average
+problem?** Classified and, where a first-inning version was buildable, tested
+(all under the full protocol, on both the old and new base):
+
+| input the model uses | what it measures | first-inning-specific version | result |
+|---|---|---|---|
+| `home/away_fip`, `_xera`, `_whiff_pct_rank`, `era_gap` | starter, whole game, this season | pooled 1st-inning xwOBA / K% / CSW / velo drop / F-strike / zone | **xwOBA shipped**; K% passes but lowers the No.1; rest dead |
+| `p_last5/last10_pitcher_nrfi` | starter's 1st inning, but 5-10 innings | pooled 1st-inning run-allowed rate (`fi_ra`) | ALL+ on the old model, redundant once xwOBA is in |
+| `away/home_obp`, `top3c_obp/slg/iso`, `top3_ops_vs_oppHand` | lineup, whole game, this season | pooled top-3 xwOBA / K%, top-3 1st-inning xwOBA, leadoff alone, slots 4-5, platoon | all dead (the lineup side the model has is sufficient) |
+| `fi_park_nrfi_rate`, `home_plate_ump_nrfi_rate`, `pvt_nrfi_rate` | already 1st-inning-specific | -- | park has no OOS value; ump/pvt ~0 weight |
+| `wx_*`, `avg_ip_per_start` | game-time weather, opener detection | n/a (already right) | -- |
+
+So: every pitcher input was a whole-game average; the lineup inputs were too but
+their first-inning versions add nothing; the one that mattered is now in.
+
+**Reversal:** restore the three `.bak` files and remove the two names from the
+feature lists (one commit). No gate, staking, or ledger code touched.
+
+---
+
 ## [2026-08-22] - Schedule/fatigue factors and the rpg stacking term: tested, dead
 
 `tools/refit2026/build_schedule.py` (from the per-inning linescores): extra
