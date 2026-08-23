@@ -101,8 +101,11 @@ export function TopPickHistory({
         {title}
       </h2>
       <p className={styles.lead}>
-        {what} since May 26, when the live model weights were fit, staked at
-        quarter-Kelly &mdash; the rule the system actually publishes.{" "}
+        {what} since May 26, staked at quarter-Kelly &mdash; the rule the
+        system actually publishes. One continuous ledger: the model was
+        updated on Aug 22 (pooled first-inning pitcher xwOBA, 20 features)
+        and its picks simply continue the series from there; nothing before
+        that date is rewritten.{" "}
         {all.length} bets over {nights} nights. NRFI is excluded because it
         has been switched off since June 7.
         {noEdgeUnderKelly > 0 && (

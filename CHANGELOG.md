@@ -170,6 +170,32 @@ ever been captured (The Odds API `totals_1st_5_innings`; F5 vig ~4.5% vs
 
 ---
 
+## [2026-08-22] - Rollout plan, ledger continuity, model gate taught the new feature
+
+- **`docs/PLAN_2026-08-22_model_v3_rollout.md`** -- the operating plan: the
+  ledger is continuous (the No.1 strategy's +66.2u since May 26 stands; the new
+  model appends from Aug 22, nothing rewritten), what is live, first-day
+  confirmation, daily operation of the pool, 30-day monitoring table, two
+  things that must not be run as they stand (the PAV `recalibrate` action; any
+  19-feature refit), the one-commit revert, and the follow-up list.
+- `dashboard/components/TopPickHistory.tsx` -- the `/history` lead now states
+  the continuity rule ("one continuous ledger... model updated Aug 22... nothing
+  before that date is rewritten"). `CURRENT_SYSTEM_FROM` stays 2026-05-26 on
+  purpose. A "since the Aug 22 update" sub-total is the next dashboard task.
+- `tools/model_gate.py` -- scored 0 rows on the 20-feature push (the new input is
+  not a holdout column). It now supplies it per game from the committed
+  point-in-time factor file, league mean where a game has none. Local
+  before/after on 3,728 holdout games: Brier 0.248322 -> 0.247740, BETTER on
+  every season -- PASS. Pushed with `[gate-override]` because the baseline
+  commit's gate cannot score the new model; the override is attributable in git.
+- `tools/refit2026/no1_since_may26.py` -- reproduces the dashboard's +66.16u and
+  runs the May-26 refit counterfactual (old +6.28u vs new +41.31u, same nights
+  +28.8u [+6.1, +51.7], P=98%). The real 66.2u is not "old model, clean" -- it
+  benefited from the 07-28 calibrator refit and gate changes -- so the honest
+  counterfactual is the pair, not 66.2 + 35.
+
+---
+
 ## [2026-08-22] - SHIPPED: pooled first-inning pitcher xwOBA + L2 0.50 (20-feature model)
 
 Operator: *"so this whole time the model never knew we were focused on the first
