@@ -1,7 +1,7 @@
 {
   "date": "2026-08-24",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-24T20:37:57Z",
+  "fitted_at": "2026-08-24T21:04:00Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -125,10 +125,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2878,
-      "raw_p_run_b1": 0.3254,
-      "raw_p_nrfi": 0.4805,
-      "calibrated_p_nrfi": 0.4476,
+      "raw_p_run_t1": 0.2924,
+      "raw_p_run_b1": 0.3275,
+      "raw_p_nrfi": 0.4758,
+      "calibrated_p_nrfi": 0.4269,
       "calibrator_band": {
         "band": "bin_1-2",
         "is_flat": false,
@@ -203,19 +203,19 @@
           "outlier": false
         },
         {
+          "name": "home_plate_ump_nrfi_rate",
+          "value": 0.5395,
+          "z": 1.812,
+          "weight": 0.0062,
+          "contribution": 0.0112,
+          "outlier": false
+        },
+        {
           "name": "home_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.553,
           "weight": 0.0173,
           "contribution": -0.0096,
-          "outlier": false
-        },
-        {
-          "name": "away_fip",
-          "value": 4.758,
-          "z": 0.774,
-          "weight": 0.0119,
-          "contribution": 0.0092,
           "outlier": false
         }
       ],
@@ -349,10 +349,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2631,
-      "raw_p_run_b1": 0.2888,
-      "raw_p_nrfi": 0.5241,
-      "calibrated_p_nrfi": 0.5432,
+      "raw_p_run_t1": 0.2629,
+      "raw_p_run_b1": 0.2881,
+      "raw_p_nrfi": 0.5247,
+      "calibrated_p_nrfi": 0.5436,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -800,10 +800,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2618,
-      "raw_p_run_b1": 0.3283,
-      "raw_p_nrfi": 0.4958,
-      "calibrated_p_nrfi": 0.4912,
+      "raw_p_run_t1": 0.2619,
+      "raw_p_run_b1": 0.3288,
+      "raw_p_nrfi": 0.4954,
+      "calibrated_p_nrfi": 0.4907,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
