@@ -1,7 +1,7 @@
 {
   "date": "2026-08-24",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-24T22:14:07Z",
+  "fitted_at": "2026-08-24T22:33:54Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -459,14 +459,14 @@
       "matchup": "CHC@ARI",
       "game_pk": "825041",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "LOW LAMBDA",
       "graded_result": "",
-      "raw_p_run_t1": 0.2905,
+      "raw_p_run_t1": 0.295,
       "raw_p_run_b1": 0.3096,
-      "raw_p_nrfi": 0.4898,
-      "calibrated_p_nrfi": 0.4837,
+      "raw_p_nrfi": 0.4867,
+      "calibrated_p_nrfi": 0.473,
       "calibrator_band": {
-        "band": "bin_3-4",
+        "band": "bin_2-3",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -497,19 +497,19 @@
           "outlier": false
         },
         {
+          "name": "away_top3c_iso",
+          "value": 0.2134,
+          "z": 0.773,
+          "weight": 0.0137,
+          "contribution": 0.0106,
+          "outlier": false
+        },
+        {
           "name": "home_xera",
           "value": 4.616,
           "z": 0.465,
           "weight": 0.0223,
           "contribution": 0.0103,
-          "outlier": false
-        },
-        {
-          "name": "away_obp",
-          "value": 0.337,
-          "z": 1.753,
-          "weight": 0.0038,
-          "contribution": 0.0066,
           "outlier": false
         }
       ],
@@ -571,14 +571,14 @@
       "matchup": "CLE@LAA",
       "game_pk": "823992",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.319,
-      "raw_p_run_b1": 0.3096,
-      "raw_p_nrfi": 0.4702,
-      "calibrated_p_nrfi": 0.4073,
+      "raw_p_run_t1": 0.3118,
+      "raw_p_run_b1": 0.3027,
+      "raw_p_nrfi": 0.4799,
+      "calibrated_p_nrfi": 0.4451,
       "calibrator_band": {
-        "band": "bin_0-1",
+        "band": "bin_1-2",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -609,19 +609,19 @@
           "outlier": false
         },
         {
-          "name": "home_plate_ump_nrfi_rate",
-          "value": 0.5818,
-          "z": 3.915,
-          "weight": 0.0054,
-          "contribution": 0.0211,
-          "outlier": true
-        },
-        {
           "name": "wx_humidity",
           "value": 31.0,
           "z": -1.635,
           "weight": -0.0121,
           "contribution": 0.0198,
+          "outlier": false
+        },
+        {
+          "name": "away_top3c_iso",
+          "value": 0.1192,
+          "z": -1.334,
+          "weight": 0.0137,
+          "contribution": -0.0183,
           "outlier": false
         }
       ],
@@ -651,19 +651,19 @@
           "outlier": false
         },
         {
-          "name": "home_plate_ump_nrfi_rate",
-          "value": 0.5818,
-          "z": 3.915,
-          "weight": 0.0062,
-          "contribution": 0.0241,
-          "outlier": true
-        },
-        {
           "name": "away_p_last5_pitcher_nrfi",
           "value": 1.0,
           "z": 1.29,
           "weight": -0.0148,
           "contribution": -0.0191,
+          "outlier": false
+        },
+        {
+          "name": "away_whiff_pct_rank",
+          "value": 66.0,
+          "z": 0.662,
+          "weight": -0.0232,
+          "contribution": -0.0154,
           "outlier": false
         }
       ],
@@ -679,8 +679,6 @@
       },
       "warnings": [
         "T1: feature home_xera=9.644 is z=+5.01 sigma from training mean -- contribution +0.112 to logit",
-        "T1: feature home_plate_ump_nrfi_rate=0.582 is z=+3.92 sigma from training mean -- contribution +0.021 to logit",
-        "B1: feature home_plate_ump_nrfi_rate=0.582 is z=+3.92 sigma from training mean -- contribution +0.024 to logit",
         "raw cache home_xera=9.64 is outside [2.0, 7.0] (small-sample noise zone); priors-pooled value 9.64 (drift -0.00)"
       ]
     },
