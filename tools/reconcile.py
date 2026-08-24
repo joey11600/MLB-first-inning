@@ -52,6 +52,24 @@ I4.  "every graded STRONG bet has a strong_graded notification"
      is not an anomaly.  Fails OPEN like the gate -- if the ranking
      errors, the row is treated as the №1 and checked as before.
 
+I6.  "the two writers agree about a frozen row"  (2026-08-23)
+     REPORT-ONLY, like I5.  Railway (every 5 min) and the GHA cron
+     (hourly) each compute every row from their OWN fetches, and
+     `_pick_is_locked` freezes a row at first pitch -- so the two hosts
+     can freeze DIFFERENT numbers, and Supabase, being last-writer-wins,
+     serves whichever host wrote most recently (Railway, 12x more often).
+     On 2026-08-23 CLE@COL served 60.0% for four hours against the
+     committed ledger's 65.2%, because one Railway cycle lost its weather
+     fetch and scored the game on neutral defaults minutes before the
+     freeze; it converged only when an unrelated redeploy reset Railway's
+     copy from git.  The input-side cause is fixed (sticky weather in
+     `mlb_first_inning_predictor`), so this is the detector that says
+     whether anything ELSE can still make the hosts disagree.
+     Nothing here heals: choosing a winner between two frozen copies is
+     arbitrary, and rewriting a frozen row is exactly the write T2.23 and
+     I5 both refuse.  The disagreement is written to `system_status`
+     (key `frozen_divergence`) so the dashboard can show it.
+
 I5.  "a locked STRONG stake still matches the sizing rule"  (T8.18)
      REPORT-ONLY -- this invariant NEVER heals, and that is a
      deliberate design decision, not a gap someone forgot to fill.
@@ -246,6 +264,9 @@ class ReconcileStats:
         self.i2_pl_corrections = 0
         self.i3_strong_locked_fired = 0
         self.i4_strong_graded_fired = 0
+        # I6 is REPORT-ONLY: frozen rows where Supabase and the local CSV
+        # disagree.  Counted, never healed.
+        self.i6_frozen_divergences = 0
         # I5 is REPORT-ONLY, so this counts violations FOUND, not healed.
         # It is deliberately excluded from _record_heal_notice's "healed N
         # anomalies" tally for that reason.
@@ -262,6 +283,8 @@ class ReconcileStats:
             parts.append(f"I3 strong_locked fires={self.i3_strong_locked_fired}")
         if self.i4_strong_graded_fired:
             parts.append(f"I4 strong_graded fires={self.i4_strong_graded_fired}")
+        if self.i6_frozen_divergences:
+            parts.append(f"I6 frozen_divergence={self.i6_frozen_divergences}")
         if self.i5_stake_drift:
             parts.append(f"I5 stake drift={self.i5_stake_drift} (report-only)")
         if self.errors:
@@ -475,6 +498,75 @@ def _heal_i4_strong_graded(client, rows: list[dict], row: dict,
         return False
 
 
+def _check_i6_frozen_divergence(rows: list[dict], season: int) -> list[dict]:
+    """REPORT-ONLY.  Frozen rows: this host's CSV vs what Supabase serves.
+
+    `rows` is the Supabase view (already fetched for the other invariants);
+    the comparison is against the LOCAL csv, so the answer is host-specific
+    and useful either way: on the GHA runner the local copy IS the committed
+    ledger, and on Railway a mismatch means the other writer disagrees with
+    what this container will keep publishing.
+
+    Only frozen rows count -- an unfrozen row is SUPPOSED to move.
+    """
+    try:
+        from tracker import _csv_path, _read_rows
+        local = {(r.get("date"), str(r.get("game_pk") or "")): r
+                 for r in _read_rows(_csv_path(season))}
+    except Exception as exc:    # noqa: BLE001
+        print(f"[reconcile] I6 skipped (local ledger unreadable): {exc!r}",
+              file=sys.stderr)
+        return []
+
+    TERMINAL = {"WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED", "CANCELLED"}
+    out: list[dict] = []
+    for r in rows:
+        key = (r.get("date"), str(r.get("game_pk") or ""))
+        lr = local.get(key)
+        if lr is None:
+            continue
+        # Frozen = graded terminal on EITHER copy.  (Game-start freezing is
+        # also a freeze, but grading follows within the hour and a
+        # pre-grade snapshot would flag rows that are still legitimately
+        # converging.)
+        graded = {(r.get("graded_result") or "").strip().upper(),
+                  (lr.get("graded_result") or "").strip().upper()}
+        if not (graded & TERMINAL):
+            continue
+        try:
+            remote_p = float(r.get("nrfi_prob"))
+            local_p = float(lr.get("nrfi_prob"))
+        except (TypeError, ValueError):
+            continue
+        if abs(remote_p - local_p) > 0.001:
+            out.append({
+                "date": r.get("date"), "game_pk": key[1],
+                "game": f"{r.get('away_team')}@{r.get('home_team')}",
+                "supabase_nrfi": round(remote_p, 4),
+                "local_nrfi": round(local_p, 4),
+                "delta": round(remote_p - local_p, 4),
+            })
+    return out
+
+
+def _report_i6(rows: list[dict], season: int) -> int:
+    found = _check_i6_frozen_divergence(rows, season)
+    for d in found:
+        print(f"[reconcile] I6 frozen-row disagreement {d['date']} {d['game']}: "
+              f"supabase p_nrfi {d['supabase_nrfi']} vs local {d['local_nrfi']} "
+              f"(delta {d['delta']:+.4f}) -- REPORT ONLY, nothing rewritten")
+    try:
+        from db.supabase_writer import upsert_system_status
+        upsert_system_status("frozen_divergence", {
+            "count": len(found),
+            "rows": found[:10],
+            "checked_at": datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        })
+    except Exception:           # noqa: BLE001 -- reporting must never break reconcile
+        pass
+    return len(found)
+
+
 def _check_i5_stake_drift(client, rows: list[dict],
                            notes: set[tuple[str, str]],
                            season: int, stats: "ReconcileStats",
@@ -686,6 +778,12 @@ def reconcile(
     # takes the whole window at once.  Report-only -- it never writes to
     # picks_<season>.
     _check_i5_stake_drift(client, rows, notes, season, stats, dry_run)
+
+    # ---- I6: do the two writers agree about frozen rows? -------------
+    # Report-only; see the module docstring.  Outside the row loop for the
+    # same reason as I5 -- it needs the whole window at once (one local CSV
+    # read, one status row) rather than a query per row.
+    stats.i6_frozen_divergences = _report_i6(rows, season)
 
     print(f"[reconcile] {stats}")
     if not dry_run:

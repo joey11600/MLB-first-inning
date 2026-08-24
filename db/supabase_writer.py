@@ -713,6 +713,36 @@ def clear_pick_fields(
     return successful
 
 
+def upsert_system_status(key: str, value: dict) -> bool:
+    """Write one row into `system_status` -- live operational facts the
+    dashboard shows that are NOT errors (migration 2026-08-23).
+
+    Distinct from `system_errors` on purpose.  A fact that is TRUE RIGHT NOW
+    and changes every cycle -- the Odds API credit balance, this run's weather
+    provenance, a frozen-row disagreement -- would either spam the error log
+    or pin the health badge red if it were written there.  One row per key,
+    upserted, always current.
+
+    Best-effort by contract: no credentials or any failure returns False and
+    the caller carries on.
+    """
+    client = _get_client()
+    if client is None:
+        return False
+    try:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (client.table("system_status")
+               .upsert({"key": key, "value": value, "updated_at": now},
+                       on_conflict="key")
+               .execute())
+        return True
+    except Exception as exc:    # noqa: BLE001
+        print(f"[supabase] system_status upsert failed for {key}: {exc!r}",
+              file=sys.stderr)
+        return False
+
+
 def mirror_pick_change(
     *,
     captured_at_utc: str,

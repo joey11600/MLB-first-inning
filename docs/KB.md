@@ -489,6 +489,19 @@ If something is broken:
   + read `data/system_errors.csv` for structured failure rows.
 - **Dashboard offline**: check Vercel deployment status. Service worker
   caches the shell so a brief outage still renders last-known UI.
+- **"A probability changed after the game was over"**: nothing recomputes a
+  finished game. Two writers (Railway every 5 min, GHA hourly) each freeze
+  their OWN copy at first pitch, and Supabase is last-writer-wins, so the
+  dashboard can serve either one; a Railway redeploy reloads its CSV from git
+  and flips it. Check `system_status.frozen_divergence` (reconcile I6, shown
+  as the "frozen split" chip) and the `weather` chip. Full write-up:
+  CHANGELOG 2026-08-23 "A lost weather fetch froze a wrong probability".
+- **"weather N default" chip / `Weather inputs: ... N DEFAULT`**: that many
+  games were scored on the neutral placeholders (20 C / 10 km/h / 60%)
+  because the live fetch failed AND nothing was cached for them. Not fatal —
+  weather is a small input — but it means those rows are not what the model
+  should have seen. Check open-meteo reachability from the host; the sticky
+  cache should make this rare (a merely reused reading shows amber, not red).
 - **Ops Health card shows errors** (the "System" strip on the board): it
   counts Supabase `system_errors` rows from the last 24 h whose
   `resolved_at` is NULL (`/api/health-live`). Diagnose the step named in

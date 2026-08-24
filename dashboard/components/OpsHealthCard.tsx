@@ -55,6 +55,16 @@ interface HealthResponse {
   // 2026-08-23: The Odds API credit balance per spending host (railway =
   // the lock-time money path, gha = the daily multi-book snapshot).
   oddsCredits?:         { host: string; remaining: number; used: number | null; checkedAt: string }[];
+  // 2026-08-23: where the latest predict run's weather came from, and any
+  // frozen row the two writers disagree about.  Both exist because of the
+  // CLE@COL incident -- a lost weather fetch scored a game on neutral
+  // defaults minutes before its freeze, and the number then differed
+  // between hosts for a game that had already finished.
+  weather?: {
+    date: string; live: number; cache: number; stale: number;
+    onDefault: number; degraded: string[]; checkedAt: string;
+  } | null;
+  frozenDivergence?: { count: number; rows: Record<string, unknown>[]; checkedAt: string } | null;
 }
 
 /** "19,790" for one host, or "Railway 27 · GHA 19,790" when the two hosts
@@ -167,6 +177,8 @@ export function OpsHealthCard() {
           errorsLastHour, errorsLast24h, errorCountsByStep = {},
           recentErrors = [], noticesLast24h = 0, recentNotices = [],
           oddsCredits = [],
+          weather = null,
+          frozenDivergence = null,
           // T4.13: grade-freshness fields (optional -- older deploys
           // of the API route won't return them; default to safe values
           // so the card still renders against a stale endpoint).
@@ -189,6 +201,20 @@ export function OpsHealthCard() {
   const predictAge = formatAge(minutesSincePredict);
   const workerAge  = formatWorkerAge(lastWorkerAt);
   const gradeAge   = formatAge(minutesSinceGrade);
+
+  // 2026-08-23: weather-provenance chip.  Only rendered when something is
+  // NOT live -- on a healthy slate every game has a fresh reading and the
+  // chip would be noise.  "default" is red (a real input loss); "stale" is
+  // amber (the sticky fallback worked, the number did not move).
+  const wxDegraded = weather ? weather.onDefault + weather.stale : 0;
+  const wxCritical = (weather?.onDefault ?? 0) > 0;
+  const wxTitle = !weather ? "" :
+    `Weather inputs for the ${weather.date} slate:\n` +
+    `${weather.live} live · ${weather.cache} cached · ${weather.stale} reused ` +
+    `(last good reading) · ${weather.onDefault} on NEUTRAL DEFAULTS` +
+    (weather.degraded.length ? `\nAffected: ${weather.degraded.join(", ")}` : "") +
+    "\nA game on defaults was scored as a 20C calm day because the forecast " +
+    "could not be fetched and nothing was cached.";
 
   // 2026-08-23: odds credits chip.  Amber under 2,000 (the snapshot's own
   // reserve line), red under 100 on Railway (the next slate locks unpriced).
@@ -290,6 +316,36 @@ export function OpsHealthCard() {
             </span>
           )}
         </span>
+        {wxDegraded > 0 && (
+          <>
+            <span className={styles.sep}>·</span>
+            <span
+              className={`${styles.metric} ${wxCritical ? styles.metricErrs : styles.metricWarn}`}
+              title={wxTitle}
+            >
+              <span className={styles.metricLabel}>weather</span>
+              <span className={`num ${styles.metricValue}`}>
+                {wxCritical ? `${weather?.onDefault} default` : `${weather?.stale} reused`}
+              </span>
+            </span>
+          </>
+        )}
+        {(frozenDivergence?.count ?? 0) > 0 && (
+          <>
+            <span className={styles.sep}>·</span>
+            <span
+              className={`${styles.metric} ${styles.metricWarn}`}
+              title={
+                "Frozen rows where this host and the committed ledger hold " +
+                "different probabilities. Report-only (reconcile I6): a finished " +
+                "row is never rewritten. Converges on the next Railway redeploy."
+              }
+            >
+              <span className={styles.metricLabel}>frozen split</span>
+              <span className={`num ${styles.metricValue}`}>{frozenDivergence?.count}</span>
+            </span>
+          </>
+        )}
         {creditsLabel && (
           <>
             <span className={styles.sep}>·</span>

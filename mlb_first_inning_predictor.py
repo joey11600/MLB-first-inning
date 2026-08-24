@@ -30,6 +30,7 @@ import math
 import os
 import sys
 from datetime import date, datetime
+from datetime import timedelta as _timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -1525,6 +1526,179 @@ def _load_fi_park_rates() -> dict:
     return _fi_park_rates
 
 
+# ---------------------------------------------------------------------------
+# Live weather: last-good cache, provenance, and a bounded request
+# ---------------------------------------------------------------------------
+#
+# THE 2026-08-23 INCIDENT.  CLE@COL froze at a probability computed from the
+# NEUTRAL DEFAULTS (20 C / 10 km/h / 60% humidity) instead of Denver's real
+# 32 C afternoon: `_fetch_open_meteo_forecast` returned None on one cycle and
+# `fetch_game_weather` silently substituted the defaults.  Two properties made
+# that both invisible and permanent:
+#   * a failed fetch is INDISTINGUISHABLE from a real mild day in the ledger --
+#     the defaults are written as ordinary numbers, with no marker; and
+#   * it landed on the last cycle before first pitch, so `_pick_is_locked`
+#     froze it as that host's forever-value (the dashboard served 60.0% against
+#     the committed ledger's 65.2% for four hours).
+# Reproduced exactly from the row's own recorded features: real weather gives
+# raw 0.4450 -> 0.3483, the defaults give raw 0.4682 -> 0.4006, and Supabase
+# was serving 0.4003.  No other input loss (lineups, umpire, fi_xwoba) lands
+# anywhere near it.
+#
+# HOW OFTEN: rare, but silent.  The exact-default signature appears in 10 of
+# 798 outdoor rows since June 1 (1.25%) and none since July 29 -- so this is a
+# sharp edge that bites occasionally, not a chronic outage.  (The 90 August
+# rows with BLANK weather are DOMES, which legitimately have none.)
+#
+# THE THREE CHANGES
+#   1. STICKY.  Every successful reading is cached per (park, ET date).  A
+#      failed fetch reuses the last good reading for that game; the defaults
+#      become the last resort instead of the first.  A fresh container has no
+#      cache (`data/cache/` is gitignored -- which is exactly the state that
+#      produced the incident, 18 minutes after a redeploy), so the cache is
+#      SEEDED from the committed ledger, which does survive a redeploy.
+#   2. VISIBLE.  Every reading carries a `source`, the run prints a one-line
+#      provenance summary, and it is mirrored to Supabase `system_status` so
+#      "N games on default weather" reaches the Ops Health card instead of
+#      hiding inside a plausible-looking 20 C.
+#   3. LIGHTER.  The old request asked for 92 days of hourly history for EVERY
+#      game on EVERY 5-minute cycle -- ~15 heavy calls per cycle, ~180/hour
+#      from Railway alone, which is what makes open-meteo start refusing.  Now
+#      it asks for only as many past days as the target date needs (one, for
+#      today) and a TTL lets a cycle reuse the last few minutes' reading.
+#
+# NOT CHANGED ON PURPOSE: the 19:00 America/New_York slot.  Scoring each game
+# at its own first-pitch hour was built and tested 2026-08-23 (tools/refit2026/
+# wx_gamehour.py) and REJECTED -- it helped in one split and hurt in another.
+# Train and serve must keep reading the same slot.
+
+_WX_CACHE_PATH = Path(__file__).parent / "data" / "cache" / "weather_live.json"
+try:
+    WX_CACHE_TTL_MIN = max(0, int(os.environ.get("WX_CACHE_TTL_MIN", "25")))
+except (TypeError, ValueError):
+    WX_CACHE_TTL_MIN = 25
+
+_wx_cache: dict | None = None
+_wx_cache_dirty = False
+_wx_seeded: set[str] = set()
+# park -> "live" | "cache" | "stale" | "default" | "dome", for this process's
+# most recent run; read by _report_weather_health().
+_wx_run_sources: dict[str, str] = {}
+
+
+def _wx_now() -> str:
+    return datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _wx_cache_load() -> dict:
+    global _wx_cache
+    if _wx_cache is None:
+        try:
+            loaded = json.loads(_WX_CACHE_PATH.read_text(encoding="utf-8"))
+            _wx_cache = loaded if isinstance(loaded, dict) else {}
+        except Exception:      # noqa: BLE001 -- a missing/corrupt cache is not an error
+            _wx_cache = {}
+    return _wx_cache
+
+
+def _wx_cache_save() -> None:
+    """Atomic, best-effort.  A cache write must never break a predict run."""
+    global _wx_cache_dirty
+    if not _wx_cache_dirty:
+        return
+    try:
+        cache = _wx_cache_load()
+        # Bound the file: yesterday and today are all the fallback ever needs.
+        cutoff = (date.today() - _timedelta(days=3)).isoformat()
+        for k in [k for k in cache if k.rsplit("|", 1)[-1] < cutoff]:
+            cache.pop(k, None)
+        _WX_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _WX_CACHE_PATH.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(cache, separators=(",", ":")), encoding="utf-8")
+        os.replace(tmp, _WX_CACHE_PATH)
+        _wx_cache_dirty = False
+    except Exception as exc:   # noqa: BLE001
+        print(f"  [weather] cache write skipped: {exc!r}")
+
+
+def _wx_cache_get(park: str, date_iso: str) -> dict | None:
+    return _wx_cache_load().get(f"{park}|{date_iso}")
+
+
+def _wx_cache_put(park: str, date_iso: str, temp: float, wind: float, hum: float,
+                  observed_at: str | None = None) -> None:
+    """`observed_at=""` marks a reading of UNKNOWN age (a ledger seed).
+
+    That is deliberately not the same as "fresh": an unknown-age entry never
+    satisfies the TTL, so the next call still tries a live fetch and only
+    falls back to the seed if that fails.  Stamping a seed with `now` would
+    suppress live fetches for TTL minutes after every redeploy -- trading one
+    stale-input bug for a smaller one.
+    """
+    global _wx_cache_dirty
+    _wx_cache_load()[f"{park}|{date_iso}"] = {
+        "t": float(temp), "w": float(wind), "h": float(hum),
+        "at": _wx_now() if observed_at is None else observed_at,
+    }
+    _wx_cache_dirty = True
+
+
+def _wx_age_minutes(rec: dict | None) -> float | None:
+    if not rec or not rec.get("at"):
+        return None
+    try:
+        then = datetime.strptime(str(rec["at"]), "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=ZoneInfo("UTC"))
+    except (TypeError, ValueError):
+        return None
+    return (datetime.now(ZoneInfo("UTC")) - then).total_seconds() / 60.0
+
+
+def _wx_seed_from_ledger(date_iso: str) -> None:
+    """Warm the cache from the committed ledger, once per slate per process.
+
+    `data/cache/` is gitignored, so a container that has just redeployed knows
+    NOTHING -- and that is precisely the state in which the 2026-08-23 miss
+    happened (fresh container at 18:52Z, first pitch 19:10Z).  The ledger DOES
+    survive a redeploy, and it already records the weather each game was scored
+    with, so it is the natural warm start.
+
+    A row that itself fell back to the defaults is skipped: seeding from it
+    would make a bad value sticky, which is the opposite of the point.
+    """
+    if date_iso in _wx_seeded:
+        return
+    _wx_seeded.add(date_iso)
+    try:
+        import csv as _csv
+        p = Path(__file__).parent / "data" / f"picks_{date_iso[:4]}.csv"
+        if not p.exists():
+            return
+        seeded = 0
+        with open(p, newline="", encoding="utf-8") as fh:
+            for r in _csv.DictReader(fh):
+                if (r.get("date") or "").strip() != date_iso:
+                    continue
+                park = (r.get("home_team") or "").strip()
+                if not park or _wx_cache_get(park, date_iso):
+                    continue
+                try:
+                    t = float(r["wx_temp_c"]); w = float(r["wx_wind_kmh"])
+                    h = float(r["wx_humidity"])
+                except (KeyError, TypeError, ValueError):
+                    continue    # blank = dome, or a column the row never had
+                if (t, w, h) == (WX_TEMP_DEFAULT, WX_WIND_DEFAULT, WX_HUMIDITY_DEFAULT):
+                    continue    # that row was itself a fallback -- not evidence
+                # unknown age on purpose -- a fallback, not a fresh reading
+                _wx_cache_put(park, date_iso, t, w, h, observed_at="")
+                seeded += 1
+        if seeded:
+            print(f"  [weather] seeded {seeded} park reading(s) for {date_iso} "
+                  f"from the ledger")
+    except Exception as exc:   # noqa: BLE001
+        print(f"  [weather] ledger seed skipped: {exc!r}")
+
+
 def _fetch_open_meteo_forecast(lat: float, lon: float, date_iso: str) -> dict | None:
     """
     Hit the open-meteo FORECAST endpoint for recent / current dates.
@@ -1534,14 +1708,28 @@ def _fetch_open_meteo_forecast(lat: float, lon: float, date_iso: str) -> dict | 
     The archive API only has data through ~5 days ago, so for the live
     predictor we need the forecast endpoint (which actually returns
     past + future via past_days/forecast_days params).
+
+    `past_days` IS THE COST.  It used to be a flat 92 -- a ~2,200-row hourly
+    payload per park per call, times ~15 parks, times a cycle every 5 minutes.
+    open-meteo prices a request by variables x days, so that cadence sits at
+    the edge of the free tier's hourly allowance and starts drawing refusals;
+    a refusal here is what silently swapped in the neutral defaults on
+    2026-08-23.  Ask for what the target date actually needs instead: one past
+    day for today's slate, more only when re-predicting an older date.
     """
     import urllib.request
     import json as _json
+    try:
+        target = datetime.fromisoformat(date_iso).date()
+        days_back = (datetime.now(ZoneInfo("America/New_York")).date() - target).days
+    except (TypeError, ValueError):
+        days_back = 1
+    past_days = max(1, min(92, days_back + 1))
     url = (
         "https://api.open-meteo.com/v1/forecast"
         f"?latitude={lat}&longitude={lon}"
         "&hourly=temperature_2m,wind_speed_10m,relative_humidity_2m"
-        "&past_days=92&forecast_days=2"
+        f"&past_days={past_days}&forecast_days=2"
         "&timezone=America/New_York"
     )
     try:
@@ -1578,24 +1766,46 @@ def _fetch_open_meteo_forecast(lat: float, lon: float, date_iso: str) -> dict | 
 def fetch_game_weather(home_abbr: str, date_iso: str, season: int) -> dict:
     """
     Returns the weather dict expected by t1_features/b1_features:
-      {temp_c, wind_kmh, humidity, is_dome}
+      {temp_c, wind_kmh, humidity, is_dome, source}
 
     For domed / retractable-roof parks (DOMED_PARKS), returns neutral
     league-mean defaults with is_dome=1 -- the model uses is_dome as the
     "ignore weather" switch.
 
-    Outdoor parks: tries backtest.game_weather (archive cache, fast for
-    historical dates), then falls back to a live open-meteo forecast
-    fetch for current-year dates the archive doesn't have yet.  If both
-    fail, returns neutral defaults with is_dome=0.
+    Outdoor parks, in order (see the block comment above for why):
+      1. a reading taken in the last WX_CACHE_TTL_MIN minutes  -> "cache"
+      2. backtest.game_weather (archive) or the live forecast  -> "live"
+      3. THE LAST GOOD READING for this game, at any age       -> "stale"
+      4. neutral defaults, loudly                              -> "default"
+
+    Step 3 is the fix: before 2026-08-23 a failed fetch went straight to the
+    defaults and wrote them into the ledger as if they were a real mild day.
+    `source` says which branch produced the numbers; callers may ignore it,
+    but _report_weather_health() aggregates it for the run.
     """
     if home_abbr in DOMED_PARKS:
+        _wx_run_sources[home_abbr] = "dome"
         return {
             "temp_c":   WX_TEMP_DEFAULT,
             "wind_kmh": WX_WIND_DEFAULT,
             "humidity": WX_HUMIDITY_DEFAULT,
             "is_dome":  1.0,
+            "source":   "dome",
         }
+
+    _wx_seed_from_ledger(date_iso)
+    cached = _wx_cache_get(home_abbr, date_iso)
+
+    # 1. Fresh enough.  We read the 19:00 slot, which does not move minute to
+    #    minute, so re-asking every 5 minutes buys nothing and costs quota.
+    age = _wx_age_minutes(cached)
+    if cached is not None and age is not None and age <= WX_CACHE_TTL_MIN:
+        _wx_run_sources[home_abbr] = "cache"
+        return {"temp_c": float(cached["t"]), "wind_kmh": float(cached["w"]),
+                "humidity": float(cached["h"]), "is_dome": 0.0, "source": "cache"}
+
+    # 2. Archive first (fast + free for historical dates), then the live
+    #    forecast for dates the archive does not carry yet.
     wx = {}
     try:
         from backtest import game_weather, PARK_COORDS
@@ -1606,7 +1816,6 @@ def fetch_game_weather(home_abbr: str, date_iso: str, season: int) -> dict:
     temp = wx.get("temp_c")
     wind = wx.get("wind_kmh")
     hum  = wx.get("humidity")
-    # Archive miss?  Try the forecast endpoint (handles current year).
     if (temp is None or wind is None or hum is None) and home_abbr in PARK_COORDS:
         lat, lon = PARK_COORDS[home_abbr]
         fc = _fetch_open_meteo_forecast(lat, lon, date_iso)
@@ -1614,12 +1823,77 @@ def fetch_game_weather(home_abbr: str, date_iso: str, season: int) -> dict:
             if temp is None: temp = fc.get("temp_c")
             if wind is None: wind = fc.get("wind_kmh")
             if hum  is None: hum  = fc.get("humidity")
+
+    if temp is not None and wind is not None and hum is not None:
+        _wx_cache_put(home_abbr, date_iso, float(temp), float(wind), float(hum))
+        _wx_cache_save()
+        _wx_run_sources[home_abbr] = "live"
+        return {"temp_c": float(temp), "wind_kmh": float(wind),
+                "humidity": float(hum), "is_dome": 0.0, "source": "live"}
+
+    # 3. STICKY.  Yesterday's forecast for tonight's game would be wrong, but
+    #    THIS MORNING's reading for THIS game is far closer to the truth than
+    #    a 20 C placeholder -- and, critically, it does not move the model's
+    #    output, so a fetch blip can no longer be frozen in as a new number.
+    if cached is not None:
+        _wx_run_sources[home_abbr] = "stale"
+        when = cached.get("at") or "earlier this slate (seeded from the ledger)"
+        print(f"  [weather] {home_abbr} {date_iso}: live fetch unavailable -- "
+              f"reusing the reading captured {when} "
+              f"({cached.get('t')}C / {cached.get('w')} km/h / {cached.get('h')}%)")
+        return {"temp_c": float(cached["t"]), "wind_kmh": float(cached["w"]),
+                "humidity": float(cached["h"]), "is_dome": 0.0, "source": "stale"}
+
+    # 4. Nothing, anywhere.  Say so -- this is a real input loss, and the
+    #    numbers below are a placeholder that LOOKS like a mild day.
+    _wx_run_sources[home_abbr] = "default"
+    print(f"  [weather] WARNING {home_abbr} {date_iso}: no reading available "
+          f"(live fetch failed and nothing cached) -- scoring on NEUTRAL "
+          f"DEFAULTS {WX_TEMP_DEFAULT}C / {WX_WIND_DEFAULT} km/h / "
+          f"{WX_HUMIDITY_DEFAULT}%. This is an input loss, not a mild day.")
     return {
-        "temp_c":   float(temp) if temp is not None else WX_TEMP_DEFAULT,
-        "wind_kmh": float(wind) if wind is not None else WX_WIND_DEFAULT,
-        "humidity": float(hum)  if hum  is not None else WX_HUMIDITY_DEFAULT,
+        "temp_c":   WX_TEMP_DEFAULT,
+        "wind_kmh": WX_WIND_DEFAULT,
+        "humidity": WX_HUMIDITY_DEFAULT,
         "is_dome":  0.0,
+        "source":   "default",
     }
+
+
+def weather_run_sources() -> dict:
+    """{source: count} for the games scored in this process's latest run."""
+    counts: dict = {}
+    for src in _wx_run_sources.values():
+        counts[src] = counts.get(src, 0) + 1
+    return counts
+
+
+def _report_weather_health(date_iso: str) -> None:
+    """One line in the run footer, and one row in Supabase `system_status`.
+
+    Before this, a weather outage was findable only by noticing that a row's
+    temperature happened to be exactly 20.0 -- which is how the 2026-08-23
+    miss went unnoticed until a probability appeared to change after a game
+    had finished.
+    """
+    _wx_cache_save()
+    c = weather_run_sources()
+    live, cache = c.get("live", 0), c.get("cache", 0)
+    stale, dflt, dome = c.get("stale", 0), c.get("default", 0), c.get("dome", 0)
+    degraded = sorted(p for p, srcs in _wx_run_sources.items()
+                      if srcs in ("stale", "default"))
+    print(f"  Weather inputs      : {live} live, {cache} cached, {stale} stale, "
+          f"{dflt} DEFAULT, {dome} dome"
+          + (f"  <- degraded: {', '.join(degraded)}" if degraded else ""))
+    try:
+        from db.supabase_writer import upsert_system_status
+        upsert_system_status("weather_health", {
+            "date": date_iso, "live": live, "cache": cache, "stale": stale,
+            "default": dflt, "dome": dome, "degraded": degraded,
+            "checked_at": _wx_now(),
+        })
+    except Exception:          # noqa: BLE001 -- reporting must never break a run
+        pass
 
 
 # Phase E.3 lookup helpers -- lazy-load caches once
@@ -3114,6 +3388,10 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
         print(f"  Logged {written} picks -> data/picks_{season}.csv")
     except Exception as exc:
         print(f"  Warning: could not write picks log ({exc})")
+
+    # 2026-08-23: weather provenance for this run (live / cached / stale /
+    # default), printed and mirrored to system_status for the Ops Health card.
+    _report_weather_health(target_iso)
 
     # T2.9: Sync classifier thresholds to data/thresholds.json so the
     # dashboard's tentative-classifier never drifts from Python.

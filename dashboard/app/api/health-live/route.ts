@@ -53,6 +53,16 @@ interface SystemError {
   message:       string;
 }
 
+/** Today's slate date in Eastern time -- "en-CA" formats as YYYY-MM-DD
+ *  natively, so no round-trip through toISOString (which would re-roll to
+ *  UTC and, after 8pm ET, name tomorrow). */
+function etTodayIso(now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(now);
+}
+
 export async function GET() {
   const sb = getServerSupabase();
   const now = new Date();
@@ -236,16 +246,17 @@ export async function GET() {
   // the card shows both when they disagree.  Railway is the one that can
   // unprice a slate, so only its balance escalates the status.
   type CreditRow = { host: string; remaining: number; used: number | null; checkedAt: string };
+  type StatusRow = { key: string; value: Record<string, unknown> | null; updated_at?: string };
   let oddsCredits: CreditRow[] = [];
+  let statusRows: StatusRow[] = [];
   try {
     const { data } = await sb
       .from("system_status")
-      .select("key, value, updated_at")
-      .like("key", "odds_api_credits:%");
+      .select("key, value, updated_at");
+    statusRows = (data ?? []) as StatusRow[];
     const threeDaysAgo = now.getTime() - 3 * 24 * 60 * 60 * 1000;
-    oddsCredits = ((data ?? []) as Array<{
-      key: string; value: Record<string, unknown> | null; updated_at?: string;
-    }>)
+    oddsCredits = statusRows
+      .filter(r => r.key.startsWith("odds_api_credits:"))
       .map(r => {
         const v = r.value ?? {};
         return {
@@ -258,6 +269,33 @@ export async function GET() {
       // a host that has not reported for 3 days is not spending; ignore it
       .filter(c => Number.isFinite(c.remaining) && Date.parse(c.checkedAt) > threeDaysAgo);
   } catch { /* swallow -- advisory, never breaks health */ }
+
+  // 3c. 2026-08-23: weather provenance for the latest predict run, and
+  // whether the two writers disagree about any FROZEN row.  Both are written
+  // to system_status by the predictor / reconcile; both exist because of the
+  // same incident (a lost weather fetch scored a game on neutral defaults
+  // minutes before its freeze, and the two hosts then served different
+  // probabilities for a finished game).
+  const statusValue = (key: string): Record<string, unknown> | null =>
+    statusRows.find(r => r.key === key)?.value ?? null;
+
+  const wxRaw = statusValue("weather_health");
+  const weather = wxRaw ? {
+    date:     String(wxRaw.date ?? ""),
+    live:     Number(wxRaw.live ?? 0),
+    cache:    Number(wxRaw.cache ?? 0),
+    stale:    Number(wxRaw.stale ?? 0),
+    onDefault: Number(wxRaw.default ?? 0),
+    degraded: Array.isArray(wxRaw.degraded) ? (wxRaw.degraded as string[]) : [],
+    checkedAt: String(wxRaw.checked_at ?? ""),
+  } : null;
+
+  const divRaw = statusValue("frozen_divergence");
+  const frozenDivergence = divRaw ? {
+    count: Number(divRaw.count ?? 0),
+    rows:  Array.isArray(divRaw.rows) ? (divRaw.rows as Record<string, unknown>[]) : [],
+    checkedAt: String(divRaw.checked_at ?? ""),
+  } : null;
 
   // T3.14: informational steps -- not actual failures.  Surfaced in the
   // expanded card under a separate "Notices" section instead of counting
@@ -365,6 +403,28 @@ export async function GET() {
     reasons.push(`${errorsLastHour} error(s) in the last hour`);
   }
 
+  // 2026-08-23: a game scored on NEUTRAL DEFAULT weather is a real input
+  // loss wearing the costume of a mild day -- warn, and name the parks.  A
+  // STALE reading (the sticky fallback did its job) is fine and stays quiet.
+  if (weather && weather.onDefault > 0 && weather.date === etTodayIso(now)) {
+    if (status === "ok") status = "warn";
+    reasons.push(
+      `${weather.onDefault} game${weather.onDefault === 1 ? "" : "s"} scored on ` +
+      `DEFAULT weather (live fetch failed, nothing cached)` +
+      (weather.degraded.length ? `: ${weather.degraded.join(", ")}` : ""),
+    );
+  }
+  // A frozen row the two writers disagree about: the dashboard is showing a
+  // number that the committed ledger does not have.  Report-only by design
+  // (reconcile I6), but the operator should know.
+  if (frozenDivergence && frozenDivergence.count > 0) {
+    if (status === "ok") status = "warn";
+    reasons.push(
+      `${frozenDivergence.count} frozen row${frozenDivergence.count === 1 ? "" : "s"} ` +
+      `disagree between this host and the ledger`,
+    );
+  }
+
   // 2026-08-23: credit balance.  Under 100 on Railway means the next slate
   // locks unpriced -> degraded.  Under 2,000 anywhere -> warn (the snapshot
   // refuses below 2,000 by design, so the money path keeps a reserve).
@@ -400,6 +460,9 @@ export async function GET() {
       errorCountsByStep,
       // 2026-08-23: The Odds API balance per host (see 3b).
       oddsCredits,
+      // 2026-08-23: weather provenance + frozen-row agreement (see 3c).
+      weather,
+      frozenDivergence,
       // Cap response size; UI only shows the top-5 most recent.
       // Message truncation happens HERE (not at parse time) so the
       // known-noise classifier above saw the full stderr tail.

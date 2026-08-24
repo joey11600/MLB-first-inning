@@ -11,6 +11,80 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-23] - A lost weather fetch froze a wrong probability: sticky weather, and a detector for host disagreement
+
+Operator: *"tell me why the #1 pick today went from 60% to 65% after the game
+was already over?"* -> *"we need to fully diagnose this asap"* -> *"implement
+the fixes"*. Nothing was recomputed after the game; the number that moved was
+which HOST's frozen copy the dashboard happened to be serving.
+
+### The diagnosis (CLE@COL, 2026-08-23)
+
+`_fetch_open_meteo_forecast` returned None on one Railway cycle and
+`fetch_game_weather` silently substituted the neutral defaults, so the game
+was scored as a 20 C calm day instead of Denver's real 32 C afternoon. That
+cycle was the last one before first pitch, so `_pick_is_locked` froze it:
+Railway's copy held 60.0%, the GHA copy (and the committed ledger) held
+65.2%, and Supabase — last-writer-wins, with Railway writing 12x more often —
+served 60.0% for four hours. It "changed" at 7:44 PM only because pasting the
+Odds API key redeployed Railway, which reloads its CSV from git.
+
+**Proof, not inference:** rebuilding the game from the row's own recorded
+features gives raw 0.4450 -> **0.3483** with the real weather and raw 0.4682
+-> **0.4006** with the defaults, against the **0.4003** Supabase was serving.
+No other input loss (lineups, umpire, fi_xwoba) lands within four points. The
+trigger is visible too: a fresh container started 18:52Z, 18 minutes before
+the 19:10Z first pitch, and `data/cache/` is gitignored — so it had to
+re-fetch every park at once, with `past_days=92` (~2,200 hourly rows) per
+call. Railway's logs for that window are purged (deployment REMOVED).
+
+**A number I got wrong and retracted mid-diagnosis:** I first reported "29% of
+August's outdoor rows have blank weather". All 90 blank rows are DOMES
+(`wx_is_dome = 1.0`; the filter compared against `'1'`). A failed fetch is not
+blank — it writes the defaults as ordinary numbers. Real rate, by the exact
+20.0/10.0/60.0 signature: **10 of 798 outdoor rows since June 1 (1.25%), none
+since July 29.** Rare and silent, not chronic.
+
+### Fixed
+
+- **Sticky weather** (`mlb_first_inning_predictor.py`): fresh-cache -> live ->
+  **last good reading for that game, at any age** -> defaults. Defaults are
+  now the last resort instead of the first, so a fetch blip can no longer move
+  the model's output at all. `data/cache/weather_live.json` per (park, ET
+  date); every reading carries a `source`.
+- **Cold containers warm from the ledger.** `data/cache/` is gitignored, so a
+  just-redeployed container knew nothing — the incident's exact state. The
+  cache now seeds from the committed ledger (skipping rows that were
+  themselves scored on defaults), stamped as UNKNOWN age so it is a parachute
+  and never suppresses a live fetch.
+- **Cheaper cadence:** `past_days` is what the target date needs (1 for
+  today, was a flat 92) and `WX_CACHE_TTL_MIN` (25) turns 12 cycles/hour into
+  ~2 requests/hour per park. That is the throttling exposure that produced
+  the refusal in the first place.
+- **Visible:** the run footer prints `Weather inputs: N live, N cached, N
+  stale, N DEFAULT, N dome`, mirrored to Supabase `system_status`
+  (`weather_health`) via a new shared writer
+  `db.supabase_writer.upsert_system_status`. The Ops Health card shows a red
+  **"weather N default"** chip (amber when a reading was merely reused) and
+  the status escalates to warn with the parks named.
+- **reconcile I6 — frozen-row divergence, REPORT-ONLY** (same reasoning as
+  I5): compares this host's CSV against Supabase for frozen rows, writes
+  `system_status.frozen_divergence`, and the card shows a "frozen split"
+  chip. It never heals — picking a winner between two frozen copies is
+  arbitrary, and rewriting a frozen row is the write T2.23 refuses.
+- **Unchanged on purpose:** the 19:00 ET weather slot (game-hour weather was
+  tested and rejected the same day), and every past row.
+
+Tests: `tests/test_weather_sticky.py` (+9, including the incident itself as a
+regression guard) and `tests/test_reconcile_frozen_divergence.py` (+7). 300 pass.
+
+**Left open deliberately:** which host should WIN a frozen disagreement.
+There is no authority to appeal to — Railway never pulls git mid-life, so the
+committed ledger cannot be consulted live. Detector first; revisit if I6 ever
+fires.
+
+---
+
 ## [2026-08-23] - Weather at first pitch, wind direction round 4: built, tested, NOT shipped
 
 Operator: *"make sure all [factors] are focused on first inning stats only ...
