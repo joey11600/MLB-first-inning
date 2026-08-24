@@ -518,6 +518,16 @@ def _check_i6_frozen_divergence(rows: list[dict], season: int) -> list[dict]:
               file=sys.stderr)
         return []
 
+    # TWO thresholds, because the first live run found both kinds at once.
+    # NOTICE (0.001): the hosts fetch independently, so a frozen row can
+    # differ by a thousandth or two purely from which cycle caught which
+    # lineup -- worth recording, never worth an alert.
+    # MATERIAL (0.02): a gap this size is the operator seeing a different
+    # number than the ledger holds.  CLE@COL on 2026-08-23 was 0.052; the six
+    # 2026-08-22 rows this check found on its first run were 0.001-0.014, i.e.
+    # exactly the noise floor.  Alerting on those would teach the operator to
+    # ignore the chip, which is how a detector stops working.
+    NOTICE, MATERIAL = 0.001, 0.02
     TERMINAL = {"WIN", "LOSS", "PASS", "POSTPONED", "SUSPENDED", "CANCELLED"}
     out: list[dict] = []
     for r in rows:
@@ -538,33 +548,46 @@ def _check_i6_frozen_divergence(rows: list[dict], season: int) -> list[dict]:
             local_p = float(lr.get("nrfi_prob"))
         except (TypeError, ValueError):
             continue
-        if abs(remote_p - local_p) > 0.001:
+        if abs(remote_p - local_p) > NOTICE:
             out.append({
                 "date": r.get("date"), "game_pk": key[1],
                 "game": f"{r.get('away_team')}@{r.get('home_team')}",
                 "supabase_nrfi": round(remote_p, 4),
                 "local_nrfi": round(local_p, 4),
                 "delta": round(remote_p - local_p, 4),
+                "material": abs(remote_p - local_p) >= MATERIAL,
             })
     return out
 
 
 def _report_i6(rows: list[dict], season: int) -> int:
+    """Print + record.  Returns the MATERIAL count -- the one worth acting on.
+
+    Sub-material rows are summarised in one line rather than one line each:
+    on a normal night there are a handful, and a wall of them would bury the
+    row that actually matters.
+    """
     found = _check_i6_frozen_divergence(rows, season)
-    for d in found:
+    material = [d for d in found if d.get("material")]
+    for d in material:
         print(f"[reconcile] I6 frozen-row disagreement {d['date']} {d['game']}: "
               f"supabase p_nrfi {d['supabase_nrfi']} vs local {d['local_nrfi']} "
               f"(delta {d['delta']:+.4f}) -- REPORT ONLY, nothing rewritten")
+    minor = len(found) - len(material)
+    if minor:
+        print(f"[reconcile] I6 {minor} frozen row(s) differ by under 0.02 "
+              f"(independent fetches; noise floor, not reported as an issue)")
     try:
         from db.supabase_writer import upsert_system_status
         upsert_system_status("frozen_divergence", {
-            "count": len(found),
-            "rows": found[:10],
+            "count": len(material),          # what the dashboard alerts on
+            "minor": minor,                  # the noise floor, for diagnostics
+            "rows": material[:10] or found[:5],
             "checked_at": datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ"),
         })
     except Exception:           # noqa: BLE001 -- reporting must never break reconcile
         pass
-    return len(found)
+    return len(material)
 
 
 def _check_i5_stake_drift(client, rows: list[dict],

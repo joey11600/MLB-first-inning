@@ -55,11 +55,22 @@ def test_a_frozen_row_that_disagrees_is_reported(monkeypatch, tmp_path):
     assert d["game"] == "CLE@COL"
     assert d["supabase_nrfi"] == 0.4003 and d["local_nrfi"] == 0.3483
     assert abs(d["delta"] - 0.052) < 1e-9
+    assert d["material"] is True
 
 
 def test_agreement_is_silent(monkeypatch, tmp_path):
     _local_rows(monkeypatch, tmp_path, [_row("824315", "0.3483")])
     assert R._check_i6_frozen_divergence([dict(_row("824315", 0.3483))], 2026) == []
+
+
+def test_a_small_gap_is_recorded_but_not_material(monkeypatch, tmp_path):
+    """The hosts fetch independently, so frozen rows drift a thousandth or
+    two -- the first live run of I6 found six such rows from 2026-08-22.
+    They belong in the record, NOT on the alert: a chip that is always amber
+    is a chip the operator stops reading."""
+    _local_rows(monkeypatch, tmp_path, [_row("824315", "0.3483")])
+    found = R._check_i6_frozen_divergence([dict(_row("824315", 0.3540))], 2026)
+    assert len(found) == 1 and found[0]["material"] is False
 
 
 def test_rounding_noise_is_not_a_divergence(monkeypatch, tmp_path):

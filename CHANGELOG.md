@@ -72,6 +72,12 @@ since July 29.** Rare and silent, not chronic.
   `system_status.frozen_divergence`, and the card shows a "frozen split"
   chip. It never heals — picking a winner between two frozen copies is
   arbitrary, and rewriting a frozen row is the write T2.23 refuses.
+  **Its first live run immediately found six more**, all from 2026-08-22
+  (deltas 0.001–0.014) — so the mechanism recurs at low amplitude and
+  CLE@COL's 0.052 was the extreme, not a freak. That also set the design:
+  two thresholds, 0.001 to RECORD and 0.02 to ALERT. A chip that is amber
+  every night is a chip nobody reads, so the noise floor is counted
+  (`minor`) and summarised in one line, never alerted.
 - **Unchanged on purpose:** the 19:00 ET weather slot (game-hour weather was
   tested and rejected the same day), and every past row.
 

@@ -64,7 +64,9 @@ interface HealthResponse {
     date: string; live: number; cache: number; stale: number;
     onDefault: number; degraded: string[]; checkedAt: string;
   } | null;
-  frozenDivergence?: { count: number; rows: Record<string, unknown>[]; checkedAt: string } | null;
+  // `count` is the MATERIAL disagreements (>= 0.02); `minor` is the noise
+  // floor two independent fetches always produce. Only count alerts.
+  frozenDivergence?: { count: number; minor?: number; rows: Record<string, unknown>[]; checkedAt: string } | null;
 }
 
 /** "19,790" for one host, or "Railway 27 · GHA 19,790" when the two hosts
@@ -337,8 +339,14 @@ export function OpsHealthCard() {
               className={`${styles.metric} ${styles.metricWarn}`}
               title={
                 "Frozen rows where this host and the committed ledger hold " +
-                "different probabilities. Report-only (reconcile I6): a finished " +
-                "row is never rewritten. Converges on the next Railway redeploy."
+                "MATERIALLY different probabilities (>= 2 points). Report-only " +
+                "(reconcile I6): a finished row is never rewritten. Converges " +
+                "on the next Railway redeploy." +
+                (frozenDivergence?.minor
+                  ? `
+${frozenDivergence.minor} more differ by under 2 points -- ` +
+                    "the normal drift between two independent fetches."
+                  : "")
               }
             >
               <span className={styles.metricLabel}>frozen split</span>
