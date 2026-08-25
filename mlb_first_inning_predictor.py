@@ -1131,7 +1131,20 @@ _LR_STRONG_YRFI_P = 0.42
 # sliding-window retrain + the late-May league shift toward more
 # first-inning runs, STRONG NRFI picks started landing at lambda_lr_total
 # 0.55-0.58 and bleeding badly (see _LR_LAMBDA_NRFI_CEILING below).
-_LR_LAMBDA_YRFI_FLOOR = 0.838   # 0.78 mechanically scaled by 0.510/0.475 in Phase 2 league-constants refresh
+# RESCALED 2026-08-25 for the v3 model.  v3 (L2 0.05 -> 0.50, shipped
+# 2026-08-23) compresses raw output, dropping lambda_lr_total ~0.11 across
+# the board.  A floor tuned on the old scale silently changed meaning: on
+# 2026 OOS the STRONG-YRFI median lambda fell 0.876 -> 0.767, so the 0.838
+# floor went from clearing 87% of STRONG YRFI bets (a ~13% trim) to clearing
+# 2.5% (a ~97% CULL).  It was demoting 85 of 88 nightly No.1 YRFI picks
+# (which, if bet, went 62-23 = 72.9%, +21.96u on real 2026 prices).  0.75 is
+# the ~13th percentile of v3's STRONG lambda, restoring the ORIGINAL ~13%
+# trim on the new scale.  Same mechanical-rescale operation as the 0.78->0.838
+# step below.  OOS 3-split at 0.75: 2024 -12.6u (flat -112, no real odds),
+# 2025 +0.3u, 2026 +30.8u (real prices).  See memory 2026-08-25_lambda_floor_stale_v3
+# and tools/refit2026/backtest_ship.py.  Revert: tag pre-floor-change-2026-08-25.
+_LR_LAMBDA_YRFI_FLOOR = 0.75
+# (prior: 0.838 = 0.78 mechanically scaled by 0.510/0.475 in Phase 2 league-constants refresh)
 
 # Lambda CEILING for STRONG NRFI (T1-NRFI-2026-06-01).  Mirror image of
 # the YRFI floor above: don't fire a STRONG NRFI bet when the model's

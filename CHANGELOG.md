@@ -11,6 +11,63 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-25] - The STRONG-YRFI lambda floor was stale under v3: rescaled 0.838 -> 0.75
+
+Operator (again): the night's No.1 pick kept showing **PASS · LOW λ** and then
+the game had a first-inning run. Confirmed real and root-caused to a gate that
+v3 quietly broke — not variance.
+
+### The diagnosis
+
+`_LR_LAMBDA_YRFI_FLOOR` is the minimum projected first-inning runs
+(`lambda_lr_total`) a STRONG YRFI bet must clear. It was set to 0.838 for the
+pre-v3 model. v3 (L2 0.05 -> 0.50, shipped 2026-08-23) compresses raw output,
+dropping `lambda_lr_total` ~0.11 across the board. So a fixed floor silently
+changed meaning: on 2026 out-of-sample the STRONG-YRFI **median lambda fell
+0.876 -> 0.767**, and the fraction of STRONG YRFI bets clearing 0.838 fell from
+**87% (a ~13% trim) to 2.5% (a ~97% cull)**. It was demoting **85 of 88** nightly
+No.1 YRFI picks; those 85, if bet, went **62-23 (72.9%), +21.96u** on real 2026
+prices. This is the direct cause of the recurring "why is my #1 a pass" complaint
+since 08-23.
+
+### Validation (out of sample, v3, `tools/refit2026/backtest_ship.py` pipeline)
+
+Three-split re-score, train on the other seasons, CIR calibrator on train only.
+STRONG-YRFI kept P&L by floor: 2024 (flat -112, no real odds), 2025 (flat -112),
+2026 (real captured prices). 0.75 = ~13th percentile of v3's STRONG lambda, which
+restores the ORIGINAL ~13% trim on the new scale — the same mechanical-rescale
+operation as the earlier 0.78 -> 0.838 step.
+
+| floor | 2024 | 2025 | 2026 (real) | #1 picks restored (of 85) |
+|---|---|---|---|---|
+| 0.838 (old) | +8.2u | +0.0u | +2.3u | 0 |
+| **0.75 (new)** | -12.6u | +0.3u | **+30.8u** | **77 (58-19)** |
+
+Honest caveat: 2024 prefers a higher floor, but only on *assumed* -112 odds (no
+real 2024 first-inning prices exist); the 2026 result is on real money. 0.80 was
+the only all-splits-positive value but restored just 22 of 85 No.1 picks — operator
+chose 0.75 to actually fix the product surface. The deeper structural fix (gate on
+calibrated Yes% instead of raw lambda, so it can't break on the next refit) is
+deferred.
+
+### Changed
+
+- `mlb_first_inning_predictor.py`: `_LR_LAMBDA_YRFI_FLOOR` 0.838 -> 0.75, with a
+  comment documenting the v3 scale shift and the OOS validation. Single source of
+  truth (all tools read it by reference; the dashboard "LOW LAMBDA" code is
+  display-only), so no mirror to sync.
+
+### Deferred
+
+- Structural replacement of the raw-lambda floor with a calibrated-probability
+  gate (scale-stable across L2/refit changes). See memory
+  `2026-08-25_lambda_floor_stale_v3`.
+
+Tests: 301/301 money-path pytest pass; fixture parity 21,402 + 121 cases match.
+Backup/revert: tag `pre-floor-change-2026-08-25`.
+
+---
+
 ## [2026-08-23] - A lost weather fetch froze a wrong probability: sticky weather, and a detector for host disagreement
 
 Operator: *"tell me why the #1 pick today went from 60% to 65% after the game
