@@ -720,8 +720,22 @@ function DataQualityBadge({ detail }: { detail: GameDetail | undefined }) {
   const hp = detail.home.pitcher.quality;
   const ao = detail.away.offense.quality;
   const ho = detail.home.offense.quality;
-  if (ap === "avg") issues.push(`${detail.away.team} pitcher: TBD / league-avg fallback`);
-  if (hp === "avg") issues.push(`${detail.home.team} pitcher: TBD / league-avg fallback`);
+  // Same announced-vs-TBD distinction as noDataReason above: an announced
+  // pitcher with a thin MLB history (rookie debut / call-up) is NOT "TBD" —
+  // saying so made the operator think the probable-pitcher fetch failed
+  // (2026-08-25 COL@WSH: Mason Adams announced, career IP 0.1, badge said TBD).
+  if (ap === "avg") {
+    const announced = detail.away.pitcher.name && detail.away.pitcher.name !== "TBD";
+    issues.push(announced
+      ? `${detail.away.team} pitcher ${detail.away.pitcher.name}: announced, but too little MLB history — league-avg fallback`
+      : `${detail.away.team} pitcher: not announced yet (TBD) — league-avg fallback`);
+  }
+  if (hp === "avg") {
+    const announced = detail.home.pitcher.name && detail.home.pitcher.name !== "TBD";
+    issues.push(announced
+      ? `${detail.home.team} pitcher ${detail.home.pitcher.name}: announced, but too little MLB history — league-avg fallback`
+      : `${detail.home.team} pitcher: not announced yet (TBD) — league-avg fallback`);
+  }
   if (ao === "avg") issues.push(`${detail.away.team} offense: league-avg fallback`);
   if (ho === "avg") issues.push(`${detail.home.team} offense: league-avg fallback`);
   if (detail.away.lineup.length === 0) {

@@ -11,6 +11,25 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-25b] - Data-quality badge no longer calls an announced rookie "TBD"
+
+### Fixed
+
+- **`DataQualityBadge` tooltip conflated "pitcher not announced" with "pitcher
+  announced but thin MLB history"** (`dashboard/components/BoardRow.tsx`). Both
+  cases print when `pitcher.quality === 'avg'`, and the copy always said
+  "pitcher: TBD / league-avg fallback". Operator report on 2026-08-25 COL@WSH:
+  Mason Adams was announced (career MLB IP: 0.1 — one out) and correctly hit
+  the league-avg fallback + `PASS - No data`, but the badge's "TBD" made it look
+  like the probable-pitcher fetch had failed. The predictor already makes this
+  exact distinction (STARTER PENDING vs NO DATA, T2.24), and `noDataReason` in
+  the same file already words it correctly; the badge now mirrors them: an
+  announced pitcher renders "announced, but too little MLB history — league-avg
+  fallback" with the name, an unannounced one renders "not announced yet (TBD)".
+  Model behavior unchanged — this was presentation copy only.
+
+---
+
 ## [2026-08-25] - The STRONG-YRFI lambda floor was stale under v3: rescaled 0.838 -> 0.75
 
 Operator (again): the night's No.1 pick kept showing **PASS · LOW λ** and then
