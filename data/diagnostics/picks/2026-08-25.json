@@ -1,7 +1,7 @@
 {
   "date": "2026-08-25",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-25T22:15:20Z",
+  "fitted_at": "2026-08-25T22:34:23Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -120,13 +120,13 @@
     {
       "matchup": "PHI@SEA",
       "game_pk": "823098",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2563,
+      "raw_p_run_t1": 0.261,
       "raw_p_run_b1": 0.3052,
-      "raw_p_nrfi": 0.5167,
-      "calibrated_p_nrfi": 0.5364,
+      "raw_p_nrfi": 0.5134,
+      "calibrated_p_nrfi": 0.5318,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -151,6 +151,14 @@
           "outlier": false
         },
         {
+          "name": "away_top3c_iso",
+          "value": 0.219,
+          "z": 0.898,
+          "weight": 0.0137,
+          "contribution": 0.0123,
+          "outlier": false
+        },
+        {
           "name": "home_xera",
           "value": 3.551,
           "z": -0.499,
@@ -164,14 +172,6 @@
           "z": -0.465,
           "weight": -0.0182,
           "contribution": 0.0085,
-          "outlier": false
-        },
-        {
-          "name": "home_fip",
-          "value": 3.722,
-          "z": -0.409,
-          "weight": 0.0194,
-          "contribution": -0.0079,
           "outlier": false
         }
       ],
@@ -1140,12 +1140,12 @@
       "matchup": "CHC@ARI",
       "game_pk": "825042",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2846,
-      "raw_p_run_b1": 0.31,
-      "raw_p_nrfi": 0.4937,
-      "calibrated_p_nrfi": 0.4885,
+      "raw_p_run_t1": 0.2844,
+      "raw_p_run_b1": 0.309,
+      "raw_p_nrfi": 0.4945,
+      "calibrated_p_nrfi": 0.4895,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
@@ -1178,19 +1178,19 @@
           "outlier": false
         },
         {
+          "name": "home_plate_ump_nrfi_rate",
+          "value": 0.4271,
+          "z": -3.777,
+          "weight": 0.0054,
+          "contribution": -0.0204,
+          "outlier": true
+        },
+        {
           "name": "away_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.577,
           "weight": 0.0234,
           "contribution": -0.0135,
-          "outlier": false
-        },
-        {
-          "name": "away_obp",
-          "value": 0.337,
-          "z": 1.753,
-          "weight": 0.0038,
-          "contribution": 0.0066,
           "outlier": false
         }
       ],
@@ -1202,6 +1202,14 @@
           "weight": -0.0331,
           "contribution": 0.0824,
           "outlier": false
+        },
+        {
+          "name": "home_plate_ump_nrfi_rate",
+          "value": 0.4271,
+          "z": -3.777,
+          "weight": 0.0062,
+          "contribution": -0.0233,
+          "outlier": true
         },
         {
           "name": "away_whiff_pct_rank",
@@ -1226,14 +1234,6 @@
           "weight": -0.0061,
           "contribution": -0.0103,
           "outlier": false
-        },
-        {
-          "name": "home_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.553,
-          "weight": 0.0173,
-          "contribution": -0.0096,
-          "outlier": false
         }
       ],
       "priors_vs_raw": {
@@ -1246,7 +1246,10 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": []
+      "warnings": [
+        "T1: feature home_plate_ump_nrfi_rate=0.427 is z=-3.78 sigma from training mean -- contribution -0.020 to logit",
+        "B1: feature home_plate_ump_nrfi_rate=0.427 is z=-3.78 sigma from training mean -- contribution -0.023 to logit"
+      ]
     },
     {
       "matchup": "HOU@NYY",
