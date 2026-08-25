@@ -1,7 +1,7 @@
 {
   "date": "2026-08-25",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-25T22:34:23Z",
+  "fitted_at": "2026-08-25T23:04:02Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -234,7 +234,7 @@
       "game_pk": "824233",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.271,
       "raw_p_run_b1": 0.3108,
       "raw_p_nrfi": 0.5024,
@@ -458,13 +458,13 @@
     {
       "matchup": "CLE@LAA",
       "game_pk": "823989",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2799,
+      "raw_p_run_t1": 0.2775,
       "raw_p_run_b1": 0.313,
-      "raw_p_nrfi": 0.4947,
-      "calibrated_p_nrfi": 0.4897,
+      "raw_p_nrfi": 0.4963,
+      "calibrated_p_nrfi": 0.4918,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
@@ -497,20 +497,20 @@
           "outlier": false
         },
         {
+          "name": "away_top3c_iso",
+          "value": 0.1065,
+          "z": -1.618,
+          "weight": 0.0137,
+          "contribution": -0.0222,
+          "outlier": false
+        },
+        {
           "name": "home_plate_ump_nrfi_rate",
           "value": 0.5818,
           "z": 3.915,
           "weight": 0.0054,
           "contribution": 0.0211,
           "outlier": true
-        },
-        {
-          "name": "wx_humidity",
-          "value": 33.0,
-          "z": -1.512,
-          "weight": -0.0121,
-          "contribution": 0.0183,
-          "outlier": false
         }
       ],
       "top_drivers_b1": [
@@ -1254,8 +1254,8 @@
     {
       "matchup": "HOU@NYY",
       "game_pk": "823505",
-      "pick_side": "PASS",
-      "pick_strength": "LOW LAMBDA",
+      "pick_side": "YRFI",
+      "pick_strength": "STRONG",
       "graded_result": "",
       "raw_p_run_t1": 0.2907,
       "raw_p_run_b1": 0.3108,
@@ -1368,7 +1368,7 @@
       "game_pk": "823826",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.277,
       "raw_p_run_b1": 0.2983,
       "raw_p_nrfi": 0.5073,
@@ -1592,7 +1592,7 @@
       "game_pk": "822693",
       "pick_side": "PASS",
       "pick_strength": "NO DATA",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2746,
       "raw_p_run_b1": 0.3242,
       "raw_p_nrfi": 0.4903,
