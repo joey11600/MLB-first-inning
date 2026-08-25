@@ -306,3 +306,4 @@ date,severity,metric,note
 2026-08-23,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
 2026-08-23,MEDIUM,away_pitcher_q=ltd,away_pitcher_q=ltd: today=0.0% baseline=23.2% shift=-23.2%
 2026-08-23,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
+2026-08-24,HIGH,away_pitcher_q=live,away_pitcher_q=live: today=100.0% baseline=69.5% shift=+30.5%
