@@ -1,7 +1,7 @@
 {
   "date": "2026-08-25",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-25T21:05:01Z",
+  "fitted_at": "2026-08-25T21:19:08Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -461,10 +461,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2778,
-      "raw_p_run_b1": 0.3084,
-      "raw_p_nrfi": 0.4995,
-      "calibrated_p_nrfi": 0.4957,
+      "raw_p_run_t1": 0.2817,
+      "raw_p_run_b1": 0.3132,
+      "raw_p_nrfi": 0.4933,
+      "calibrated_p_nrfi": 0.488,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
@@ -505,12 +505,12 @@
           "outlier": false
         },
         {
-          "name": "away_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.577,
-          "weight": 0.0234,
-          "contribution": -0.0135,
-          "outlier": false
+          "name": "home_plate_ump_nrfi_rate",
+          "value": 0.5818,
+          "z": 3.915,
+          "weight": 0.0054,
+          "contribution": 0.0211,
+          "outlier": true
         }
       ],
       "top_drivers_b1": [
@@ -547,12 +547,12 @@
           "outlier": false
         },
         {
-          "name": "away_p_last10_pitcher_nrfi",
-          "value": 0.9,
-          "z": 1.032,
-          "weight": -0.0178,
-          "contribution": -0.0184,
-          "outlier": false
+          "name": "home_plate_ump_nrfi_rate",
+          "value": 0.5818,
+          "z": 3.915,
+          "weight": 0.0062,
+          "contribution": 0.0241,
+          "outlier": true
         }
       ],
       "priors_vs_raw": {
@@ -565,7 +565,10 @@
         "home_pitcher_q": "live",
         "away_pitcher_q": "live"
       },
-      "warnings": []
+      "warnings": [
+        "T1: feature home_plate_ump_nrfi_rate=0.582 is z=+3.92 sigma from training mean -- contribution +0.021 to logit",
+        "B1: feature home_plate_ump_nrfi_rate=0.582 is z=+3.92 sigma from training mean -- contribution +0.024 to logit"
+      ]
     },
     {
       "matchup": "MIL@NYM",
