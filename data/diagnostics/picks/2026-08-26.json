@@ -1,7 +1,7 @@
 {
   "date": "2026-08-26",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-26T16:17:17Z",
+  "fitted_at": "2026-08-26T16:44:59Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1021,10 +1021,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2681,
-      "raw_p_run_b1": 0.311,
-      "raw_p_nrfi": 0.5043,
-      "calibrated_p_nrfi": 0.51,
+      "raw_p_run_t1": 0.2673,
+      "raw_p_run_b1": 0.3131,
+      "raw_p_nrfi": 0.5033,
+      "calibrated_p_nrfi": 0.5066,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -1107,11 +1107,11 @@
           "outlier": false
         },
         {
-          "name": "home_top3c_obp",
-          "value": 0.307,
-          "z": -1.159,
-          "weight": 0.0078,
-          "contribution": -0.009,
+          "name": "away_p_last10_pitcher_nrfi",
+          "value": 0.8,
+          "z": 0.463,
+          "weight": -0.0178,
+          "contribution": -0.0082,
           "outlier": false
         }
       ],
