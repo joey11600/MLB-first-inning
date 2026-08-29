@@ -1,7 +1,7 @@
 {
   "date": "2026-08-29",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-29T22:55:48Z",
+  "fitted_at": "2026-08-29T23:04:58Z",
   "n_picks": 17,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1363,12 +1363,12 @@
       "matchup": "PHI@LAA",
       "game_pk": "823986",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2914,
+      "raw_p_run_t1": 0.2965,
       "raw_p_run_b1": 0.2941,
-      "raw_p_nrfi": 0.5002,
-      "calibrated_p_nrfi": 0.4965,
+      "raw_p_nrfi": 0.4966,
+      "calibrated_p_nrfi": 0.4921,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
