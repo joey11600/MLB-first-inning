@@ -1,7 +1,7 @@
 {
   "date": "2026-08-29",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-29T23:04:58Z",
+  "fitted_at": "2026-08-29T23:34:16Z",
   "n_picks": 17,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1588,7 +1588,7 @@
       "game_pk": "823501",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.2565,
       "raw_p_run_b1": 0.3004,
       "raw_p_nrfi": 0.5201,
@@ -1815,12 +1815,12 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2618,
+      "raw_p_run_t1": 0.2635,
       "raw_p_run_b1": 0.2952,
-      "raw_p_nrfi": 0.5203,
-      "calibrated_p_nrfi": 0.5411,
+      "raw_p_nrfi": 0.5191,
+      "calibrated_p_nrfi": 0.5397,
       "calibrator_band": {
-        "band": "bin_6-7",
+        "band": "bin_5-6",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -1911,7 +1911,7 @@
       ],
       "priors_vs_raw": {
         "home_xera_raw": 4.2,
-        "home_xera_pooled": null,
+        "home_xera_pooled": 4.2,
         "away_xera_raw": 4.2,
         "away_xera_pooled": 4.2
       },
