@@ -24,6 +24,16 @@ on:
       - "data/**"
   pull_request:
   workflow_dispatch:
+  # NIGHTLY, because paths-ignore above means a quiet stretch runs NOTHING.
+  # A test can depend on the clock -- test_weather_sticky pinned the
+  # incident's own date, and `_wx_cache_save()` drops keys older than three
+  # days -- so it can go red with no push to blame. That is exactly what
+  # happened: the last code push was 2026-08-25, those four tests broke on
+  # 2026-08-26, and nothing ran again until a human looked on 2026-08-29.
+  # The suite is ~20s; running it once a day costs nothing and bounds that
+  # blind spot to 24h. 09:12 UTC is a quiet slot between the cron ticks.
+  schedule:
+    - cron: "12 9 * * *"
 
 # A newer push supersedes an in-flight run on the same ref. Without this the
 # hourly automation could queue runs faster than they finish.

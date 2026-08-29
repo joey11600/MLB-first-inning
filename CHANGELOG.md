@@ -11,6 +11,72 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-29] - Park factors rebuilt (TB was a different stadium); a rotted regression guard
+
+### Fixed
+
+- **`data/fi_park_factors.json` was 3+ months stale, and Tampa Bay's value
+  described a building the Rays no longer play in.** The file was last rebuilt
+  2026-05-19, so its 2025 half put TB at **George M. Steinbrenner Field**, the
+  open-air park used while Tropicana Field was repaired after Hurricane Milton.
+  They returned to the rebuilt Trop for 2026 and the first-inning rates differ
+  by 13 points (2025 @ Steinbrenner 30/77 = 39.0% NRFI; 2026 @ Tropicana
+  35/67 = 52.2%). The blend produced 43.8%, and since `fi_park_nrfi_rate` is the
+  largest single weight in both half-inning models (T1 −0.0354, B1 −0.0331 on
+  standardized inputs) it does not nudge a probability, it flips the side: it
+  was the top factor behind a **58% YRFI** read on SD@TB on 2026-08-29 that a
+  park-corrected independent estimate put at **56% NRFI**.
+  `rebuild_park_factors.py` grew a `VENUE_CHANGED_SINCE_2025` set (currently
+  `{"TB"}`) whose members use 2026 data only; the league base rate still counts
+  every graded game. Oakland is deliberately **not** listed — the A's played
+  Sutter Health Park in both seasons, so their two years are the same building.
+  TB 43.8% → 51.1% (+7.3pp); other movers TEX −5.1, CHC −4.7, KC −4.2, BOS −4.1,
+  NYY +4.1, MIA +3.3, MIL −3.2, COL −3.1.
+  Impact measured before shipping: **mean change in `lambda_lr_total` ≈ 0.000**
+  season-wide (1646 games), so unlike the v3 L2 change (see 2026-08-25) this
+  does **not** re-scale the lambda distribution under the 0.75 YRFI floor — it
+  moves individual parks. On today's board no pick verdict flips; SD@TB moves
+  furthest (0.7464 → 0.7134) and toward NRFI, the direction the independent
+  estimate already favored.
+
+- **`tests/test_weather_sticky.py` — the regression guard for the 2026-08-23
+  frozen-row incident — had been failing for 3 days and nobody could see it.**
+  Four of its nine tests pinned `DATE = "2026-08-23"`, the incident's own date.
+  `_wx_cache_save()` prunes keys older than 3 days and prunes the **in-memory**
+  dict, not just the file, so the entry was evicted by the same call that wrote
+  it. The tests passed for three days and then failed permanently from
+  2026-08-26. `DATE` is now `date.today().isoformat()` with a comment saying why
+  it must stay relative. The behaviour under test was never date-specific.
+  Suite goes 297 passed / 4 failed → **301 passed**.
+
+### Added
+
+- **Nightly run for `tests.yml`** (`schedule: "12 9 * * *"`). The workflow has
+  `paths-ignore: data/**`, and the automation pushes ~30 data-only commits a
+  day, so a stretch with no code change runs nothing at all: the last code push
+  before this was 2026-08-25 and the weather tests broke on 2026-08-26, one day
+  later. There was no push to blame and no run to go red. A ~20s suite once a
+  day bounds that blind spot to 24 hours.
+
+### Deferred — needs operator sign-off
+
+- **`PRIOR_GAMES = 50` in `rebuild_park_factors.py` is measurably too low, but
+  raising it alone would be a silent model change.** Park first-inning NRFI rate
+  is mostly noise: year-over-year correlation 2025 vs 2026 across 30 parks is
+  **r = +0.13** (r² = 0.017), and the observed 2026 spread (sd 7.4pp) is barely
+  above the 6.2pp expected from coin-flip noise at ~66 games/park, implying a
+  true park sd of only ~4.1pp. Two out-of-sample tests: **2025 → 2026** picks a
+  best prior of ~250–500 and rates prior-50 *worse than giving every park the
+  league mean*; **2026 H1 → H2** picks ≥1000, i.e. the flat mean, with every
+  smaller prior losing to flat. The catch is that the live LR weights were fit
+  against factors with sd 4.07pp; prior 250 compresses that to 1.79pp and so
+  shrinks the feature's real contribution by more than half — a de facto weight
+  change with no refit. Doing it properly means refitting the LR under the
+  3-split OOS protocol in CLAUDE.md. Documented in the script's docstring so the
+  next reader does not "fix" it casually.
+
+---
+
 ## [2026-08-25b] - Data-quality badge no longer calls an announced rookie "TBD"
 
 ### Fixed

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -29,7 +30,15 @@ import mlb_first_inning_predictor as P  # noqa: E402
 pytestmark = pytest.mark.money
 
 PARK = "COL"          # outdoor; the incident's park
-DATE = "2026-08-23"
+# DATE MUST STAY RELATIVE TO TODAY -- do not pin it back to 2026-08-23.
+# `_wx_cache_save()` drops keys older than 3 days, and it prunes the
+# IN-MEMORY dict, not just the file.  A hardcoded date therefore passes for
+# three days and then fails forever: written on the incident date, these
+# four tests went red on 2026-08-26 and stayed red unnoticed until
+# 2026-08-29, leaving the sticky-weather guard untested for the exact
+# regression it exists to catch.  The incident is 2026-08-23; the behaviour
+# under test is not date-specific.
+DATE = date.today().isoformat()
 REAL = {"temp_c": 30.6, "wind_kmh": 18.8, "humidity": 26.0}
 DEFAULTS = (P.WX_TEMP_DEFAULT, P.WX_WIND_DEFAULT, P.WX_HUMIDITY_DEFAULT)
 
