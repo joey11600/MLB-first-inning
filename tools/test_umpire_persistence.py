@@ -96,6 +96,21 @@ def main():
 
     ump = rates["umpires"]
 
+    # 2026-08-29: this script's verdict ("NO PERSISTENCE ... ABLATE") was
+    # acted on.  rebuild_umpire_rates.py measured tau^2 <= 0 on every
+    # season pair and flattened the file -- every shrunk_nrfi is now the
+    # league rate, so there is no per-ump spread left to correlate and the
+    # bootstrap below would divide by zero variance.  Exit cleanly; the
+    # test becomes meaningful again only if someone reintroduces spread.
+    distinct = {rec.get("shrunk_nrfi") for rec in ump.values()}
+    if len(distinct) <= 1:
+        print("FILE IS FLAT (every shrunk_nrfi == league rate).")
+        print("This is the intended state since 2026-08-29 -- the question this")
+        print("script asks was answered (no persistence) and the fix shipped.")
+        print("See rebuild_umpire_rates.py and the")
+        print("umpire_rates_built_on_banned_seasons memory. Nothing to test.")
+        return
+
     # --- observed 2026 first-inning outcomes per umpire -----------------
     with open(ROOT / "data" / "picks_2026.csv", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))

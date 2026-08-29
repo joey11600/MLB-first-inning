@@ -11,6 +11,53 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-29b] - Umpire rates rebuilt FLAT: banned 2022/23 corpus out, zero persistence measured
+
+### Fixed
+
+- **`data/umpire_rates.json` was built from the banned 2022/2023 seasons and
+  ranked 2026 umpires backwards; rebuilt from 2025+2026 with TOTAL shrinkage.**
+  The old file's own `training_corpus` declared the 2022/23 backtests — the
+  exact seasons CLAUDE.md forbids for training. Its tercile of most
+  NRFI-friendly umps produced 47.3% NRFI in 2026 against 50.5% for its most
+  YRFI-friendly tercile (r = −0.031, n=1,752), its league level (0.5084) was
+  a 2022-23 number, and `tools/test_umpire_persistence.py` (2026-07-27) had
+  already concluded "NO PERSISTENCE DETECTED … ABLATE".
+  The decisive new measurement: **cross-season covariance of per-ump
+  first-inning NRFI rate is negative on every permitted pair** (2024v2025
+  cov −0.0014 / r −0.18; 2025v2026 −0.0003 / −0.03; 2024v2026 −0.0007 /
+  −0.07; umps with ≥15 games both years). τ² ≤ 0 ⇒ the empirical-Bayes
+  shrinkage is **total**: `rebuild_umpire_rates.py` writes every ump's
+  `shrunk_nrfi` = the 2025+2026 league rate (0.4963; 2024 dropped for its
+  53.5% anomaly, same precedent as the park rebuild), keeps raw per-ump
+  counts for audit, refuses 2022/2023 inputs in code, and is idempotent.
+  Both consumers verified serving the flat value (predictor
+  `fetch_umpire_rate` and trainer `_ump_rate_for`); `umpire_rates_split.json`
+  has **zero consumers** (dead data, left in place).
+- **Why flatten instead of dropping the feature:** ablation is a 19-feature
+  refit + predictor loader change + calibrator refit — and the same-day park
+  experiment showed 2026 refit "gains" are luck-dominated. Flattening the
+  input neutralizes the feature through the frozen weights (|w| 0.0054/0.0062,
+  ranks 13 and 18 of 20) with no architecture change. Ablation at the next
+  approved refit remains the right end state.
+- **Impact, measured before shipping** (frozen weights + shipped CIR
+  calibrator; one pre-v3 legacy row with non-probability stored halves
+  excluded): `lambda_lr_total` mean −0.0020, sd 0.0047, max |d| 0.019;
+  **tonight's board: zero verdict changes**; going forward ~14 λ-floor and
+  ~20 p-cut rows per ~1,650 games (~2%) sit close enough to a gate to land
+  differently. Graded-2026 old-vs-flat: Brier +0.00007 (placebo p = 0.475),
+  AUC +0.0045 — **bracketed by the placebo** (shuffled ump values average
+  +0.0034, p = 0.705), because the old values ranked worse than noise. No
+  performance claim either way; this ships as input correctness, like the
+  morning's venue fix.
+- **`tools/test_umpire_persistence.py` exits cleanly on a flat file** instead
+  of crashing in its bootstrap (zero variance → empty array). It prints that
+  its question was answered and the fix shipped; it becomes meaningful again
+  only if per-ump spread is ever reintroduced.
+  Backup: `data/umpire_rates.json.bak-2026-08-29-pre-ump-fix`.
+
+---
+
 ## [2026-08-29] - Park factors rebuilt (TB was a different stadium); a rotted regression guard
 
 ### Fixed

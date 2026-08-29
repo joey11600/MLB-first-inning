@@ -1,629 +1,582 @@
 {
-  "league_nrfi_rate": 0.5084,
-  "n_games_global": 4829,
-  "shrinkage_games": 50,
+  "league_nrfi_rate": 0.4963,
+  "n_games_global": 4320,
+  "note": "FLAT ON PURPOSE. Cross-season covariance of per-ump first-inning NRFI rate is negative for 2024v2025, 2025v2026 and 2024v2026 (tau^2 <= 0), so every shrunk_nrfi equals the league rate. Raw per-ump counts kept for audit only. Do NOT reintroduce per-ump spread without new persistence evidence; see rebuild_umpire_rates.py and the umpire_rates_built_on_banned_seasons memory.",
+  "shrinkage_games": "total",
   "training_corpus": [
-    "backtest_2022-04-01_to_2022-09-30.csv",
-    "backtest_2023-04-01_to_2023-09-30.csv"
+    "backtest_2025-04-01_to_2025-09-30_truepit_ptfix.csv",
+    "picks_2026.csv"
   ],
   "umpires": {
-    "427019": {
-      "name": "Ted Barrett",
-      "n_games": 28,
-      "raw_nrfi": 0.4643,
-      "shrunk_nrfi": 0.4926
-    },
-    "427093": {
-      "name": "Phil Cuzzi",
-      "n_games": 59,
-      "raw_nrfi": 0.5424,
-      "shrunk_nrfi": 0.5268
-    },
-    "427424": {
-      "name": "Jim Reynolds",
-      "n_games": 22,
-      "raw_nrfi": 0.6364,
-      "shrunk_nrfi": 0.5475
-    },
-    "427053": {
-      "name": "Mark Carlson",
-      "n_games": 57,
-      "raw_nrfi": 0.386,
-      "shrunk_nrfi": 0.4432
-    },
-    "427299": {
-      "name": "Jerry Layne",
-      "n_games": 31,
-      "raw_nrfi": 0.5161,
-      "shrunk_nrfi": 0.5113
-    },
-    "427224": {
-      "name": "Ed Hickox",
-      "n_games": 18,
-      "raw_nrfi": 0.4444,
-      "shrunk_nrfi": 0.4915
-    },
-    "427520": {
-      "name": "Larry Vanover",
-      "n_games": 39,
-      "raw_nrfi": 0.4359,
-      "shrunk_nrfi": 0.4766
-    },
-    "427113": {
-      "name": "Laz Diaz",
-      "n_games": 52,
-      "raw_nrfi": 0.5192,
-      "shrunk_nrfi": 0.5139
-    },
-    "427292": {
-      "name": "Ron Kulpa",
-      "n_games": 45,
-      "raw_nrfi": 0.5556,
-      "shrunk_nrfi": 0.5307
-    },
-    "427243": {
-      "name": "Marvin Hudson",
-      "n_games": 55,
-      "raw_nrfi": 0.4364,
-      "shrunk_nrfi": 0.4707
-    },
-    "427248": {
-      "name": "Dan Iassogna",
-      "n_games": 58,
-      "raw_nrfi": 0.5172,
-      "shrunk_nrfi": 0.5131
-    },
-    "427362": {
-      "name": "Jeff Nelson",
+    "427013": {
       "n_games": 53,
-      "raw_nrfi": 0.4528,
-      "shrunk_nrfi": 0.4798
-    },
-    "427533": {
-      "name": "Mark Wegner",
-      "n_games": 44,
-      "raw_nrfi": 0.5227,
-      "shrunk_nrfi": 0.5151
-    },
-    "427315": {
-      "name": "Alfonso M\u00e1rquez",
-      "n_games": 55,
-      "raw_nrfi": 0.6,
-      "shrunk_nrfi": 0.5564
-    },
-    "427197": {
-      "name": "Chris Guccione",
-      "n_games": 59,
-      "raw_nrfi": 0.5424,
-      "shrunk_nrfi": 0.5268
-    },
-    "427534": {
-      "name": "Bill Welke",
-      "n_games": 20,
-      "raw_nrfi": 0.5,
-      "shrunk_nrfi": 0.506
-    },
-    "427537": {
-      "name": "Hunter Wendelstedt",
-      "n_games": 54,
-      "raw_nrfi": 0.4815,
-      "shrunk_nrfi": 0.4944
-    },
-    "483569": {
-      "name": "Vic Carapazza",
-      "n_games": 59,
-      "raw_nrfi": 0.5254,
-      "shrunk_nrfi": 0.5176
-    },
-    "483564": {
-      "name": "Dan Bellino",
-      "n_games": 62,
-      "raw_nrfi": 0.5,
-      "shrunk_nrfi": 0.5037
-    },
-    "427286": {
-      "name": "Brian Knight",
-      "n_games": 56,
-      "raw_nrfi": 0.4643,
-      "shrunk_nrfi": 0.4851
+      "name": "Lance Barksdale",
+      "raw_nrfi": 0.4717,
+      "shrunk_nrfi": 0.4963
     },
     "427044": {
+      "n_games": 29,
       "name": "CB Bucknor",
-      "n_games": 55,
-      "raw_nrfi": 0.4545,
-      "shrunk_nrfi": 0.4802
+      "raw_nrfi": 0.5517,
+      "shrunk_nrfi": 0.4963
     },
-    "482641": {
-      "name": "Adrian Johnson",
-      "n_games": 57,
-      "raw_nrfi": 0.4561,
-      "shrunk_nrfi": 0.4806
+    "427053": {
+      "n_games": 3,
+      "name": "Mark Carlson",
+      "raw_nrfi": 0.6667,
+      "shrunk_nrfi": 0.4963
     },
-    "427168": {
-      "name": "Marty Foster",
-      "n_games": 11,
-      "raw_nrfi": 0.4545,
-      "shrunk_nrfi": 0.4987
-    },
-    "429805": {
-      "name": "Todd Tichenor",
-      "n_games": 53,
-      "raw_nrfi": 0.6415,
-      "shrunk_nrfi": 0.5769
-    },
-    "427013": {
-      "name": "Lance Barksdale",
-      "n_games": 54,
-      "raw_nrfi": 0.5,
-      "shrunk_nrfi": 0.504
-    },
-    "427164": {
-      "name": "Andy Fletcher",
-      "n_games": 61,
-      "raw_nrfi": 0.5082,
-      "shrunk_nrfi": 0.5083
-    },
-    "482608": {
-      "name": "Scott Barry",
-      "n_games": 35,
-      "raw_nrfi": 0.3714,
-      "shrunk_nrfi": 0.452
-    },
-    "483561": {
-      "name": "Lance Barrett",
-      "n_games": 58,
-      "raw_nrfi": 0.5,
-      "shrunk_nrfi": 0.5039
-    },
-    "427366": {
-      "name": "Brian O'Nora",
-      "n_games": 53,
-      "raw_nrfi": 0.4906,
-      "shrunk_nrfi": 0.4992
-    },
-    "484183": {
-      "name": "Cory Blaser",
-      "n_games": 57,
-      "raw_nrfi": 0.5088,
-      "shrunk_nrfi": 0.5086
-    },
-    "490319": {
-      "name": "Jordan Baker",
-      "n_games": 57,
-      "raw_nrfi": 0.5614,
-      "shrunk_nrfi": 0.5366
-    },
-    "489985": {
-      "name": "Chad Whitson",
-      "n_games": 52,
-      "raw_nrfi": 0.4615,
-      "shrunk_nrfi": 0.4845
-    },
-    "484198": {
-      "name": "Alan Porter",
-      "n_games": 62,
-      "raw_nrfi": 0.5645,
-      "shrunk_nrfi": 0.5395
-    },
-    "503493": {
-      "name": "Sean Barber",
-      "n_games": 60,
-      "raw_nrfi": 0.5333,
-      "shrunk_nrfi": 0.522
-    },
-    "596740": {
-      "name": "Jansen Visconti",
-      "n_games": 57,
-      "raw_nrfi": 0.6316,
-      "shrunk_nrfi": 0.574
-    },
-    "521251": {
-      "name": "Ben May",
-      "n_games": 58,
-      "raw_nrfi": 0.3793,
-      "shrunk_nrfi": 0.4391
-    },
-    "484499": {
-      "name": "Manny Gonzalez",
-      "n_games": 59,
-      "raw_nrfi": 0.5763,
-      "shrunk_nrfi": 0.5451
-    },
-    "483630": {
-      "name": "John Tumpane",
-      "n_games": 60,
-      "raw_nrfi": 0.5333,
-      "shrunk_nrfi": 0.522
-    },
-    "596809": {
-      "name": "Ryan Additon",
-      "n_games": 60,
-      "raw_nrfi": 0.5,
-      "shrunk_nrfi": 0.5038
-    },
-    "503077": {
-      "name": "Adam Hamari",
-      "n_games": 63,
-      "raw_nrfi": 0.5397,
-      "shrunk_nrfi": 0.5258
-    },
-    "573597": {
-      "name": "Gabe Morales",
-      "n_games": 58,
-      "raw_nrfi": 0.4483,
-      "shrunk_nrfi": 0.4761
-    },
-    "483919": {
-      "name": "Mark Ripperger",
-      "n_games": 59,
-      "raw_nrfi": 0.4746,
-      "shrunk_nrfi": 0.4901
-    },
-    "482620": {
-      "name": "Chris Conroy",
+    "427093": {
       "n_games": 30,
-      "raw_nrfi": 0.8,
-      "shrunk_nrfi": 0.6177
+      "name": "Phil Cuzzi",
+      "raw_nrfi": 0.5667,
+      "shrunk_nrfi": 0.4963
     },
-    "483912": {
-      "name": "Mike Muchlinski",
-      "n_games": 56,
-      "raw_nrfi": 0.5893,
-      "shrunk_nrfi": 0.5511
-    },
-    "544728": {
-      "name": "Nic Lentz",
-      "n_games": 62,
-      "raw_nrfi": 0.4677,
-      "shrunk_nrfi": 0.4859
-    },
-    "573769": {
-      "name": "Jeremy Riggs",
+    "427113": {
       "n_games": 53,
-      "raw_nrfi": 0.5094,
-      "shrunk_nrfi": 0.5089
-    },
-    "594151": {
-      "name": "Ramon De Jesus",
-      "n_games": 59,
-      "raw_nrfi": 0.4068,
-      "shrunk_nrfi": 0.4534
-    },
-    "605674": {
-      "name": "Ryan Wills",
-      "n_games": 62,
-      "raw_nrfi": 0.5161,
-      "shrunk_nrfi": 0.5127
-    },
-    "608093": {
-      "name": "Junior Valentine",
-      "n_games": 70,
-      "raw_nrfi": 0.5143,
-      "shrunk_nrfi": 0.5118
-    },
-    "503586": {
-      "name": "Tripp Gibson",
-      "n_games": 58,
-      "raw_nrfi": 0.4828,
-      "shrunk_nrfi": 0.4946
-    },
-    "623938": {
-      "name": "Erich Bacchus",
-      "n_games": 59,
-      "raw_nrfi": 0.4915,
-      "shrunk_nrfi": 0.4993
-    },
-    "431232": {
-      "name": "Chad Fairchild",
-      "n_games": 58,
-      "raw_nrfi": 0.4828,
-      "shrunk_nrfi": 0.4946
-    },
-    "427344": {
-      "name": "Bill Miller",
-      "n_games": 63,
-      "raw_nrfi": 0.4444,
-      "shrunk_nrfi": 0.4727
-    },
-    "521889": {
-      "name": "Stu Scheurwater",
-      "n_games": 57,
-      "raw_nrfi": 0.4561,
-      "shrunk_nrfi": 0.4806
-    },
-    "503502": {
-      "name": "Ryan Blakney",
-      "n_games": 62,
-      "raw_nrfi": 0.4839,
-      "shrunk_nrfi": 0.4948
-    },
-    "427144": {
-      "name": "Paul Emmel",
-      "n_games": 38,
-      "raw_nrfi": 0.3684,
-      "shrunk_nrfi": 0.4479
-    },
-    "427220": {
-      "name": "Angel Hernandez",
-      "n_games": 40,
-      "raw_nrfi": 0.6,
-      "shrunk_nrfi": 0.5491
-    },
-    "547380": {
-      "name": "Carlos Torres",
-      "n_games": 61,
-      "raw_nrfi": 0.5246,
-      "shrunk_nrfi": 0.5173
-    },
-    "521051": {
-      "name": "Nick Mahrley",
-      "n_games": 66,
-      "raw_nrfi": 0.4394,
-      "shrunk_nrfi": 0.4691
-    },
-    "427184": {
-      "name": "Greg Gibson",
-      "n_games": 11,
-      "raw_nrfi": 0.6364,
-      "shrunk_nrfi": 0.5315
-    },
-    "623949": {
-      "name": "Clint Vondrak",
-      "n_games": 62,
-      "raw_nrfi": 0.5806,
-      "shrunk_nrfi": 0.5484
-    },
-    "605672": {
-      "name": "Jeremie Rehak",
-      "n_games": 53,
-      "raw_nrfi": 0.5472,
-      "shrunk_nrfi": 0.5283
-    },
-    "428442": {
-      "name": "James Hoye",
-      "n_games": 59,
-      "raw_nrfi": 0.5254,
-      "shrunk_nrfi": 0.5176
-    },
-    "427554": {
-      "name": "Jim Wolf",
-      "n_games": 46,
-      "raw_nrfi": 0.4565,
-      "shrunk_nrfi": 0.4835
-    },
-    "427339": {
-      "name": "Jerry Meals",
-      "n_games": 27,
-      "raw_nrfi": 0.6296,
-      "shrunk_nrfi": 0.5509
-    },
-    "427139": {
-      "name": "Doug Eddings",
-      "n_games": 59,
-      "raw_nrfi": 0.6441,
-      "shrunk_nrfi": 0.5818
-    },
-    "596805": {
-      "name": "John Libka",
-      "n_games": 65,
-      "raw_nrfi": 0.4615,
-      "shrunk_nrfi": 0.4819
-    },
-    "482666": {
-      "name": "D.J. Reyburn",
-      "n_games": 60,
-      "raw_nrfi": 0.5333,
-      "shrunk_nrfi": 0.522
+      "name": "Laz Diaz",
+      "raw_nrfi": 0.6226,
+      "shrunk_nrfi": 0.4963
     },
     "427128": {
+      "n_games": 26,
       "name": "Rob Drake",
-      "n_games": 47,
-      "raw_nrfi": 0.4468,
-      "shrunk_nrfi": 0.4785
+      "raw_nrfi": 0.5769,
+      "shrunk_nrfi": 0.4963
     },
     "427129": {
+      "n_games": 48,
       "name": "Bruce Dreckman",
-      "n_games": 55,
-      "raw_nrfi": 0.4182,
-      "shrunk_nrfi": 0.4611
+      "raw_nrfi": 0.4792,
+      "shrunk_nrfi": 0.4963
     },
-    "575629": {
-      "name": "Shane Livensparger",
-      "n_games": 64,
-      "raw_nrfi": 0.4531,
-      "shrunk_nrfi": 0.4774
+    "427139": {
+      "n_games": 56,
+      "name": "Doug Eddings",
+      "raw_nrfi": 0.5357,
+      "shrunk_nrfi": 0.4963
     },
-    "554242": {
-      "name": "Edwin Moscoso",
-      "n_games": 71,
-      "raw_nrfi": 0.3944,
-      "shrunk_nrfi": 0.4415
+    "427164": {
+      "n_games": 46,
+      "name": "Andy Fletcher",
+      "raw_nrfi": 0.4783,
+      "shrunk_nrfi": 0.4963
     },
-    "573596": {
-      "name": "Pat Hoberg",
-      "n_games": 57,
-      "raw_nrfi": 0.4035,
-      "shrunk_nrfi": 0.4525
+    "427197": {
+      "n_games": 51,
+      "name": "Chris Guccione",
+      "raw_nrfi": 0.451,
+      "shrunk_nrfi": 0.4963
     },
-    "511890": {
-      "name": "Quinn Wolcott",
+    "427243": {
+      "n_games": 44,
+      "name": "Marvin Hudson",
+      "raw_nrfi": 0.4773,
+      "shrunk_nrfi": 0.4963
+    },
+    "427248": {
+      "n_games": 52,
+      "name": "Dan Iassogna",
+      "raw_nrfi": 0.5769,
+      "shrunk_nrfi": 0.4963
+    },
+    "427292": {
+      "n_games": 38,
+      "name": "Ron Kulpa",
+      "raw_nrfi": 0.6316,
+      "shrunk_nrfi": 0.4963
+    },
+    "427315": {
+      "n_games": 53,
+      "name": "Alfonso M\u00e1rquez",
+      "raw_nrfi": 0.4906,
+      "shrunk_nrfi": 0.4963
+    },
+    "427344": {
       "n_games": 54,
-      "raw_nrfi": 0.5926,
-      "shrunk_nrfi": 0.5521
+      "name": "Bill Miller",
+      "raw_nrfi": 0.5185,
+      "shrunk_nrfi": 0.4963
     },
-    "427206": {
-      "name": "Tom Hallion",
-      "n_games": 11,
-      "raw_nrfi": 0.2727,
-      "shrunk_nrfi": 0.4659
-    },
-    "482663": {
-      "name": "David Rackley",
-      "n_games": 58,
-      "raw_nrfi": 0.5517,
-      "shrunk_nrfi": 0.5317
-    },
-    "577468": {
-      "name": "Roberto Ortiz",
-      "n_games": 58,
-      "raw_nrfi": 0.4828,
-      "shrunk_nrfi": 0.4946
-    },
-    "504381": {
-      "name": "Will Little",
-      "n_games": 58,
-      "raw_nrfi": 0.3448,
-      "shrunk_nrfi": 0.4205
-    },
-    "503490": {
-      "name": "Chris Segal",
-      "n_games": 66,
-      "raw_nrfi": 0.5758,
-      "shrunk_nrfi": 0.5467
-    },
-    "598411": {
-      "name": "Nestor Ceja",
-      "n_games": 66,
-      "raw_nrfi": 0.5758,
-      "shrunk_nrfi": 0.5467
-    },
-    "644760": {
-      "name": "Adam Beck",
-      "n_games": 61,
-      "raw_nrfi": 0.7213,
-      "shrunk_nrfi": 0.6254
-    },
-    "605670": {
-      "name": "Dan Merzel",
-      "n_games": 62,
-      "raw_nrfi": 0.5968,
-      "shrunk_nrfi": 0.5573
-    },
-    "605671": {
-      "name": "Charlie Ramos",
-      "n_games": 49,
-      "raw_nrfi": 0.5918,
-      "shrunk_nrfi": 0.5497
-    },
-    "605673": {
-      "name": "Alex Tosi",
-      "n_games": 55,
-      "raw_nrfi": 0.4727,
-      "shrunk_nrfi": 0.4897
-    },
-    "623946": {
-      "name": "Malachi Moore",
-      "n_games": 54,
-      "raw_nrfi": 0.3519,
-      "shrunk_nrfi": 0.4271
-    },
-    "608158": {
-      "name": "Nate Tomlinson",
-      "n_games": 50,
-      "raw_nrfi": 0.52,
-      "shrunk_nrfi": 0.5142
-    },
-    "545402": {
-      "name": "John Bacon",
-      "n_games": 20,
-      "raw_nrfi": 0.65,
-      "shrunk_nrfi": 0.5488
-    },
-    "665576": {
-      "name": "Brock Ballou",
-      "n_games": 23,
-      "raw_nrfi": 0.3478,
-      "shrunk_nrfi": 0.4578
-    },
-    "622329": {
-      "name": "Randy Rosenberg",
-      "n_games": 3,
-      "raw_nrfi": 0.6667,
-      "shrunk_nrfi": 0.5173
-    },
-    "664265": {
-      "name": "Jose Navas",
-      "n_games": 11,
-      "raw_nrfi": 0.6364,
-      "shrunk_nrfi": 0.5315
-    },
-    "486200": {
-      "name": "David Arrieta",
-      "n_games": 6,
-      "raw_nrfi": 0.6667,
-      "shrunk_nrfi": 0.5253
-    },
-    "623945": {
-      "name": "Alex MacKay",
-      "n_games": 25,
-      "raw_nrfi": 0.52,
-      "shrunk_nrfi": 0.5123
-    },
-    "607884": {
-      "name": "Paul Clemons",
-      "n_games": 10,
-      "raw_nrfi": 0.7,
-      "shrunk_nrfi": 0.5403
-    },
-    "639723": {
-      "name": "Brennan Miller",
-      "n_games": 42,
-      "raw_nrfi": 0.5952,
-      "shrunk_nrfi": 0.548
-    },
-    "482631": {
-      "name": "Mike Estabrook",
-      "n_games": 40,
-      "raw_nrfi": 0.575,
-      "shrunk_nrfi": 0.538
-    },
-    "607886": {
-      "name": "Lew Williams",
-      "n_games": 1,
-      "raw_nrfi": 1.0,
-      "shrunk_nrfi": 0.518
+    "427366": {
+      "n_games": 43,
+      "name": "Brian O'Nora",
+      "raw_nrfi": 0.4186,
+      "shrunk_nrfi": 0.4963
     },
     "427413": {
+      "n_games": 26,
       "name": "Tony Randazzo",
-      "n_games": 22,
+      "raw_nrfi": 0.3846,
+      "shrunk_nrfi": 0.4963
+    },
+    "427533": {
+      "n_games": 51,
+      "name": "Mark Wegner",
+      "raw_nrfi": 0.3922,
+      "shrunk_nrfi": 0.4963
+    },
+    "427537": {
+      "n_games": 28,
+      "name": "Hunter Wendelstedt",
+      "raw_nrfi": 0.4286,
+      "shrunk_nrfi": 0.4963
+    },
+    "427554": {
+      "n_games": 52,
+      "name": "Jim Wolf",
+      "raw_nrfi": 0.4615,
+      "shrunk_nrfi": 0.4963
+    },
+    "428442": {
+      "n_games": 52,
+      "name": "James Hoye",
+      "raw_nrfi": 0.4615,
+      "shrunk_nrfi": 0.4963
+    },
+    "429805": {
+      "n_games": 50,
+      "name": "Todd Tichenor",
+      "raw_nrfi": 0.52,
+      "shrunk_nrfi": 0.4963
+    },
+    "431232": {
+      "n_games": 48,
+      "name": "Chad Fairchild",
+      "raw_nrfi": 0.4375,
+      "shrunk_nrfi": 0.4963
+    },
+    "482608": {
+      "n_games": 49,
+      "name": "Scott Barry",
+      "raw_nrfi": 0.5918,
+      "shrunk_nrfi": 0.4963
+    },
+    "482620": {
+      "n_games": 52,
+      "name": "Chris Conroy",
+      "raw_nrfi": 0.4038,
+      "shrunk_nrfi": 0.4963
+    },
+    "482631": {
+      "n_games": 54,
+      "name": "Mike Estabrook",
+      "raw_nrfi": 0.463,
+      "shrunk_nrfi": 0.4963
+    },
+    "482641": {
+      "n_games": 47,
+      "name": "Adrian Johnson",
+      "raw_nrfi": 0.5532,
+      "shrunk_nrfi": 0.4963
+    },
+    "482663": {
+      "n_games": 50,
+      "name": "David Rackley",
       "raw_nrfi": 0.5,
-      "shrunk_nrfi": 0.5058
+      "shrunk_nrfi": 0.4963
+    },
+    "482666": {
+      "n_games": 54,
+      "name": "D.J. Reyburn",
+      "raw_nrfi": 0.4259,
+      "shrunk_nrfi": 0.4963
+    },
+    "483561": {
+      "n_games": 58,
+      "name": "Lance Barrett",
+      "raw_nrfi": 0.5862,
+      "shrunk_nrfi": 0.4963
+    },
+    "483564": {
+      "n_games": 52,
+      "name": "Dan Bellino",
+      "raw_nrfi": 0.6154,
+      "shrunk_nrfi": 0.4963
+    },
+    "483569": {
+      "n_games": 57,
+      "name": "Vic Carapazza",
+      "raw_nrfi": 0.4561,
+      "shrunk_nrfi": 0.4963
+    },
+    "483630": {
+      "n_games": 49,
+      "name": "John Tumpane",
+      "raw_nrfi": 0.6735,
+      "shrunk_nrfi": 0.4963
+    },
+    "483912": {
+      "n_games": 53,
+      "name": "Mike Muchlinski",
+      "raw_nrfi": 0.4528,
+      "shrunk_nrfi": 0.4963
+    },
+    "483919": {
+      "n_games": 59,
+      "name": "Mark Ripperger",
+      "raw_nrfi": 0.4576,
+      "shrunk_nrfi": 0.4963
+    },
+    "484183": {
+      "n_games": 50,
+      "name": "Cory Blaser",
+      "raw_nrfi": 0.44,
+      "shrunk_nrfi": 0.4963
+    },
+    "484198": {
+      "n_games": 52,
+      "name": "Alan Porter",
+      "raw_nrfi": 0.3654,
+      "shrunk_nrfi": 0.4963
+    },
+    "484499": {
+      "n_games": 47,
+      "name": "Manny Gonzalez",
+      "raw_nrfi": 0.4894,
+      "shrunk_nrfi": 0.4963
+    },
+    "485856": {
+      "n_games": 21,
+      "name": "Jonathan Parra",
+      "raw_nrfi": 0.619,
+      "shrunk_nrfi": 0.4963
+    },
+    "486200": {
+      "n_games": 4,
+      "name": "David Arrieta",
+      "raw_nrfi": 0.5,
+      "shrunk_nrfi": 0.4963
+    },
+    "489985": {
+      "n_games": 44,
+      "name": "Chad Whitson",
+      "raw_nrfi": 0.4318,
+      "shrunk_nrfi": 0.4963
+    },
+    "490319": {
+      "n_games": 52,
+      "name": "Jordan Baker",
+      "raw_nrfi": 0.4615,
+      "shrunk_nrfi": 0.4963
+    },
+    "503077": {
+      "n_games": 57,
+      "name": "Adam Hamari",
+      "raw_nrfi": 0.4912,
+      "shrunk_nrfi": 0.4963
+    },
+    "503490": {
+      "n_games": 49,
+      "name": "Chris Segal",
+      "raw_nrfi": 0.5102,
+      "shrunk_nrfi": 0.4963
+    },
+    "503493": {
+      "n_games": 51,
+      "name": "Sean Barber",
+      "raw_nrfi": 0.5294,
+      "shrunk_nrfi": 0.4963
+    },
+    "503502": {
+      "n_games": 47,
+      "name": "Ryan Blakney",
+      "raw_nrfi": 0.5745,
+      "shrunk_nrfi": 0.4963
+    },
+    "503586": {
+      "n_games": 50,
+      "name": "Tripp Gibson",
+      "raw_nrfi": 0.46,
+      "shrunk_nrfi": 0.4963
+    },
+    "504381": {
+      "n_games": 55,
+      "name": "Will Little",
+      "raw_nrfi": 0.4545,
+      "shrunk_nrfi": 0.4963
+    },
+    "511890": {
+      "n_games": 58,
+      "name": "Quinn Wolcott",
+      "raw_nrfi": 0.4828,
+      "shrunk_nrfi": 0.4963
+    },
+    "521051": {
+      "n_games": 53,
+      "name": "Nick Mahrley",
+      "raw_nrfi": 0.5849,
+      "shrunk_nrfi": 0.4963
+    },
+    "521251": {
+      "n_games": 51,
+      "name": "Ben May",
+      "raw_nrfi": 0.3725,
+      "shrunk_nrfi": 0.4963
+    },
+    "521889": {
+      "n_games": 55,
+      "name": "Stu Scheurwater",
+      "raw_nrfi": 0.4909,
+      "shrunk_nrfi": 0.4963
+    },
+    "544728": {
+      "n_games": 57,
+      "name": "Nic Lentz",
+      "raw_nrfi": 0.4912,
+      "shrunk_nrfi": 0.4963
+    },
+    "545402": {
+      "n_games": 46,
+      "name": "John Bacon",
+      "raw_nrfi": 0.3261,
+      "shrunk_nrfi": 0.4963
+    },
+    "547380": {
+      "n_games": 48,
+      "name": "Carlos Torres",
+      "raw_nrfi": 0.6042,
+      "shrunk_nrfi": 0.4963
+    },
+    "554242": {
+      "n_games": 55,
+      "name": "Edwin Moscoso",
+      "raw_nrfi": 0.6,
+      "shrunk_nrfi": 0.4963
+    },
+    "573597": {
+      "n_games": 54,
+      "name": "Gabe Morales",
+      "raw_nrfi": 0.537,
+      "shrunk_nrfi": 0.4963
+    },
+    "575629": {
+      "n_games": 52,
+      "name": "Shane Livensparger",
+      "raw_nrfi": 0.4808,
+      "shrunk_nrfi": 0.4963
+    },
+    "577468": {
+      "n_games": 52,
+      "name": "Roberto Ortiz",
+      "raw_nrfi": 0.4038,
+      "shrunk_nrfi": 0.4963
+    },
+    "594151": {
+      "n_games": 51,
+      "name": "Ramon De Jesus",
+      "raw_nrfi": 0.6275,
+      "shrunk_nrfi": 0.4963
+    },
+    "596740": {
+      "n_games": 53,
+      "name": "Jansen Visconti",
+      "raw_nrfi": 0.3774,
+      "shrunk_nrfi": 0.4963
+    },
+    "596805": {
+      "n_games": 52,
+      "name": "John Libka",
+      "raw_nrfi": 0.5385,
+      "shrunk_nrfi": 0.4963
+    },
+    "596809": {
+      "n_games": 51,
+      "name": "Ryan Additon",
+      "raw_nrfi": 0.4706,
+      "shrunk_nrfi": 0.4963
+    },
+    "598411": {
+      "n_games": 53,
+      "name": "Nestor Ceja",
+      "raw_nrfi": 0.5094,
+      "shrunk_nrfi": 0.4963
+    },
+    "605670": {
+      "n_games": 53,
+      "name": "Dan Merzel",
+      "raw_nrfi": 0.4906,
+      "shrunk_nrfi": 0.4963
+    },
+    "605671": {
+      "n_games": 46,
+      "name": "Charlie Ramos",
+      "raw_nrfi": 0.6087,
+      "shrunk_nrfi": 0.4963
+    },
+    "605672": {
+      "n_games": 43,
+      "name": "Jeremie Rehak",
+      "raw_nrfi": 0.4186,
+      "shrunk_nrfi": 0.4963
+    },
+    "605673": {
+      "n_games": 56,
+      "name": "Alex Tosi",
+      "raw_nrfi": 0.5,
+      "shrunk_nrfi": 0.4963
+    },
+    "605674": {
+      "n_games": 49,
+      "name": "Ryan Wills",
+      "raw_nrfi": 0.5102,
+      "shrunk_nrfi": 0.4963
+    },
+    "607884": {
+      "n_games": 52,
+      "name": "Paul Clemons",
+      "raw_nrfi": 0.4423,
+      "shrunk_nrfi": 0.4963
+    },
+    "608093": {
+      "n_games": 41,
+      "name": "Junior Valentine",
+      "raw_nrfi": 0.5366,
+      "shrunk_nrfi": 0.4963
+    },
+    "608158": {
+      "n_games": 52,
+      "name": "Nate Tomlinson",
+      "raw_nrfi": 0.5192,
+      "shrunk_nrfi": 0.4963
     },
     "621660": {
+      "n_games": 47,
       "name": "Emil Jimenez",
-      "n_games": 27,
+      "raw_nrfi": 0.5957,
+      "shrunk_nrfi": 0.4963
+    },
+    "623938": {
+      "n_games": 53,
+      "name": "Erich Bacchus",
+      "raw_nrfi": 0.4151,
+      "shrunk_nrfi": 0.4963
+    },
+    "623945": {
+      "n_games": 51,
+      "name": "Alex MacKay",
+      "raw_nrfi": 0.4118,
+      "shrunk_nrfi": 0.4963
+    },
+    "623946": {
+      "n_games": 59,
+      "name": "Malachi Moore",
+      "raw_nrfi": 0.5593,
+      "shrunk_nrfi": 0.4963
+    },
+    "623949": {
+      "n_games": 54,
+      "name": "Clint Vondrak",
       "raw_nrfi": 0.4815,
-      "shrunk_nrfi": 0.499
+      "shrunk_nrfi": 0.4963
     },
-    "664263": {
-      "name": "Edwin Jimenez",
-      "n_games": 18,
-      "raw_nrfi": 0.7222,
-      "shrunk_nrfi": 0.565
+    "639723": {
+      "n_games": 55,
+      "name": "Brennan Miller",
+      "raw_nrfi": 0.4364,
+      "shrunk_nrfi": 0.4963
     },
-    "658292": {
-      "name": "Derek Thomas",
-      "n_games": 21,
-      "raw_nrfi": 0.4286,
-      "shrunk_nrfi": 0.4848
-    },
-    "665281": {
-      "name": "Brian Walsh",
-      "n_games": 13,
-      "raw_nrfi": 0.6154,
-      "shrunk_nrfi": 0.5305
+    "644760": {
+      "n_games": 55,
+      "name": "Adam Beck",
+      "raw_nrfi": 0.4364,
+      "shrunk_nrfi": 0.4963
     },
     "658082": {
+      "n_games": 36,
       "name": "Jacob Metz",
-      "n_games": 13,
-      "raw_nrfi": 0.5385,
-      "shrunk_nrfi": 0.5146
+      "raw_nrfi": 0.5556,
+      "shrunk_nrfi": 0.4963
+    },
+    "658292": {
+      "n_games": 41,
+      "name": "Derek Thomas",
+      "raw_nrfi": 0.4634,
+      "shrunk_nrfi": 0.4963
+    },
+    "658325": {
+      "n_games": 24,
+      "name": "Tyler Jones",
+      "raw_nrfi": 0.625,
+      "shrunk_nrfi": 0.4963
+    },
+    "658536": {
+      "n_games": 47,
+      "name": "Austin Jones",
+      "raw_nrfi": 0.4043,
+      "shrunk_nrfi": 0.4963
+    },
+    "664263": {
+      "n_games": 39,
+      "name": "Edwin Jimenez",
+      "raw_nrfi": 0.5897,
+      "shrunk_nrfi": 0.4963
+    },
+    "665281": {
+      "n_games": 59,
+      "name": "Brian Walsh",
+      "raw_nrfi": 0.5424,
+      "shrunk_nrfi": 0.4963
     },
     "665297": {
+      "n_games": 52,
       "name": "Tom Hanahan",
+      "raw_nrfi": 0.5385,
+      "shrunk_nrfi": 0.4963
+    },
+    "665298": {
+      "n_games": 24,
+      "name": "Dexter Kelley",
+      "raw_nrfi": 0.625,
+      "shrunk_nrfi": 0.4963
+    },
+    "665299": {
+      "n_games": 14,
+      "name": "Louie Krupa",
+      "raw_nrfi": 0.6429,
+      "shrunk_nrfi": 0.4963
+    },
+    "665302": {
+      "n_games": 7,
+      "name": "",
+      "raw_nrfi": 0.5714,
+      "shrunk_nrfi": 0.4963
+    },
+    "665576": {
+      "n_games": 42,
+      "name": "Brock Ballou",
+      "raw_nrfi": 0.4286,
+      "shrunk_nrfi": 0.4963
+    },
+    "668921": {
       "n_games": 17,
+      "name": "Jen Pawol",
       "raw_nrfi": 0.4118,
-      "shrunk_nrfi": 0.4839
+      "shrunk_nrfi": 0.4963
+    },
+    "676580": {
+      "n_games": 18,
+      "name": "Steven Jaschinski",
+      "raw_nrfi": 0.5,
+      "shrunk_nrfi": 0.4963
+    },
+    "676581": {
+      "n_games": 45,
+      "name": "James Jean",
+      "raw_nrfi": 0.4,
+      "shrunk_nrfi": 0.4963
+    },
+    "681849": {
+      "n_games": 7,
+      "name": "Felix Neon",
+      "raw_nrfi": 0.4286,
+      "shrunk_nrfi": 0.4963
+    },
+    "691042": {
+      "n_games": 42,
+      "name": "Willie Traynor",
+      "raw_nrfi": 0.5238,
+      "shrunk_nrfi": 0.4963
     }
   }
 }
