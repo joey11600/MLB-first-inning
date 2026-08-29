@@ -58,11 +58,51 @@ section captures actual picks accuracy on/around the change date.
   later. There was no push to blame and no run to go red. A ~20s suite once a
   day bounds that blind spot to 24 hours.
 
-### Deferred — needs operator sign-off
+### Tested and REJECTED — the park-shrinkage retrain (operator-approved, same day)
 
-- **`PRIOR_GAMES = 50` in `rebuild_park_factors.py` is measurably too low, but
-  raising it alone would be a silent model change.** Park first-inning NRFI rate
-  is mostly noise: year-over-year correlation 2025 vs 2026 across 30 parks is
+- **Refit the model at four park-shrinkage settings, validated out of sample,
+  and shipped nothing.** `tools/refit2026/park_shrinkage_refit.py` rebuilds the
+  park map inside each split from **training seasons only** (never from
+  `data/fi_park_factors.json`, which scores +0.690 in-sample against −0.057
+  out) and refits the shipped 20-feature v3 set at L2 0.5 across all three
+  splits. Coverage printed first: 28–30 distinct park values per split, so
+  nothing collapsed to a constant.
+  - K=150/250/500 move 2026 Brier by −0.000006…−0.000012 with bootstrap CIs
+    excluding zero — but that is ~20× smaller than a typical candidate effect
+    on this model and it **does not replicate**: both historical splits come
+    back flat-to-worse. Fails CLAUDE.md's "reject any feature that helps in
+    only one direction".
+  - `flat` (every park = league mean) looked genuinely good on the deciding
+    2026 split: **AUC 0.5387 → 0.5434, Q1-YRFI hit 56.7% → 59.0% (+2.3pp on
+    the actual bet population)**.
+  - **The selection-aware null killed it** (`tools/refit2026/park_null.py`,
+    200 trials). Permuting *which rate belongs to which park* — same values,
+    same spread, only the pairing destroyed — shows the shipped map ranks 2026
+    **worse than random relabelling**: it beats just **4%** of placebos on AUC
+    and **2%** on Q1-YRFI. So almost any change to this feature improves 2026,
+    and `flat`'s gain is ordinary: **p = 0.425 (AUC), p = 0.265 (Q1-YRFI)**.
+  - **Verdict: `PRIOR_GAMES` stays 50, the feature stays in, no weights
+    changed.** `data/lr_t1.json` / `lr_b1.json` / `calibration_v2.json` are
+    byte-identical; the live model is still `refit2026_fixwoba`, L2 0.5,
+    train_n 6673. The 4th-percentile draw is bad luck, not a reversal —
+    year-over-year park correlation is +0.13 (positive, just tiny) and `flat`
+    is *worse* on both historical splits. Changing it would fit one season's
+    luck. Third time this shape has appeared here; see
+    `2026-08-03_gate_sweep_artifact`.
+  - This does **not** retract the venue fix above. "Tampa Bay's value was
+    computed from the wrong building" is a data-correctness repair; "the
+    feature barely predicts" is a separate finding. Both are true.
+
+### Deferred — superseded by the test above
+
+- ~~**`PRIOR_GAMES = 50` is measurably too low**~~ — raising it was
+  operator-approved, tested the same day, and **rejected**; see above. The
+  raw-rate evidence below is still accurate, it just does not survive contact
+  with a refit and a search-aware null. Kept because the measurements are the
+  reason the test was worth running, and because they are the right numbers to
+  quote when someone next proposes tuning this feature.
+  Park first-inning NRFI rate is mostly noise: year-over-year correlation
+  2025 vs 2026 across 30 parks is
   **r = +0.13** (r² = 0.017), and the observed 2026 spread (sd 7.4pp) is barely
   above the 6.2pp expected from coin-flip noise at ~66 games/park, implying a
   true park sd of only ~4.1pp. Two out-of-sample tests: **2025 → 2026** picks a
@@ -71,9 +111,10 @@ section captures actual picks accuracy on/around the change date.
   smaller prior losing to flat. The catch is that the live LR weights were fit
   against factors with sd 4.07pp; prior 250 compresses that to 1.79pp and so
   shrinks the feature's real contribution by more than half — a de facto weight
-  change with no refit. Doing it properly means refitting the LR under the
-  3-split OOS protocol in CLAUDE.md. Documented in the script's docstring so the
-  next reader does not "fix" it casually.
+  change with no refit. That is exactly why the refit above was run rather than
+  simply raising the number, and the refit is what settled it. The reasoning
+  stays in `rebuild_park_factors.py`'s docstring so the next reader does not
+  "fix" `PRIOR_GAMES` casually.
 
 ---
 

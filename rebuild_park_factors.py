@@ -43,14 +43,32 @@ Two out-of-sample tests (build on one period, score the next):
   * 2026 H1 -> 2026 H2: best prior >=1000 (i.e. the flat league mean);
                         every finite prior below that loses to flat
 
-PRIOR_GAMES stays at 50 here because the live LR weights were fit
-against factors on this spread (sd 4.07pp). Raising the prior to 250
-compresses the spread to 1.79pp, which silently shrinks the feature's
-real contribution by more than half -- a de facto weight change the
-model was never refit for. Doing it properly means refitting the LR
-with the new factors under the 3-split OOS protocol in CLAUDE.md, and
-that needs the operator's sign-off. Do not raise PRIOR_GAMES on its
-own.
+THE REFIT WAS RUN (2026-08-29, operator-approved) AND REJECTED THE CHANGE.
+`tools/refit2026/park_shrinkage_refit.py` rebuilt the park map inside each
+split from training seasons only and refit the shipped 20-feature v3 set at
+L2 0.5 at K = 50/150/250/500/flat:
+
+  * K=150/250/500 move 2026 Brier by -0.00001 with CIs excluding zero, but
+    that is ~20x below a typical candidate effect here and does NOT
+    replicate -- both historical splits come back flat-to-worse.
+  * `flat` looked strong on the deciding 2026 split: AUC 0.5387 -> 0.5434,
+    Q1-YRFI hit 56.7% -> 59.0%.
+  * The selection-aware null (`tools/refit2026/park_null.py`, 200 trials)
+    killed it. Permuting WHICH RATE BELONGS TO WHICH PARK -- same values,
+    same spread, only the pairing destroyed -- shows the shipped map ranks
+    2026 WORSE THAN RANDOM RELABELLING: it beats 4% of placebos on AUC and
+    2% on Q1-YRFI. So nearly any change to this feature "improves" 2026,
+    and flat's gain is ordinary: p = 0.425 (AUC), p = 0.265 (Q1-YRFI).
+
+So the raw-rate evidence above is real and still misleading on its own.
+PRIOR_GAMES STAYS 50. The 4th-percentile draw is bad luck, not a reversal
+(year-over-year correlation is +0.13 -- positive, just tiny -- and `flat`
+is worse on both historical splits). Raising the prior would fit one
+season's luck.
+
+If you are about to change PRIOR_GAMES: run park_null.py first. This is
+the third time a park/gate/floor candidate has looked strong on the
+deciding split and evaporated under the null.
 """
 
 import csv

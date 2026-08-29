@@ -14,6 +14,8 @@ Run order, because each script exists to check the previous one's confound:
 | `money.py` | Same, with the shipped CIR calibrator in the loop. | Gate fires again. L2=0.5 on 2026: 109 bets @ 71.6%, +33.8% ROI vs shipped 150 @ 63.3%, +18.4%. Looks fantastic — which is why the next script exists. |
 | `baserate_control.py` | Is that skill, or the train/test base-rate gap? | **Mostly the gap.** An oracle level correction on the *shipped* model alone swings ROI from −12.0% to +2.9% (2025→2024) and +3.7% to −6.0% (2024→2025). L2 does survive the control (+6.7/+1.5/+9.9 pp) but is a minor term next to level. |
 | `recal_walkforward.py` | Then just track the level — refit the calibrator more often? | Logloss better in **18 of 18** window/cadence settings; level bias +0.0243 → +0.008…+0.019; flat ROI better in 18 of 18. But the day-level bootstrap CI spans zero (+4.58pp, [−3.95, +12.99], P=82%). |
+| `park_shrinkage_refit.py` (2026-08-29) | `harness.py` said re-shrinking the park factor was worth ≤0.0002 AUC — does that still hold on **v3** (20 features, L2 0.5)? | Yes. K=150/250/500 move Brier by −0.00001 on 2026 with CIs excluding zero, but that is 20× smaller than a typical candidate effect and it **does not replicate** — both historical splits are flat-to-worse. Only `flat` (every park = league mean) looked interesting: 2026 AUC 0.5387 → **0.5434**, Q1-YRFI hit 56.7% → **59.0%**. |
+| `park_null.py` (2026-08-29) | Is that `flat` gain real, or the search? | **The search.** See below — do not ship it. |
 
 ## Things that will bite you here
 
@@ -43,6 +45,45 @@ Run order, because each script exists to check the previous one's confound:
   `p_nrfi < 0.42`. Production also applies the lambda floor, thin-pitcher
   demotion, cluster demotions and the daily cap, so counts here (326 season
   2026) differ from the ledger's 391 STRONG bets.
+
+## The park feature is worse than a coin flip, and that is NOT a reason to change it
+
+`park_null.py` (200 trials, 2024+2025 → 2026) permutes **which rate belongs to
+which park** — same 30 values, same spread, same shrinkage, only the pairing
+destroyed. A relabelling cannot add information, so the spread of those trials
+is the size of this metric's luck.
+
+| | real K=50 map | shuffled placebos | real beats |
+|---|---|---|---|
+| AUC | 0.5387 | mean 0.5431, sd 0.0018 | **4%** of placebos |
+| Q1-YRFI hit | 56.7% | mean 58.4%, sd 0.75pp | **2%** of placebos |
+| Brier | 0.24887 | mean 0.24893, sd 0.00006 | 92% of placebos |
+
+The shipped park map ranks 2026 games **worse than random relabelling does**.
+So almost any change to this feature — including `flat`, including nonsense —
+improves 2026's ranking metrics. That is why `flat` looked good, and it is why
+`flat` means nothing:
+
+    observed FLAT gain : AUC +0.0047      Q1-YRFI +2.3pp
+    placebo gains      : AUC +0.0044 avg  Q1-YRFI +1.7pp avg
+    p(placebo >= FLAT) : 0.425 (AUC)      0.265 (Q1-YRFI)
+
+**Verdict: PRIOR_GAMES stays 50 and the feature stays in.** The 4th-percentile
+draw is bad luck, not a reversal — year-over-year park correlation is +0.13
+(positive, just tiny), and `flat` is slightly *worse* on both historical splits
+(2025 AUC 0.5266 → 0.5261, 2024 0.5071 → 0.5057). There is no setting that
+reliably helps. Changing it would be fitting one season's luck.
+
+This is the third time this exact shape has appeared here: a candidate looks
+strong on the deciding split, and the selection-aware null erases it. Run the
+null **before** believing a park/gate/floor result — see
+`2026-08-03_gate_sweep_artifact` and the `feature_test_methodology` memory.
+
+**Separately: correcting a park's VALUE is not the same question.** The
+2026-08-29 venue fix (Tampa Bay's rate had been computed from Steinbrenner
+Field, a different building) is a data-correctness repair and stands on its own
+regardless of how weak the feature is. "The input is wrong" and "the input
+barely helps" are both true here.
 
 ## The finding that matters most
 
