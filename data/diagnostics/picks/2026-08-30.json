@@ -1,7 +1,7 @@
 {
   "date": "2026-08-30",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-30T19:38:30Z",
+  "fitted_at": "2026-08-30T20:36:42Z",
   "n_picks": 14,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -122,7 +122,7 @@
       "game_pk": "824959",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2891,
       "raw_p_run_b1": 0.3109,
       "raw_p_nrfi": 0.4899,
@@ -456,13 +456,13 @@
     {
       "matchup": "CIN@CHC",
       "game_pk": "824636",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.27,
-      "raw_p_run_b1": 0.2879,
-      "raw_p_nrfi": 0.5198,
-      "calibrated_p_nrfi": 0.5408,
+      "raw_p_run_t1": 0.2697,
+      "raw_p_run_b1": 0.293,
+      "raw_p_nrfi": 0.5163,
+      "calibrated_p_nrfi": 0.5358,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -472,10 +472,10 @@
       "top_drivers_t1": [
         {
           "name": "wx_humidity",
-          "value": 83.0,
-          "z": 1.569,
+          "value": 85.0,
+          "z": 1.693,
           "weight": -0.0121,
-          "contribution": -0.019,
+          "contribution": -0.0205,
           "outlier": false
         },
         {
@@ -530,10 +530,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 83.0,
-          "z": 1.569,
+          "value": 85.0,
+          "z": 1.693,
           "weight": -0.0176,
-          "contribution": -0.0276,
+          "contribution": -0.0297,
           "outlier": false
         },
         {
@@ -545,11 +545,11 @@
           "outlier": false
         },
         {
-          "name": "away_fip",
-          "value": 3.331,
-          "z": -0.876,
-          "weight": 0.0119,
-          "contribution": -0.0104,
+          "name": "home_top3c_iso",
+          "value": 0.2185,
+          "z": 0.896,
+          "weight": 0.0121,
+          "contribution": 0.0109,
           "outlier": false
         }
       ],
@@ -1242,7 +1242,7 @@
       "game_pk": "823987",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.2921,
       "raw_p_run_b1": 0.2998,
       "raw_p_nrfi": 0.4957,
