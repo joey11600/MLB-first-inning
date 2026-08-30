@@ -1,7 +1,7 @@
 {
   "date": "2026-08-30",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-30T21:34:11Z",
+  "fitted_at": "2026-08-30T21:47:39Z",
   "n_picks": 14,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -459,10 +459,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2706,
-      "raw_p_run_b1": 0.2946,
-      "raw_p_nrfi": 0.5145,
-      "calibrated_p_nrfi": 0.5334,
+      "raw_p_run_t1": 0.2685,
+      "raw_p_run_b1": 0.2901,
+      "raw_p_nrfi": 0.5193,
+      "calibrated_p_nrfi": 0.5401,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -472,10 +472,10 @@
       "top_drivers_t1": [
         {
           "name": "wx_humidity",
-          "value": 79.0,
-          "z": 1.323,
+          "value": 88.0,
+          "z": 1.878,
           "weight": -0.0121,
-          "contribution": -0.016,
+          "contribution": -0.0228,
           "outlier": false
         },
         {
@@ -521,6 +521,14 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 88.0,
+          "z": 1.878,
+          "weight": -0.0176,
+          "contribution": -0.033,
+          "outlier": false
+        },
+        {
           "name": "home_obp",
           "value": 0.337,
           "z": 1.776,
@@ -529,11 +537,11 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 79.0,
-          "z": 1.323,
-          "weight": -0.0176,
-          "contribution": -0.0232,
+          "name": "wx_wind_kmh",
+          "value": 4.9,
+          "z": -1.369,
+          "weight": 0.0113,
+          "contribution": -0.0155,
           "outlier": false
         },
         {
@@ -542,14 +550,6 @@
           "z": -0.402,
           "weight": -0.0331,
           "contribution": 0.0133,
-          "outlier": false
-        },
-        {
-          "name": "home_top3c_iso",
-          "value": 0.2185,
-          "z": 0.896,
-          "weight": 0.0121,
-          "contribution": 0.0109,
           "outlier": false
         }
       ],
