@@ -1,7 +1,7 @@
 {
   "date": "2026-08-30",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-30T20:36:42Z",
+  "fitted_at": "2026-08-30T21:04:09Z",
   "n_picks": 14,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -459,10 +459,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2697,
-      "raw_p_run_b1": 0.293,
-      "raw_p_nrfi": 0.5163,
-      "calibrated_p_nrfi": 0.5358,
+      "raw_p_run_t1": 0.2706,
+      "raw_p_run_b1": 0.2946,
+      "raw_p_nrfi": 0.5145,
+      "calibrated_p_nrfi": 0.5334,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -472,10 +472,10 @@
       "top_drivers_t1": [
         {
           "name": "wx_humidity",
-          "value": 85.0,
-          "z": 1.693,
+          "value": 79.0,
+          "z": 1.323,
           "weight": -0.0121,
-          "contribution": -0.0205,
+          "contribution": -0.016,
           "outlier": false
         },
         {
@@ -530,10 +530,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 85.0,
-          "z": 1.693,
+          "value": 79.0,
+          "z": 1.323,
           "weight": -0.0176,
-          "contribution": -0.0297,
+          "contribution": -0.0232,
           "outlier": false
         },
         {
