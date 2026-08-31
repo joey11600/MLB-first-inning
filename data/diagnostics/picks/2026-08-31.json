@@ -1,7 +1,7 @@
 {
   "date": "2026-08-31",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-31T23:34:09Z",
+  "fitted_at": "2026-08-31T23:43:07Z",
   "n_picks": 12,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -684,14 +684,14 @@
       "matchup": "NYY@LAA",
       "game_pk": "823982",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2728,
+      "raw_p_run_t1": 0.2787,
       "raw_p_run_b1": 0.3264,
-      "raw_p_nrfi": 0.4898,
-      "calibrated_p_nrfi": 0.4837,
+      "raw_p_nrfi": 0.4859,
+      "calibrated_p_nrfi": 0.47,
       "calibrator_band": {
-        "band": "bin_3-4",
+        "band": "bin_2-3",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -714,6 +714,14 @@
           "outlier": false
         },
         {
+          "name": "away_top3c_iso",
+          "value": 0.236,
+          "z": 1.278,
+          "weight": 0.0137,
+          "contribution": 0.0175,
+          "outlier": false
+        },
+        {
           "name": "away_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.577,
@@ -727,14 +735,6 @@
           "z": -0.69,
           "weight": -0.0182,
           "contribution": 0.0126,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 28.1,
-          "z": 1.063,
-          "weight": 0.0111,
-          "contribution": 0.0118,
           "outlier": false
         }
       ],
