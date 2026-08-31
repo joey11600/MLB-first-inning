@@ -79,6 +79,7 @@ export async function loadThresholds(): Promise<PickThresholds | undefined> {
     // breaking.
     const ceiling    = n(obj.lambdaNrfiCeiling);
     const strongYrfi = n(obj.strongYrfiP);
+    const strongMax  = n(obj.strongYrfiMaxP);
     const kFraction  = n(obj.kellyFraction);
     const kBankroll  = n(obj.kellyBankrollUnits);
     const kMaxStake  = n(obj.kellyMaxStakeFrac);
@@ -90,6 +91,7 @@ export async function loadThresholds(): Promise<PickThresholds | undefined> {
       ...core,
       ...(ceiling    != null ? { lambdaNrfiCeiling:  ceiling }    : {}),
       ...(strongYrfi != null ? { strongYrfiP:        strongYrfi } : {}),
+      ...(strongMax  != null ? { strongYrfiMaxP:     strongMax }  : {}),
       ...(obj.kellyEnabled === true ? { kellyEnabled: true } : {}),
       ...(kFraction  != null ? { kellyFraction:      kFraction }  : {}),
       ...(kBankroll  != null ? { kellyBankrollUnits: kBankroll }  : {}),

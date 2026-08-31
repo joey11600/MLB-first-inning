@@ -1114,6 +1114,40 @@ _LR_LEAN_YRFI_P   = 0.50
 # ============================================================
 _LR_STRONG_YRFI_P = 0.42
 
+# ============================================================
+# CALIBRATED STRONG-YRFI CEILING (2026-08-31) -- the cal-gate.
+#
+# STRONG YRFI now requires p_nrfi < _LR_STRONG_YRFI_MAX_P on the
+# CALIBRATED probability.  This REPLACES the raw-lambda floor + its
+# weather bump as the STRONG demotion mechanism (the floor survives
+# only as the track-only LEAN-YRFI band gate at 0.44 < p < 0.50).
+#
+# WHY.  The lambda floor was a fixed cut on a scale that moves: v3's
+# L2 change dropped it ~0.11 (fixed 08-25, 0.838 -> 0.75), and six days
+# later the SAME defect resurfaced through the +/-0.02 weather bump
+# (hot bar 0.77 > v3 STRONG-candidate median 0.767 -> culled most
+# August top picks).  Worse, the lambda scale wobbles by SEASON, not
+# just by L2: OOS candidate medians 0.782 / 0.747 / 0.767 across
+# 2024/2025/2026, so a fixed 0.75 trimmed 0% / ~50% / 13% of the book
+# depending on the year.  A calibrated cut cannot drift that way: the
+# calibrator's whole job is that 0.413 always MEANS a 41.3% no-run
+# chance.  tools/refit2026/floor_wx_sweep.py (CHANGELOG 2026-08-31):
+# the weather bump showed no weather-specific signal in any split
+# (placebo-bump nulls p=0.077/0.883-inverted/0.373), and this fixed
+# ceiling trims a stable 10.7% / 11.1% / 13.1% -- the ~13% the floor
+# was originally designed to cut -- while beating the shipped gate on
+# 2025 (+6.6u OOS) and 2026 (+24.0u vs +21.3u, No.1 51-19 vs 41-13).
+# 2024 dissents (-9.1u) on fake -112 odds in a below-breakeven pool,
+# the same dissent the 08-25 rescale shipped over.
+#
+# DERIVATION: 87th percentile of calibrated p_nrfi among train-corpus
+# (2024+2025) STRONG candidates (p < 0.42) through the v3 pipeline.
+# RE-DERIVE AT EVERY REFIT (it is one quantile query); unlike the
+# lambda floor a stale value degrades gracefully because the scale
+# holds.  REVERSAL: tag pre-cal-gate-2026-08-31.
+# ============================================================
+_LR_STRONG_YRFI_MAX_P = 0.413
+
 # Lambda floor for STRONG YRFI: minimum expected 1st-inning runs the
 # model must project before we'll fire a STRONG YRFI bet, even when
 # the calibrated NRFI prob clears the 0.44 threshold.
@@ -1249,6 +1283,11 @@ def _write_thresholds_json() -> None:
         **_kelly_thresholds(),
         "lambdaYrfiFloor": _LR_LAMBDA_YRFI_FLOOR,
         "lambdaNrfiCeiling": _LR_LAMBDA_NRFI_CEILING,
+        # 2026-08-31 cal-gate: presence of this field tells the dashboard
+        # mirror to use the calibrated STRONG ceiling and skip the
+        # lambda-floor demotion; its absence (older cached JSON) makes the
+        # mirror fall back to the pre-cal-gate behaviour.
+        "strongYrfiMaxP":  _LR_STRONG_YRFI_MAX_P,
         # 2026-06-01: must be a VALID ISO-8601 string.  The old form
         # `datetime.now(ZoneInfo("UTC")).isoformat() + "Z"` produced
         # "...+00:00Z" (BOTH an offset AND a Z) because the datetime is
@@ -2387,9 +2426,12 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     + lambda_b1).  Optional for backwards-compat: if not provided, the
     lambda gate is skipped (legacy behavior).
 
-    YRFI demotion rule: if a game would otherwise classify as STRONG/LEAN
-    YRFI but its lambda is below the floor, demote to PASS.  T4.3 makes
-    the floor weather-aware (±0.02 per condition).
+    YRFI demotion rule (2026-08-31, cal-gate): STRONG YRFI requires
+    p_nrfi < _LR_STRONG_YRFI_MAX_P (calibrated); a would-be STRONG above
+    that ceiling tracks as LEAN YRFI instead.  The old rule -- demote to
+    PASS "LOW LAMBDA" when lambda fell below the (weather-aware, T4.3)
+    floor -- is retired for the STRONG side; the floor still gates the
+    track-only LEAN YRFI band at 0.44 < p_nrfi < 0.50.
 
     Phase 1.3 (2026-05-12): LEAN tier resurrected as track-only.  Carves
     the PASS/lean zone into (NRFI upper bound is _LR_STRONG_NRFI_P, 0.62
@@ -2424,8 +2466,10 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     if p_nrfi >= _LR_LEAN_NRFI_P:
         return "NRFI", "LEAN"
 
-    # Weather-adjusted YRFI lambda floor -- reused for both LEAN YRFI gate
-    # and STRONG YRFI demotion.
+    # Weather-adjusted YRFI lambda floor -- since 2026-08-31 this gates
+    # ONLY the track-only LEAN YRFI band below.  The STRONG demotion it
+    # used to drive was replaced by the calibrated _LR_STRONG_YRFI_MAX_P
+    # ceiling (no weather term; the bump tested as noise in every split).
     floor = _weather_adjusted_floor(_LR_LAMBDA_YRFI_FLOOR, wx_temp_c, wx_wind_kmh, wx_is_dome)
 
     # Legacy PASS dead zone of [PASS_LO_P, LEAN_NRFI_P) is now split:
@@ -2439,14 +2483,17 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     if p_nrfi >= _LR_PASS_LO_P:               # exactly == 0.44
         return "PASS", "NO EDGE"
 
-    # p_nrfi < 0.44 -- YRFI side, gated first by the lambda floor.
-    if lambda_total is not None and lambda_total < floor:
-        return "PASS", "LOW LAMBDA"
-    # 2026-07-27 (T-SELECTIVITY): only the top band actually beats the
-    # market.  0.36 <= p_nrfi < 0.44 is a genuine YRFI lean but not
-    # enough separation to bet, so it tracks as LEAN instead of firing
-    # STRONG.  See _LR_STRONG_YRFI_P for the evidence.
-    if p_nrfi >= _LR_STRONG_YRFI_P:
+    # p_nrfi < 0.44 -- YRFI side.
+    # 2026-08-31 (cal-gate): the raw-lambda floor demotion ("PASS - LOW
+    # LAMBDA") that used to sit here is GONE.  STRONG requires
+    # p_nrfi < _LR_STRONG_YRFI_MAX_P (0.413, calibrated); the rest of the
+    # band tracks as LEAN -- same rationale as the 2026-07-27
+    # T-SELECTIVITY band above it (a genuine lean without enough
+    # separation to bet).  See _LR_STRONG_YRFI_MAX_P for the evidence and
+    # revert tag.  _LR_STRONG_YRFI_P (0.42) is retained as documentation
+    # of the T-SELECTIVITY boundary but no longer binds: the calibrated
+    # ceiling is strictly tighter.
+    if p_nrfi >= _LR_STRONG_YRFI_MAX_P:
         return "YRFI", "LEAN"
     return "YRFI", "STRONG"
 

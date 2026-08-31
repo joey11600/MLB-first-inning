@@ -35,11 +35,16 @@ export const DEFAULT_THRESHOLDS: PickThresholds = {
   leanNrfiP:       0.50,
   passLoP:         0.44,
   leanYrfiP:       0.50,
-  lambdaYrfiFloor: 0.838,
+  // 0.838 -> 0.75 on 2026-08-25 (v3 rescale); since 2026-08-31 the floor
+  // only gates the track-only LEAN band, not STRONG.
+  lambdaYrfiFloor: 0.75,
   lambdaNrfiCeiling: 0.52,
   // STRONG YRFI needs pNrfi < 0.40 (0.44 -> 0.36 on 2026-07-27,
   // 0.36 -> 0.40 on 2026-07-28 after walk-forward validation).
   strongYrfiP:     0.40,
+  // 2026-08-31 cal-gate: calibrated STRONG ceiling replaces the
+  // lambda-floor demotion. Matches _LR_STRONG_YRFI_MAX_P.
+  strongYrfiMaxP:  0.413,
 };
 
 /** Mirror of mlb_first_inning_predictor.classify_pick_lr -- given an
@@ -82,14 +87,21 @@ export function classifyTentative(
   // STRONG-YRFI boundary (strict <).
   if (pNrfi >= t.passLoP)     return { side: "PASS", strength: "NO EDGE" };
 
-  // p_nrfi < passLoP -- YRFI side, gated first by the lambda floor.
+  // p_nrfi < passLoP -- YRFI side.
+  // 2026-08-31 cal-gate: when the thresholds carry strongYrfiMaxP, the
+  // lambda floor no longer demotes on the STRONG side -- STRONG requires
+  // pNrfi < strongYrfiMaxP (calibrated) and the rest of the band is a
+  // track-only LEAN. Mirrors classify_pick_lr exactly; see
+  // _LR_STRONG_YRFI_MAX_P in the predictor for the evidence.
+  if (t.strongYrfiMaxP != null) {
+    if (pNrfi >= t.strongYrfiMaxP) return { side: "YRFI", strength: "LEAN" };
+    return { side: "YRFI", strength: "STRONG" };
+  }
+  // Pre-cal-gate behaviour, kept for an older cached thresholds.json
+  // that omits strongYrfiMaxP: lambda floor first, then T-SELECTIVITY.
   if (lambdaTotal != null && lambdaTotal < t.lambdaYrfiFloor) {
     return { side: "PASS", strength: "LOW LAMBDA" };
   }
-  // 2026-07-27 (T-SELECTIVITY): only pNrfi < strongYrfiP fires STRONG.
-  // The band between strongYrfiP and passLoP is a real YRFI lean but
-  // does not beat the market, so it tracks as LEAN. Older deploys omit
-  // the field -- fall through to the previous behaviour when undefined.
   if (t.strongYrfiP != null && pNrfi >= t.strongYrfiP) {
     return { side: "YRFI", strength: "LEAN" };
   }

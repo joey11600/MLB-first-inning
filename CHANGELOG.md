@@ -11,6 +11,40 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-08-31b] - Cal-gate SHIPPED: calibrated STRONG-YRFI ceiling replaces the lambda floor + weather bump
+
+### Changed
+
+- **`classify_pick_lr` STRONG-YRFI demotion is now a calibrated-probability
+  ceiling: STRONG requires `p_nrfi < _LR_STRONG_YRFI_MAX_P` (0.413); the rest
+  of the `p < 0.44` band tracks as LEAN YRFI.** The raw-lambda floor + its
+  ±0.02 weather bump no longer touch the STRONG side ("PASS - Low lambda"
+  stops appearing on new YRFI rows); the weather-adjusted floor survives only
+  as the track-only LEAN-band gate (0.44 < p < 0.50), unchanged. Operator
+  approved option 1 from the [2026-08-31] sweep below. Derivation: 87th pctile
+  of calibrated p_nrfi among train-corpus (24+25) STRONG candidates via the v3
+  OOS pipeline — the ~13% trim the floor was originally designed to make, now
+  on a scale that cannot silently move at a refit (trims 10.7%/11.1%/13.1%
+  across the three splits vs the raw floor's 0%/~50%/13%). As-shipped OOS at
+  fixed 0.413: 2025 88 bets 56.8% +6.64u (shipped gate: −2.04u), 2026 85 bets
+  71.8% +23.98u, No.1 51-19 (shipped: +21.32u, 41-13); 2024 dissents −9.07u on
+  fake −112 odds (same dissent the 08-25 rescale shipped over). Re-derive the
+  ceiling at every refit (one quantile query); a stale value degrades
+  gracefully because the calibrated scale holds its meaning.
+- **`dashboard/lib/classify.ts` tentative mirror updated in the same commit**
+  (CLAUDE.md change-one-change-both rule): uses `strongYrfiMaxP` from
+  `thresholds.json` when present, falls back to the pre-cal-gate path (floor +
+  `strongYrfiP`) for an older cached JSON; predictor exports the new field.
+  Stale fallback default `lambdaYrfiFloor: 0.838` refreshed to 0.75 while
+  there. `db/variants.py::_classify` deliberately keeps the parameterized
+  old rule — it exists to replay variants, not to mirror production.
+- Verification: 14-case classifier check (all three heat-bump victims now
+  STRONG; ceiling boundary exact at 0.413; LEAN band + NRFI paths unchanged),
+  301 money-path tests green, dashboard prod build green (units guard +
+  typecheck). Backup: tag `pre-cal-gate-2026-08-31`.
+
+---
+
 ## [2026-08-31] - Weather bump on the YRFI lambda floor: swept every option, shipped nothing yet
 
 ### Added
