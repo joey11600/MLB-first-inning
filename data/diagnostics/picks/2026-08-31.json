@@ -1,7 +1,7 @@
 {
   "date": "2026-08-31",
   "model_version": "V2.2",
-  "fitted_at": "2026-08-31T22:03:41Z",
+  "fitted_at": "2026-08-31T22:29:24Z",
   "n_picks": 12,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -797,7 +797,7 @@
       "game_pk": "824911",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2774,
       "raw_p_run_b1": 0.3078,
       "raw_p_nrfi": 0.5002,
@@ -1249,10 +1249,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2758,
+      "raw_p_run_t1": 0.2806,
       "raw_p_run_b1": 0.3144,
-      "raw_p_nrfi": 0.4965,
-      "calibrated_p_nrfi": 0.492,
+      "raw_p_nrfi": 0.4932,
+      "calibrated_p_nrfi": 0.4879,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
@@ -1293,11 +1293,11 @@
           "outlier": false
         },
         {
-          "name": "era_gap_t1",
-          "value": -1.167,
-          "z": -0.634,
-          "weight": 0.0118,
-          "contribution": -0.0075,
+          "name": "away_top3c_iso",
+          "value": 0.2164,
+          "z": 0.84,
+          "weight": 0.0137,
+          "contribution": 0.0115,
           "outlier": false
         }
       ],
