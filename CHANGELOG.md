@@ -11,7 +11,60 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
-## [2026-08-29b] - Umpire rates rebuilt FLAT: banned 2022/23 corpus out, zero persistence measured
+## [2026-08-31] - Weather bump on the YRFI lambda floor: swept every option, shipped nothing yet
+
+### Added
+
+- **`tools/refit2026/floor_wx_sweep.py`** — three-split OOS sweep of the
+  STRONG-YRFI lambda-floor family after the operator reported (third night
+  running) the No.1 card landing on "PASS - Low lambda" and then hitting.
+  Diagnosis: the 2026-08-25 rescale (0.838 → 0.75) fixed the BASE only;
+  `_weather_adjusted_floor` still adds a fixed +0.02 in hot (≥28°C) games, and
+  on the v3 scale (STRONG-candidate median lambda 0.767) the 0.77 hot bar sits
+  ABOVE the median — in August that culls most top candidates. Live 08-26..30:
+  6 of 10 STRONG-YRFI candidates demoted, 4 only by the heat bump (those 4
+  went 2-2; the band is thin, which is why the sweep exists).
+  Configs: shipped (.75+wx.02), flat .75, wx±.01, wx±.005, old .838, no floor,
+  calibrated-ceiling gate (87th train-candidate pctile, the option-2 durable
+  fix deferred 08-25), plus a 44-cell grid; day bootstraps; near-floor
+  hot-vs-not permutation; selection-aware placebo null (weather packets
+  permuted, whole grid re-run, 300 trials, all three splits).
+
+### Findings (validation only — gate unchanged pending operator decision)
+
+- **The bump carries no weather-specific signal in any split.** Near-floor
+  band (λ∈[0.75,0.77)) hot-vs-not permutation: 2024 p=0.155, 2025 p=0.971
+  (hot hit MORE — premise inverted), 2026 p=0.482. Placebo-bump null on
+  flat075−shipped: 2026 obs +4.66u vs placebo mean +4.05u (p=0.373 — the real
+  bump is exactly as costly as a RANDOM bump); 2025 obs +2.36u, worse than 88%
+  of placebos; 2024 obs −9.96u, better than 92% of placebos (p=0.077) — but
+  even placebo bumps helped 2024 (mean −3.60u) because that pool hit 51.6%,
+  below the −112 break-even, so ANY volume cut made fake-odds money there.
+- **flat075** (remove bump): 2026 +4.51u vs shipped (90% CI [−1.43,+10.36],
+  P(better)=90%), identical 73.5% hit on 15 more bets; 2025 +2.34u (P=84%);
+  2024 −9.82u (P=4% — the fake-odds dissent, same shape the 08-25 rescale
+  shipped over). Grid argmax on 2026 is exactly base .75 / wx 0.
+- **cal_gate** (replace floor+bump with calibrated p_nrfi ceiling at the 87th
+  train-candidate pctile): the only mechanism whose trim rate is stable across
+  seasons — 12.6%/21%/13% vs the raw floor's 0%/50%/13% (the λ scale itself
+  wobbles: split medians 0.782/0.747/0.767, so ANY fixed λ cut changes meaning
+  every year, L2 changes aside). 2025 +7.30u vs shipped (P=91%) and the only
+  significant No.1 delta anywhere (+14.0pp hit, 90% CI [+3.5,+24.6]);
+  2026 +2.61u (P=73%); 2024 −9.80u. Jaccard vs flat075 on 2026: 0.976.
+- **Refuted:** old 0.838 fires 0 bets on 2025 and 2 on 2026 (−19.4u vs
+  shipped); wx±.01/±.005 dominated by flat075 on 2025+2026; no-floor loses
+  the genuinely bad tail (2026 flat075 cut bucket hit 42.1%, so a floor at
+  SOME level still earns its keep).
+- Ledger quirk found en route: model columns (λ, probs) keep updating after a
+  pick's label freezes, so final row values can drift from decision-time
+  values (e.g. 08-25 HOU@NYY STRONG at final λ 0.7395 < any floor). Labels in
+  `pick_changes.csv` are the decision-time truth.
+
+### Deferred
+
+- The gate change itself (flat075 vs cal_gate vs keep) — operator decision
+  pending; both live options restore the heat-bump victims identically on the
+  08-26..30 board.
 
 ### Fixed
 
