@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-08-31T10:01:00Z",
+ "generatedUtc": "2026-09-01T04:31:34Z",
  "headlineMethod": "the model that is live right now -- the shipped calibrator and the current gate -- replayed over every game of the season",
  "floorMethod": "no-hindsight check: at each date the calibrator is refit using only games played before that date",
  "caveat": "the shipped calibrator was fit on 2025+2026 data, so it has already seen these outcomes; the model weights are the fixed 2026-05-26 refit (trained through 2026-05-11), which makes bets on or before 2026-05-11 partially in-sample",
@@ -14,39 +14,39 @@
   "label": "Projected profit",
   "priceFill": -125.0,
   "from": "2026-04-01",
-  "to": "2026-08-30",
-  "bets": 200,
+  "to": "2026-08-31",
+  "bets": 201,
   "wins": 131,
-  "losses": 69,
-  "hitRate": 0.655,
-  "breakEvenNeeded": 0.5701,
-  "edgePts": 8.49,
-  "flatProfit": 30.97,
+  "losses": 70,
+  "hitRate": 0.6517,
+  "breakEvenNeeded": 0.5702,
+  "edgePts": 8.15,
+  "flatProfit": 29.97,
   "assumedBets": 49,
-  "selectedBets": 220,
+  "selectedBets": 221,
   "droppedZeroStake": 20,
   "droppedFlatPnl": 1.83,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 235.74,
-   "profit": 135.74,
+   "finalBank": 232.74,
+   "profit": 132.74,
    "maxDrawdownPct": 9.71,
    "kellyFraction": 0.25,
    "largestStake": 7.0,
    "medianStake": 3.0
   },
   "floor": {
-   "bets": 232,
+   "bets": 233,
    "wins": 145,
-   "losses": 87,
-   "hitRate": 0.625,
-   "breakEvenNeeded": 0.5672,
-   "edgePts": 5.78,
-   "flatProfit": 23.69,
+   "losses": 88,
+   "hitRate": 0.6223,
+   "breakEvenNeeded": 0.5673,
+   "edgePts": 5.5,
+   "flatProfit": 22.69,
    "assumedBets": 45,
    "sim": {
-    "finalBank": 195.11,
-    "profit": 95.11,
+    "finalBank": 189.11,
+    "profit": 89.11,
     "maxDrawdownPct": 33.13,
     "largestStake": 10.0
    }
@@ -86,10 +86,10 @@
    },
    {
     "month": "2026-08",
-    "bets": 25,
+    "bets": 26,
     "wins": 17,
-    "losses": 8,
-    "flat": 4.27,
+    "losses": 9,
+    "flat": 3.27,
     "assumedBets": 1
    }
   ],
@@ -12244,6 +12244,37 @@
       }
      }
     ]
+   },
+   {
+    "date": "2026-08-31",
+    "flatPnl": -1.0,
+    "simPnl": -3.0,
+    "simBankAfter": 232.74,
+    "flagged": 1,
+    "placed": 1,
+    "bet": 1,
+    "games": [
+     {
+      "game": "BAL@COL",
+      "side": "YRFI",
+      "modelP": 0.3483,
+      "record": {
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -148,
+       "win": false,
+       "pnl": -3.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 3.0,
+       "odds": -148,
+       "pnl": -3.0
+      }
+     }
+    ]
    }
   ]
  },
@@ -12251,39 +12282,39 @@
   "label": "Real profit",
   "priceFill": null,
   "from": "2026-05-07",
-  "to": "2026-08-30",
-  "bets": 146,
+  "to": "2026-08-31",
+  "bets": 147,
   "wins": 94,
-  "losses": 52,
-  "hitRate": 0.6438,
-  "breakEvenNeeded": 0.5755,
-  "edgePts": 6.84,
-  "flatProfit": 18.12,
+  "losses": 53,
+  "hitRate": 0.6395,
+  "breakEvenNeeded": 0.5756,
+  "edgePts": 6.38,
+  "flatProfit": 17.12,
   "assumedBets": 0,
-  "selectedBets": 164,
+  "selectedBets": 165,
   "droppedZeroStake": 18,
   "droppedFlatPnl": 2.03,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 179.69,
-   "profit": 79.69,
+   "finalBank": 176.69,
+   "profit": 76.69,
    "maxDrawdownPct": 9.26,
    "kellyFraction": 0.25,
    "largestStake": 6.0,
    "medianStake": 3.0
   },
   "floor": {
-   "bets": 177,
+   "bets": 178,
    "wins": 113,
-   "losses": 64,
-   "hitRate": 0.6384,
-   "breakEvenNeeded": 0.5714,
-   "edgePts": 6.7,
-   "flatProfit": 21.06,
+   "losses": 65,
+   "hitRate": 0.6348,
+   "breakEvenNeeded": 0.5716,
+   "edgePts": 6.33,
+   "flatProfit": 20.06,
    "assumedBets": 0,
    "sim": {
-    "finalBank": 176.95,
-    "profit": 76.95,
+    "finalBank": 170.95,
+    "profit": 70.95,
     "maxDrawdownPct": 29.26,
     "largestStake": 9.0
    }
@@ -12315,10 +12346,10 @@
    },
    {
     "month": "2026-08",
-    "bets": 24,
+    "bets": 25,
     "wins": 17,
-    "losses": 7,
-    "flat": 5.27,
+    "losses": 8,
+    "flat": 4.27,
     "assumedBets": 0
    }
   ],
@@ -20235,6 +20266,37 @@
        "unitsRisked": 4.0,
        "odds": -142,
        "pnl": 2.817
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-08-31",
+    "flatPnl": -1.0,
+    "simPnl": -3.0,
+    "simBankAfter": 176.69,
+    "flagged": 1,
+    "placed": 1,
+    "bet": 1,
+    "games": [
+     {
+      "game": "BAL@COL",
+      "side": "YRFI",
+      "modelP": 0.3483,
+      "record": {
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -148,
+       "win": false,
+       "pnl": -3.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 3.0,
+       "odds": -148,
+       "pnl": -3.0
       }
      }
     ]
