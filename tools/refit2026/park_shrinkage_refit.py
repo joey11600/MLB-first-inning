@@ -80,8 +80,27 @@ def park_map_from(paths: list[Path], K: float) -> tuple[dict, float]:
 
 
 def block(path: Path, pmap: dict):
-    return TSM.gather(path, pmap, phase_e3=True, phase_e3_vshand=True,
-                      fi_xwoba=True, ump_cache=UMPC, ump_rates_data=UMPR)
+    return _flatten_ump(TSM.gather(path, pmap, phase_e3=True, phase_e3_vshand=True,
+                                   fi_xwoba=True, ump_cache=UMPC, ump_rates_data=UMPR))
+
+
+def _flatten_ump(blk: dict) -> dict:
+    """Hold the umpire feature at the league constant in EVERY block.
+
+    data/umpire_rates.json was rebuilt FLAT on 2026-08-29 (tau^2 <= 0: every
+    umpire = the league rate), so the cached lookup returns one constant for
+    all 2024/2025 rows while 2026 ledger rows still carry the per-umpire values
+    stored before that date.  lr_baseline.LogReg standardises by std + 1e-9,
+    so a constant training column turns the 2026 values into z-scores of
+    ~1e7 and the 2026 split scores WORSE THAN CHANCE (AUC 0.489, log-loss
+    0.726 on 2026-09-02).  Production feeds the flat value to every game from
+    now on, so the honest validation input is the same constant everywhere.
+    """
+    for key, feats in (("X_t1", TSM.T1_PHASE_E3_VSHAND_FI_FEATURES),
+                       ("X_b1", TSM.B1_PHASE_E3_VSHAND_FI_FEATURES)):
+        if "home_plate_ump_nrfi_rate" in feats:
+            blk[key][:, feats.index("home_plate_ump_nrfi_rate")] = TSM.LEAGUE_NRFI_RATE
+    return blk
 
 
 def stack(blocks, key):

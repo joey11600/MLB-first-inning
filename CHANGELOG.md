@@ -11,6 +11,58 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-02b] - Follow-ups #2 and #3 from the review: ceiling re-derived (no change), park refit re-run (no change), two validation scripts repaired
+
+### Investigated -- STRONG-YRFI ceiling re-derived on PRODUCTION's own scale (review item 2; nothing shipped)
+
+- The 0.413 ceiling was derived 08-31 from the harness's 24+25 fit. Re-derived
+  with the SHIPPED artifacts (`lr_t1/lr_b1.json`, `fi_park_factors.json`,
+  `calibration_v2.json`, flat umpire rate) over the train corpus (24+25+2026
+  to 08-21, n=6673, matching `train_n`), same rule (87th pctile of calibrated
+  p_nrfi among candidates p<0.42): **0.4120** vs shipped 0.413. Per season:
+  2024 .4114 / 2025 .4127 / 2026 .4122; share of candidates above 0.413 =
+  10.5% on the production scale (the sweep's 10.7-13.1% trim). Live v3-era
+  candidates: 16, of which 0.413 and 0.412 each trim the same one (08-25
+  HOU@NYY). On the 2026 ledger re-scored through the shipped artifacts
+  (in-sample, real prices, May on) the two ceilings differ by ONE bet
+  (a loss). Verdict: the ceiling already sits on production's scale --
+  **`_LR_STRONG_YRFI_MAX_P` stays 0.413.** The production-vs-backtest gap
+  found in the morning review lives in the LEVEL of the top games (park
+  file), not in where the ceiling cuts.
+
+### Investigated -- park re-shrink + refit, re-run on today's data (review item 3; nothing shipped)
+
+- `park_shrinkage_refit.py` + `park_null.py` (2026-08-29 protocol, v3 20
+  features, L2 0.5, park map rebuilt inside each split from train seasons):
+  2026 split shipped K=50 AUC 0.5348 / Brier 0.24898 / Q1-YRFI 57.4%;
+  K=150/250/500 move Brier by -0.000005..-0.000011 (CI excludes zero but 20x
+  below a real effect, and flat-to-worse on both historical splits, as on
+  08-29); flat (league mean) AUC 0.5391, Brier +0.000039 (CI spans zero).
+  Null: the real map beats **4%** of shuffled-park placebos on AUC, 28% on
+  Q1-YRFI, 88% on Brier; FLAT's AUC gain (+0.0043) is matched by the
+  average placebo (+0.0039, p=0.45). Same verdict as 08-29: no shrinkage
+  setting reliably helps, `flat` is the search, PRIOR_GAMES stays 50 and the
+  feature stays in until the next approved refit (ablation there).
+
+### Fixed
+
+- **Both park validation scripts scored the 2026 split WORSE THAN CHANCE
+  today (AUC 0.489, log-loss 0.726) -- an artifact, not a finding.** The
+  umpire file was rebuilt FLAT on 08-29, so the cached lookup returns one
+  constant for every 2024/2025 training row, while 2026 ledger rows still
+  carry the per-umpire values stored before that date. `lr_baseline.LogReg`
+  standardises by `std + 1e-9`, so the constant training column turned the
+  2026 values into z-scores of ~1e7. Both scripts now hold the umpire
+  feature at `LEAGUE_NRFI_RATE` in every block (production's input from now
+  on). The 2024->2025 and 2025->2024 splits were unaffected (constant on
+  both sides). Any other `two_stage_model.gather` consumer that mixes the
+  2024/25 files with the 2026 ledger has the same landmine until the ump
+  feature is ablated at the next refit.
+
+No model, gate, staking or ledger code touched.
+
+---
+
 ## [2026-09-02] - System review: the hot streak and the crash were the same model at 5x leverage; one monitor repaired
 
 ### Investigated (analysis only -- nothing in the model, gates, staking or ledger touched)

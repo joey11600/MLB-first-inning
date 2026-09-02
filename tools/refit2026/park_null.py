@@ -103,8 +103,15 @@ def main():
     probe = {p: (i + 1) / 1000.0 for i, p in enumerate(parks)}
 
     def gather(path):
-        return TSM.gather(path, probe, phase_e3=True, phase_e3_vshand=True,
-                          fi_xwoba=True, ump_cache=umpc, ump_rates_data=umpr)
+        # ump held flat for the same reason as park_shrinkage_refit._flatten_ump
+        # (flat umpire file since 2026-08-29 + std+1e-9 standardisation).
+        blk = TSM.gather(path, probe, phase_e3=True, phase_e3_vshand=True,
+                         fi_xwoba=True, ump_cache=umpc, ump_rates_data=umpr)
+        for key, feats in (("X_t1", TSM.T1_PHASE_E3_VSHAND_FI_FEATURES),
+                           ("X_b1", TSM.B1_PHASE_E3_VSHAND_FI_FEATURES)):
+            if "home_plate_ump_nrfi_rate" in feats:
+                blk[key][:, feats.index("home_plate_ump_nrfi_rate")] = TSM.LEAGUE_NRFI_RATE
+        return blk
 
     print("gathering once (probe map recovers each row's park exactly)...")
     trb = [gather(p) for p in trs]
