@@ -11,6 +11,77 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-02] - System review: the hot streak and the crash were the same model at 5x leverage; one monitor repaired
+
+### Investigated (analysis only -- nothing in the model, gates, staking or ledger touched)
+
+Operator asked why the system has been "so terrible lately", why early August
+was hot, and whether the probabilities are off ("some games should be worth
+more... then they hit when our model said pass"). Measured, in order:
+
+- **Timeline (STRONG bets placed, `tools/pl_calc.py` basis).** Aug 1-13:
+  19 bets, 78.9%, +35.6u booked / +7.3u flat. Aug 14-22: 10 bets, 20.0%,
+  -33.2u / -6.5u -- SAME 19-feature model, same weights (05-26), same parks
+  (COL/ARI/LAA), stakes 5-8u. v3 went live 08-23; since then 9 bets, 2-7,
+  -10.7u / -5.5u (4 of them since the 08-31 cal-gate, 0-4). Kelly era
+  overall (07-27 on): 52 bets, 51.9% hit against a 63.9% claim and a 56.6%
+  break-even; quarter-Kelly at the realised hit rate is 0u. The streaks are
+  the staking, not a regime -- see memory `2026-08-21_the_streaks_are_the_staking`.
+- **Ranking vs the market, by window (AUC model / market):** flat era
+  .511/.530, hot .539/.620, crash .425/.582, v3 .532/.596. The market ranked
+  better in every window.
+- **"Passes that hit" are not under-rated over the season.** Non-STRONG games
+  the market priced >=56% YRFI: 156 games, 51.3% hit (old era); 19 games,
+  68% in the v3 era (small n). The over-confidence is on the BETS (claimed
+  63%, delivered 50% since 07-15, n=88), not the passes.
+- **Live pipeline vs the validated v3 backtest bet DIFFERENT games.** Kelly
+  era: 52 live bets, of which the OOS v3 backtest (train 24+25) calls STRONG
+  on 14 (57%); the 38 live-only bets hit 50%; the 7 backtest-only games hit
+  7-7. v3 era: production's raw p_nrfi sits 0.01-0.03 BELOW an honest
+  re-score on every one of the 9 bets (corr 0.87-0.91 across 135 rows), and
+  the calibrator's steep first segment turns that into 0.05-0.09
+  calibrated. Reproducing production from stored inputs + shipped weights
+  gives corr 0.9625 (mean |diff| 0.0035); the largest remaining component is
+  the park file: shipped COL .393 / WSH .486 / ARI .437 / NYY .494 vs the
+  train-only map .441 / .542 / .475 / .520 (T1 park weight -0.035, so COL
+  alone is +0.12 vs +0.07 on the YRFI logit). Recent bets: BAL@COL x3,
+  STL@LAD, ATL@WSH, COL@WSH x2, CHC@ARI, HOU@NYY x2 -- a park-and-heat book,
+  on a feature `park_null.py` already showed ranks 2026 worse than random
+  relabelling (2026-08-29). Not acted on: park rebuild and refit are one
+  change (2026-08-20 item 3).
+- **Checked and clean:** price capture median 57 min before first pitch
+  (the ~2h git lag on 09-01 is GHA commit cadence, not late bets);
+  `sizing_prob` == `yrfi_prob` on every bet since 08-14; bet rows frozen at
+  bet time; pool `as_of` 2026-09-01; in-sample vs 5-fold out-of-fold CIR on
+  v3 moves the tail cap only 65%->64% (not the lever). Drift monitor
+  dry-run: 30d Brier .2497 -> .2683, would fire.
+- **Rollout-plan triggers (docs/PLAN_2026-08-22 §5):** volume 0.62 STRONG/day
+  08-23..30 (below the <60% trigger) -- restored to 2/day by the cal-gate;
+  No.1 record n=5 of the 30 the plan requires; claimed-vs-actual overshoot
+  >10pp but over ~10 days, not the 3 weeks the plan asks for.
+
+### Fixed
+
+- **`tools/refit2026/no1_since_may26.py` crashed (`KeyError: home_fi_xwoba`)**
+  -- the weekly No.1 monitor the rollout plan prescribes. `attach()` merges
+  the factor file on game_pk, and the ledger has carried its own
+  `home/away_fi_xwoba` since 08-23, so the merge produced `_x/_y` suffixes.
+  It now prefers the ledger's own value and falls back to the factor file.
+  Also recorded: `data/candidates/factor_fi_pooled.csv` ends 2026-08-22, so
+  any harness script still reading it mean-fills every later game
+  (`backtest_ship.py` and friends still do). Output today: REAL ledger No.1
+  since 05-26 = 83 nights 52-31, +63.48u Kelly / +7.79u flat; August 11-11
+  -6.2u; the v3 counterfactual was 9-6 -0.5u in August.
+
+### Noted, not fixed
+
+- `odds_diagnostic.yml` ran green every day 08-23..09-01 but the repo holds
+  multi-book/F5 snapshots for only 3 of those days (12 F5 games in total).
+  The F5-market AUC comparison promised for "after ~2 weeks" cannot be run
+  yet; check why the daily runs commit nothing.
+
+---
+
 ## [2026-08-31b] - Cal-gate SHIPPED: calibrated STRONG-YRFI ceiling replaces the lambda floor + weather bump
 
 ### Changed

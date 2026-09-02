@@ -108,7 +108,17 @@ def main() -> int:
     bt = ROOT / "data" / "backtests"
     d24 = attach(load(bt / "backtest_2024-04-01_to_2024-09-30_truepit_ptfix.csv", "home", 2024), fac)
     d25 = attach(load(bt / "backtest_2025-04-01_to_2025-09-30_truepit_ptfix.csv", "home", 2025), fac)
-    d26 = attach(load(ROOT / "data" / "picks_2026.csv", "home_team", 2026), fac)
+    # The ledger has carried its own home/away_fi_xwoba since 2026-08-23 (the
+    # production pool value, frozen with the bet).  attach() merges the factor
+    # file on game_pk, so leaving those columns in place produces _x/_y
+    # suffixes and a KeyError downstream; and the factor file is a one-off
+    # dump (last row 2026-08-22), so games after it would silently mean-fill.
+    # Prefer the ledger's own value, fall back to the factor file.
+    led26 = load(ROOT / "data" / "picks_2026.csv", "home_team", 2026)
+    own = {c: pd.to_numeric(led26[c], errors="coerce") for c in ("home_fi_xwoba", "away_fi_xwoba") if c in led26.columns}
+    d26 = attach(led26.drop(columns=list(own)), fac)
+    for c, v in own.items():
+        d26[c] = v.values if c not in d26.columns else v.fillna(d26[c]).values
     for d in (d24, d25, d26):
         d["date"] = pd.to_datetime(d["date"]).dt.strftime("%Y-%m-%d")
     tr = pd.concat([d24, d25, d26[d26.date < FROM]], ignore_index=True)
