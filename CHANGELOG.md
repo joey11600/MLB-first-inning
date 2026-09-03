@@ -11,6 +11,68 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-02c] - "Temperature and humidity shouldn't matter this much": tested, they don't -- but the PARK term does, and it is the worthless one
+
+### Investigated (read-only; no model, gate, staking or ledger code touched)
+
+Operator flagged a board card (MIA@KC 2026-09-02, LEAN NRFI, seven runs
+scored) whose "WHY THIS PICK" panel led with temperature and humidity.
+
+- **What weather actually did to that pick: 2.03 percentage points.** All
+  four weather inputs together moved it from NRFI 56.0% to 54.0%; the
+  verdict is identical either way. Total absolute push across all 40 feature
+  slots was **0.385 log-odds** -- one of the quietest games of the season.
+  The pick was LEAN = track-only, so no money was on it.
+- **Why the panel looked that way.** It prints the top five |contribution|
+  rows per half with **no magnitude floor**, so when nothing has an opinion
+  the smallest real signal is rendered at full bar length. 37.5 C is a
+  2.7-sigma input and 24% humidity a 2.1-sigma input, so on an extreme
+  weather day those rows float to the top by default. Across the v3 era a
+  weather input is the single biggest driver in **1 game out of 135** (7.5%
+  of games season-wide, where pre-08-23 rows have no fi_xwoba).
+- **`tools/refit2026/wx_ablation.py` (new, writes nothing) -- KEEP THE
+  WEATHER FEATURES.** Shipped v3 shape refit with weather subsets removed,
+  three splits, park rebuilt from train only, CIR on train only, cal-gate
+  ceiling re-derived per split, paired bootstrap over games. Dropping all
+  four helps 2024 (Brier -0.00117, 90% CI [-0.00245, +0.00011] -- touches
+  zero), clearly HURTS 2025 (Brier +0.00161 [+0.00073, +0.00248]; AUC
+  -0.0064 [-0.0103, -0.0026], both CIs exclude zero), flat on 2026 (Brier
+  -0.00017 [-0.00086, +0.00054]). Helps in one direction only -> reject per
+  CLAUDE.md. Every narrower subset behaves the same way ("drop temp only" is
+  the best 2025 money cell at +14.18u flat and is worse than shipped on 2026,
+  +6.92u vs +10.49u).
+
+### The finding that matters more, from the same decomposition
+
+Share of the model's game-to-game swing, v3 era (135 games, real inputs):
+
+| input | share of the swing |
+|---|---|
+| **park** | **24.0%** |
+| all four weather | 11.1% (temperature 2.1%, humidity 3.2%) |
+| first-inning pitcher xwOBA (the v3 feature) | 10.0% |
+| the other 15 pitcher/batter inputs | 52.0% |
+
+The single largest driver of which games get picked is the park factor --
+and `park_null.py`, re-run the same day, says the shipped park map ranks 2026
+games **worse than random relabelling** (beats 4% of placebos on AUC). That
+is why the recent STRONG book reads BAL@COL, COL@WSH, CHC@ARI, STL@LAD. The
+operator's instinct that the model keys on the wrong thing is correct; the
+culprit is the park term, not the weather. It cannot be removed in isolation
+(the frozen feature standardisation, 2026-08-20 item 3) -- ablation belongs
+to the next approved refit, alongside the umpire feature.
+
+### Trap recorded (bit this session, twice)
+
+Decomposing contributions from the ledger requires production's own defaults.
+`harness.DEFAULTS` has no `fi_xwoba` key, so a missing value fills with 0.0
+and standardises to z = -13, which reported the feature as 70% (then 100%) of
+the model's swing. The pool's `league` entry is `{pa, woba}` running sums, not
+a rate -- the neutral fill is the model's own stored `mean`. Same family as
+the naive-`attach()` landmine noted in [2026-09-02].
+
+---
+
 ## [2026-09-02b] - Follow-ups #2 and #3 from the review: ceiling re-derived (no change), park refit re-run (no change), two validation scripts repaired
 
 ### Investigated -- STRONG-YRFI ceiling re-derived on PRODUCTION's own scale (review item 2; nothing shipped)
