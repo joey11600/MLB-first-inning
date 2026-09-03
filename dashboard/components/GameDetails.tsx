@@ -555,30 +555,92 @@ function WhyThisPickPanel({
   const t1 = detail?.topFactorsT1 ?? [];
   const b1 = detail?.topFactorsB1 ?? [];
   if (t1.length === 0 && b1.length === 0) return null;
-  // Combine the two halves and sort by absolute contribution; cap at 8
-  // so the panel stays scannable.  Tag each with which half it came
-  // from for the user's reference.
+
+  /* Points, not log-odds.  Each half-inning's model predicts the log-odds
+     of a RUN in that half, and `contribution` is that raw term.  The game
+     probability is p_nrfi = (1 - p_T1)(1 - p_B1), so a contribution c in
+     half h moves it by
+
+         d p_nrfi  =  -(1 - p_other) * p_h * (1 - p_h) * c
+
+     to first order, and lambda_h = -ln(1 - p_h) recovers each half's run
+     probability from the stored lambdas.  Checked against a full rescore
+     of MIA@KC 2026-09-02: this estimates the four weather rows at -1.84
+     points where an exact recompute gives -2.03.  Good enough to show, so
+     the figure is prefixed with a tilde. */
+  const lamT1 = detail?.lambdaLrT1 ?? null;
+  const lamB1 = detail?.lambdaLrB1 ?? null;
+  const canPts =
+    typeof lamT1 === "number" && typeof lamB1 === "number" &&
+    Number.isFinite(lamT1) && Number.isFinite(lamB1) && lamT1 > 0 && lamB1 > 0;
+  const pointsFor = (c: number, half: "T1" | "B1"): number | null => {
+    if (!canPts) return null;
+    const lam = half === "T1" ? lamT1! : lamB1!;
+    const other = half === "T1" ? lamB1! : lamT1!;
+    const p = 1 - Math.exp(-lam);
+    return -Math.exp(-other) * p * (1 - p) * c * 100;
+  };
+
   const combined = [
     ...t1.map(f => ({ ...f, half: "T1" as const })),
     ...b1.map(f => ({ ...f, half: "B1" as const })),
-  ].sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)).slice(0, 8);
-  const maxAbs = combined.reduce(
-    (m, f) => Math.max(m, Math.abs(f.contribution)),
-    0.001,
+  ]
+    .map(f => ({ ...f, points: pointsFor(f.contribution, f.half) }))
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .slice(0, 8);
+
+  /* FIXED SCALE, so two games can be compared.  This bar used to be
+     normalised by the largest contribution IN THIS GAME, which meant a
+     game where nothing had an opinion still rendered a full-length bar --
+     the operator read a 0.6-point weather nudge as the thing driving the
+     pick (2026-09-02).  6 points is the 75th percentile of "biggest
+     driver in a game" over the 2026 season, so a typical game's top row
+     lands near three-quarters and only a genuinely dominant input fills
+     the track.  The no-points fallback uses the log-odds equivalent. */
+  const FULL_BAR_PTS = 6.0;
+  const FULL_BAR_LOGODDS = 0.42;
+  const QUIET_PTS = 1.0;   // 7.1% of 2026 games are this quiet
+
+  const biggestPts = combined.reduce(
+    (m, f) => (f.points == null ? m : Math.max(m, Math.abs(f.points))),
+    0,
   );
+  const isQuiet = canPts && biggestPts > 0 && biggestPts < QUIET_PTS;
 
   return (
     <section className={styles.whyPanel}>
       <div className={styles.whyHead}>
         <span className="eyebrow">Why this pick</span>
         <span className={styles.whySub}>
-          Top features driving the model's verdict
+          How far each input moves the pick
         </span>
       </div>
+      {isQuiet && (
+        <p className={styles.whyQuiet}>
+          <strong>No strong drivers.</strong> The model sees an ordinary
+          matchup here: its biggest single input moves the pick about{" "}
+          {biggestPts.toFixed(1)} of a percentage point. The bars below are
+          on the same scale as every other game, so short bars mean the
+          model is close to a coin flip, not that these inputs decided it.
+        </p>
+      )}
       <ul className={styles.whyList}>
         {combined.map((f, i) => {
-          const pct = Math.min(100, Math.abs(f.contribution) / maxAbs * 100);
-          const dir: "nrfi" | "yrfi" = f.contribution > 0 ? "nrfi" : "yrfi";
+          /* A POSITIVE contribution raises the log-odds of a run, which
+             pushes toward YRFI.  This was inverted here until 2026-09-02:
+             the panel labelled a 37 C day and a starter with a perfect
+             last-10 no-run record as pushing opposite ways to the truth. */
+          const towardNrfi = f.points == null ? f.contribution < 0 : f.points > 0;
+          const dir: "nrfi" | "yrfi" = towardNrfi ? "nrfi" : "yrfi";
+          const pct = Math.min(
+            100,
+            f.points == null
+              ? Math.abs(f.contribution) / FULL_BAR_LOGODDS * 100
+              : Math.abs(f.points) / FULL_BAR_PTS * 100,
+          );
+          const label = f.points == null
+            ? Math.abs(f.contribution).toFixed(2)
+            : `${Math.abs(f.points).toFixed(1)} pts`;
           return (
             <li key={`${f.half}-${f.name}-${i}`} className={styles.whyRow}>
               <span className={styles.whyHalf} title={f.half === "T1" ? "Top of 1st" : "Bottom of 1st"}>
@@ -597,16 +659,23 @@ function WhyThisPickPanel({
               </span>
               <span
                 className={`num ${styles.whyContrib}`}
-                title={`Pushes toward ${dir.toUpperCase()} by ${Math.abs(f.contribution).toFixed(3)} log-odds`}
+                title={
+                  f.points == null
+                    ? `Pushes toward ${dir.toUpperCase()} by ${Math.abs(f.contribution).toFixed(3)} log-odds`
+                    : `Moves the pick about ${Math.abs(f.points).toFixed(2)} percentage points toward ${dir.toUpperCase()} (${f.contribution >= 0 ? "+" : ""}${f.contribution.toFixed(3)} log-odds on a run in the ${f.half === "T1" ? "top" : "bottom"} of the 1st)`
+                }
               >
-                {f.contribution > 0 ? "→ N" : "→ Y"} {Math.abs(f.contribution).toFixed(2)}
+                {towardNrfi ? "→ N" : "→ Y"} {label}
               </span>
             </li>
           );
         })}
       </ul>
       <div className={styles.whyFoot}>
-        Pick: <strong>{pickSide}</strong> · Bars show signed log-odds contribution; longer bar = stronger push toward that side.
+        Pick: <strong>{pickSide}</strong> ·{" "}
+        {canPts
+          ? <>Each figure is roughly how many percentage points that input moves this pick, toward <strong>N</strong> (no run) or <strong>Y</strong> (a run). Bars use one fixed scale across all games, so a short bar means the input barely mattered.</>
+          : <>Bars show the log-odds push toward <strong>N</strong> (no run) or <strong>Y</strong> (a run); this row predates the stored half-inning projections, so the figure cannot be converted to percentage points.</>}
       </div>
     </section>
   );
@@ -646,6 +715,11 @@ function prettyFeatureName(name: string): string {
     away_pvt_nrfi_rate:          "Away SP vs this opp (career)",
     home_avg_ip_per_start:       "Home SP avg IP/start",
     away_avg_ip_per_start:       "Away SP avg IP/start",
+    // Shipped with model v3 (2026-08-23) and missing from this map until
+    // 2026-09-02, so the panel printed the raw column name for the one
+    // input that measures the first inning specifically.
+    home_fi_xwoba:               "Home SP 1st-inning xwOBA",
+    away_fi_xwoba:               "Away SP 1st-inning xwOBA",
   };
   return map[name] ?? name;
 }
@@ -716,6 +790,10 @@ function featureTooltip(name: string): string {
       "Home pitcher whiff-rate percentile rank (0-100). 100 = swinging-strike king; high = strikeout stuff = runs suppressed.",
     away_whiff_pct_rank:
       "Away pitcher whiff-rate percentile rank (0-100). 100 = swinging-strike king; high = strikeout stuff = runs suppressed.",
+    home_fi_xwoba:
+      "Home starter's expected wOBA allowed in FIRST INNINGS ONLY, pooled across 2024-26 and shrunk toward the league mean. Higher = hitters do more damage against him to open a game. The only input that measures the first inning specifically; every other pitcher stat here is a whole-game season average.",
+    away_fi_xwoba:
+      "Away starter's expected wOBA allowed in FIRST INNINGS ONLY, pooled across 2024-26 and shrunk toward the league mean. Higher = hitters do more damage against him to open a game. The only input that measures the first inning specifically; every other pitcher stat here is a whole-game season average.",
     era_gap_t1:
       "Signed ERA gap for top of 1st = home_era − away_era. Positive = home pitcher worse than away. Encodes 'worse pitcher gives up the run.'",
     era_gap_b1:

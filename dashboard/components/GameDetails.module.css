@@ -951,6 +951,8 @@
 .whyNrfi { background: var(--primary); }
 .whyYrfi { background: var(--destructive); }
 .whyContrib {
+  /* "→ N 0.5 pts" must not wrap onto two lines in the narrow column. */
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
@@ -959,6 +961,19 @@
   color: var(--muted-foreground);
   text-align: right;
 }
+.whyQuiet {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-left: 2px solid var(--rule);
+  letter-spacing: 0.01em;
+}
+.whyQuiet strong { color: var(--foreground); }
+
 .whyFoot {
   margin-top: 12px;
   font-family: var(--font-sans);

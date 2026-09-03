@@ -11,6 +11,77 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-03] - The "Why this pick" panel was printing every driver BACKWARDS; and the recent-form inputs are a real lead
+
+### Fixed -- the driver panel (display only; no pick, gate, stake or ledger value is computed from any of this)
+
+- **The N/Y direction on every row of "Why this pick" was inverted.** Each
+  half-inning model predicts the log-odds of a RUN, so a positive
+  `contribution` pushes toward YRFI. `_lr_feature_contributions`'s docstring
+  claimed the opposite, and `WhyThisPickPanel` faithfully implemented the
+  docstring. Live consequence on the 2026-09-02 MIA@KC card the operator
+  flagged: a 37.5 C day was labelled as arguing for NO run, and a starter
+  with a **perfect last-10 no-run record** was labelled as arguing FOR one.
+  Verified against a hand recomputation of `w * (x - mean) / std` on three
+  independent rows. Docstring corrected at the source; the panel now derives
+  direction from the points figure below. `lib/pick-reasons.ts` (the Brief)
+  uses only `Math.abs(contribution)` for ordering and was never affected.
+- **Bars were normalised by the largest contribution IN THAT GAME**, so a
+  game where nothing had an opinion still rendered a full-length bar. That is
+  what made a 0.5-point weather nudge look like the thing driving the pick.
+  Bars now use a fixed scale (6.0 points = full track, the 75th percentile of
+  "biggest driver in a game" across 2026), so short bars mean the model is
+  near a coin flip and two games can be compared.
+- **Figures are in percentage points, not log-odds.** A contribution `c` in
+  half `h` moves the pick by `-(1 - p_other) * p_h * (1 - p_h) * c`, with each
+  half's run probability recovered from the stored lambdas. Checked against a
+  full rescore of MIA@KC: estimates the four weather rows at -1.84 points
+  where an exact recompute gives -2.03, hence "≈". Falls back to log-odds on
+  rows predating the stored half-inning projections.
+- **New "No strong drivers" note** when the biggest input moves the pick less
+  than 1.0 point (7.1% of 2026 games; the flagged card was in the quietest 3%).
+- **`home_fi_xwoba` / `away_fi_xwoba` had no display name or tooltip** and
+  printed as the raw column name -- the one input that measures the first
+  inning specifically, unlabelled since v3 shipped 2026-08-23.
+- Verified on a production build in the browser: all eight rows on the
+  2026-09-03 MIA@KC card now read correctly (37.1 C -> Y, last-10 rate 1.000
+  -> N, 6.5 IP/start -> N), bars 4-9% wide, quiet note present, figure on one
+  line. `tsc --noEmit` and `next build` green.
+
+### Investigated -- "xwoba and last-10 NRFI rates are more important than we think"
+
+`tools/refit2026/underweight_test.py` (new, writes nothing) refits the shipped
+v3 shape with a per-feature L2 vector, making the named group 2x/5x/25x freer
+or 2x tighter, on all three splits. The hypothesis splits in two:
+
+- **fi_xwoba is already about right.** Its weight is the most stable
+  coefficient in the model (+0.0324 / +0.0265 / +0.0307 across splits).
+  Freeing it helps 2024 (Brier -0.00139, 90% CI [-0.00227, -0.00050]), is flat
+  on 2025, and is slightly worse on 2026 (AUC -0.0018). No change indicated.
+- **The last-5/last-10 rates are the live lead.** Freeing them is the best
+  single result in the experiment on 2026: AUC 0.5278 -> 0.5319 (+0.0041, 90%
+  CI [+0.0004, +0.0078], **excludes zero**), Brier -0.00038, and money better
+  on both bases (65 bets @ 69.2%, +14.52u flat / +43.58u Kelly at 2x freer, vs
+  54 @ 68.5%, +10.49u / +28.49u shipped). Flat on 2024 and 2025 -- it never
+  hurts a split, which is rare here, but clears the bar in only one.
+- **Why it is a lead and not a ship:** the fitted weight FLIPS SIGN by season
+  (+0.0097 / -0.0089 / +0.0001 shipped; +0.0076 / -0.0318 / -0.0123 when
+  freed). Only the negative sign is physically sensible. An unstable sign is
+  the shape of every artifact this directory has already killed.
+- **Concrete follow-up the test suggests:** these inputs are COARSE -- last-5
+  takes 10 distinct values on 2026 with 21-23% of games at exactly 1.000,
+  last-10 takes 26. A properly shrunk continuous version, the same
+  empirical-Bayes treatment `fi_xwoba` got, has never been built. That is the
+  candidate, not a weight edit (which needs a refit regardless, since the
+  feature standardisation is frozen into the shipped artifacts).
+- Also confirmed en route: tightening these features hurts AUC in ALL THREE
+  splits, so the direction of the operator's instinct is right even where the
+  magnitude does not clear the bar.
+
+No model, gate, staking or ledger code touched.
+
+---
+
 ## [2026-09-02c] - "Temperature and humidity shouldn't matter this much": tested, they don't -- but the PARK term does, and it is the worthless one
 
 ### Investigated (read-only; no model, gate, staking or ledger code touched)

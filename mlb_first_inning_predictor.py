@@ -2315,9 +2315,15 @@ def _lr_feature_contributions(
 ) -> list[dict]:
     """T4.15: For the dashboard's "Why this pick?" panel.  Returns the top-N
     features by absolute signed contribution `w * (x - mean) / std`.
-    A positive contribution means "pushes toward NRFI" (lower P(run)),
-    a negative one means "pushes toward YRFI".  The bias term is omitted
-    because it's the same for every game.
+    SIGN, and it is the opposite of what this docstring claimed until
+    2026-09-02: each half's model predicts the log-odds of a RUN in that
+    half, so a POSITIVE contribution raises P(run) and therefore pushes
+    toward YRFI; a negative one pushes toward NRFI.  The old comment said
+    the reverse and the dashboard implemented the old comment, so the
+    "Why this pick" panel printed every driver backwards -- a 37 C day was
+    labelled as arguing for no run.  Display only; no pick, gate, stake or
+    ledger value was ever computed from this function.  The bias term is
+    omitted because it's the same for every game.
     """
     contribs: list[tuple[str, float, float]] = []
     for i, (name, x, mean, std, w) in enumerate(zip(
