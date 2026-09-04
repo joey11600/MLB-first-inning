@@ -11,6 +11,92 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-03b] - VALIDATED CANDIDATE: the shrunk first-inning form rate clears every bar (not shipped)
+
+### Added
+
+- **`tools/refit2026/build_fi_form.py`** and **`tools/refit2026/test_fi_form.py`**
+  (both write only to `data/candidates/`). The operator asked for the shrunk
+  continuous version of the last-10 NRFI rate. Built, tested, and it is the
+  first candidate since the pooled first-inning xwOBA (2026-08-21) to clear
+  every bar in `feature_test_methodology`.
+
+### The measurement that set the shrinkage
+
+Unlike the umpire rate -- flattened 2026-08-29 because tau^2 <= 0 on every
+season pair -- a starter's first-inning clean rate HAS real between-pitcher
+variance, and it is stable across all three seasons:
+
+| season | observed var | binomial-noise var | tau^2 | implied K |
+|---|---|---|---|---|
+| 2024 | 0.01416 | 0.01130 | +0.00286 | 68.2 starts |
+| 2025 | 0.01523 | 0.01200 | +0.00323 | 63.4 starts |
+| 2026 | 0.01555 | 0.01260 | +0.00295 | 69.7 starts |
+
+**K ~ 65 starts is the whole story.** A starter makes ~30 starts a year, so a
+10-start sample deserves 10/(10+65) = **13%** weight on itself and 87% on the
+league mean. The shipped `*_p_last10_pitcher_nrfi` gives it **100%**. That is
+the defect -- and it is the opposite of "the model under-weights this": the
+INPUT is ~87% noise, so the near-zero fitted weight (and its season-flipping
+sign, found 2026-09-03) was the model responding correctly. Shrinking the
+input is what lets a real weight be carried. Within-season split-half
+reliability is +0.37 / +0.16 / +0.22 (Spearman-Brown); cross-season carryover
+is weak and inconsistent (+0.08 / +0.21 / -0.14).
+
+### Results
+
+- Reconstruction verified: the `shipped_like` config (K=0, window 10, pooled
+  across the season boundary the way `pitcher_last_n_first_inning` does)
+  reproduces the live last-10 column at **corr +0.921, mean |diff| 0.025** for
+  pitchers with >=12 prior starts in-file. The residual is games outside the
+  backtest windows, which production reaches via statsapi and this rebuild
+  cannot.
+- Granularity: `K65_all` has sd 0.0212 and ~11,000 distinct values against the
+  raw fraction's sd 0.18 and **26** distinct values.
+- **12 of 30 cells beat shipped on AUC in all three splits.** Best cell
+  `add / K65_pw0`: 2026 **+0.0070** (90% CI [+0.0034, +0.0105]), 2024 +0.0039,
+  2025 +0.0007; 2026 dBrier **-0.00051**, CI [-0.00096, -0.00009], also
+  excluding zero.
+- **The internal control:** `shipped_like` -- same rebuild, same code path, no
+  shrinkage -- FAILS the three-split test (+0.0004 / -0.0013 / -0.0019). The
+  gain is the shrinkage, not the reconstruction.
+- **Selection-aware null, 300 trials**, the entire procedure (30 cells x 3
+  splits, same all-three-positive filter) re-run on values shuffled within
+  season: noise produces **1.4** survivors per trial against the observed
+  **12**; best-in-noise mean +0.0012, sd 0.0009, **max +0.0060 across all 300
+  trials** -- below the observed +0.0070. **p = 0.000.**
+- `prior_w = 0` wins in every variant, which is what the persistence
+  measurement predicted rather than a random grid winner.
+- **Leakage audit** (`--audit`): 500 rows recomputed by brute force from the
+  raw start log, worst disagreement **0.00e+00**; correlation with THIS
+  start's outcome (+0.0420) and the NEXT start's (+0.0323) are similar, as
+  they must be for a feature that cannot see its own game.
+
+### Money (2026 only, the one season with real captured prices; ceiling re-derived per config)
+
+| config | bets | hit | flat | Kelly | No.1 nights | No.1 hit | No.1 Kelly |
+|---|---|---|---|---|---|---|---|
+| shipped | 64 | 70.3% | +16.77u | +44.01u | 54 | 74.1% | +42.26u |
+| add / K65_pw0 | 93 | 66.7% | +17.56u | +49.08u | 70 | 70.0% | +44.81u |
+| add / K65_all | 89 | 69.7% | +21.31u | +56.11u | 69 | 72.5% | +48.70u |
+
+More bets at a similar hit rate, so more total units. **Stated honestly: the
+No.1's hit rate is slightly LOWER on a larger set of nights, and per the
+refit2026 README the 2026 money LEVEL is flattered by the train/test base-rate
+gap.** The discrimination gain and its permutation null are the durable
+finding; the units are that finding priced at one season's odds.
+
+### Not shipped
+
+Shipping is a model change and an operator decision. It needs a full refit
+(weights + CIR calibrator + the predictor's feature list + the cal-gate
+ceiling re-derived) AND a nightly production builder for the feature, the way
+`fi_pitcher_pool.py` serves `fi_xwoba` -- the candidate file is a research
+artifact built from the backtest CSVs and the ledger, which production cannot
+depend on. No model, gate, staking or ledger code touched.
+
+---
+
 ## [2026-09-03] - The "Why this pick" panel was printing every driver BACKWARDS; and the recent-form inputs are a real lead
 
 ### Fixed -- the driver panel (display only; no pick, gate, stake or ledger value is computed from any of this)
