@@ -794,12 +794,16 @@ These can corrupt picks, lose data, or silently mis-grade.
   succeeded — after ~30 cancelled runs the staleness alarm cannot fire at all;
   (2) the "job not picked up" alarm fires only inside the bands 20 / 60 / 180 min
   (+`WINDOW_MIN`), so a job stuck 458 min (measured 09-04 23:27Z) is past every band;
-  (3) `railway_stale_min=4` and the run prints "healthy — no alert". A multi-day
-  outage is therefore indistinguishable from health. **Recovery is manual and an
-  operator decision** (docs/SELF_HOSTED_RUNNER.md): restart the runner service on the
-  Contabo box, or set the repo variable `RUNNER_LABEL` to `ubuntu-latest` (billed
-  minutes). Fix for the watchdog: alert whenever `STUCK_MIN >= 20` OR no success in the
-  window, with the dedupe done by state (notifications_log), not by time band.
+  (3) so the run prints "healthy — no alert" (Railway being alive was NOT the
+  suppressor, as first guessed -- the two measurements simply had nothing left to
+  say). A multi-day outage was therefore indistinguishable from health.
+  **WATCHDOG HALF FIXED 2026-09-04** (CHANGELOG [2026-09-04c]): last success read
+  directly via `?status=success`; open runs read by status with a 7-day cap (run
+  #385 is a zombie queued since May); a once-a-day reminder at 13:00 UTC while the
+  outage outlives its last band. **Runner recovery remains manual and an operator
+  decision** (docs/SELF_HOSTED_RUNNER.md): restart the runner service on the Contabo
+  box, or set the repo variable `RUNNER_LABEL` to `ubuntu-latest` (billed minutes).
+  This item closes when a daily.yml run completes.
 - [ ] **T8.41** (2026-09-04) — **A rescheduled game keeps its ORIGINAL ledger row and
   that row is graded with the makeup game's result under starters who never threw
   that first inning.** 13 games in the 2026 ledger (e.g. PIT@NYY 2026-07-21 lists

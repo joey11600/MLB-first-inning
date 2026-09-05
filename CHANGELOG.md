@@ -11,6 +11,53 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-04c] - The runner watchdog can no longer go blind during a long outage (T8.42, watchdog half)
+
+### Fixed -- `.github/workflows/runner_watchdog.yml` (operator: "fix the watchdog")
+
+The runner went offline 2026-09-02 ~13:00 UTC and the watchdog printed
+"healthy — no alert" for two and a half days while measuring `stuck_min=458`.
+Three defects, all in this file, all fixed; the escalation-ladder design is kept.
+
+- **Last-success measurement asked the wrong question.** It scanned the 30
+  most recent runs and set `STALE_MIN=-1` "rather than guess" once none of
+  them had succeeded -- so the alarm built for long outages went blind after
+  ~15 hours of hourly cancellations. Now asks GitHub directly
+  (`?status=success&per_page=1`); the page scan is only the fallback if that
+  call fails. Measured tonight: last success #4097 at 2026-09-02 13:03 UTC,
+  **stale 3,694 min**, where the old code reported -1.
+- **Stuck-job measurement had the same 30-run horizon.** After a day the stuck
+  run had scrolled off the page and it measured only the newest pending one.
+  Now reads open runs by status (`queued`, `in_progress`, `pending`,
+  `waiting`, `requested`) and ignores anything older than 7 days -- the API
+  still lists run **#385 as queued since 2026-05-15**, a zombie that would
+  otherwise read as a permanent outage. Measured tonight: **stuck 649 min**
+  (run #4167).
+- **The ladder is finite by design, so after the last band an outage looked
+  like health.** A once-a-day reminder now fires on the first check of the
+  awake window (13:00 UTC, 9am ET) for as long as `STUCK_MIN` is past its
+  last band (180 min) or `STALE_MIN` is past its last band (720 min). One
+  message a day, never thirty, never in the sleeping hours; the message says
+  what is and is not affected (Railway may carry the picks; the ledger, the
+  season record and the nightly reports are not being written).
+- **Verified on GitHub's own runner, not locally** (this machine has no `jq`
+  and `${{ }}` only expands on Actions). Two `workflow_dispatch` runs on
+  commit `2f665614`: with the new `simulate_daily` input (run 33939759658) the
+  watchdog measured `stale_min=3696 stuck_min=651 newest=#4190/cancelled
+  railway_stale_min=2` and sent BOTH daily reminders ("Still not picked up
+  ... 10h", "Predictions still stopped ... 2d 13h") to the operator's personal
+  chat, HTTP 200, and skipped the subscriber channel; with `force_test` (run
+  33939794983) it measured the same and delivered the test alert. The old
+  code reported `stale_min=-1` and "healthy" against identical facts. The
+  header comment records the blind spot and corrects the audit's first
+  guess: Railway being alive never suppressed anything -- the measurements
+  simply had nothing left to say.
+
+Runner recovery itself remains the operator's manual action (T8.42 stays
+open for that half).
+
+---
+
 ## [2026-09-04b] - The shadow model gets a card on /history, read straight from Supabase
 
 ### Added
