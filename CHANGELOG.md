@@ -11,6 +11,70 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-05d] - First read of the multi-book capture: line shopping is worth ~2.3 points a game
+
+### Investigated (read-only; `data/diagnostics/odds/raw_*.csv`, 2026-08-23 .. 09-04, last snapshot per day per book)
+
+The [2026-08-21] "edge is in the price" finding said the only untried lever
+was the 6.55% single-book overround. Twelve days of eight-book snapshots now
+put numbers on it.
+
+- **First-inning total (0.5), 176 games with both sides priced, median 4 books
+  per game.** The YRFI (Over) break-even at the BEST book averages **0.508**;
+  at the WORST book **0.537** -- a 2.9-point spread. Taking the best price on
+  each side, the market's overround is **3.78%**, against ~6.5% at any single
+  book. Best Over price by book: Caesars 33% of games, FanDuel 26%, BetMGM 22%,
+  BetOnline 19%.
+- **FanDuel -- the ledger's book -- has the best Over price in 33% of games;
+  in the other 67% it costs an average 2.3 points of break-even.** On a system
+  whose measured real-money edge is ~0 at a 56-57% break-even, 2.3 points is
+  the difference between a coin flip and a small positive expectation. This
+  is a MONEY finding that touches nothing in the model.
+- **F5 total.** Lines cluster at 4.5 (852 of 1,882 book-lines) with 3.5..5.5
+  common; 224 game-lines with both sides. Overround at the best price each
+  side **4.68%**, Over dispersion 1.7 points -- a somewhat tighter, better
+  behaved market than the first-inning one at the best price, but still
+  cheaper than any single book's first-inning price.
+- **Not yet answerable: whether our inputs beat the F5 market.** That needs
+  runs-through-5 for these games; `data/cache/linescore_full` covers 1,889 of
+  2,052 graded 2026 games but only 3 of the 166 since 08-23 (the cache was
+  filled 08-21). `tools/refit2026/fetch_linescores_full.py` is being run to
+  close that gap; the comparison itself is a new per-game total model
+  (P(runs_5 > the posted line)), not a refit of the first-inning classifier.
+
+What this suggests, for the operator to weigh: the board already shows the
+best available price beside the FanDuel one (2026-08-23); placing the bet at
+that price, when a follower holds those accounts, is worth more per game than
+any model change validated this month.
+
+---
+
+## [2026-09-05c] - Odds-capture push made patient (T8.43), and a CORRECTION: the F5 capture was never broken
+
+### Corrected -- the 2026-09-02 review's "only 3 of 10 days reached the repo"
+
+That was an analysis error, not a pipeline fault: the check counted snapshot
+timestamps and read them as games, then a truncated log view showed the first
+of five push attempts failing and stopped reading. The 2026-08-26 run's own
+later attempt landed commit `cb250433`. **The repo holds first-inning and F5
+multi-book snapshots for 12 of the last 13 days (08-23 .. 09-04; 08-27 has no
+run at all): 148 games with F5 totals, 156 with first-inning totals, across
+eight books.** The "F5 comparison cannot be run yet" note in [2026-09-02] and
+the memory that repeated it are withdrawn; the data has been there.
+
+### Changed -- `.github/workflows/odds_diagnostic.yml` commit step
+
+- The push loop was 5 tries 10 s apart -- under a minute of patience against
+  GitHub's transient `commit_refs` rejection, which it survived on 08-26 by
+  luck of timing. Now 9 attempts with backoff (15 s .. 300 s, ~17 min in
+  total), a fresh `fetch` + `rebase` before every attempt, and an `::error`
+  that fails the job if the push never lands (the rows are in Supabase
+  regardless). Capture and mirror untouched. The commit message on `6f6023f1`
+  states the wrong premise; this entry and the workflow comment are the
+  record.
+
+---
+
 ## [2026-09-05b] - T8.41 grader half scoped: the July 27 CLE@CIN bet is a phantom win
 
 ### Investigated (nothing changed; AUDIT T8.41 carries the proposal)
@@ -634,10 +698,10 @@ more... then they hit when our model said pass"). Measured, in order:
 
 ### Noted, not fixed
 
-- `odds_diagnostic.yml` ran green every day 08-23..09-01 but the repo holds
-  multi-book/F5 snapshots for only 3 of those days (12 F5 games in total).
-  The F5-market AUC comparison promised for "after ~2 weeks" cannot be run
-  yet; check why the daily runs commit nothing.
+- ~~`odds_diagnostic.yml` ran green every day 08-23..09-01 but the repo holds
+  multi-book/F5 snapshots for only 3 of those days (12 F5 games in total).~~
+  **WRONG -- corrected in [2026-09-05c]:** the snapshots were there all along
+  (12 of 13 days, 148 F5 games); the check miscounted.
 
 ---
 

@@ -105,13 +105,16 @@ jobs:
           fi
           git commit -m "auto: odds diagnostic capture $(TZ=America/New_York date +%F)"
           # The predict cron pushes ~hourly, so rebase onto whatever landed
-          # meanwhile before each attempt.  2026-09-05 (T8.43): five tries ten
-          # seconds apart was under a minute of patience, and on 2026-08-24..30
-          # every attempt got GitHub's server-side "fatal error in commit_refs
-          # / [remote rejected] (failure)" -- a transient that can outlast a
-          # minute -- so six of seven captures reached Supabase but never the
-          # repo.  Now: up to 9 attempts with backoff (~17 min in total), a
-          # fresh fetch + rebase every time, and the failure is LOUD in the
+          # meanwhile before each attempt.  2026-09-05 (T8.43): the previous
+          # loop (5 tries, 10 s apart) DID work -- on 2026-08-26 the first push
+          # got GitHub's server-side "fatal error in commit_refs / [remote
+          # rejected] (failure)" and a later attempt landed the commit -- but
+          # under a minute of total patience is a thin margin against a
+          # transient that can outlast a minute.  (A review on 2026-09-02
+          # wrongly concluded most captures never reached the repo; they had.
+          # 12 of the last 13 days are in git; 08-27 has no run at all.)  Now:
+          # up to 9 attempts with backoff (~17 min in total), a fresh fetch +
+          # rebase every time, and a failure that never lands is LOUD in the
           # job summary instead of a green run with nothing behind it.
           PUSHED=0
           for WAIT in 15 30 60 90 120 180 240 300 0; do
