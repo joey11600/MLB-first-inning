@@ -318,3 +318,4 @@ date,severity,metric,note
 2026-08-30,HIGH,away_whiff_pct_rank_extreme,"away_whiff_pct_rank has 5/14 extreme values (outside [5.0, 95.0]); max=100.00"
 2026-08-31,MEDIUM,away_pitcher_q=live,away_pitcher_q=live: today=58.3% baseline=78.5% shift=-20.2%
 2026-08-31,MEDIUM,away_pitcher_q=live,away_pitcher_q=live: today=58.3% baseline=78.5% shift=-20.2%
+2026-09-04,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 3/16 extreme values (outside [5.0, 95.0]); max=98.00"
