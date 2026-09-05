@@ -1,5 +1,77 @@
 {
- "as_of": "2026-09-05T00:05:07Z",
- "since": null,
- "graded_rows": 0
+ "as_of": "2026-09-05T03:54:54Z",
+ "since": "2026-09-04",
+ "graded_rows": 16,
+ "shadow_model": "v3-ump+fi_form[swap10/K65_pw0]",
+ "live": {
+  "bets": 2,
+  "W": 2,
+  "L": 0,
+  "hit": 1.0,
+  "stated": 0.6212,
+  "break_even": 0.5866639338662294,
+  "flat_units": 1.4095691880087353,
+  "same_rule_units": 3.4643637085566805,
+  "same_rule_staked": 5.0,
+  "booked_units": 4.914,
+  "booked_staked": 7.0
+ },
+ "shadow": {
+  "bets": 2,
+  "W": 2,
+  "L": 0,
+  "hit": 1.0,
+  "stated": 0.6401,
+  "break_even": 0.5866639338662294,
+  "flat_units": 1.4095691880087353,
+  "same_rule_units": 4.91363907087552,
+  "same_rule_staked": 7.0
+ },
+ "no1": {
+  "live": {
+   "nights": 1,
+   "W": 1,
+   "hit": 1.0,
+   "same_rule_units": 2.73972602739726
+  },
+  "shadow": {
+   "nights": 1,
+   "W": 1,
+   "hit": 1.0,
+   "same_rule_units": 2.73972602739726
+  },
+  "nights_both": 1,
+  "live_on_both": {
+   "nights": 1,
+   "W": 1,
+   "hit": 1.0,
+   "same_rule_units": 2.73972602739726
+  },
+  "shadow_on_both": {
+   "nights": 1,
+   "W": 1,
+   "hit": 1.0,
+   "same_rule_units": 2.73972602739726
+  },
+  "same_game_on_both": 1
+ },
+ "label_agreement": {
+  "live=LEAN/NRFI shadow=LEAN/NRFI": 8,
+  "live=PASS shadow=PASS": 5,
+  "live=STRONG/YRFI shadow=STRONG/YRFI": 2,
+  "live=LEAN/NRFI shadow=PASS": 1
+ },
+ "paired_nights": [
+  {
+   "date": "2026-09-04",
+   "live": "STL@COL W +2.74u",
+   "shadow": "STL@COL W +2.74u",
+   "same_game": true
+  }
+ ],
+ "tonight": {
+  "date": null,
+  "live_strong": [],
+  "shadow_strong": []
+ }
 }

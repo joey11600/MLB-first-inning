@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-09-02T08:05:14Z",
+ "generatedUtc": "2026-09-05T03:54:47Z",
  "headlineMethod": "the model that is live right now -- the shipped calibrator and the current gate -- replayed over every game of the season",
  "floorMethod": "no-hindsight check: at each date the calibrator is refit using only games played before that date",
  "caveat": "the shipped calibrator was fit on 2025+2026 data, so it has already seen these outcomes; the model weights are the fixed 2026-05-26 refit (trained through 2026-05-11), which makes bets on or before 2026-05-11 partially in-sample",
@@ -14,39 +14,39 @@
   "label": "Projected profit",
   "priceFill": -125.0,
   "from": "2026-04-01",
-  "to": "2026-09-01",
-  "bets": 202,
-  "wins": 131,
-  "losses": 71,
-  "hitRate": 0.6485,
-  "breakEvenNeeded": 0.5703,
-  "edgePts": 7.82,
-  "flatProfit": 28.97,
+  "to": "2026-09-04",
+  "bets": 204,
+  "wins": 132,
+  "losses": 72,
+  "hitRate": 0.6471,
+  "breakEvenNeeded": 0.5705,
+  "edgePts": 7.65,
+  "flatProfit": 28.65,
   "assumedBets": 49,
-  "selectedBets": 222,
+  "selectedBets": 224,
   "droppedZeroStake": 20,
   "droppedFlatPnl": 1.83,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 229.74,
-   "profit": 129.74,
+   "finalBank": 228.8,
+   "profit": 128.8,
    "maxDrawdownPct": 9.71,
    "kellyFraction": 0.25,
    "largestStake": 7.0,
    "medianStake": 3.0
   },
   "floor": {
-   "bets": 234,
-   "wins": 145,
-   "losses": 89,
-   "hitRate": 0.6197,
-   "breakEvenNeeded": 0.5674,
-   "edgePts": 5.22,
-   "flatProfit": 21.69,
+   "bets": 236,
+   "wins": 146,
+   "losses": 90,
+   "hitRate": 0.6186,
+   "breakEvenNeeded": 0.5676,
+   "edgePts": 5.1,
+   "flatProfit": 21.38,
    "assumedBets": 45,
    "sim": {
-    "finalBank": 185.11,
-    "profit": 85.11,
+    "finalBank": 184.17,
+    "profit": 84.17,
     "maxDrawdownPct": 33.13,
     "largestStake": 10.0
    }
@@ -94,10 +94,10 @@
    },
    {
     "month": "2026-09",
-    "bets": 1,
-    "wins": 0,
-    "losses": 1,
-    "flat": -1.0,
+    "bets": 3,
+    "wins": 1,
+    "losses": 2,
+    "flat": -1.32,
     "assumedBets": 0
    }
   ],
@@ -1969,7 +1969,7 @@
      {
       "game": "COL@HOU",
       "side": "YRFI",
-      "modelP": 0.445,
+      "modelP": 0.4449,
       "record": {
        "action": "SKIP",
        "code": "gate",
@@ -2943,7 +2943,7 @@
      {
       "game": "ATL@WSH",
       "side": "YRFI",
-      "modelP": 0.4,
+      "modelP": 0.3999,
       "record": {
        "action": "BET",
        "stake": 2.0,
@@ -5734,7 +5734,7 @@
      {
       "game": "SEA@OAK",
       "side": "YRFI",
-      "modelP": 0.3799,
+      "modelP": 0.3798,
       "record": {
        "action": "BET",
        "stake": 1.0,
@@ -9234,7 +9234,7 @@
      {
       "game": "PIT@PHI",
       "side": "YRFI",
-      "modelP": 0.3676,
+      "modelP": 0.3675,
       "record": {
        "action": "BET",
        "stake": 2.0,
@@ -12144,7 +12144,7 @@
      {
       "game": "HOU@NYY",
       "side": "YRFI",
-      "modelP": 0.4782,
+      "modelP": 0.4781,
       "record": {
        "action": "SKIP",
        "code": "lambda_floor",
@@ -12189,7 +12189,7 @@
      {
       "game": "CHC@ARI",
       "side": "YRFI",
-      "modelP": 0.4905,
+      "modelP": 0.4904,
       "record": {
        "action": "SKIP",
        "code": "lambda_floor",
@@ -12206,7 +12206,7 @@
      {
       "game": "HOU@NYY",
       "side": "YRFI",
-      "modelP": 0.4566,
+      "modelP": 0.4565,
       "record": {
        "action": "SKIP",
        "code": "gate",
@@ -12296,7 +12296,7 @@
      {
       "game": "ATL@WSH",
       "side": "YRFI",
-      "modelP": 0.4501,
+      "modelP": 0.45,
       "record": {
        "action": "SKIP",
        "code": "gate",
@@ -12313,7 +12313,7 @@
      {
       "game": "STL@LAD",
       "side": "YRFI",
-      "modelP": 0.3647,
+      "modelP": 0.3646,
       "record": {
        "action": "BET",
        "stake": 3.0,
@@ -12333,7 +12333,7 @@
      {
       "game": "BAL@COL",
       "side": "YRFI",
-      "modelP": 0.4149,
+      "modelP": 0.4148,
       "record": {
        "action": "SKIP",
        "code": "lambda_floor",
@@ -12348,6 +12348,102 @@
       }
      }
     ]
+   },
+   {
+    "date": "2026-09-02",
+    "flatPnl": -1.0,
+    "simPnl": -3.0,
+    "simBankAfter": 226.74,
+    "flagged": 2,
+    "placed": 2,
+    "bet": 1,
+    "games": [
+     {
+      "game": "BAL@COL",
+      "side": "YRFI",
+      "modelP": 0.3536,
+      "record": {
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -146,
+       "win": false,
+       "pnl": -3.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 4.0,
+       "odds": -146,
+       "pnl": -4.0
+      }
+     },
+     {
+      "game": "PHI@ARI",
+      "side": "YRFI",
+      "modelP": 0.4725,
+      "record": {
+       "action": "SKIP",
+       "code": "lambda_floor",
+       "reason": "too few runs projected"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 4.0,
+       "odds": -122,
+       "pnl": -4.0
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-09-04",
+    "flatPnl": 0.68,
+    "simPnl": 2.05,
+    "simBankAfter": 228.8,
+    "flagged": 2,
+    "placed": 2,
+    "bet": 1,
+    "games": [
+     {
+      "game": "STL@COL",
+      "side": "YRFI",
+      "modelP": 0.351,
+      "record": {
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -146,
+       "win": true,
+       "pnl": 2.05,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 4.0,
+       "odds": -146,
+       "pnl": 2.74
+      }
+     },
+     {
+      "game": "MIN@CWS",
+      "side": "YRFI",
+      "modelP": 0.4427,
+      "record": {
+       "action": "SKIP",
+       "code": "lambda_floor",
+       "reason": "too few runs projected"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 3.0,
+       "odds": -138,
+       "pnl": 2.174
+      }
+     }
+    ]
    }
   ]
  },
@@ -12355,39 +12451,39 @@
   "label": "Real profit",
   "priceFill": null,
   "from": "2026-05-07",
-  "to": "2026-09-01",
-  "bets": 148,
-  "wins": 94,
-  "losses": 54,
-  "hitRate": 0.6351,
-  "breakEvenNeeded": 0.5757,
-  "edgePts": 5.94,
-  "flatProfit": 16.12,
+  "to": "2026-09-04",
+  "bets": 150,
+  "wins": 95,
+  "losses": 55,
+  "hitRate": 0.6333,
+  "breakEvenNeeded": 0.5759,
+  "edgePts": 5.74,
+  "flatProfit": 15.8,
   "assumedBets": 0,
-  "selectedBets": 166,
+  "selectedBets": 168,
   "droppedZeroStake": 18,
   "droppedFlatPnl": 2.03,
   "sim": {
    "startBank": 100.0,
-   "finalBank": 173.69,
-   "profit": 73.69,
+   "finalBank": 172.75,
+   "profit": 72.75,
    "maxDrawdownPct": 9.26,
    "kellyFraction": 0.25,
    "largestStake": 6.0,
    "medianStake": 3.0
   },
   "floor": {
-   "bets": 179,
-   "wins": 113,
-   "losses": 66,
-   "hitRate": 0.6313,
-   "breakEvenNeeded": 0.5716,
-   "edgePts": 5.96,
-   "flatProfit": 19.06,
+   "bets": 181,
+   "wins": 114,
+   "losses": 67,
+   "hitRate": 0.6298,
+   "breakEvenNeeded": 0.5719,
+   "edgePts": 5.79,
+   "flatProfit": 18.75,
    "assumedBets": 0,
    "sim": {
-    "finalBank": 166.95,
-    "profit": 66.95,
+    "finalBank": 166.01,
+    "profit": 66.01,
     "maxDrawdownPct": 29.26,
     "largestStake": 9.0
    }
@@ -12427,10 +12523,10 @@
    },
    {
     "month": "2026-09",
-    "bets": 1,
-    "wins": 0,
-    "losses": 1,
-    "flat": -1.0,
+    "bets": 3,
+    "wins": 1,
+    "losses": 2,
+    "flat": -1.32,
     "assumedBets": 0
    }
   ],
@@ -13869,7 +13965,7 @@
      {
       "game": "SEA@OAK",
       "side": "YRFI",
-      "modelP": 0.3799,
+      "modelP": 0.3798,
       "record": {
        "action": "BET",
        "stake": 1.0,
@@ -17356,7 +17452,7 @@
      {
       "game": "PIT@PHI",
       "side": "YRFI",
-      "modelP": 0.3676,
+      "modelP": 0.3675,
       "record": {
        "action": "BET",
        "stake": 2.0,
@@ -20242,7 +20338,7 @@
      {
       "game": "HOU@NYY",
       "side": "YRFI",
-      "modelP": 0.4782,
+      "modelP": 0.4781,
       "record": {
        "action": "SKIP",
        "code": "lambda_floor",
@@ -20287,7 +20383,7 @@
      {
       "game": "CHC@ARI",
       "side": "YRFI",
-      "modelP": 0.4905,
+      "modelP": 0.4904,
       "record": {
        "action": "SKIP",
        "code": "lambda_floor",
@@ -20304,7 +20400,7 @@
      {
       "game": "HOU@NYY",
       "side": "YRFI",
-      "modelP": 0.4566,
+      "modelP": 0.4565,
       "record": {
        "action": "SKIP",
        "code": "gate",
@@ -20394,7 +20490,7 @@
      {
       "game": "ATL@WSH",
       "side": "YRFI",
-      "modelP": 0.4501,
+      "modelP": 0.45,
       "record": {
        "action": "SKIP",
        "code": "gate",
@@ -20411,7 +20507,7 @@
      {
       "game": "STL@LAD",
       "side": "YRFI",
-      "modelP": 0.3647,
+      "modelP": 0.3646,
       "record": {
        "action": "BET",
        "stake": 3.0,
@@ -20431,7 +20527,7 @@
      {
       "game": "BAL@COL",
       "side": "YRFI",
-      "modelP": 0.4149,
+      "modelP": 0.4148,
       "record": {
        "action": "SKIP",
        "code": "lambda_floor",
@@ -20443,6 +20539,102 @@
        "unitsRisked": 1.0,
        "odds": -136,
        "pnl": -1.0
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-09-02",
+    "flatPnl": -1.0,
+    "simPnl": -3.0,
+    "simBankAfter": 170.69,
+    "flagged": 2,
+    "placed": 2,
+    "bet": 1,
+    "games": [
+     {
+      "game": "BAL@COL",
+      "side": "YRFI",
+      "modelP": 0.3536,
+      "record": {
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -146,
+       "win": false,
+       "pnl": -3.0,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 4.0,
+       "odds": -146,
+       "pnl": -4.0
+      }
+     },
+     {
+      "game": "PHI@ARI",
+      "side": "YRFI",
+      "modelP": 0.4725,
+      "record": {
+       "action": "SKIP",
+       "code": "lambda_floor",
+       "reason": "too few runs projected"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 4.0,
+       "odds": -122,
+       "pnl": -4.0
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-09-04",
+    "flatPnl": 0.68,
+    "simPnl": 2.05,
+    "simBankAfter": 172.75,
+    "flagged": 2,
+    "placed": 2,
+    "bet": 1,
+    "games": [
+     {
+      "game": "STL@COL",
+      "side": "YRFI",
+      "modelP": 0.351,
+      "record": {
+       "action": "BET",
+       "stake": 3.0,
+       "odds": -146,
+       "win": true,
+       "pnl": 2.05,
+       "assumed": false
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 4.0,
+       "odds": -146,
+       "pnl": 2.74
+      }
+     },
+     {
+      "game": "MIN@CWS",
+      "side": "YRFI",
+      "modelP": 0.4427,
+      "record": {
+       "action": "SKIP",
+       "code": "lambda_floor",
+       "reason": "too few runs projected"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 3.0,
+       "odds": -138,
+       "pnl": 2.174
       }
      }
     ]
