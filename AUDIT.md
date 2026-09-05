@@ -778,6 +778,28 @@ These can corrupt picks, lose data, or silently mis-grade.
 
 ## 🟠 TIER 2 — Probable bugs / soon
 
+- [ ] **T8.42** (2026-09-04) — **The GitHub half of the system has been down since
+  2026-09-02 ~09:00 ET and the runner watchdog says "healthy".** `daily.yml` runs on
+  `RUNNER_LABEL=self-hosted`; that runner (`vmi3065305`, the Contabo VPS) is OFFLINE.
+  Last `auto: predict` commit on the branch: `de496182` 2026-09-02 15:03 CEST. Every
+  scheduled run since has sat queued (run 33891656575 queued since 15:49Z on 09-04,
+  job never acquired) or been cancelled by the next one in the `daily-nrfi`
+  concurrency group. Railway carries predict / odds / lock / grade / cards, so the
+  board and the picks are fine — but everything GHA-only is silent: the ledger
+  commits (the git CSV is 2+ days stale, and Railway resets its CSV FROM GIT on every
+  redeploy), `tools/export_season_record.py`, the drift monitors, cluster discovery,
+  the daily heartbeat, `pick_reasoning_log`, and the new `tools/shadow_report.py`
+  step. **Why the watchdog is quiet (`runner_watchdog.yml`):** (1) `STALE_MIN` is
+  computed from the last 30 runs and set to -1 "rather than guess" when none
+  succeeded — after ~30 cancelled runs the staleness alarm cannot fire at all;
+  (2) the "job not picked up" alarm fires only inside the bands 20 / 60 / 180 min
+  (+`WINDOW_MIN`), so a job stuck 458 min (measured 09-04 23:27Z) is past every band;
+  (3) `railway_stale_min=4` and the run prints "healthy — no alert". A multi-day
+  outage is therefore indistinguishable from health. **Recovery is manual and an
+  operator decision** (docs/SELF_HOSTED_RUNNER.md): restart the runner service on the
+  Contabo box, or set the repo variable `RUNNER_LABEL` to `ubuntu-latest` (billed
+  minutes). Fix for the watchdog: alert whenever `STUCK_MIN >= 20` OR no success in the
+  window, with the dedupe done by state (notifications_log), not by time band.
 - [ ] **T8.41** (2026-09-04) — **A rescheduled game keeps its ORIGINAL ledger row and
   that row is graded with the makeup game's result under starters who never threw
   that first inning.** 13 games in the 2026 ledger (e.g. PIT@NYY 2026-07-21 lists
