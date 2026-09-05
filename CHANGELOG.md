@@ -11,6 +11,58 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-05e] - First F5 model-vs-market read: our inputs do NOT beat the F5 market out of the box
+
+### Investigated -- `tools/refit2026/f5_market_read.py` (new, writes nothing)
+
+The question left open on 2026-08-21: the same inputs rank runs-through-5 far
+better than the first inning (AUC 0.57 vs 0.52), so is F5 the market to be
+in? Twelve days of eight-book F5 totals plus the now-complete per-inning
+linescore cache (`fetch_linescores_full.py` backfilled to 2,052 of 2,052
+graded 2026 games) make a first answer possible.
+
+- **Model.** Poisson regression for runs through five on the v3 inputs (union
+  of both halves, `era_gap_b1` dropped as the negative of `era_gap_t1`), L2
+  fixed at 1.0 before looking, trained on 2024+2025 only (4,732 games).
+  Out of sample on 2026 it predicts a mean of 4.94 vs an actual 5.01 and
+  ranks "R5 above the 2026 median" at AUC 0.557 -- consistent with the 08-21
+  horizon finding.
+- **Market.** Own-day snapshot, last capture per book, each book de-vigged at
+  the game's modal line, consensus across books as P(over); best price on
+  each side for the bet simulation. Pushes on whole-number lines excluded.
+- **Result on 115 matched games** (lines 3.0-6.0, 4.5 most common; actual
+  over rate 0.452):
+
+  | | AUC | log-loss | mean P(over) |
+  |---|---|---|---|
+  | Poisson model | 0.511 | 0.736 | 0.572 |
+  | F5 market consensus | **0.550** | **0.690** | 0.496 |
+
+  Paired bootstrap, model minus market AUC: -0.038, 90% CI [-0.133, +0.057],
+  P(model better) 25%. The model over-calls the Over: its 0.6-1.0 band hit
+  42.9% (n=42). Betting the disagreement at the best available price, two
+  pre-declared thresholds: >3 pts, 97 bets 50-47 **-1.09u** flat; >5 pts, 82
+  bets 40-42 **-5.26u**.
+- **Control, first-inning market on the same 124 games:** live model AUC
+  0.479, market 0.469 -- both at coin-flip on a sample this small (the
+  market's season-long 0.55-0.60 is not visible in 124 games), and betting
+  the disagreement loses there too (-8.74u / -2.10u). That is the calibration
+  for how much 115 games can say: not much, in either direction.
+
+### What it does and does not settle
+
+It does NOT settle the F5 question: one naive model shape (Poisson tails
+under-disperse run totals; a negative binomial with a fitted dispersion is
+the obvious next shape), no calibration layer, no team run-environment input
+(`rpg_sum` was the one three-split survivor as a game-level stacking term on
+2026-08-21), and n=115. It DOES remove the easy version of the idea: "our
+inputs rank five innings well, so the F5 market is soft for us" is not true
+on the first look. Beating that market would be a new model, built and
+validated like any other -- three splits, selection-aware null -- with the
+capture left running to grow the sample. Nothing changed.
+
+---
+
 ## [2026-09-05d] - First read of the multi-book capture: line shopping is worth ~2.3 points a game
 
 ### Investigated (read-only; `data/diagnostics/odds/raw_*.csv`, 2026-08-23 .. 09-04, last snapshot per day per book)
