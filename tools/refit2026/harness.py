@@ -103,6 +103,23 @@ VARIANTS = {
 def load(path: Path, park_col: str, season: int) -> pd.DataFrame:
     d = pd.read_csv(path, low_memory=False)
     d = d[d["fi_total_runs"].notna()].copy()
+    # T8.41 (2026-09-05): ONE ROW PER GAME.  A rescheduled game keeps its
+    # original row -- graded with the makeup game's result, under starters
+    # who never threw that first inning -- and gains a row on the makeup
+    # date with the same game_pk.  37 / 31 / 13 such rows in 2024 / 2025 /
+    # 2026.  Left in, they are corrupted training and test rows, and every
+    # per-game merge on game_pk downstream goes cartesian (that is how the
+    # 2026-09-03 form-rate column got one pitcher's value on another's game
+    # and reported a null of p=0.000 that was really p=0.110).  Keep the
+    # LATEST row per game_pk: the one whose starters actually pitched.
+    # Numbers printed by this directory before 2026-09-05 were computed on
+    # the undeduplicated frames; expect small differences on a re-run.
+    d["game_pk"] = pd.to_numeric(d["game_pk"], errors="coerce")
+    has_pk = d["game_pk"].notna()
+    d = pd.concat([
+        d[has_pk].sort_values("date", kind="stable").drop_duplicates(subset=["game_pk"], keep="last"),
+        d[~has_pk],
+    ]).sort_values("date", kind="stable")
     d["park"] = d[park_col]
     d["y"] = (d["fi_total_runs"] > 0).astype(int)
     d["y_t1"] = (d["fi_away_runs"] > 0).astype(int)     # top 1st: away bats

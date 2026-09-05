@@ -815,10 +815,12 @@ These can corrupt picks, lose data, or silently mis-grade.
   merges a per-game factor on raw `game_pk` turns them into a cartesian product --
   this is how the 09-03 form-rate column got one pitcher's value on another's game.
   Fixed inside `build_fi_form.py` / `fi_form.py` / `test_fi_form.py` /
-  `refit_fi_form_candidate.py` (keep the latest row per game_pk); `harness.load`,
-  `test_fi_pooled.attach` and the rest still merge raw. Proper fix: `harness.load`
-  drops superseded duplicates once, for every consumer; and the grader should not
-  copy a result onto a row whose starters differ from the game's actual starters.
+  `refit_fi_form_candidate.py` (keep the latest row per game_pk).
+  **HARNESS HALF FIXED 2026-09-05** (CHANGELOG [2026-09-05]): `harness.load` now
+  drops superseded duplicates once, for all 24 consumers (2372 / 2362 / 2023 rows,
+  game_pk unique). **GRADER HALF OPEN:** the grader should not copy a result onto a
+  row whose starters differ from the game's actual starters -- money-path change,
+  operator's call.
 
 - [x] **T2.1** ✅ Already fixed in earlier roi.ts change. Verified at `roi.ts:271,277` — PASS picks seed `dayPL.set(date, 0)` so all-PASS days show on the chart.
 - [x] **T2.2 + T2.12** ✅ 2026-05-01 — `_pick_is_locked` now has 3 defensive locks: graded-result terminal, slate-date >24h past, `created_at` >12h stale. Plus skips parse on non-numeric `game_time_et` (DH-Y placeholders). Bet snapshots can no longer be overwritten by parse failures.

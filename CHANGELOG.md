@@ -11,6 +11,42 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-05] - The research loader now keeps one row per game (T8.41, harness half)
+
+### Fixed -- `tools/refit2026/harness.py::load`
+
+- Every script in `tools/refit2026` (24 of them) loads the three season files
+  through this one function, and until now it kept the rescheduled-game
+  duplicates: the original row, graded with the makeup game's result under
+  starters who never threw that first inning, plus the makeup-date row with
+  the same `game_pk`. **37 / 31 / 13 such rows in 2024 / 2025 / 2026.** Left
+  in, they are corrupted training and test rows for every fit here, and any
+  per-game merge on `game_pk` downstream goes cartesian -- which is how the
+  2026-09-03 form-rate column got one pitcher's value onto another's game and
+  reported a null of p=0.000 that was really p=0.110. `load` now keeps the
+  LATEST row per `game_pk` (the one whose starters actually pitched), keeps
+  rows with no `game_pk`, and returns the frame sorted by date. Verified:
+  2372 / 2362 / 2023 rows, `game_pk` unique in every file. The four fi_form
+  scripts' own dedupe is now redundant but harmless.
+- **Numbers printed by this directory before 2026-09-05 were computed on the
+  undeduplicated frames; expect small differences on a re-run.** Two
+  consumers re-run on the clean frames to check nothing moves that matters:
+  `no1_since_may26.py` runs (REAL ledger 84 nights 52-32, +59.48u Kelly /
+  +6.79u flat, now including the pulled 09-03/09-04 rows), and
+  `wx_ablation.py` keeps its verdict -- dropping all four weather inputs still
+  clearly hurts 2025 (AUC -0.0056, 90% CI [-0.0095, -0.0016]; Brier +0.00096
+  [+0.00025, +0.00170]) and is flat elsewhere, so weather stays.
+
+### Still open (T8.41, grader half)
+
+The grader copies a makeup game's result onto the original-date row whose
+listed starters differ from the game's actual starters. That is a
+`tracker.py` change on the money path and needs the operator's call; until
+then the ledger keeps producing one such pair per rescheduled game, and only
+the research loader corrects for it.
+
+---
+
 ## [2026-09-04d] - GitHub cron back on hosted runners; the first ledger commit since Sept 2 (T8.42 closed)
 
 ### Changed (ops, operator: "switch RUNNER_LABEL to ubuntu-latest for me")
