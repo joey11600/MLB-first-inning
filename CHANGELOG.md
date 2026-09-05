@@ -11,6 +11,68 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-05g] - The MIN@CWS stake drift: the stake was right, the probability was re-scored after the game (T8.44, open)
+
+### Investigated (read-only; operator: "look into the MIN@CWS stake drift")
+
+`tools/pl_calc.py` flags 2026-09-04 MIN@CWS STRONG YRFI: ledger 3.00u, rule
+1.00u at the published 59.07% @ -138. Both stores (CSV and Supabase) agree
+on the row: `yrfi_prob` 0.5907, `sizing_prob` 0.6224, 3u, WIN +2.174u.
+
+- **The stake is the rule stake.** `kelly_stake_units(0.6224, -138)` = 3.0u;
+  at 0.5907 it is 1.0u. The T8.35 stamp (`sizing_prob`, the probability the
+  sizer actually used) says the bet was sized on 62.24% at the lock,
+  22:43Z (6:43 PM ET, inside the 65:50 window). The published probability
+  is what moved, AFTER the lock.
+- **Why it moved.** During the GitHub-runner outage (T8.42) the git ledger
+  was two days stale. Railway rebuilds its ledger FROM GIT on every
+  redeploy, and every push to the branch redeploys it. The shadow-model
+  push at 20:17 ET on 09-04 (`fd691db0`) therefore handed Railway a ledger
+  with NO 09-04 rows; the Supabase sync does not insert rows it cannot
+  match ("handled by the predict step"); so Railway's next cycle scored
+  all 16 games as brand-new rows -- MIN@CWS in its 1st/2nd inning -- and
+  the mirror pushed those in-game probabilities over its own pre-game
+  record (predict-owned columns overwrite; the bet columns survived
+  because blanks are preserved). `reconcile` fired the stake-drift ping at
+  00:20:48Z, one cycle after that redeploy. Five more pushes that evening
+  repeated it, and the GHA recovery run at 03:00:42Z (11 PM ET, still
+  09-04 in ET) did it once more from git with post-game inputs and
+  stamped the final values -- `created_at` 2026-09-05T03:00:42Z on every
+  09-04 row. The T8.35 adoption (2026-08-13) then copied the probability
+  back from Supabase, but by then Supabase held the re-score too.
+- **Same mechanism, one day earlier.** All nine 09-03 rows in Supabase carry
+  `created_at` 2026-09-04T02:34:04Z (10:34 PM ET) -- the fi_form push at
+  22:31 ET on 09-03 redeployed Railway and it re-created the slate after
+  the games. No STRONG bet that night, so nothing flagged. The git ledger
+  has NO 09-03 rows at all (never re-created by GHA); the slate exists only
+  in Supabase.
+- **What this is not.** Not a Kelly bug, not the 08-13 lineup-withdrawal
+  class, not the 08-23 frozen-row split brain (both hosts agree now). The
+  published 59.07% is a post-game number sitting next to a stake sized on
+  the pre-game 62.24%; the Discord board had shown 59.2% at 1:13 PM ET,
+  before lineups and game-hour weather.
+
+### Open -- AUDIT T8.44 (needs the operator)
+
+1. **This row.** Two honest options: restore `nrfi_prob` / `yrfi_prob` from
+   the stamp (0.3776 / 0.6224) through a journaled heal, so the row again
+   satisfies rule(published, price) == stake -- the raw probability and
+   feature columns are post-game and cannot be recovered (Railway's
+   container has been replaced; no SSH key is registered) -- or list the
+   row in `data/stake_drift_exempt.csv` with this reason and leave the
+   ledger alone.
+2. **The mechanism.** A host must never create a NEW ledger row for a game
+   whose scheduled first pitch has passed: adopt Supabase's row if one
+   exists, otherwise skip with a warning. Pairs with T8.41 part 2 (no new
+   bet after first pitch). Touches `log_picks`; not shipped without
+   permission.
+3. **The 09-03 slate** should be backfilled into git from Supabase (9 rows;
+   the 13 columns the mirror lacks stay blank) so the ledger is complete.
+
+Nothing changed in this entry.
+
+---
+
 ## [2026-09-05f] - Postponed games: the original-date row no longer inherits the makeup's result (T8.41, grader half)
 
 Operator: "fix the postponed game grading". Money-path change, explicitly

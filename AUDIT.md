@@ -806,6 +806,22 @@ These can corrupt picks, lose data, or silently mis-grade.
   **CLOSED 2026-09-05 02:56 UTC:** operator had `RUNNER_LABEL` switched to
   `ubuntu-latest`; stale queued runs cancelled; fresh run 33940433574 succeeded on a
   hosted machine in 276 s and committed `e622b304` (CHANGELOG [2026-09-04d]).
+- [ ] **T8.44** (2026-09-05) — **A host with no ledger row for a game that has already
+  started scores it fresh and overwrites the pre-game record.** Found via the
+  2026-09-04 MIN@CWS stake drift (ledger 3u, rule 1u at the published 59.07%):
+  the stake was sized on 62.24% at the lock (`sizing_prob`, T8.35) and is the rule
+  stake; the published probability is a post-game re-score. Mechanism: during the
+  T8.42 outage the git ledger was two days stale; Railway rebuilds its ledger from
+  git on every redeploy and every push redeploys it; `sync_csv_from_supabase` does
+  not insert missing rows; so each evening push (09-03 22:31 ET, 09-04 20:17 ET and
+  five more) made Railway re-create the whole slate mid/post-game and mirror those
+  probabilities over its own pre-game ones (bet columns survived via
+  preserve-on-blank). The GHA recovery run at 03:00:42Z did it once more. The 09-03
+  slate exists only in Supabase (git has 0 rows) and its 9 rows are post-game
+  scores too. CHANGELOG [2026-09-05g]. **Proposed:** (1) `log_picks` never creates a
+  NEW row for a game past its scheduled first pitch -- adopt the Supabase row or
+  skip; (2) backfill 09-03 into git from Supabase; (3) the MIN@CWS row: restore the
+  published probability from the stamp (journaled) or exempt it. Operator's call.
 - [x] **T8.41** ✅ 2026-09-05 — **A rescheduled game keeps its ORIGINAL ledger row and
   that row is graded with the makeup game's result under starters who never threw
   that first inning.** 13 games in the 2026 ledger (e.g. PIT@NYY 2026-07-21 lists
