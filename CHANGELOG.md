@@ -92,6 +92,23 @@ authorised; the one affected bet is voided, not deleted.
 - `tools/apply_manual_odds.py` and `tools/end_of_day_check.py` keep their own
   writers; neither can reach a phantom row now that it grades POSTPONED.
 
+### Follow-up (same day) -- the shadow's research column rebuilt on the healed ledger
+
+CI failed `tests/test_shadow_model.py::test_fi_form_matches_the_validated_research_column`
+on the first push: `fi_form._check()` proves the live form-rate module
+reproduces `data/candidates/factor_fi_form.csv`, and that column had been
+built on the PRE-heal ledger. The heal moved the 2026-06-16 SF@ATL first
+inning from the phantom 06-17 row to the real 06-16 row, so the league-mean
+prior "before 06-17" now counts one more game and every 06-17 pitcher-game
+differs from the old column by up to 1.2e-04 (15 games; first seen on
+Whisenhunt / Sullivan, who both started on 06-17). Rebuilt with
+`python tools/refit2026/build_fi_form.py`: 6,772 games (31 more -- the
+09-03..09-05 games graded since the column was last built during the runner
+outage), check PASS at 0.00e+00 on all three configs, suite 333 passed. The
+shadow candidate's fitted weights are unchanged (a 1e-4 shift in 15 of 6,772
+inputs is not a refit). **Rule:** any heal that touches `fi_*` or moves a
+game between dates must be followed by that rebuild, or the check fails.
+
 ---
 
 ## [2026-09-05e] - First F5 model-vs-market read: our inputs do NOT beat the F5 market out of the box
