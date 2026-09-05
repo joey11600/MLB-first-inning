@@ -342,7 +342,14 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
 ### Tracker / grading
 - `tracker.py` — `log_picks`, `grade_picks`, `_apply_odds_to_row`. Atomic
   writes via tempfile + fsync + os.replace (T1.1). 3-lock pick freezing
-  (T2.2 + T2.12). Re-grades POSTPONED (T1.5).
+  (T2.2 + T2.12). Re-grades POSTPONED (T1.5) -- but a row whose date is not
+  MLB's `officialDate` is a phantom and grades terminal with no P&L (T8.41,
+  2026-09-05): the same `game_pk` sits on two dates after a postponement and
+  only the official-date row is the game. A price arriving after the
+  scheduled first pitch commits a bet only if MLB still says Preview.
+- `tools/heal_phantom_reschedule_rows.py` — re-applies the T8.41 rule to rows
+  graded before it existed. Dry run by default, `--apply` writes, journaled
+  under `data/diagnostics/heals/`.
 - `data/picks_2026.csv` — full ledger, 97 columns. Append-only on first
   pick of the day; updates in-place for grading + odds.
 - `data/pick_changes.csv` — every pick flip logged (90-day rolling, T3.5).
@@ -486,6 +493,7 @@ every 5 min, GHA backs it up hourly. Manual interventions:
 | Force a fresh predict now | `python mlb_first_inning_predictor.py` |
 | Force a fresh predict on Railway | redeploy "MLB-first-inning" service in Railway |
 | Re-grade a date | `python mlb_first_inning_predictor.py --date 2026-04-30 --grade` |
+| Find rescheduled games whose original-date row still carries the makeup's result (T8.41) | `python tools/heal_phantom_reschedule_rows.py` (add `--apply` to fix) |
 | Re-scrape DK odds | `python scrape_dk_odds.py` |
 | Advance the first-inning pitcher pool to yesterday | `python fi_pitcher_pool.py --update` |
 | Shadow model vs live, paired by night (grade cron runs it nightly) | `python tools/shadow_report.py` |

@@ -11,6 +11,89 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-05f] - Postponed games: the original-date row no longer inherits the makeup's result (T8.41, grader half)
+
+Operator: "fix the postponed game grading". Money-path change, explicitly
+authorised; the one affected bet is voided, not deleted.
+
+### Fixed -- `tracker.py`
+
+- **The rule.** A postponed game keeps its MLB `game_pk` when it is replayed,
+  and the predictor logs a fresh row on the makeup date, so the ledger holds
+  two rows for one game. `_fetch_first_inning` fetches by `game_pk`, which
+  after the makeup is the MAKEUP's first inning, and the grader's "was
+  POSTPONED, re-checking for makeup/resume" branch wrote it onto the
+  original-date row -- WIN / LOSS / PASS under starters who never threw that
+  inning. MLB's `gameData.datetime.officialDate` is now the tie-breaker
+  (`_phantom_reschedule_grade`): **the row whose date equals the official
+  date is the game; every other row for that `game_pk` is a phantom** and is
+  graded terminal with no runs and no P&L -- POSTPONED when the official date
+  is later, SUSPENDED when it is earlier and MLB marks the game resumed (the
+  resume-day listing of a suspended game; 2026-06-16/17 SF@ATL is the one
+  instance). A suspended game finished on a later date keeps its ORIGINAL
+  official date (verified on gamePk 824912), so its original-date row still
+  re-grades exactly as before (T2.7). The guard runs before the
+  Postponed/Suspended branch and before normal grading; a row MLB has already
+  moved is POSTPONED on first sight instead of after the 6-hour
+  stale-scheduled wait. `_fetch_first_inning` now returns `official_date` and
+  `resumed`.
+- **Part 2 -- a late price can no longer commit a bet nobody can place.**
+  `_is_inside_lock_window` is unbounded above (by design: it stays True for
+  the rest of the night), so a price arriving after the scheduled first pitch
+  used to flip an unlocked STRONG/LEAN row to `bet_placed=Y` -- on a game
+  already postponed (07-27 CLE@CIN, locked 3.5 h after start), in progress,
+  or over. Six of the season's 402 locks happened after the scheduled start.
+  `_apply_odds_to_row` now asks `_late_lock_refusal` before sizing an
+  unlocked row: any grade at all refuses without an MLB call; before the
+  scheduled start nothing changes and MLB is not called; after it, one MLB
+  status call decides -- Postponed / Cancelled / Suspended, another official
+  date, Live, Final, or an unreadable status all refuse (the row is sized as
+  a pre-lock projection, price still recorded), and only a game MLB still
+  lists as Preview (warm-up, rain delay) may commit. `tools/lock_commit.py`
+  gets the same status check pre-start (`_postponed_lock_refusal`, fails
+  OPEN so an API blip cannot cost the №1). Rows already locked are untouched
+  (T2.23 early return).
+
+### Added
+
+- `tools/heal_phantom_reschedule_rows.py` -- applies the rule to rows graded
+  before the fix. Dry run by default, `--apply` writes; one MLB call per
+  `game_pk` that appears on more than one date; idempotent; every changed
+  cell journaled to `data/diagnostics/heals/phantom_reschedule_<utc>.csv`;
+  CSV through `_write_rows`, Supabase through the mirror plus an explicit
+  `clear_pick_fields` for the blanked runs and P&L (the mirror preserves
+  blanks on purpose). `bet_placed`, `units_risked` and every odds column are
+  left as published. **Run 2026-09-05 18:42Z: 14 rows, 83 cells.** Thirteen
+  original-date rows POSTPONED (07-10 MIL@PIT, 07-21 PIT@NYY, 07-18 LAD@NYY,
+  07-28 ATL@NYM, 04-03 MIL@KC, 07-17 PIT@CLE, 04-04 CHC@CLE, 07-27 CLE@CIN,
+  05-22 STL@CIN, 04-02 TOR@CWS, 07-21 BAL@BOS, 05-23 DET@BAL, 04-29 HOU@BAL
+  -- the last was already POSTPONED and only had a stored "0" P&L blanked),
+  one resume-day row SUSPENDED (06-17 SF@ATL). **Money: 07-27 CLE@CIN STRONG
+  YRFI 1u at -125 goes from WIN +0.800u to POSTPONED, no P&L.**
+  `tools/pl_calc.py --window season`: +19.261u before, **+18.461u** after,
+  stored and recomputed agree, no DRIFT. The 07-27 slate: 1W / 2L + 2 PASS,
+  CLE@CIN shown as POSTPONED.
+- `tests/test_postponed_grading.py` -- 18 tests: the fetch keys, the rule,
+  the 07-27 shape (original row stays POSTPONED with its bet columns intact
+  while the makeup row grades WIN), first-sight POSTPONED with one voided
+  ping, the resume-day SUSPENDED, the unchanged T2.7 path, the grader
+  refusing to touch a terminally graded phantom (that is the heal's job),
+  every late-lock refusal and the rain-delay commit, the lock-commit
+  refusal (and its fail-open), and the heal's idempotency and journal.
+  `tests/test_lock_commit.py` stubs the new status call (made-up game_pks).
+  Suite: 333 passed.
+
+### Not changed
+
+- The makeup-date rows (the game's real record) and the 13 pairs whose
+  original row was already POSTPONED. The 2024/2025 backtest files (31 and
+  35 phantom pairs) are research inputs handled by `harness.load`'s
+  dedupe ([2026-09-05]); they are not ledgers and are not touched.
+- `tools/apply_manual_odds.py` and `tools/end_of_day_check.py` keep their own
+  writers; neither can reach a phantom row now that it grades POSTPONED.
+
+---
+
 ## [2026-09-05e] - First F5 model-vs-market read: our inputs do NOT beat the F5 market out of the box
 
 ### Investigated -- `tools/refit2026/f5_market_read.py` (new, writes nothing)

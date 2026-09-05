@@ -806,7 +806,7 @@ These can corrupt picks, lose data, or silently mis-grade.
   **CLOSED 2026-09-05 02:56 UTC:** operator had `RUNNER_LABEL` switched to
   `ubuntu-latest`; stale queued runs cancelled; fresh run 33940433574 succeeded on a
   hosted machine in 276 s and committed `e622b304` (CHANGELOG [2026-09-04d]).
-- [ ] **T8.41** (2026-09-04) — **A rescheduled game keeps its ORIGINAL ledger row and
+- [x] **T8.41** ✅ 2026-09-05 — **A rescheduled game keeps its ORIGINAL ledger row and
   that row is graded with the makeup game's result under starters who never threw
   that first inning.** 13 games in the 2026 ledger (e.g. PIT@NYY 2026-07-21 lists
   Will Warren; played 07-22 with Max Fried; both rows "0 runs"), 31 in the 2025
@@ -839,6 +839,18 @@ These can corrupt picks, lose data, or silently mis-grade.
   must not place a bet on a row whose status is Postponed. Part 1 changes a graded
   P&L row (07-27 +0.80u -> void) and the season figure by that amount; part 2 is in
   the money path. Neither ships without the operator.
+  **GRADER HALF FIXED 2026-09-05** (operator: "fix the postponed game grading";
+  CHANGELOG [2026-09-05f]). `_phantom_reschedule_grade`: the row whose date is MLB's
+  `officialDate` is the game, every other row for that game_pk is graded terminal
+  (POSTPONED, or SUSPENDED for the resume-day listing of a suspended game) with no
+  runs and no P&L; suspended games keep their original official date so the T2.7
+  path is unchanged. Part 2: `_late_lock_refusal` in `_apply_odds_to_row` -- an
+  unlocked row past its scheduled first pitch commits only if MLB still lists the
+  game as Preview; graded rows never take a new bet; `lock_commit` asks the same
+  status pre-start (fails open). `tools/heal_phantom_reschedule_rows.py` re-graded
+  14 historical rows (journal `data/diagnostics/heals/phantom_reschedule_20260905T184210Z.csv`);
+  07-27 CLE@CIN +0.800u -> POSTPONED; season +19.261u -> +18.461u per `pl_calc`.
+  18 tests in `tests/test_postponed_grading.py`.
 
 - [x] **T2.1** ✅ Already fixed in earlier roi.ts change. Verified at `roi.ts:271,277` — PASS picks seed `dayPL.set(date, 0)` so all-PASS days show on the chart.
 - [x] **T2.2 + T2.12** ✅ 2026-05-01 — `_pick_is_locked` now has 3 defensive locks: graded-result terminal, slate-date >24h past, `created_at` >12h stale. Plus skips parse on non-numeric `game_time_et` (DH-Y placeholders). Bet snapshots can no longer be overwritten by parse failures.

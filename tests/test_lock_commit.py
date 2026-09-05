@@ -87,6 +87,15 @@ def clock(monkeypatch):
     return _Clock(monkeypatch)
 
 
+@pytest.fixture(autouse=True)
+def _no_mlb_status_calls(monkeypatch):
+    """T8.41 added one MLB status call per surviving candidate inside
+    `_is_candidate`.  These rows carry made-up game_pks; keep the suite off
+    the network and on the pre-T8.41 answer ("playable").  The refusal
+    itself is pinned in tests/test_postponed_grading.py."""
+    monkeypatch.setattr(tracker, "_postponed_lock_refusal", lambda row: "")
+
+
 class _Ledger:
     """The fake on-disk ledger, plus counters for everything the tool writes.
 

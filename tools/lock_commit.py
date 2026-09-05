@@ -138,6 +138,16 @@ def _is_candidate(row: dict, iso_date: str) -> bool:
     # own the "STRONG bet with no price" case.
     if not _picked_side_odds(row):
         return False
+
+    # T8.41 part 2: the row still carries the last captured price after a
+    # postponement is announced (books pull the line; the ledger keeps the
+    # capture), so every filter above passes on a game nobody can bet.
+    # Ask MLB once per surviving candidate.  Fails open -- see
+    # `tracker._postponed_lock_refusal`.
+    refusal = tracker._postponed_lock_refusal(row)
+    if refusal:
+        print(f"[lock-commit]   SKIP  {_describe(row)} -- {refusal}")
+        return False
     return True
 
 

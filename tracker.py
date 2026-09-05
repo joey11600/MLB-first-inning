@@ -3484,6 +3484,12 @@ def _fetch_first_inning(game_pk: int, slate_date: str | None = None) -> dict:
       complete     - bool: True only when the entire 1st inning (both
                      halves) is finished -- the rule applied everywhere
                      that grades or surfaces "1st inning done".
+      official_date - MLB's `gameData.datetime.officialDate` ("" if the
+                     endpoint omits it).  T8.41: the game_pk survives a
+                     postponement, so this is the ONLY field that says
+                     which calendar date the game actually belongs to.
+      resumed      - bool: the game carries a resumeDate / resumedFrom,
+                     i.e. it was suspended and finished on a later date.
 
     NOTE: MLB's `game` endpoint sometimes lags on postponements -- it can
     keep returning "Scheduled" for hours after MLB has officially called
@@ -3508,7 +3514,7 @@ def _fetch_first_inning(game_pk: int, slate_date: str | None = None) -> dict:
             "gamePk": game_pk,
             "fields": (
                 "gameData,status,abstractGameState,detailedState,"
-                "datetime,officialDate,"
+                "datetime,officialDate,resumeDate,resumedFrom,"
                 "liveData,linescore,innings,num,home,away,runs,"
                 "currentInning,inningState"
             ),
@@ -3518,11 +3524,15 @@ def _fetch_first_inning(game_pk: int, slate_date: str | None = None) -> dict:
             "state": "ERROR", "detail": str(exc),
             "away_runs": None, "home_runs": None,
             "complete": False,
+            "official_date": "", "resumed": False,
         }
 
     status = data.get("gameData", {}).get("status", {})
     state  = status.get("abstractGameState", "")
     detail = status.get("detailedState", "")
+    game_dt = data.get("gameData", {}).get("datetime", {}) or {}
+    official_date = str(game_dt.get("officialDate") or "").strip()[:10]
+    resumed = bool(game_dt.get("resumeDate") or game_dt.get("resumedFrom"))
 
     linescore = (
         data.get("liveData", {})
@@ -3595,7 +3605,87 @@ def _fetch_first_inning(game_pk: int, slate_date: str | None = None) -> dict:
         "away_runs": away_r,
         "home_runs": home_r,
         "complete": bool(complete),
+        "official_date": official_date,
+        "resumed": resumed,
     }
+
+
+def _phantom_reschedule_grade(iso_date: str, status: dict) -> str:
+    """T8.41 (2026-09-05).  The terminal grade for a ledger row whose date is
+    NOT the date MLB says the game belongs to -- or "" when the row IS the
+    game's record (or the status carries no official date).
+
+    A postponed game keeps its game_pk when it is replayed on the makeup
+    date, so `_fetch_first_inning` (keyed by game_pk) returns the MAKEUP's
+    first inning from then on.  Before this rule the re-check branch in
+    `grade_date` ("was POSTPONED, re-checking for makeup/resume") graded
+    the original-date row WIN/LOSS with that inning, under starters who
+    never threw it: 2026-07-27 CLE@CIN was locked 3.5 h after a postponed
+    first pitch and booked +0.80u from the 07-28 makeup.  MLB's
+    `officialDate` is the tie-breaker -- the row for that date is the game;
+    every other row for the same game_pk is a phantom.
+
+      official date AFTER the row's date  -> POSTPONED  (replayed later;
+          sportsbooks void the original bet, so no P&L)
+      official date BEFORE the row's date -> SUSPENDED when MLB marks the
+          game resumed (the row is the resume-day listing of a suspended
+          game; the first inning was scored on the official date's row --
+          2026-06-16/17 SF@ATL is this season's one instance), otherwise
+          POSTPONED (the game was moved earlier)
+
+    A suspended game finished on a later date keeps its ORIGINAL official
+    date (verified on gamePk 824912), so its original-date row is NOT a
+    phantom and falls through to the T2.7 branch exactly as before.
+    """
+    official = str(status.get("official_date") or "").strip()
+    if not official or not iso_date or official == iso_date:
+        return ""
+    if official > iso_date:
+        return "POSTPONED"
+    return "SUSPENDED" if status.get("resumed") else "POSTPONED"
+
+
+_PHANTOM_BLANK_FIELDS = ("fi_away_runs", "fi_home_runs", "fi_total_runs",
+                         "profit_loss_units")
+
+
+def _mark_phantom_reschedule_row(row: dict, grade: str, now: str,
+                                 season: int | None = None) -> list[str]:
+    """Write the T8.41 terminal grade onto a phantom row IN PLACE.
+
+    Sets actual_result / graded_result / graded_at, blanks the first-inning
+    runs (they belong to the official date's row) and re-derives
+    `profit_loss_units` through `_calc_pnl` -- which is "" for any grade
+    other than WIN/LOSS, so a voided bet books nothing.  bet_placed,
+    units_risked and every odds column are left exactly as they were: they
+    record what the system published, and the money rules forbid editing
+    them outside the journaled override path.
+
+    Returns the names of the fields that went from a value to blank.  Those
+    need `db.supabase_writer.clear_pick_fields` -- the ordinary mirror skips
+    blank grade/money fields on purpose (preserve-on-blank) and would leave
+    the stale runs and P&L standing in Supabase.  When `season` is given the
+    clear is attempted here (never raises; the CSV is the source of truth).
+    """
+    blanked: list[str] = []
+    for fld in _PHANTOM_BLANK_FIELDS:
+        if (row.get(fld) or "").strip():
+            blanked.append(fld)
+    row["actual_result"] = grade
+    row["graded_result"] = grade
+    row["graded_at"]     = now
+    for fld in ("fi_away_runs", "fi_home_runs", "fi_total_runs"):
+        row[fld] = ""
+    row["profit_loss_units"] = _calc_pnl(row)
+    if row["profit_loss_units"] and "profit_loss_units" in blanked:
+        blanked.remove("profit_loss_units")
+    if blanked and season is not None:
+        try:
+            from db.supabase_writer import clear_pick_fields
+            clear_pick_fields([row], season, blanked)
+        except Exception:    # noqa: BLE001 -- CSV is source of truth
+            pass
+    return blanked
 
 
 def grade_date(date_str: str, season: int) -> None:
@@ -3654,6 +3744,24 @@ def grade_date(date_str: str, season: int) -> None:
 
         away_r = result["away_runs"]
         home_r = result["home_runs"]
+
+        # T8.41: a row whose date is not the game's official date never
+        # carries a result -- see `_phantom_reschedule_grade`.  Runs BEFORE
+        # the Postponed/Suspended branch and before normal grading, because
+        # after the makeup this fetch is the MAKEUP's linescore.
+        phantom = _phantom_reschedule_grade(iso_date, result)
+        if phantom:
+            _mark_phantom_reschedule_row(rows[idx], phantom, now, season=season)
+            graded_indices.append(idx)
+            print(f"{tag}  official date {result.get('official_date')} != slate "
+                  f"{iso_date} -- {phantom} (the result lives on the "
+                  f"{result.get('official_date')} row)")
+            graded_n += 1
+            if not existing_grade:
+                # First time we learn it: same voided ping as the branch
+                # below.  A re-check of an already-POSTPONED row is silent.
+                _notify_strong_voided_telegram(rows[idx], phantom)
+            continue
 
         # T2.7: If a game is Suspended but the 1st inning was COMPLETE
         # before the suspension hit (e.g. rain delay during the 3rd
@@ -4969,6 +5077,72 @@ def _rederive_pre_lock_stake(row: dict, *, season: int, locked: bool) -> None:
     row["profit_loss_units"] = _calc_pnl(row)
 
 
+def _reschedule_refusal(row: dict, status: dict) -> str:
+    """T8.41: the reason a bet must NOT be placed on `row` given the game's
+    MLB status (from `_fetch_first_inning`), or "" when the game is still
+    this row's to play.  Pure; shared by both writers of bet_placed."""
+    iso_date = (row.get("date") or "").strip()
+    phantom = _phantom_reschedule_grade(iso_date, status)
+    if phantom:
+        return (f"official date is {status.get('official_date')}, not "
+                f"{iso_date} -- this row is the {phantom} record")
+    detail = str(status.get("detail") or "")
+    if detail.startswith(("Postponed", "Cancelled", "Suspended")):
+        return f"MLB status is {detail} -- books void the bet"
+    return ""
+
+
+def _postponed_lock_refusal(row: dict) -> str:
+    """T8.41: pre-start status check for `tools/lock_commit.py`.  One MLB
+    call per candidate row (a handful per night, only inside the lock
+    window).  Fails OPEN: if the status cannot be read this returns "" and
+    the commit proceeds exactly as before -- the №1 is the product, and a
+    grader-side POSTPONED still voids it, so an API blip must not cost a
+    real bet.  The post-start path (`_late_lock_refusal`) is the strict one."""
+    try:
+        status = _fetch_first_inning(int(row.get("game_pk") or 0),
+                                     slate_date=(row.get("date") or "").strip())
+    except Exception:    # noqa: BLE001 -- advisory guard, never break the sweep
+        return ""
+    if status.get("state") == "ERROR":
+        return ""
+    return _reschedule_refusal(row, status)
+
+
+def _late_lock_refusal(row: dict) -> str:
+    """T8.41 part 2: why an UNLOCKED row must not become a bet on this
+    import, or "" to proceed.  Cheap checks first; MLB is asked only for
+    the rare row whose scheduled first pitch has already passed.
+
+      * any grade at all -> refuse, no API call.  A graded row cannot take
+        a new bet; that was the retroactive-bet class of the 2026-07-28
+        money-path audit.
+      * before the scheduled start -> "" (unchanged behaviour).
+      * after it: refuse when MLB cannot be read (fail CLOSED -- the next
+        capture retries), when the game is postponed / cancelled /
+        suspended or belongs to another date, and when it is Live or Final
+        (the first-inning market closed at first pitch).  Only a game MLB
+        still lists as Preview -- warm-up, delayed start -- may commit.
+    """
+    graded = (row.get("graded_result") or "").strip().upper()
+    if graded:
+        return f"already graded {graded}"
+    iso_date = (row.get("date") or "").strip()
+    if not _game_has_started((row.get("game_time_et") or "").strip(), iso_date):
+        return ""
+    status = _fetch_first_inning(int(row.get("game_pk") or 0), slate_date=iso_date)
+    if status.get("state") == "ERROR":
+        return f"scheduled start has passed and MLB status is unavailable ({status.get('detail')})"
+    reason = _reschedule_refusal(row, status)
+    if reason:
+        return reason
+    if status.get("state") != "Preview":
+        return (f"scheduled start has passed and the game is "
+                f"{status.get('detail') or status.get('state')} -- "
+                f"the first-inning market has closed")
+    return ""
+
+
 def _apply_odds_to_row(
     row:         dict,
     nrfi_odds:   str,
@@ -5101,6 +5275,20 @@ def _apply_odds_to_row(
     # Capture pre-edit bet_placed so we can detect the N->Y transition
     # below and fire the BET LOCKED Telegram alert exactly once per game.
     pre_edit_bet_placed = (row.get("bet_placed") or "").strip().upper()
+    # T8.41 part 2: `_is_inside_lock_window` is unbounded above -- it stays
+    # True for the rest of the night -- so a price arriving AFTER the
+    # scheduled first pitch used to commit a brand-new bet on a game that
+    # was postponed (2026-07-27 CLE@CIN, locked 3.5 h after start), already
+    # in progress, or over.  Nobody can place that bet; a follower who
+    # tried had it voided.  A late price on an UNLOCKED row is now allowed
+    # to commit only when MLB says the game has genuinely not started
+    # (rain delay).  Rows already locked returned above and are untouched.
+    if inside_lock and pre_edit_bet_placed != "Y":
+        refusal = _late_lock_refusal(row)
+        if refusal:
+            inside_lock = False     # sized as a pre-lock projection, not a bet
+            print(f"  [late-lock refused] {row.get('date')} "
+                  f"{row.get('away_team')}@{row.get('home_team')}: {refusal}")
 
     # T8.18: the (bet_placed, units_risked) pair now has exactly one writer.
     # `units_strong` is a real float here, so this keeps import_odds'
