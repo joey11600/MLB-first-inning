@@ -913,6 +913,11 @@ _FI_PARK_PATH       = Path(__file__).parent / "data" / "fi_park_factors.json"
 # The state file is committed and advances one day at a time from Savant; the
 # loader below refreshes it when behind and fails OPEN to the last good state.
 _FI_POOL_PATH       = Path(__file__).parent / "data" / "fi_pitcher_pool.json"
+# 2026-09-04: the SHADOW model -- a second set of artifacts scored alongside
+# the live model on every game and recorded in the ledger's shadow_* columns.
+# It is never published and never bet.  Missing directory = no shadow, live
+# pick unaffected.  Kill switch: NRFI_SHADOW_MODEL=disabled.
+_SHADOW_DIR         = Path(__file__).parent / "data" / "candidates" / "refit2026_fiform"
 _FI_XWOBA_DEFAULT   = 0.32      # league-ish fallback if the state cannot be read at all
 _FI_PARK_NRFI_DEFAULT = 0.50
 
@@ -1493,6 +1498,152 @@ def _load_lr_calibrator():
     except Exception:
         _lr_cal = None
     return _lr_cal
+
+
+# ============================================================
+# SHADOW MODEL (2026-09-04).  Operator: "run an alternate version of the model
+# side by side with the current one."  The candidate is the shipped v3 minus
+# the flat umpire input plus fi_form.py's shrunk first-inning form rate
+# (validated 2026-09-03: three splits, selection-aware null p=0.000).  Each
+# game is scored a second time with these artifacts and the result goes into
+# shadow_* ledger columns.  NOTHING downstream reads them: pick_side, stake,
+# alerts and cards all come from the live model exactly as before.
+#
+# FAIL-OPEN, on purpose.  A missing or malformed candidate directory, a
+# feature the live vector cannot supply, or any exception inside the scoring
+# leaves the six shadow fields blank and the live pick untouched.  The test
+# suite pins that the live classifier and result are byte-identical with the
+# shadow present, absent or broken (tests/test_shadow_model.py).
+# ============================================================
+_shadow: dict | None = None
+_shadow_loaded = False
+_SHADOW_BLANK = {
+    "shadow_model": "", "shadow_nrfi_prob": "", "shadow_nrfi_prob_raw": "",
+    "shadow_pick_label": "", "home_fi_form": "", "away_fi_form": "",
+}
+_SHADOW_PASS_WORDING = {          # tracker.log_picks' wording for PASS reasons
+    "NO DATA": "No data", "STARTER PENDING": "Starter pending",
+    "LINEUP PENDING": "Lineup pending", "LOW LAMBDA": "Low lambda",
+    "HIGH LAMBDA": "High lambda", "FLAT ZONE": "Flat zone", "NO EDGE": "No edge",
+}
+
+
+def _shadow_enabled() -> bool:
+    return (os.environ.get("NRFI_SHADOW_MODEL", "enabled") or "").strip().lower() != "disabled"
+
+
+def _load_shadow_models() -> dict | None:
+    """Load the candidate artifacts once per process.  The feature order is
+    read from the candidate's own meta.json, NOT from the live expected lists,
+    because the whole point is that the two models take different inputs."""
+    global _shadow, _shadow_loaded
+    if _shadow_loaded:
+        return _shadow
+    _shadow_loaded = True
+    if not _shadow_enabled():
+        return None
+    try:
+        with open(_SHADOW_DIR / "meta.json", encoding="utf-8") as fh:
+            meta = json.load(fh)
+
+        def one(path: Path, expected: list[str]) -> dict:
+            with open(path, encoding="utf-8") as fh:
+                d = json.load(fh)
+            if d.get("feature_names") != expected:
+                raise ValueError(f"{path.name}: feature order differs from meta.json")
+            if not (len(d["weights"]) == len(d["mean"]) == len(d["std"]) == len(expected)):
+                raise ValueError(f"{path.name}: weight/mean/std/names length mismatch")
+            return {"weights": d["weights"], "bias": float(d["bias"]),
+                    "feature_names": list(expected), "mean": d["mean"], "std": d["std"]}
+
+        from calibration import ProbCalibrator
+        fp = dict(meta.get("fi_form") or {})
+        if fp.get("window"):
+            raise ValueError("fi_form 'window' configs are not supported at predict time")
+        _shadow = {
+            "name":  str(meta.get("shadow_model") or "shadow"),
+            "t1":    one(_SHADOW_DIR / "lr_t1.json", list(meta["features_t1"])),
+            "b1":    one(_SHADOW_DIR / "lr_b1.json", list(meta["features_b1"])),
+            "cal":   ProbCalibrator.load(_SHADOW_DIR / "calibration_v2.json"),
+            "max_p": float(meta.get("strong_yrfi_max_p", _LR_STRONG_YRFI_MAX_P)),
+            # the parameters the candidate was FIT with; fi_form.py takes them
+            # so the live input is on the same scale as the training column
+            "fi_form": {"K": fp.get("K"), "prior_w": fp.get("prior_w"), "halflife": fp.get("halflife")},
+        }
+    except Exception as e:                       # noqa: BLE001 -- fail open
+        print(f"  [warn] shadow model unavailable ({e}); shadow_* columns stay blank",
+              file=sys.stderr)
+        _shadow = None
+    return _shadow
+
+
+def _shadow_label(side: str, conf: str) -> str:
+    if side == "PASS":
+        return "PASS - " + _SHADOW_PASS_WORDING.get(conf, conf.title())
+    return f"{conf} {side}"
+
+
+def _shadow_score(t1_feats: list[float], b1_feats: list[float],
+                  home_pitcher_name: str, away_pitcher_name: str, date_iso: str,
+                  data_pts: int, wx_temp_c, wx_wind_kmh, wx_is_dome: bool,
+                  pass_reasons: list[str], live_pass_conf: str) -> dict:
+    """The shadow model's opinion of one game, as the six ledger fields.
+
+    Builds the candidate's input vectors BY NAME from the live vectors (so a
+    reordered or dropped live input cannot misalign a weight), supplies the
+    one input the live model does not have (fi_form), and classifies with the
+    candidate's own re-derived ceiling.  Data-availability PASS reasons
+    (lineup / starter pending, no data) are copied from the live verdict:
+    they are about the inputs, not the model, and the shadow saw the same
+    inputs.
+    """
+    out = dict(_SHADOW_BLANK)
+    sh = _load_shadow_models()
+    if sh is None:
+        return out
+    try:
+        import fi_form
+        live_t1 = dict(zip(_T1_EXPECTED_FEATURES, t1_feats))
+        live_b1 = dict(zip(_B1_EXPECTED_FEATURES, b1_feats))
+        hf = fi_form.estimate(home_pitcher_name, date_iso, **sh["fi_form"])
+        af = fi_form.estimate(away_pitcher_name, date_iso, **sh["fi_form"])
+        extra = {"home_fi_form": hf, "away_fi_form": af}
+
+        def vec(names: list[str], live: dict) -> list[float]:
+            v = []
+            for n in names:
+                if n in extra:
+                    v.append(extra[n])
+                elif n in live:
+                    v.append(live[n])
+                else:
+                    raise KeyError(f"shadow input {n!r} is not in the live vector")
+            return v
+
+        p_t1 = _lr_predict_one(vec(sh["t1"]["feature_names"], live_t1), sh["t1"])
+        p_b1 = _lr_predict_one(vec(sh["b1"]["feature_names"], live_b1), sh["b1"])
+        raw = (1.0 - p_t1) * (1.0 - p_b1)
+        cal_p = float(sh["cal"].predict(raw))
+        lam = -math.log(max(1e-9, 1.0 - p_t1)) - math.log(max(1e-9, 1.0 - p_b1))
+        side, conf = classify_pick_lr(
+            cal_p, data_pts, lam,
+            wx_temp_c=wx_temp_c, wx_wind_kmh=wx_wind_kmh, wx_is_dome=wx_is_dome,
+            max_p=sh["max_p"],
+        )
+        if pass_reasons:
+            side, conf = "PASS", live_pass_conf
+        out.update({
+            "shadow_model":         sh["name"],
+            "shadow_nrfi_prob":     cal_p,
+            "shadow_nrfi_prob_raw": raw,
+            "shadow_pick_label":    _shadow_label(side, conf),
+            "home_fi_form":         hf,
+            "away_fi_form":         af,
+        })
+    except Exception as e:                       # noqa: BLE001 -- fail open
+        print(f"  [warn] shadow scoring failed ({e}); shadow_* left blank for this game",
+              file=sys.stderr)
+    return out
 
 
 def _validate_calibrator_shape(cal) -> None:
@@ -2423,10 +2574,15 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
                      lambda_total: float | None = None,
                      wx_temp_c:    float | None = None,
                      wx_wind_kmh:  float | None = None,
-                     wx_is_dome:   bool = False) -> tuple[str, str]:
+                     wx_is_dome:   bool = False,
+                     max_p:        float | None = None) -> tuple[str, str]:
     """
     Pick zone based on calibrated NRFI probability + a (weather-aware)
     lambda floor on the YRFI side.
+
+    `max_p` (2026-09-04) lets the SHADOW model classify with its own
+    re-derived STRONG-YRFI ceiling.  None = the live constant, so every
+    existing caller is unchanged.
 
     `lambda_total` is the model's raw expected 1st-inning runs (lambda_t1
     + lambda_b1).  Optional for backwards-compat: if not provided, the
@@ -2499,7 +2655,7 @@ def classify_pick_lr(p_nrfi: float, data_pts: int,
     # revert tag.  _LR_STRONG_YRFI_P (0.42) is retained as documentation
     # of the T-SELECTIVITY boundary but no longer binds: the calibrated
     # ceiling is strictly tighter.
-    if p_nrfi >= _LR_STRONG_YRFI_MAX_P:
+    if p_nrfi >= (_LR_STRONG_YRFI_MAX_P if max_p is None else max_p):
         return "YRFI", "LEAN"
     return "YRFI", "STRONG"
 
@@ -3284,6 +3440,16 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             # Primary token = first in the ordered list (most actionable)
             pick_conf = pass_reasons[0]
 
+        # 2026-09-04: the shadow model's opinion of this game.  Computed AFTER
+        # the live verdict and every PASS guard above, so it can mirror the
+        # data-availability reasons; writes only shadow_* / *_fi_form fields.
+        shadow = _shadow_score(
+            t1_feats, b1_feats,
+            game.get("home_pitcher_name", ""), game.get("away_pitcher_name", ""),
+            target_iso, data_pts, wx_temp, wx_wind, wx_dome,
+            pass_reasons, pick_conf,
+        )
+
         results.append({
             "game_pk":       game["game_pk"],
             "game_number":   game["game_number"],
@@ -3311,6 +3477,13 @@ def run(target_date: str, only_strong: bool = False, debug: bool = False) -> Non
             # so the ledger records what the model actually saw.
             "home_fi_xwoba":    (t1_feats[-1] if t1_feats else ""),
             "away_fi_xwoba":    (b1_feats[-1] if b1_feats else ""),
+            # 2026-09-04: shadow model -- six fields, blank when unavailable.
+            "shadow_model":         shadow["shadow_model"],
+            "shadow_nrfi_prob":     shadow["shadow_nrfi_prob"],
+            "shadow_nrfi_prob_raw": shadow["shadow_nrfi_prob_raw"],
+            "shadow_pick_label":    shadow["shadow_pick_label"],
+            "home_fi_form":         shadow["home_fi_form"],
+            "away_fi_form":         shadow["away_fi_form"],
             # Weather inputs persisted so retro re-bets / calibration use the
             # exact values the live predictor saw at pick time.  Domed parks
             # use neutral defaults with is_dome=1 (model's "ignore weather"

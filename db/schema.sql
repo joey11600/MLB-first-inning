@@ -165,7 +165,19 @@ CREATE TABLE IF NOT EXISTS picks_2026 (
   -- probability-sized (flat fallback, LEAN notional, orphan heal).
   -- Live tables received it via:
   --   alter table picks_2026 add column if not exists sizing_prob real;
-  sizing_prob        REAL
+  sizing_prob        REAL,
+  -- 2026-08-22: the pooled first-inning pitcher xwOBA inputs at pick time.
+  home_fi_xwoba      REAL,
+  away_fi_xwoba      REAL,
+  -- 2026-09-04: the SHADOW model (never published, never bet) scored
+  -- alongside the live one.  Live tables received these via migration
+  -- picks_2026_add_shadow_model_columns (all nullable, additive).
+  shadow_model         TEXT,
+  shadow_nrfi_prob     REAL,
+  shadow_nrfi_prob_raw REAL,
+  shadow_pick_label    TEXT,
+  home_fi_form         REAL,
+  away_fi_form         REAL
 );
 
 -- Hot-path indices for the dashboard's most common queries

@@ -11,7 +11,117 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
-## [2026-09-03b] - VALIDATED CANDIDATE: the shrunk first-inning form rate clears every bar (not shipped)
+## [2026-09-04] - SHADOW MODEL LIVE; and the 09-03 "validated" verdict is CORRECTED to "inconclusive" after a data fix
+
+### Added -- the shadow model (operator: "run an alternate version side by side")
+
+- **Every predict tick now scores each game twice.** The live model's verdict
+  is published, staked and alerted exactly as before. A second model -- the
+  candidate in `data/candidates/refit2026_fiform/` -- is scored on the same
+  inputs and its opinion goes into six new ledger columns: `shadow_model`,
+  `shadow_nrfi_prob`, `shadow_nrfi_prob_raw`, `shadow_pick_label`,
+  `home_fi_form`, `away_fi_form`. Nothing downstream reads them. Kill switch
+  `NRFI_SHADOW_MODEL=disabled`.
+- **Fail-open, and pinned by tests.** `mlb_first_inning_predictor._shadow_score`
+  builds the candidate's input vectors BY NAME from the live vectors (a
+  reordered or dropped live input cannot misalign a weight), supplies the one
+  input the live model lacks, classifies with the candidate's own re-derived
+  ceiling (`classify_pick_lr(..., max_p=)`, a new optional parameter whose
+  default leaves every existing caller byte-identical), and copies the live
+  data-availability PASS reasons (lineup / starter pending, no data) because
+  those are about the inputs, not the model. A missing or malformed candidate
+  directory, an input the live vector cannot supply, or any exception leaves
+  the six fields blank and the live pick untouched. `tests/test_shadow_model.py`
+  (13 tests) pins the live classifier with and without `max_p`, that the live
+  model objects are not touched, every failure mode, the kill switch, and the
+  ledger/Supabase wiring. Suite: **315 passed.** Cost: 0.2 ms per game; the
+  form-rate history rebuilds in 0.13 s.
+- **`fi_form.py`** (repo root, importable by the predictor, no numpy/pandas):
+  a starter's clean-first-inning rate this season, shrunk with K=65 starts of
+  prior toward the expanding league rate, from starts strictly before the game
+  date. History comes from the two backtest files plus the ledger's graded rows
+  -- no external fetch. `python fi_form.py --check` reproduces the research
+  columns for THREE configurations (K65_pw0, K65_all, K65_hl15) on 4,005
+  pitcher-games with worst disagreement **0.00e+00**; the test suite runs it.
+  The candidate's `meta.json` carries the parameters it was fit with and the
+  predictor passes them through, so the live input is on the training scale.
+- **Ledger + mirror:** six columns appended last to `tracker.FIELDS`, written
+  from the predictor's result dict, frozen with the bet alongside the live
+  probabilities (so the two models are compared at the same instant), mapped
+  in `PICKS_CONVERTERS` and `PICKS_FIELD_MAP`, documented in `db/schema.sql`.
+  Supabase `picks_2026` received them via migration
+  `picks_2026_add_shadow_model_columns` BEFORE this shipped (verified by query).
+- **`tools/shadow_report.py`** + a non-blocking grade-cron step: the paired
+  comparison (same nights, same prices) of what each model would have bet,
+  three lines per model -- booked (live only), same-rule quarter-Kelly for
+  both, flat 1u -- plus each model's No.1 per night and label agreement.
+  Writes `data/diagnostics/shadow_report.json`. The shadow's would-be stake is
+  computed HERE, not in the money path. A dashboard panel is a follow-up; the
+  JSON is the contract.
+- `tools/refit2026/refit_fi_form_candidate.py --variant {add,swap10} --config
+  NAME [--out DIR]` writes candidate artifacts in the predictor's schema with
+  the cal-gate ceiling re-derived per candidate; three alternates are kept
+  under `data/candidates/refit2026_fiform_*/` with their own `meta.json`.
+
+### Fixed -- a ledger data trap, found by the equivalence check (T8.41)
+
+- **A rescheduled game carries the same `game_pk` on two dates, and the
+  ORIGINAL row is graded with the makeup game's result under starters who
+  never threw that first inning.** 13 such games in the 2026 ledger, 31 in the
+  2025 backtest file, 35 in 2024 (e.g. PIT@NYY 2026-07-21 lists Will Warren;
+  the game was played 07-22 with Max Fried; both rows read "0 runs"). Every
+  per-game join in `tools/refit2026` that merges on `game_pk` turned those
+  into a cartesian product, and the 09-03 form-rate column had one pitcher's
+  value written onto another's game (Kyle Leahy, 05-22). Both form-rate
+  builders now keep the LATEST row per (season, game_pk, side); `test_fi_form`
+  and `refit_fi_form_candidate` drop the superseded rows from every frame so
+  both models are scored on the same clean games. The other harness scripts
+  still merge on raw `game_pk` -- logged as T8.41.
+
+### CORRECTED -- the 2026-09-03b verdict
+
+With the duplicates handled, the shrunk form rate's advantage is about a third
+of what was reported, and **it no longer clears the selection-aware null.**
+Same protocol, clean frames, 300 trials:
+
+| | 09-03 (contaminated join) | 09-04 (clean) |
+|---|---|---|
+| cells passing all three splits | 12 of 30 | 10 of 30 |
+| best 2026 dAUC | +0.0070 | +0.0026 |
+| best-in-noise, mean / 90th pct / max | +0.0012 / +0.0023 / +0.0060 | +0.0013 / +0.0030 / +0.0066 |
+| survivors per noise trial (vs observed) | 1.4 (vs 12) | 1.2 (vs 10) |
+| selection-aware p | 0.000 | **0.110** |
+
+Read plainly: on clean data the search finds a result this size in noise about
+one time in nine. The feature is positive in all three splits for ten of
+thirty configurations, and ten survivors against a noise mean of 1.2 is still
+a notable separation by count -- but the headline number does not pass the
+bar this repo holds every candidate to, and the 09-03 "VALIDATED" label is
+withdrawn. Also on clean data: the internal control still holds (the
+unshrunk reconstruction fails the three splits: +0.0006 / -0.0002 / -0.0004),
+the leakage audit is still exact, and the 2026 money is still positive.
+
+**What the shadow loads: `swap10 / K65_pw0`** -- the raw last-10 fraction
+REPLACED by its shrunk version (K=65, no prior-season carry, which is what the
+persistence measurement predicted), umpire input out, 19 features per half,
+ceiling 0.4114. Chosen over the marginally higher-scoring `add` cells because
+its fitted weight is negative on BOTH halves (-0.0018 T1, -0.0305 B1 --
+cleaner history means fewer runs), where the `add` cells fit the top-of-1st
+weight the wrong way round. Clean three-split dAUC +0.0006 / +0.0006 / +0.0020,
+2026 90% CI [-0.0005, +0.0045]. Money on clean 2026 at the production gate:
+85 bets 68.2%, +17.25u flat / +37.69u Kelly, No.1 69 nights 72.5% +31.45u,
+against the live model's 89 bets 64.0%, +10.94u / +42.83u, No.1 68.1% +46.52u
+on the same basis -- better flat, worse at Kelly, and none of it outside noise.
+**This is a candidate whose backtest is inconclusive, which is exactly what a
+shadow is for: live paired rows at zero cost to the product.** Not a model
+change; not a recommendation to ship.
+
+No pick, gate, stake, alert or card reads any shadow field. Live pick path
+unchanged.
+
+---
+
+## [2026-09-03b] - VALIDATED CANDIDATE: the shrunk first-inning form rate clears every bar (not shipped) -- **CORRECTED 2026-09-04: the join that built this column double-counted rescheduled games; on clean data the null is p=0.110, not 0.000. See [2026-09-04].**
 
 ### Added
 

@@ -194,7 +194,10 @@ def test_column_is_wired_end_to_end():
     # so a reorder fails, and a silent insertion ahead of it fails.
     tail = tracker.FIELDS[tracker.FIELDS.index("sizing_prob"):]
     assert tail == ["sizing_prob",
-                    "home_fi_xwoba", "away_fi_xwoba"]   # 2026-08-22 model inputs
+                    "home_fi_xwoba", "away_fi_xwoba",   # 2026-08-22 model inputs
+                    # 2026-09-04 shadow model (tests/test_shadow_model.py)
+                    "shadow_model", "shadow_nrfi_prob", "shadow_nrfi_prob_raw",
+                    "shadow_pick_label", "home_fi_form", "away_fi_form"]
     assert "sizing_prob" in supabase_writer.PICKS_CONVERTERS
     # Preserve-on-blank keeps a predict-path mirror from wiping the
     # sizer's stamp, and its membership auto-enrolls the column in the

@@ -778,6 +778,20 @@ These can corrupt picks, lose data, or silently mis-grade.
 
 ## 🟠 TIER 2 — Probable bugs / soon
 
+- [ ] **T8.41** (2026-09-04) — **A rescheduled game keeps its ORIGINAL ledger row and
+  that row is graded with the makeup game's result under starters who never threw
+  that first inning.** 13 games in the 2026 ledger (e.g. PIT@NYY 2026-07-21 lists
+  Will Warren; played 07-22 with Max Fried; both rows "0 runs"), 31 in the 2025
+  backtest file, 35 in 2024. Two consequences: (1) those rows are corrupted training
+  and test rows for every model fit here; (2) every `tools/refit2026` script that
+  merges a per-game factor on raw `game_pk` turns them into a cartesian product --
+  this is how the 09-03 form-rate column got one pitcher's value on another's game.
+  Fixed inside `build_fi_form.py` / `fi_form.py` / `test_fi_form.py` /
+  `refit_fi_form_candidate.py` (keep the latest row per game_pk); `harness.load`,
+  `test_fi_pooled.attach` and the rest still merge raw. Proper fix: `harness.load`
+  drops superseded duplicates once, for every consumer; and the grader should not
+  copy a result onto a row whose starters differ from the game's actual starters.
+
 - [x] **T2.1** ✅ Already fixed in earlier roi.ts change. Verified at `roi.ts:271,277` — PASS picks seed `dayPL.set(date, 0)` so all-PASS days show on the chart.
 - [x] **T2.2 + T2.12** ✅ 2026-05-01 — `_pick_is_locked` now has 3 defensive locks: graded-result terminal, slate-date >24h past, `created_at` >12h stale. Plus skips parse on non-numeric `game_time_et` (DH-Y placeholders). Bet snapshots can no longer be overwritten by parse failures.
 - [x] **T2.3** ✅ 2026-05-01 — `_apply_odds_to_row` now stores would-be `units_risked` even when `bet_placed=N`, so post-mortem can compute counterfactual P&L for skipped bets. `_calc_pnl` short-circuits on bet_placed=N so no double-counting.

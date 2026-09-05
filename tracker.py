@@ -174,6 +174,13 @@ FIELDS = [
     # recoverable.  Appended last for the same reason as sizing_prob;
     # frozen with the bet once bet_placed=Y (see the locked-row preserve list).
     "home_fi_xwoba", "away_fi_xwoba",
+    # 2026-09-04: the SHADOW model (mlb_first_inning_predictor._shadow_score)
+    # -- a second model scored alongside the live one, never published, never
+    # bet.  Its calibrated and raw p(NRFI), its verdict, and the one input it
+    # has that the live model does not (fi_form.py).  Appended last; frozen
+    # with the bet so both models are compared at the same instant.
+    "shadow_model", "shadow_nrfi_prob", "shadow_nrfi_prob_raw", "shadow_pick_label",
+    "home_fi_form", "away_fi_form",
 ]
 
 # ---------------------------------------------------------------------------
@@ -821,6 +828,13 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
             # 2026-08-22: pooled first-inning pitcher xwOBA at pick time
             "home_fi_xwoba":  _fmt(g.get("home_fi_xwoba"), 4),
             "away_fi_xwoba":  _fmt(g.get("away_fi_xwoba"), 4),
+            # 2026-09-04: shadow model fields (blank when the shadow is unavailable)
+            "shadow_model":         (g.get("shadow_model") or ""),
+            "shadow_nrfi_prob":     _fmt(g.get("shadow_nrfi_prob"), 4),
+            "shadow_nrfi_prob_raw": _fmt(g.get("shadow_nrfi_prob_raw"), 4),
+            "shadow_pick_label":    (g.get("shadow_pick_label") or ""),
+            "home_fi_form":         _fmt(g.get("home_fi_form"), 4),
+            "away_fi_form":         _fmt(g.get("away_fi_form"), 4),
             "nrfi_prob":      _fmt(g["nrfi_prob"], 4),
             "yrfi_prob":      _fmt(g["yrfi_prob"], 4),
             # 2026-07-28 AUDIT FIX: both raw columns are declared in FIELDS
@@ -1004,6 +1018,11 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                     # 2026-08-22: the model inputs that produced the locked
                     # probability stay with it; the pool moves daily.
                     "home_fi_xwoba", "away_fi_xwoba",
+                    # 2026-09-04: the shadow model's view freezes at the same
+                    # instant as the live one, so the two are compared on the
+                    # same information.
+                    "shadow_model", "shadow_nrfi_prob", "shadow_nrfi_prob_raw",
+                    "shadow_pick_label", "home_fi_form", "away_fi_form",
                 ]
 
             # 2026-05-11: Cluster-demotion preserve.  When a row has been

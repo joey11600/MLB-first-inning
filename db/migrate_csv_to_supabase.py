@@ -233,6 +233,12 @@ PICKS_FIELD_MAP = {
     "sizing_prob":       ("sizing_prob",       _to_float),   # T8.35
     "home_fi_xwoba":     ("home_fi_xwoba",     _to_float),   # 2026-08-22
     "away_fi_xwoba":     ("away_fi_xwoba",     _to_float),   # 2026-08-22
+    "shadow_model":         ("shadow_model",         lambda s: (s or "").strip() or None),   # 2026-09-04
+    "shadow_nrfi_prob":     ("shadow_nrfi_prob",     _to_float),                            # 2026-09-04
+    "shadow_nrfi_prob_raw": ("shadow_nrfi_prob_raw", _to_float),                            # 2026-09-04
+    "shadow_pick_label":    ("shadow_pick_label",    lambda s: (s or "").strip() or None),   # 2026-09-04
+    "home_fi_form":         ("home_fi_form",         _to_float),                            # 2026-09-04
+    "away_fi_form":         ("away_fi_form",         _to_float),                            # 2026-09-04
     "profit_loss_units": ("profit_loss_units", _to_float),
 }
 

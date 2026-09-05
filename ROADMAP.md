@@ -13,6 +13,12 @@ Companion to:
 
 ---
 
+## ✅ Recently shipped (Sep 2026)
+
+| item | shipped | what |
+|---|---|---|
+| **Shadow model** (`fi_form.py`, `_shadow_score`, `tools/shadow_report.py`) | 2026-09-04 | Every predict tick scores each game a second time with a candidate model and records it in six ledger columns; the live pick, stake, alerts and cards are untouched. Fail-open, kill switch `NRFI_SHADOW_MODEL=disabled`, 13 tests pin the live path. Candidate loaded: the raw last-10 no-run fraction replaced by its empirical-Bayes shrunk version (K=65 starts), umpire input dropped. Its backtest is positive in all three splits but **within search noise on clean data (p=0.110)** -- which is why it runs as a shadow and not a ship. Nightly paired report to `data/diagnostics/shadow_report.json`. Follow-up: a dashboard panel that reads that JSON. Found en route: rescheduled games carry the same game_pk on two dates with the original row graded under the wrong starters (T8.41). |
+
 ## ✅ Recently shipped (Aug 2026)
 
 | item | shipped | what |

@@ -312,6 +312,24 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
   xwOBA allowed, as running sums (`fi_pitcher_pool.py`). Advances one day at
   a time from Savant (nightly cron step + predict-time self-refresh, fail-open).
   Rebuild from the research cache: `python fi_pitcher_pool.py --rebuild`.
+- `fi_form.py` + `data/candidates/refit2026_fiform/` — 2026-09-04: the
+  **SHADOW MODEL**. Every predict tick scores each game a second time with the
+  candidate artifacts in that directory (feature order and the `fi_form`
+  parameters come from its `meta.json`, NOT from the live lists) and records
+  the result in six ledger columns (`shadow_model`, `shadow_nrfi_prob`,
+  `shadow_nrfi_prob_raw`, `shadow_pick_label`, `home_fi_form`, `away_fi_form`).
+  Nothing downstream reads them: pick, stake, alerts and cards all come from
+  the live model. Fail-open: a missing or malformed directory leaves the
+  columns blank; kill switch `NRFI_SHADOW_MODEL=disabled`. `fi_form.py` is the
+  one input the shadow has that the live model does not — a starter's
+  clean-first-inning rate this season, shrunk with K=65 starts of prior,
+  rebuilt in-process from the two backtest files + the ledger's graded rows
+  (no external fetch). `python fi_form.py --check` must print PASS against
+  the research column. Candidate builders: `tools/refit2026/build_fi_form.py`
+  (the feature), `test_fi_form.py` (three splits + null + money),
+  `refit_fi_form_candidate.py --variant … --config … [--out …]` (artifacts).
+  Nightly reading: `tools/shadow_report.py` →
+  `data/diagnostics/shadow_report.json`.
 - `data/thresholds.json` — written every run; sourced by both Python and
   TS classifiers (T2.9).
 - `lr_baseline.py` — LR fit/eval CLI. `--save PATH` writes a production model.
@@ -470,6 +488,9 @@ every 5 min, GHA backs it up hourly. Manual interventions:
 | Re-grade a date | `python mlb_first_inning_predictor.py --date 2026-04-30 --grade` |
 | Re-scrape DK odds | `python scrape_dk_odds.py` |
 | Advance the first-inning pitcher pool to yesterday | `python fi_pitcher_pool.py --update` |
+| Shadow model vs live, paired by night (grade cron runs it nightly) | `python tools/shadow_report.py` |
+| One starter's shrunk first-inning form rate (the shadow's input) | `python fi_form.py "Eury Pérez" 2026-09-04` |
+| Prove the shadow input matches its research column | `python fi_form.py --check` |
 | One starter's pooled first-inning xwOBA | `python fi_pitcher_pool.py --show <pitcher_id>` |
 | Smoke-test predictor loop locally | `python workers/predictor_loop.py --once` |
 | Smoke-test live-state worker locally | `python workers/live_state.py --once --debug` |

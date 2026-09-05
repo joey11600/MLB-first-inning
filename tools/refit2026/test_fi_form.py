@@ -99,6 +99,16 @@ def load_all() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
     def ld(path: Path, park_col: str, season: int) -> pd.DataFrame:
         d = load(path, park_col, season)
+        d["game_pk"] = pd.to_numeric(d["game_pk"], errors="coerce")
+        # A rescheduled game keeps its ORIGINAL row (graded with the makeup
+        # game's result under starters who never threw that first inning) and
+        # gains a row on the makeup date, same game_pk.  Keep the latest row
+        # per game_pk -- the one whose starters actually pitched -- so both
+        # models are scored on the same clean games.  (35 / 31 / 13 such
+        # games in 2024 / 2025 / 2026; found 2026-09-04 by fi_form.py --check.)
+        has = d["game_pk"].notna()
+        d = pd.concat([d[has].sort_values("date").drop_duplicates(subset=["game_pk"], keep="last"),
+                       d[~has]], ignore_index=True)
         own = {c: pd.to_numeric(d[c], errors="coerce")
                for c in ("home_fi_xwoba", "away_fi_xwoba") if c in d.columns}
         d = attach(d.drop(columns=list(own)), fac)

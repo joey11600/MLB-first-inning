@@ -85,7 +85,20 @@ def start_log() -> pd.DataFrame:
             }))
     s = pd.concat(frames, ignore_index=True)
     s = s[s.pid.notna() & (s.pid != "") & (s.pid.str.lower() != "nan") & (s.pid != "TBD")]
-    s = s[s.clean.notna()]
+    s = s[s.clean.notna()].sort_values(["date", "pid"])
+    # A postponed-then-played game keeps its ORIGINAL row in the ledger (rows
+    # are never deleted; the row is re-graded when the game is played) AND
+    # gets a row on the makeup date, both carrying the same game_pk and the
+    # same first-inning result.  Left alone that counts the start twice and
+    # -- worse -- makes the per-game join below a cartesian product, which is
+    # how one pitcher's value got written onto another's game (Kyle Leahy,
+    # 2026-05-22, found by fi_form.py --check on 2026-09-04).  Keep one row
+    # per (season, game_pk, side): the LATEST date, which is when the start
+    # actually happened.  Rows with no game_pk cannot be deduplicated and are
+    # kept as they are.
+    has_pk = s.game_pk.notna()
+    s = pd.concat([s[has_pk].drop_duplicates(subset=["season", "game_pk", "side"], keep="last"),
+                   s[~has_pk]], ignore_index=True)
     return s.sort_values(["date", "pid"]).reset_index(drop=True)
 
 

@@ -987,6 +987,18 @@ jobs:
           python tools/v21_v22_disagreements_log.py 2>&1 \
             || echo "::warning::v21_v22_disagreements_log failed (non-blocking)"
 
+      - name: Shadow model report (live vs the fi_form candidate, 2026-09-04)
+        if: steps.action.outputs.what == 'grade'
+        # tools/shadow_report.py reads the ledger's shadow_* columns -- the
+        # second model the predictor scores alongside the live one, never
+        # published, never bet -- and writes the paired comparison to
+        # data/diagnostics/shadow_report.json (committed with the rest of
+        # data/).  Non-blocking; the script itself exits 0 on any error.
+        run: |
+          set +e
+          python tools/shadow_report.py 2>&1 \
+            || echo "::warning::shadow_report failed (non-blocking)"
+
       - name: Cluster demotion re-eval reminder (R4)
         if: steps.action.outputs.what == 'grade'
         # Reads data/cluster_demotions.json.  For each active entry whose

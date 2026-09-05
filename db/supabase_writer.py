@@ -275,6 +275,14 @@ PICKS_CONVERTERS: dict[str, Any] = {
     # Columns added to picks_2026 by migration picks_2026_add_fi_xwoba_columns.
     "home_fi_xwoba":      _to_float,
     "away_fi_xwoba":      _to_float,
+    # 2026-09-04: shadow model fields.  Columns added to picks_2026 by
+    # migration picks_2026_add_shadow_model_columns BEFORE this shipped.
+    "shadow_model":         lambda s: (s or "").strip() or None,
+    "shadow_nrfi_prob":     _to_float,
+    "shadow_nrfi_prob_raw": _to_float,
+    "shadow_pick_label":    lambda s: (s or "").strip() or None,
+    "home_fi_form":         _to_float,
+    "away_fi_form":         _to_float,
     "edge_nrfi":          _to_float,
     "edge_yrfi":          _to_float,
     "edge_on_pick":       _to_float,
