@@ -60,6 +60,29 @@
 # when its measurement first crosses a threshold, inside one 30-minute
 # check window (e.g. stale for 90-119 min).  Thresholds escalate
 # (90m, 3h, 6h, 12h), so a full-day outage sends 4 messages, not 30.
+#
+# 2026-09-04, THE BLIND SPOT (T8.42).  The runner went offline on
+# 2026-09-02 ~13:00 UTC and this watchdog printed "healthy — no alert"
+# for the next two and a half days, while measuring stuck_min=458.
+# Three things, all fixed in this file:
+#   1. The last-success measurement scanned only the 30 most recent
+#      runs and reported -1 "rather than guess" once every one of them
+#      was cancelled -- so the alarm built for long outages went blind
+#      after ~15 hours.  It now asks GitHub for the last successful run
+#      directly (?status=success).
+#   2. The stuck-job measurement had the same 30-run horizon; after a
+#      day the stuck run had scrolled off the page.  It now reads the
+#      open runs by status, ignoring anything older than 7 days (the API
+#      still lists run #385 as queued since May -- a zombie).
+#   3. The escalation ladder is finite BY DESIGN, so after the last band
+#      an outage is indistinguishable from health.  A once-a-day
+#      reminder now fires on the first check of the awake window
+#      (13:00 UTC) for as long as the outage lasts.  One message a day,
+#      not thirty; nothing in the sleeping hours.
+# Railway being alive was never the reason for the silence -- the two
+# measurements simply had nothing left to say.  It is still true that
+# GitHub going down costs bookkeeping and Railway going down costs the
+# night's pick, but the bookkeeping includes the ledger itself.
 # ============================================================
 
 name: Runner watchdog
@@ -73,6 +96,10 @@ on:
     inputs:
       force_test:
         description: "Send a test alert to Telegram even if everything is healthy"
+        type: boolean
+        default: false
+      simulate_daily:
+        description: "Evaluate the once-a-day 'still down' reminders now, as if this were the 13:00 UTC check"
         type: boolean
         default: false
 
@@ -120,23 +147,57 @@ jobs:
           fi
 
           # ---- measurement 1: how stale is the last SUCCESS? ----------
-          LAST_OK=$(jq -r '[.workflow_runs[]
-                            | select(.status=="completed" and .conclusion=="success")]
-                           | sort_by(.updated_at) | last | .updated_at // empty' runs.json)
+          # 2026-09-04 (T8.42): this used to scan the 30 most recent runs
+          # and set -1 "rather than guess" when none had succeeded.  In a
+          # long outage every one of the last 30 is cancelled, so the alarm
+          # that exists for long outages went blind after ~15 hours.  Ask
+          # GitHub for the last successful run DIRECTLY; the page scan is
+          # only the fallback if that call fails.
+          LAST_OK=""
+          if gh api "repos/${REPO}/actions/workflows/${WATCHED}/runs?status=success&per_page=1" \
+                 > last_ok.json 2>/dev/null; then
+            LAST_OK=$(jq -r '.workflow_runs[0].updated_at // empty' last_ok.json)
+          fi
+          if [ -z "$LAST_OK" ]; then
+            LAST_OK=$(jq -r '[.workflow_runs[]
+                              | select(.status=="completed" and .conclusion=="success")]
+                             | sort_by(.updated_at) | last | .updated_at // empty' runs.json)
+          fi
           if [ -n "$LAST_OK" ]; then
             STALE_MIN=$(( (NOW - $(date -u -d "$LAST_OK" +%s)) / 60 ))
           else
-            STALE_MIN=-1     # nothing to measure; stay quiet rather than guess
+            STALE_MIN=-1     # the workflow has never succeeded; nothing to measure
           fi
 
           # ---- measurement 2: a job nobody picked up ------------------
           # THE signature of this outage: a run sitting queued/in_progress
           # far longer than a healthy run takes (~1-6 min, worst ~10).
           # Catches an offline runner ~an hour before staleness would.
-          STUCK_MIN=$(jq -r --argjson now "$NOW" '
-            [.workflow_runs[] | select(.status!="completed")
-             | ($now - (.created_at | fromdateiso8601)) / 60] | max // -1' runs.json)
+          #
+          # 2026-09-04 (T8.42): read the open runs DIRECTLY by status
+          # instead of hoping they are among the 30 most recent -- after a
+          # day of hourly cancellations the stuck run had scrolled off the
+          # page and this measured only the newest pending one.  Runs older
+          # than 7 days are ignored: the API still lists run #385 as
+          # "queued" since 2026-05-15, a zombie that would otherwise read
+          # as a permanent outage.
+          : > open.json
+          for ST in queued in_progress pending waiting requested; do
+            gh api "repos/${REPO}/actions/workflows/${WATCHED}/runs?status=${ST}&per_page=20" \
+              2>/dev/null | jq -c '.workflow_runs[]?' >> open.json || true
+          done
+          if [ -s open.json ]; then
+            STUCK_MIN=$(jq -s -r --argjson now "$NOW" '
+              [.[] | ($now - (.created_at | fromdateiso8601)) / 60
+                   | select(. < 7 * 24 * 60)] | max // -1' open.json)
+          else
+            STUCK_MIN=$(jq -r --argjson now "$NOW" '
+              [.workflow_runs[] | select(.status!="completed")
+               | ($now - (.created_at | fromdateiso8601)) / 60
+               | select(. < 7 * 24 * 60)] | max // -1' runs.json)
+          fi
           STUCK_MIN=${STUCK_MIN%.*}
+          STUCK_MIN=${STUCK_MIN:--1}     # never let an empty value reach the integer tests
 
           # ---- measurement 3: newest completed run failed -------------
           NEWEST=$(jq -r '[.workflow_runs[] | select(.status=="completed")]
@@ -191,6 +252,31 @@ jobs:
                 ALERT="${ALERT}🟠 <b>Predictions have stopped</b> — no successful run for ${H}h ${M}m.%0A%0A"
               fi
             done
+          fi
+
+          # ---- 2026-09-04 (T8.42): a DAILY reminder while it stays down --
+          # The bands above fire once each as an outage grows, then go
+          # silent by design.  On 2026-09-02..04 the runner was offline for
+          # two and a half days; the last band passed within twelve hours
+          # and every check after that printed "healthy".  So: once an
+          # outage has outlived its last band, say so again once a day, on
+          # the first check of the awake window (13:00 UTC, 9am ET).  One
+          # message per day, never thirty, and never in the sleeping hours.
+          HOUR_UTC=$(date -u +%H); MIN_UTC=$(date -u +%M)
+          DAILY=0
+          if [ "$HOUR_UTC" = "13" ] && [ "${MIN_UTC#0}" -lt "$WINDOW_MIN" ]; then DAILY=1; fi
+          # `simulate_daily` (workflow_dispatch) exercises this path on demand,
+          # the same way `force_test` proves the delivery chain.
+          if [ "${{ github.event.inputs.simulate_daily }}" = "true" ]; then DAILY=1; fi
+          if [ "$DAILY" = "1" ]; then
+            if [ "$STUCK_MIN" -ge $(( 180 + WINDOW_MIN )) ]; then
+              H=$(( STUCK_MIN / 60 ))
+              ALERT="${ALERT}🔴 <b>Still not picked up</b> — a run has now been waiting ${H}h for a machine. The self-hosted runner is still offline; daily.yml has not run in that time.%0A%0A"
+            fi
+            if [ "$STALE_MIN" -ge $(( 720 + WINDOW_MIN )) ]; then
+              D=$(( STALE_MIN / 1440 )); H=$(( (STALE_MIN % 1440) / 60 ))
+              ALERT="${ALERT}🟠 <b>Predictions still stopped</b> — no successful daily.yml run for ${D}d ${H}h. Railway may be carrying the picks, but the ledger, the season record and the nightly reports are not being written.%0A%0A"
+            fi
           fi
 
           if [ "$RAIL_MIN" -ge 0 ]; then
