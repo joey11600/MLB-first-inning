@@ -88,8 +88,16 @@ the research loader corrects for it.
   steps, committed `e622b304 auto: predict 2026-09-04`** -- the first ledger
   commit since `de496182` on 2026-09-02. The repo's `picks_2026.csv` now
   carries the six shadow columns with values on every 2026-09-04 row, and
-  `tools/shadow_report.py` runs against the repo file. The nightly grade at
-  03:30 UTC is the first scheduled run on the new label.
+  `tools/shadow_report.py` runs against the repo file. GitHub then SKIPPED the
+  03:30 UTC nightly-grade cron slot entirely (no run was created -- the cron lag
+  this repo has documented before), so the catch-up was a manual
+  `workflow_dispatch` with `action=grade` (run 33943121875, hosted runner,
+  success in ~80 s): grader, lock-commit, season record, both drift monitors,
+  pitcher-pool advance and the shadow report all ran, and it committed
+  `7cdf236a auto: grade 2026-09-04` with `data/diagnostics/shadow_report.json`
+  (16 graded rows; live 2-0 booked +4.91u on 7u, shadow 2-0 same-rule +4.91u on
+  7u -- identical to what the /history card computes from Supabase). The first
+  SCHEDULED run on the new label will be the 05:00 UTC opener capture.
 
 T8.42 is closed on both halves (watchdog fixed [2026-09-04c]; cron running).
 Follow-up worth a look when convenient: the concurrency group cancels every
