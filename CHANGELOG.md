@@ -11,6 +11,26 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-05b] - T8.41 grader half scoped: the July 27 CLE@CIN bet is a phantom win
+
+### Investigated (nothing changed; AUDIT T8.41 carries the proposal)
+
+- `tracker.grade_date` re-grades POSTPONED rows on purpose (so a makeup with the
+  same `game_pk` records an outcome), but it cannot tell a postponement from a
+  suspension, and the linescore is fetched by `game_pk` -- so the ORIGINAL-date
+  row grades with the MAKEUP game's first inning, under the starters listed on
+  the original date. 13 pairs in 2026; 8 with different starters.
+- **One real bet:** 2026-07-27 CLE@CIN, STRONG YRFI 1u at -125, priced at
+  02:39Z on 07-28 -- three and a half hours after the scheduled first pitch,
+  on a game already postponed -- and graded WIN (+0.80u) from the 07-28
+  makeup. Anyone who placed that bet had it voided by the book.
+- Proposed (operator's call, money path): treat POSTPONED as terminal when the
+  game's `officialDate` differs from the row's slate date, let the makeup row
+  carry the result, and stop the odds import from pricing a Postponed row.
+  Details in AUDIT T8.41.
+
+---
+
 ## [2026-09-05] - The research loader now keeps one row per game (T8.41, harness half)
 
 ### Fixed -- `tools/refit2026/harness.py::load`

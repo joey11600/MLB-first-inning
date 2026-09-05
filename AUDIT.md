@@ -818,9 +818,27 @@ These can corrupt picks, lose data, or silently mis-grade.
   `refit_fi_form_candidate.py` (keep the latest row per game_pk).
   **HARNESS HALF FIXED 2026-09-05** (CHANGELOG [2026-09-05]): `harness.load` now
   drops superseded duplicates once, for all 24 consumers (2372 / 2362 / 2023 rows,
-  game_pk unique). **GRADER HALF OPEN:** the grader should not copy a result onto a
-  row whose starters differ from the game's actual starters -- money-path change,
-  operator's call.
+  game_pk unique). **GRADER HALF OPEN -- scoped 2026-09-05, operator's call.** Mechanism
+  (`tracker.grade_date`, the "was POSTPONED, re-checking for makeup/resume" branch):
+  POSTPONED and SUSPENDED are treated alike as non-terminal, and `_fetch_first_inning`
+  fetches the linescore by `game_pk`, which after the makeup returns the MAKEUP
+  game's first inning. So the original-date row grades WIN/LOSS with the makeup
+  result under whatever starters it listed on the original date. Right for a
+  SUSPENDED game (resumed; same game, same official date, the bet stands); wrong for
+  a POSTPONED one (replayed from scratch on a new official date; sportsbooks void the
+  original bet; 8 of this season's 13 pairs had different starters). **One real bet
+  is affected:** 2026-07-27 CLE@CIN, STRONG YRFI 1u at -125, `odds_captured_at`
+  2026-07-28T02:39Z -- 3.5 h AFTER the scheduled 7:10 PM ET start, i.e. the odds
+  import placed a bet on a game that had already been postponed -- then graded WIN
+  (+0.80u) from the 07-28 makeup. A subscriber who bet it on 07-27 had it voided.
+  **Proposed fix, two parts:** (1) in the re-grade branch, compare the game's
+  `officialDate` (schedule endpoint) with the row's slate date; if they differ the
+  row is the pre-postponement record -- grade it POSTPONED as terminal, no P&L, and
+  let the makeup-date row carry the result (SUSPENDED/resumed games keep their
+  official date, so they still re-grade as today); (2) the odds import / lock-commit
+  must not place a bet on a row whose status is Postponed. Part 1 changes a graded
+  P&L row (07-27 +0.80u -> void) and the season figure by that amount; part 2 is in
+  the money path. Neither ships without the operator.
 
 - [x] **T2.1** ✅ Already fixed in earlier roi.ts change. Verified at `roi.ts:271,277` — PASS picks seed `dayPL.set(date, 0)` so all-PASS days show on the chart.
 - [x] **T2.2 + T2.12** ✅ 2026-05-01 — `_pick_is_locked` now has 3 defensive locks: graded-result terminal, slate-date >24h past, `created_at` >12h stale. Plus skips parse on non-numeric `game_time_et` (DH-Y placeholders). Bet snapshots can no longer be overwritten by parse failures.
