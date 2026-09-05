@@ -26,6 +26,8 @@ import {
 import { WeekAtAGlance } from "./WeekAtAGlance";
 import { TopPickCard } from "./TopPickCard";
 import { TopPickHistory } from "./TopPickHistory";
+import { ShadowModelCard } from "./ShadowModelCard";
+import type { ShadowReport } from "@/lib/shadow-compare";
 import type { TopPickReport } from "@/lib/top-pick";
 import { ReplayStamp } from "./ReplayStamp";
 import styles from "./HistoryView.module.css";
@@ -166,6 +168,7 @@ export function HistoryView({
   divergence,
   topPick,
   systemAll,
+  shadow,
   liveGate,
 }: {
   initial: RoiResponse;
@@ -182,6 +185,10 @@ export function HistoryView({
   topPick?: TopPickReport | null;
   /** The same shape over every qualifying bet, not just the night's #1. */
   systemAll?: TopPickReport | null;
+  /** 2026-09-04: the shadow model's paired record, built server-side from
+   *  the ledger's shadow_* columns (lib/shadow-compare.ts). Optional: null
+   *  renders the section's "nothing graded yet" state. */
+  shadow?: ShadowReport | null;
   /** `strongYrfiP` from thresholds.json -- the gate the predictor runs
    *  NOW, so the replay cards can flag when they were built at another. */
   liveGate?: number | null;
@@ -430,6 +437,14 @@ export function HistoryView({
           month-by-month and every-play tables underneath. Conclusion
           first, then evidence -- the order they will talk about it in. */}
       <TopPickHistory report={topPick ?? null} />
+
+      {/* THE SHADOW MODEL (2026-09-04). A second model scored on every
+          game and recorded beside the live one, never published, never
+          bet. Placed right after the live No.1's record so the operator
+          reads "what we did" and then "what the candidate would have
+          done" on the same nights. Built server-side from the ledger's
+          shadow_* columns; see lib/shadow-compare.ts. */}
+      <ShadowModelCard report={shadow ?? null} />
 
       {/* THE WHOLE SYSTEM, from here down. Same machine, lower
           selectivity: every STRONG play rather than one a night. The

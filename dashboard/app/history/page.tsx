@@ -5,6 +5,8 @@ import type { RecFile } from "@/lib/season-record";
 import { HistoryView } from "@/components/HistoryView";
 import { loadTopPickReport } from "@/lib/top-pick";
 import { loadThresholds } from "@/lib/thresholds";
+import { loadLedgerRows } from "@/lib/roi";
+import { buildShadowReport } from "@/lib/shadow-compare";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +41,7 @@ export default async function HistoryPage() {
      stakes) while seasonRecord is the REPLAY. Loaded side by side on
      purpose: the card that shows them apart is only honest if they come
      from genuinely different sources. Soft-fails to null. */
-  const [seasonRoi, seasonRecord, topPick, systemAll, thresholds] = await Promise.all([
+  const [seasonRoi, seasonRecord, topPick, systemAll, thresholds, shadow] = await Promise.all([
     loadRoi("season"),
     loadSeasonRecord(),
     loadTopPickReport(new Date().getUTCFullYear()).catch(() => null),
@@ -52,6 +54,12 @@ export default async function HistoryPage() {
        carries the gate its replay was actually run at. When the two
        disagree the figures on screen are already superseded. */
     loadThresholds().catch(() => null),
+    // 2026-09-04: the shadow model's paired record. The rows come from the
+    // same Supabase-first loader the ROI panel uses; the comparison itself
+    // is pure so the client component can import its types.
+    loadLedgerRows(new Date().getUTCFullYear())
+      .then((rows) => (rows ? buildShadowReport(rows) : null))
+      .catch(() => null),
   ]);
   return (
     <HistoryView
@@ -59,6 +67,7 @@ export default async function HistoryPage() {
       seasonRecord={seasonRecord}
       topPick={topPick}
       systemAll={systemAll}
+      shadow={shadow}
       liveGate={thresholds?.strongYrfiP ?? null}
     />
   );

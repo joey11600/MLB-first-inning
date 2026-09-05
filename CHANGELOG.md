@@ -11,6 +11,41 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-04b] - The shadow model gets a card on /history, read straight from Supabase
+
+### Added
+
+- **`dashboard/lib/shadow-compare.ts`** -- a PURE mirror of
+  `tools/shadow_report.py`: same filters (graded rows with a first-inning
+  result; live bets = `bet_placed=Y` on the YRFI side; shadow bets =
+  `shadow_pick_label` STRONG YRFI), same sizing (`stakeUnitsFor`, the board's
+  own quarter-Kelly), same No.1 rule (highest p(YRFI), better price breaking
+  ties), same paired-nights output. No `node:fs`, no Supabase client, so a
+  client component can import its types without dragging the filesystem into
+  the browser bundle (the `top-pick-rank.ts` lesson). Every total is a
+  fixed-basis `FlatUnits`; the units guard passed (8 cumulative forms
+  rejected, 6 point-in-time forms accepted).
+- **`dashboard/components/ShadowModelCard.tsx`** on `/history`, right after the
+  No.1's own record: the live model (as actually staked / same-rule
+  quarter-Kelly / flat 1u), the shadow model's would-have-been on the same two
+  bases, each model's No.1 with the PAIRED line (nights both had a top play,
+  same game count, records side by side), a by-night table, the label
+  agreement census, and tonight's STRONG lists for both. Reuses
+  `TopPickHistory.module.css` so it reads as one family. When no graded row
+  carries a shadow value yet it says so instead of showing zeros.
+- `app/history/page.tsx` builds the report server-side through the same
+  Supabase-first `loadLedgerRows` the ROI panel uses, so **the card works and
+  updates live while the GitHub cron is down (T8.42)** -- the ledger rows with
+  shadow values exist only in Supabase until that runner is back.
+- First live reading (prod build, 2026-09-04 ~21:00 ET): 14 graded games;
+  live 2-0 +4.91u booked / +3.46u same-rule; shadow 2-0 +4.91u same-rule on
+  the same two games; No.1 STL@COL for both, W; labels agree on 13 of 14
+  (NYY@SD: live LEAN NRFI, shadow PASS).
+
+No pick, gate, stake, alert or card reads any shadow field. Display only.
+
+---
+
 ## [2026-09-04] - SHADOW MODEL LIVE; and the 09-03 "validated" verdict is CORRECTED to "inconclusive" after a data fix
 
 ### Added -- the shadow model (operator: "run an alternate version side by side")
