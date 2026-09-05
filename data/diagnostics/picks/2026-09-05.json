@@ -1,7 +1,7 @@
 {
   "date": "2026-09-05",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-05T05:09:48Z",
+  "fitted_at": "2026-09-05T06:39:13Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -236,10 +236,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2609,
-      "raw_p_run_b1": 0.2773,
-      "raw_p_nrfi": 0.5342,
-      "calibrated_p_nrfi": 0.5488,
+      "raw_p_run_t1": 0.2651,
+      "raw_p_run_b1": 0.2831,
+      "raw_p_nrfi": 0.5268,
+      "calibrated_p_nrfi": 0.5448,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -272,19 +272,19 @@
           "outlier": false
         },
         {
+          "name": "wx_temp_c",
+          "value": 26.8,
+          "z": 0.83,
+          "weight": 0.0111,
+          "contribution": 0.0092,
+          "outlier": false
+        },
+        {
           "name": "era_gap_t1",
           "value": 1.492,
           "z": 0.786,
           "weight": 0.0118,
           "contribution": 0.0092,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 20.0,
-          "z": -0.389,
-          "weight": 0.0111,
-          "contribution": -0.0043,
           "outlier": false
         }
       ],
@@ -322,11 +322,11 @@
           "outlier": false
         },
         {
-          "name": "home_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.553,
-          "weight": 0.0173,
-          "contribution": -0.0096,
+          "name": "wx_temp_c",
+          "value": 26.8,
+          "z": 0.83,
+          "weight": 0.0125,
+          "contribution": 0.0104,
           "outlier": false
         }
       ],
@@ -348,10 +348,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2432,
-      "raw_p_run_b1": 0.2942,
-      "raw_p_nrfi": 0.5342,
-      "calibrated_p_nrfi": 0.5488,
+      "raw_p_run_t1": 0.245,
+      "raw_p_run_b1": 0.298,
+      "raw_p_nrfi": 0.53,
+      "calibrated_p_nrfi": 0.5465,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
