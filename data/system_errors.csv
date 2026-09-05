@@ -14782,3 +14782,4 @@ UnboundLocalError: cannot access local variable 'today_record' where it is not a
   DK fetch attempt 2/3 failed (HTTPError: HTTP Error 403: ); retrying in 2.0s...
   Fetch failed: HTTP Error 403: "
 2026-09-05T04:30:49Z,2026-09-04,feature-drift,0,feature drift 2026-09-04: 0 HIGH + 1 MEDIUM alerts; see drift_2026-09-04.csv
+2026-09-05T07:49:40Z,2026-09-04,feature-drift,0,feature drift 2026-09-04: 0 HIGH + 1 MEDIUM alerts; see drift_2026-09-04.csv
