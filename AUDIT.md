@@ -778,7 +778,7 @@ These can corrupt picks, lose data, or silently mis-grade.
 
 ## 🟠 TIER 2 — Probable bugs / soon
 
-- [ ] **T8.42** (2026-09-04) — **The GitHub half of the system has been down since
+- [x] **T8.42** ✅ 2026-09-05 — **The GitHub half of the system has been down since
   2026-09-02 ~09:00 ET and the runner watchdog says "healthy".** `daily.yml` runs on
   `RUNNER_LABEL=self-hosted`; that runner (`vmi3065305`, the Contabo VPS) is OFFLINE.
   Last `auto: predict` commit on the branch: `de496182` 2026-09-02 15:03 CEST. Every
@@ -803,7 +803,9 @@ These can corrupt picks, lose data, or silently mis-grade.
   outage outlives its last band. **Runner recovery remains manual and an operator
   decision** (docs/SELF_HOSTED_RUNNER.md): restart the runner service on the Contabo
   box, or set the repo variable `RUNNER_LABEL` to `ubuntu-latest` (billed minutes).
-  This item closes when a daily.yml run completes.
+  **CLOSED 2026-09-05 02:56 UTC:** operator had `RUNNER_LABEL` switched to
+  `ubuntu-latest`; stale queued runs cancelled; fresh run 33940433574 succeeded on a
+  hosted machine in 276 s and committed `e622b304` (CHANGELOG [2026-09-04d]).
 - [ ] **T8.41** (2026-09-04) — **A rescheduled game keeps its ORIGINAL ledger row and
   that row is graded with the makeup game's result under starters who never threw
   that first inning.** 13 games in the 2026 ledger (e.g. PIT@NYY 2026-07-21 lists

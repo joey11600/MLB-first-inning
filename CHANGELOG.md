@@ -11,6 +11,38 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-04d] - GitHub cron back on hosted runners; the first ledger commit since Sept 2 (T8.42 closed)
+
+### Changed (ops, operator: "switch RUNNER_LABEL to ubuntu-latest for me")
+
+- Repo variable `RUNNER_LABEL` set from `self-hosted` to `ubuntu-latest` at
+  2026-09-05 02:55 UTC. `daily.yml` now runs on GitHub-hosted machines
+  (billed minutes; `docs/SELF_HOSTED_RUNNER.md` calls this "a lever, not a
+  default"). The Contabo runner `vmi3065305` is still registered and offline;
+  switching back is the same variable edit once it is alive.
+- `runs-on` is evaluated when a run is CREATED, so the runs already queued
+  against the dead label could never migrate: cancelled 33891656575 (queued
+  since 09-04 15:49Z) and the 02:42Z schedule run created before the switch.
+  The 00:01Z dispatch had already been cancelled by the concurrency group.
+  Run #385 (queued since 2026-05-15) reports "completed" to the cancel API
+  yet still lists as queued -- an orphaned record; the watchdog's 7-day cap
+  keeps it from counting.
+- Fresh `workflow_dispatch` 33940433574: picked up by `GitHub Actions
+  1000001983` (`ubuntu-latest`) at 02:56:15Z, **success in 276 s, no failed
+  steps, committed `e622b304 auto: predict 2026-09-04`** -- the first ledger
+  commit since `de496182` on 2026-09-02. The repo's `picks_2026.csv` now
+  carries the six shadow columns with values on every 2026-09-04 row, and
+  `tools/shadow_report.py` runs against the repo file. The nightly grade at
+  03:30 UTC is the first scheduled run on the new label.
+
+T8.42 is closed on both halves (watchdog fixed [2026-09-04c]; cron running).
+Follow-up worth a look when convenient: the concurrency group cancels every
+newer run while an old one sits queued, so a dead runner turns each hourly
+slot into a cancelled run rather than a visible failure -- exactly what made
+this outage look like noise in the run list.
+
+---
+
 ## [2026-09-04c] - The runner watchdog can no longer go blind during a long outage (T8.42, watchdog half)
 
 ### Fixed -- `.github/workflows/runner_watchdog.yml` (operator: "fix the watchdog")
