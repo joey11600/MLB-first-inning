@@ -1,7 +1,7 @@
 {
   "date": "2026-09-06",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-06T17:59:16Z",
+  "fitted_at": "2026-09-06T18:50:08Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -120,13 +120,13 @@
     {
       "matchup": "OAK@SEA",
       "game_pk": "823091",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
       "raw_p_run_t1": 0.2514,
-      "raw_p_run_b1": 0.295,
-      "raw_p_nrfi": 0.5278,
-      "calibrated_p_nrfi": 0.5453,
+      "raw_p_run_b1": 0.2986,
+      "raw_p_nrfi": 0.5251,
+      "calibrated_p_nrfi": 0.5438,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -235,10 +235,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2648,
-      "raw_p_run_b1": 0.2919,
-      "raw_p_nrfi": 0.5206,
-      "calibrated_p_nrfi": 0.5413,
+      "raw_p_run_t1": 0.2644,
+      "raw_p_run_b1": 0.2913,
+      "raw_p_nrfi": 0.5213,
+      "calibrated_p_nrfi": 0.5417,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -255,19 +255,19 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 34.3,
-          "z": 2.173,
-          "weight": 0.0111,
-          "contribution": 0.0241,
-          "outlier": false
-        },
-        {
           "name": "home_avg_ip_per_start",
           "value": 6.33,
           "z": 1.257,
           "weight": -0.0182,
           "contribution": -0.0229,
+          "outlier": false
+        },
+        {
+          "name": "wx_temp_c",
+          "value": 33.1,
+          "z": 1.958,
+          "weight": 0.0111,
+          "contribution": 0.0217,
           "outlier": false
         },
         {
@@ -306,10 +306,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 34.3,
-          "z": 2.173,
+          "value": 33.1,
+          "z": 1.958,
           "weight": 0.0125,
-          "contribution": 0.0272,
+          "contribution": 0.0245,
           "outlier": false
         },
         {
@@ -570,7 +570,7 @@
       "game_pk": "823578",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2798,
       "raw_p_run_b1": 0.3025,
       "raw_p_nrfi": 0.5023,
@@ -909,7 +909,7 @@
       "game_pk": "824065",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2655,
       "raw_p_run_b1": 0.3225,
       "raw_p_nrfi": 0.4976,
@@ -1021,7 +1021,7 @@
       "game_pk": "824142",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.2616,
       "raw_p_run_b1": 0.3095,
       "raw_p_nrfi": 0.5098,
@@ -1248,7 +1248,7 @@
       "game_pk": "824385",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.2558,
       "raw_p_run_b1": 0.3084,
       "raw_p_nrfi": 0.5147,
@@ -1474,11 +1474,11 @@
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
       "raw_p_run_t1": 0.2808,
-      "raw_p_run_b1": 0.3229,
-      "raw_p_nrfi": 0.4869,
-      "calibrated_p_nrfi": 0.4738,
+      "raw_p_run_b1": 0.3288,
+      "raw_p_nrfi": 0.4827,
+      "calibrated_p_nrfi": 0.4577,
       "calibrator_band": {
-        "band": "bin_2-3",
+        "band": "bin_1-2",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -1586,7 +1586,7 @@
       "game_pk": "824794",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.2532,
       "raw_p_run_b1": 0.2819,
       "raw_p_nrfi": 0.5363,
