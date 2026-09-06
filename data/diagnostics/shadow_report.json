@@ -1,65 +1,66 @@
 {
- "as_of": "2026-09-05T07:49:41Z",
+ "as_of": "2026-09-06T04:30:55Z",
  "since": "2026-09-04",
- "graded_rows": 16,
+ "graded_rows": 31,
  "shadow_model": "v3-ump+fi_form[swap10/K65_pw0]",
  "live": {
-  "bets": 2,
-  "W": 2,
-  "L": 0,
-  "hit": 1.0,
-  "stated": 0.6212,
-  "break_even": 0.5866639338662294,
-  "flat_units": 1.4095691880087353,
-  "same_rule_units": 3.4643637085566805,
-  "same_rule_staked": 5.0,
-  "booked_units": 4.914,
-  "booked_staked": 7.0
+  "bets": 4,
+  "W": 3,
+  "L": 1,
+  "hit": 0.75,
+  "stated": 0.6320749999999999,
+  "break_even": 0.5827823215430439,
+  "flat_units": 1.150309928749476,
+  "same_rule_units": 2.3951205523570023,
+  "same_rule_staked": 13.0,
+  "booked_units": 2.3950000000000005,
+  "booked_staked": 13.0
  },
  "shadow": {
-  "bets": 2,
-  "W": 2,
-  "L": 0,
-  "hit": 1.0,
-  "stated": 0.6401,
-  "break_even": 0.5866639338662294,
-  "flat_units": 1.4095691880087353,
-  "same_rule_units": 4.91363907087552,
-  "same_rule_staked": 7.0
+  "bets": 4,
+  "W": 3,
+  "L": 1,
+  "hit": 0.75,
+  "stated": 0.64125,
+  "break_even": 0.5827823215430439,
+  "flat_units": 1.150309928749476,
+  "same_rule_units": 3.135861293097743,
+  "same_rule_staked": 14.0
  },
  "no1": {
   "live": {
-   "nights": 1,
+   "nights": 2,
    "W": 1,
-   "hit": 1.0,
-   "same_rule_units": 2.73972602739726
+   "hit": 0.5,
+   "same_rule_units": -1.2602739726027399
   },
   "shadow": {
-   "nights": 1,
+   "nights": 2,
    "W": 1,
-   "hit": 1.0,
-   "same_rule_units": 2.73972602739726
+   "hit": 0.5,
+   "same_rule_units": -1.2602739726027399
   },
-  "nights_both": 1,
+  "nights_both": 2,
   "live_on_both": {
-   "nights": 1,
+   "nights": 2,
    "W": 1,
-   "hit": 1.0,
-   "same_rule_units": 2.73972602739726
+   "hit": 0.5,
+   "same_rule_units": -1.2602739726027399
   },
   "shadow_on_both": {
-   "nights": 1,
+   "nights": 2,
    "W": 1,
-   "hit": 1.0,
-   "same_rule_units": 2.73972602739726
+   "hit": 0.5,
+   "same_rule_units": -1.2602739726027399
   },
-  "same_game_on_both": 1
+  "same_game_on_both": 2
  },
  "label_agreement": {
-  "live=LEAN/NRFI shadow=LEAN/NRFI": 8,
-  "live=PASS shadow=PASS": 5,
-  "live=STRONG/YRFI shadow=STRONG/YRFI": 2,
-  "live=LEAN/NRFI shadow=PASS": 1
+  "live=LEAN/NRFI shadow=LEAN/NRFI": 14,
+  "live=PASS shadow=PASS": 10,
+  "live=STRONG/YRFI shadow=STRONG/YRFI": 4,
+  "live=LEAN/NRFI shadow=PASS": 2,
+  "live=PASS shadow=LEAN/YRFI": 1
  },
  "paired_nights": [
   {
@@ -67,17 +68,21 @@
    "live": "STL@COL W +2.74u",
    "shadow": "STL@COL W +2.74u",
    "same_game": true
+  },
+  {
+   "date": "2026-09-05",
+   "live": "STL@COL L -4.00u",
+   "shadow": "STL@COL L -4.00u",
+   "same_game": true
   }
  ],
  "tonight": {
-  "date": "2026-09-05",
+  "date": "2026-09-06",
   "live_strong": [
-   "STL@COL",
-   "TOR@KC"
+   "STL@COL"
   ],
   "shadow_strong": [
-   "STL@COL",
-   "TOR@KC"
+   "STL@COL"
   ]
  }
 }
