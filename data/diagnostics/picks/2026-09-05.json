@@ -1,7 +1,7 @@
 {
   "date": "2026-09-05",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-05T23:39:54Z",
+  "fitted_at": "2026-09-06T00:06:19Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -123,7 +123,7 @@
       "game_pk": "824066",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.2764,
       "raw_p_run_b1": 0.3329,
       "raw_p_nrfi": 0.4828,
@@ -684,10 +684,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2693,
-      "raw_p_run_b1": 0.3067,
-      "raw_p_nrfi": 0.5066,
-      "calibrated_p_nrfi": 0.5179,
+      "raw_p_run_t1": 0.27,
+      "raw_p_run_b1": 0.3066,
+      "raw_p_nrfi": 0.5062,
+      "calibrated_p_nrfi": 0.5164,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -720,19 +720,19 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 31.3,
-          "z": 1.636,
-          "weight": 0.0111,
-          "contribution": 0.0181,
+          "name": "wx_humidity",
+          "value": 27.0,
+          "z": -1.881,
+          "weight": -0.0121,
+          "contribution": 0.0228,
           "outlier": false
         },
         {
-          "name": "home_fip",
-          "value": 3.318,
-          "z": -0.86,
-          "weight": 0.0194,
-          "contribution": -0.0167,
+          "name": "wx_temp_c",
+          "value": 31.7,
+          "z": 1.708,
+          "weight": 0.0111,
+          "contribution": 0.0189,
           "outlier": false
         }
       ],
@@ -743,6 +743,14 @@
           "z": -1.096,
           "weight": -0.0331,
           "contribution": 0.0363,
+          "outlier": false
+        },
+        {
+          "name": "wx_humidity",
+          "value": 27.0,
+          "z": -1.881,
+          "weight": -0.0176,
+          "contribution": 0.033,
           "outlier": false
         },
         {
@@ -768,14 +776,6 @@
           "weight": 0.0184,
           "contribution": 0.0278,
           "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 36.0,
-          "z": -1.327,
-          "weight": -0.0176,
-          "contribution": 0.0233,
-          "outlier": false
         }
       ],
       "priors_vs_raw": {
@@ -795,7 +795,7 @@
       "game_pk": "823257",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.2623,
       "raw_p_run_b1": 0.3027,
       "raw_p_nrfi": 0.5144,
