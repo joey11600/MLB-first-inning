@@ -1,7 +1,7 @@
 {
   "date": "2026-09-06",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-06T22:33:32Z",
+  "fitted_at": "2026-09-06T23:04:24Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -798,10 +798,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2713,
-      "raw_p_run_b1": 0.295,
-      "raw_p_nrfi": 0.5137,
-      "calibrated_p_nrfi": 0.5322,
+      "raw_p_run_t1": 0.2695,
+      "raw_p_run_b1": 0.2917,
+      "raw_p_nrfi": 0.5174,
+      "calibrated_p_nrfi": 0.5374,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -818,19 +818,19 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 92.0,
+          "z": 2.124,
+          "weight": -0.0121,
+          "contribution": -0.0257,
+          "outlier": false
+        },
+        {
           "name": "home_whiff_pct_rank",
           "value": 17.0,
           "z": -1.406,
           "weight": -0.0147,
           "contribution": 0.0206,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 82.0,
-          "z": 1.508,
-          "weight": -0.0121,
-          "contribution": -0.0183,
           "outlier": false
         },
         {
@@ -851,6 +851,14 @@
         }
       ],
       "top_drivers_b1": [
+        {
+          "name": "wx_humidity",
+          "value": 92.0,
+          "z": 2.124,
+          "weight": -0.0176,
+          "contribution": -0.0373,
+          "outlier": false
+        },
         {
           "name": "fi_park_nrfi_rate",
           "value": 0.4722,
@@ -873,14 +881,6 @@
           "z": 1.511,
           "weight": 0.0184,
           "contribution": 0.0278,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 82.0,
-          "z": 1.508,
-          "weight": -0.0176,
-          "contribution": -0.0265,
           "outlier": false
         },
         {
@@ -1472,7 +1472,7 @@
       "game_pk": "824552",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2813,
       "raw_p_run_b1": 0.3282,
       "raw_p_nrfi": 0.4828,
