@@ -350,6 +350,12 @@ git for archival. The dashboard reads Supabase first; CSV is fallback.
 - `tools/heal_phantom_reschedule_rows.py` — re-applies the T8.41 rule to rows
   graded before it existed. Dry run by default, `--apply` writes, journaled
   under `data/diagnostics/heals/`.
+- **A started game is never scored as a NEW row** (T8.44, 2026-09-05):
+  `log_picks` adopts the Supabase row verbatim or skips the game. A host
+  that starts from a stale ledger therefore cannot re-score the live slate
+  and overwrite the pre-game record. `tools/sync_csv_from_supabase.py
+  --insert-missing` (the cron passes it) brings back whole days the git
+  ledger missed.
 - `data/picks_2026.csv` — full ledger, 97 columns. Append-only on first
   pick of the day; updates in-place for grading + odds.
 - `data/pick_changes.csv` — every pick flip logged (90-day rolling, T3.5).
@@ -494,6 +500,7 @@ every 5 min, GHA backs it up hourly. Manual interventions:
 | Force a fresh predict on Railway | redeploy "MLB-first-inning" service in Railway |
 | Re-grade a date | `python mlb_first_inning_predictor.py --date 2026-04-30 --grade` |
 | Find rescheduled games whose original-date row still carries the makeup's result (T8.41) | `python tools/heal_phantom_reschedule_rows.py` (add `--apply` to fix) |
+| Bring a day the git ledger missed back from Supabase (T8.44) | `python tools/sync_csv_from_supabase.py --date 2026-09-03 --insert-missing` (add `--dry-run` first) |
 | Re-scrape DK odds | `python scrape_dk_odds.py` |
 | Advance the first-inning pitcher pool to yesterday | `python fi_pitcher_pool.py --update` |
 | Shadow model vs live, paired by night (grade cron runs it nightly) | `python tools/shadow_report.py` |

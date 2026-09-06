@@ -315,7 +315,7 @@ jobs:
           # downstream grade step computes against the same numbers
           # the dashboard shows.  Soft-fail.
           echo "==> Syncing CSV from Supabase..."
-          if ! python tools/sync_csv_from_supabase.py --days 8 2>sync_err.log; then
+          if ! python tools/sync_csv_from_supabase.py --days 8 --insert-missing 2>sync_err.log; then
             record_err "sync-csv-from-supabase" "$?" \
               "$(tail -c 400 sync_err.log)"
           fi
@@ -645,7 +645,7 @@ jobs:
           # but the cron-committed CSV stayed on -110 fallback values.
           # Soft-fail.
           echo "==> Syncing CSV from Supabase..."
-          if ! python tools/sync_csv_from_supabase.py --days 8 2>sync_err.log; then
+          if ! python tools/sync_csv_from_supabase.py --days 8 --insert-missing 2>sync_err.log; then
             record_err "sync-csv-from-supabase" "$?" \
               "$(tail -c 400 sync_err.log)"
           fi

@@ -271,6 +271,28 @@ def _read_rows(path: Path) -> list[dict]:
     return rows
 
 
+def _adopt_supabase_pick_row(season: int, iso_date: str, game_pk: str) -> dict | None:
+    """T8.44: the shared record's row for (date, game_pk) as a full-width
+    CSV row, or None when Supabase has no such row or cannot be reached.
+    Never raises -- the caller treats None as "there was never a pick"."""
+    try:
+        from db.supabase_writer import _get_client
+        from tools.sync_csv_from_supabase import (fetch_full_pick_rows,
+                                                  supabase_row_to_csv)
+        client = _get_client()
+        if client is None:
+            return None
+        for sb in fetch_full_pick_rows(client, season, [iso_date], game_pk=game_pk):
+            if (str(sb.get("game_pk") or "") == str(game_pk)
+                    and (sb.get("date") or "") == iso_date):
+                return supabase_row_to_csv(sb)
+        return None
+    except Exception as exc:    # noqa: BLE001 -- adoption is best-effort
+        print(f"  [adopt] supabase lookup failed for {iso_date}/{game_pk}: {exc!r}",
+              file=sys.stderr)
+        return None
+
+
 def _mirror_picks_to_supabase(season: int, rows: list[dict]) -> None:
     """Phase 1.5 dual-write: mirror just-written pick rows to Supabase.
     Silent no-op when SUPABASE_URL / SUPABASE_SERVICE_KEY env vars are
@@ -1273,6 +1295,36 @@ def log_picks(date_str: str, season: int, results: list[dict]) -> int:
                 print(f"[telegram] game-time-change check failed: {exc!r}",
                       file=sys.stderr)
         else:
+            # T8.44 (2026-09-05): A GAME THAT HAS ALREADY STARTED IS NEVER
+            # SCORED AS A BRAND-NEW ROW.  This host has no row for it, so
+            # the freezes (T2.25, `_pick_is_locked`) have nothing to hold,
+            # and the score it would write now is built from in-game or
+            # post-game inputs -- a pick nobody was ever shown.  It happened
+            # on 09-03 and 09-04: the git ledger was stale during the T8.42
+            # outage, every push redeployed Railway from that stale copy,
+            # and each fresh container re-scored the live slate and mirrored
+            # the numbers over its own pre-game record (MIN@CWS: 3u sized on
+            # 62.24% at the lock, published 59.07% by midnight).  If the
+            # shared record has the row, take it verbatim -- it IS the pick
+            # that was published -- and do not mirror it back.  If nobody
+            # has it, there was never a pick; leave the gap and say so.
+            # Placeholder times ("After Game 1", "TBD") read as not started,
+            # exactly as they do for the lock window.
+            if _game_has_started(new_row.get("game_time_et", ""), iso_date):
+                tag = f"{ap['abbr']}@{hp['abbr']}"
+                adopted = _adopt_supabase_pick_row(season, iso_date, str(g["game_pk"]))
+                if adopted is None:
+                    print(f"  {tag}: first pitch has passed and no ledger row exists "
+                          f"here or in Supabase -- not scoring a game after the "
+                          f"fact; skipped (T8.44)")
+                    continue
+                rows.append(adopted)
+                index[key] = len(rows) - 1
+                written += 1
+                print(f"  {tag}: first pitch has passed -- adopted the published row "
+                      f"from Supabase ({adopted.get('pick_label') or '?'}, created "
+                      f"{adopted.get('created_at') or '?'}) instead of re-scoring (T8.44)")
+                continue
             rows.append(new_row)
             index[key] = len(rows) - 1
             _lineup_reg_baseline = None    # first sighting; nothing to regress from

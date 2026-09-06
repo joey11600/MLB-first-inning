@@ -28,10 +28,13 @@ the dashboard shows.
 
 The sync is INTO the CSV only.  We never overwrite predict-owned
 fields (pitcher inputs, lambdas, lineup, park factor, etc.).
-Composite PK (date, game_pk) is the join key; rows that exist in
-Supabase but not in CSV are LOGGED but not inserted (those are
-handled by the predict step).  Rows that exist in CSV but not in
-Supabase are left alone.
+Composite PK (date, game_pk) is the join key.  Rows that exist in
+Supabase but not in CSV are LOGGED and, with --insert-missing, INSERTED
+as full-width rows (T8.44, 2026-09-05: during the T8.42 outage the git
+ledger lost the whole 09-03 slate and every host that later started
+from that copy re-scored the day after the games; the cron now passes
+the flag so a missed day comes back from the shared record instead).
+Rows that exist in CSV but not in Supabase are left alone.
 
 Usage:
   # Sync the recent window (default: today + last 7 days, ET):
@@ -47,6 +50,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -171,9 +175,43 @@ def fetch_supabase_rows(
         return []
 
 
-def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
+def fetch_full_pick_rows(client, season: int, dates: list[str] | None,
+                         game_pk: str | int | None = None) -> list[dict]:
+    """Every column Supabase holds for the listed dates (optionally one
+    game).  Empty list on error -- callers treat that as "not there"."""
+    table = f"picks_{season}"
+    try:
+        q = client.table(table).select("*")
+        if dates is not None:
+            q = q.in_("date", dates)
+        if game_pk is not None:
+            q = q.eq("game_pk", str(game_pk))
+        return q.execute().data or []
+    except Exception as exc:    # noqa: BLE001
+        print(f"[sync] supabase full-row select failed: {exc!r}", file=sys.stderr)
+        return []
+
+
+def supabase_row_to_csv(sb: dict) -> dict:
+    """A full-width CSV row (every tracker.FIELDS column) from one Supabase
+    row.  The columns the mirror never carried stay blank; JSONB columns
+    come back as Python objects and are re-encoded as the JSON text the
+    CSV stores."""
+    row: dict = {}
+    for col in FIELDS:
+        val = sb.get(col)
+        if isinstance(val, (dict, list)):
+            row[col] = json.dumps(val)
+        else:
+            row[col] = _coerce_supabase_value(col, val)
+    return row
+
+
+def sync_csv(season: int, dates: list[str] | None, dry_run: bool,
+             insert_missing: bool = False) -> int:
     """Sync the CSV's odds/grade/bet columns from Supabase.  Returns
-    the number of CSV rows updated."""
+    the number of CSV rows updated (plus rows inserted when
+    `insert_missing` is set)."""
     client = _get_client()
     if client is None:
         print("[sync] Supabase env vars not set; cannot sync.",
@@ -202,11 +240,13 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
     updated = unmatched = unchanged = 0
     ts_advanced = ts_rejected = 0
     adopted = 0
+    unmatched_keys: list[tuple[str, str]] = []
     for sb in sb_rows:
         key = (sb.get("date") or "", str(sb.get("game_pk") or ""))
         idx = csv_index.get(key)
         if idx is None:
             unmatched += 1
+            unmatched_keys.append(key)
             continue
         row = rows[idx]
 
@@ -296,17 +336,43 @@ def sync_csv(season: int, dates: list[str] | None, dry_run: bool) -> int:
         print(f"[sync] capture timestamps: {ts_advanced} advanced, "
               f"{ts_rejected} rejected as backwards")
 
+    # T8.44 -- rows this ledger never had.  Taken VERBATIM from the shared
+    # record (Railway's pre-game rows, with whatever odds / bet / grade it
+    # captured since) and slotted into date order.  Without this, a host
+    # that starts from a stale ledger scores the missing games itself --
+    # after first pitch -- and its mirror overwrites the real record.
+    inserted = 0
+    if insert_missing and unmatched_keys:
+        full = {(str(r.get("date") or ""), str(r.get("game_pk") or "")): r
+                for r in fetch_full_pick_rows(client, season, dates)}
+        for key in sorted(unmatched_keys):
+            sb = full.get(key)
+            if sb is None:
+                continue
+            new = supabase_row_to_csv(sb)
+            pos = len(rows)
+            while pos > 0 and (rows[pos - 1].get("date") or "") > key[0]:
+                pos -= 1
+            rows.insert(pos, new)
+            inserted += 1
+            print(f"[sync] INSERTED {key[0]} {new.get('away_team','?')}@"
+                  f"{new.get('home_team','?')} (pk={key[1]}) from Supabase -- "
+                  f"this ledger never logged it ({new.get('pick_label','?')}, "
+                  f"created {new.get('created_at','')}, "
+                  f"graded {new.get('graded_result') or '-'})")
+        print(f"[sync] {inserted} missing row(s) inserted from Supabase")
+
     if dry_run:
         print("[sync] --dry-run set; CSV NOT written.")
-        return updated
+        return updated + inserted
 
-    if updated > 0:
+    if updated > 0 or inserted > 0:
         _write_rows(csv_path, rows)
         print(f"[sync] wrote {len(rows)} rows back to {csv_path.name}")
     else:
         print("[sync] no changes; CSV left as-is.")
 
-    return updated
+    return updated + inserted
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -322,6 +388,9 @@ def main(argv: list[str] | None = None) -> int:
                         default=int(_et_today()[:4]))
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would change; do not write CSV.")
+    parser.add_argument("--insert-missing", action="store_true",
+                        help="Also insert rows Supabase has and this CSV lacks "
+                             "(full-width, from the shared record; T8.44).")
     args = parser.parse_args(argv)
 
     if args.date:
@@ -331,7 +400,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         dates = _et_window(args.days)
 
-    return 0 if sync_csv(args.season, dates, args.dry_run) >= 0 else 1
+    return 0 if sync_csv(args.season, dates, args.dry_run,
+                         insert_missing=args.insert_missing) >= 0 else 1
 
 
 if __name__ == "__main__":

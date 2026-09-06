@@ -806,7 +806,7 @@ These can corrupt picks, lose data, or silently mis-grade.
   **CLOSED 2026-09-05 02:56 UTC:** operator had `RUNNER_LABEL` switched to
   `ubuntu-latest`; stale queued runs cancelled; fresh run 33940433574 succeeded on a
   hosted machine in 276 s and committed `e622b304` (CHANGELOG [2026-09-04d]).
-- [ ] **T8.44** (2026-09-05) — **A host with no ledger row for a game that has already
+- [x] **T8.44** ✅ 2026-09-05 — **A host with no ledger row for a game that has already
   started scores it fresh and overwrites the pre-game record.** Found via the
   2026-09-04 MIN@CWS stake drift (ledger 3u, rule 1u at the published 59.07%):
   the stake was sized on 62.24% at the lock (`sizing_prob`, T8.35) and is the rule
@@ -822,6 +822,11 @@ These can corrupt picks, lose data, or silently mis-grade.
   NEW row for a game past its scheduled first pitch -- adopt the Supabase row or
   skip; (2) backfill 09-03 into git from Supabase; (3) the MIN@CWS row: restore the
   published probability from the stamp (journaled) or exempt it. Operator's call.
+  **ALL THREE SHIPPED 2026-09-05** (operator: "do all three"; CHANGELOG [2026-09-05h]):
+  `log_picks` adopts the Supabase row or skips a started game instead of scoring it
+  fresh; `sync_csv_from_supabase.py --insert-missing` (both cron sync steps) put the
+  09-03 slate back (9 rows); `tools/heal_2026_09_04_min_cws_prob.py` restored
+  MIN@CWS to 62.24% from the stamp -- stake drift: none over 47 locked STRONG rows.
 - [x] **T8.41** ✅ 2026-09-05 — **A rescheduled game keeps its ORIGINAL ledger row and
   that row is graded with the makeup game's result under starters who never threw
   that first inning.** 13 games in the 2026 ledger (e.g. PIT@NYY 2026-07-21 lists

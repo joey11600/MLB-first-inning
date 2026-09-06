@@ -11,6 +11,68 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-05h] - T8.44 shipped: no host scores a started game as a new row; MIN@CWS restored; the 09-03 slate is back in git
+
+Operator: "do all three" (on the [2026-09-05g] diagnosis). One ledger row
+edited, nine inserted, both journaled; the mechanism closed on both hosts.
+
+### Fixed -- `tracker.log_picks` (the mechanism)
+
+- **A game whose scheduled first pitch has passed is never scored as a
+  brand-new ledger row.** On the brand-new branch only: if the shared
+  record (Supabase) has the row, it is adopted VERBATIM -- probability,
+  stamp, stake, odds, grade, original `created_at` -- through
+  `_adopt_supabase_pick_row` (fails open to "not there"), counted as
+  written and NOT mirrored back; if nobody has it, the game is skipped with
+  a printed reason. Rows this host already holds go through the merge /
+  freeze path exactly as before; placeholder times ("After Game 1", "TBD")
+  read as not started, as they do for the lock window. This is what
+  stops a fresh container -- Railway after a redeploy from a stale git
+  ledger, or GitHub recovering from an outage -- from re-scoring the live
+  slate mid/post-game and mirroring those numbers over its own pre-game
+  record. Pairs with T8.41 part 2 (no new bet after first pitch).
+
+### Added
+
+- `tools/sync_csv_from_supabase.py --insert-missing` -- rows Supabase has
+  and this ledger lacks are inserted as full-width rows in date order
+  (`fetch_full_pick_rows`, `supabase_row_to_csv`; JSONB columns re-encoded
+  as the JSON text the CSV stores; the 13 columns the mirror never carried
+  stay blank). Both cron sync steps in `daily.yml` now pass the flag, so a
+  day the GitHub side missed comes back from the shared record before the
+  predict step runs instead of being invented by it. **Run for 2026-09-03:
+  9 rows inserted** (index 2051..2059, between 09-02 and 09-04; no
+  duplicate keys). `pl_calc --date 2026-09-03 --include-lean`: 3W / 4L +
+  1 PASS, +0.000u (no bets that night).
+- `tools/heal_2026_09_04_min_cws_prob.py` -- restores the published
+  probability of 2026-09-04 MIN@CWS from the T8.35 stamp: `yrfi_prob`
+  0.5907 -> **0.6224**, `nrfi_prob` 0.4093 -> 0.3776. Refuses unless the
+  row still looks exactly as diagnosed and `kelly_stake_units(stamp,
+  -138)` reproduces the 3u. Raw probability, features and shadow columns
+  are post-game values with no surviving pre-game copy and are left as
+  they are, labelled as such. CSV + Supabase written, journal
+  `data/diagnostics/heals/min_cws_prob_20260906T000733Z.csv`. **After:**
+  `tools/stake_drift.py --date 2026-09-04`: none over 2 locked STRONG rows;
+  `pl_calc --window season`: "Stake drift: none over 47 locked STRONG
+  row(s) on 27 slate(s)" (was 1 row off the rule). P&L untouched:
+  +2.174u on the row; the season figure now reads +19.942u only because
+  tonight's TOR@KC (+1.481u) graded in the meantime.
+- `tests/test_started_game_adoption.py` -- 11 tests: adoption verbatim
+  (original `created_at`, JSON columns, nothing mirrored back), skip when
+  nobody has the row, pre-game rows untouched, existing rows still frozen,
+  the adopt helper's exact match and fail-open, `--insert-missing` order /
+  dry-run / idempotency, the heal and its four refusals.
+
+### Follow-up (same commit)
+
+- `data/candidates/factor_fi_form.csv` rebuilt again: inserting the 09-03
+  games moved the league-mean prior for every later game, so
+  `fi_form._check()` failed until the rebuild (the rule from
+  [2026-09-05f], now also covering "rows inserted earlier than the column's
+  newest game"). Check PASS 0.00e+00; suite 344 passed.
+
+---
+
 ## [2026-09-05g] - The MIN@CWS stake drift: the stake was right, the probability was re-scored after the game (T8.44, open)
 
 ### Investigated (read-only; operator: "look into the MIN@CWS stake drift")
