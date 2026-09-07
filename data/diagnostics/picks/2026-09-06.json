@@ -1,7 +1,7 @@
 {
   "date": "2026-09-06",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-07T00:04:39Z",
+  "fitted_at": "2026-09-07T00:34:35Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -798,10 +798,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2748,
-      "raw_p_run_b1": 0.2917,
-      "raw_p_nrfi": 0.5137,
-      "calibrated_p_nrfi": 0.5322,
+      "raw_p_run_t1": 0.2732,
+      "raw_p_run_b1": 0.2901,
+      "raw_p_nrfi": 0.516,
+      "calibrated_p_nrfi": 0.5354,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -819,10 +819,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 86.0,
-          "z": 1.754,
+          "value": 93.0,
+          "z": 2.186,
           "weight": -0.0121,
-          "contribution": -0.0213,
+          "contribution": -0.0265,
           "outlier": false
         },
         {
@@ -852,19 +852,19 @@
       ],
       "top_drivers_b1": [
         {
+          "name": "wx_humidity",
+          "value": 93.0,
+          "z": 2.186,
+          "weight": -0.0176,
+          "contribution": -0.0384,
+          "outlier": false
+        },
+        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4722,
           "z": -1.096,
           "weight": -0.0331,
           "contribution": 0.0363,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 86.0,
-          "z": 1.754,
-          "weight": -0.0176,
-          "contribution": -0.0308,
           "outlier": false
         },
         {
@@ -884,11 +884,11 @@
           "outlier": false
         },
         {
-          "name": "wx_wind_kmh",
-          "value": 2.8,
-          "z": -1.756,
-          "weight": 0.0113,
-          "contribution": -0.0198,
+          "name": "away_p_last5_pitcher_nrfi",
+          "value": 1.0,
+          "z": 1.29,
+          "weight": -0.0148,
+          "contribution": -0.0191,
           "outlier": false
         }
       ],
