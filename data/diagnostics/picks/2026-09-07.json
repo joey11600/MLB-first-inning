@@ -1,7 +1,7 @@
 {
   "date": "2026-09-07",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-08T00:04:52Z",
+  "fitted_at": "2026-09-08T00:33:44Z",
   "n_picks": 11,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -10,7 +10,7 @@
       "game_pk": "823175",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2629,
       "raw_p_run_b1": 0.319,
       "raw_p_nrfi": 0.502,
@@ -1133,10 +1133,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2781,
-      "raw_p_run_b1": 0.2982,
-      "raw_p_nrfi": 0.5066,
-      "calibrated_p_nrfi": 0.5178,
+      "raw_p_run_t1": 0.2786,
+      "raw_p_run_b1": 0.2988,
+      "raw_p_nrfi": 0.5059,
+      "calibrated_p_nrfi": 0.5153,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -1161,19 +1161,19 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 34.0,
+          "z": -1.45,
+          "weight": -0.0121,
+          "contribution": 0.0176,
+          "outlier": false
+        },
+        {
           "name": "home_avg_ip_per_start",
           "value": 6.0,
           "z": 0.886,
           "weight": -0.0182,
           "contribution": -0.0162,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 36.0,
-          "z": -1.327,
-          "weight": -0.0121,
-          "contribution": 0.0161,
           "outlier": false
         },
         {
@@ -1204,10 +1204,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 36.0,
-          "z": -1.327,
+          "value": 34.0,
+          "z": -1.45,
           "weight": -0.0176,
-          "contribution": 0.0233,
+          "contribution": 0.0255,
           "outlier": false
         },
         {
