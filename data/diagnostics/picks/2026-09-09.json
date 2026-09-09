@@ -1,7 +1,7 @@
 {
   "date": "2026-09-09",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-09T22:27:42Z",
+  "fitted_at": "2026-09-09T22:34:23Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1473,10 +1473,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2812,
-      "raw_p_run_b1": 0.3056,
-      "raw_p_nrfi": 0.4991,
-      "calibrated_p_nrfi": 0.4952,
+      "raw_p_run_t1": 0.2821,
+      "raw_p_run_b1": 0.3078,
+      "raw_p_nrfi": 0.4969,
+      "calibrated_p_nrfi": 0.4925,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
@@ -1486,10 +1486,18 @@
       "top_drivers_t1": [
         {
           "name": "wx_temp_c",
-          "value": 31.2,
-          "z": 1.618,
+          "value": 31.4,
+          "z": 1.654,
           "weight": 0.0111,
-          "contribution": 0.0179,
+          "contribution": 0.0183,
+          "outlier": false
+        },
+        {
+          "name": "wx_humidity",
+          "value": 36.0,
+          "z": -1.327,
+          "weight": -0.0121,
+          "contribution": 0.0161,
           "outlier": false
         },
         {
@@ -1498,14 +1506,6 @@
           "z": 0.72,
           "weight": 0.0223,
           "contribution": 0.016,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 39.0,
-          "z": -1.142,
-          "weight": -0.0121,
-          "contribution": 0.0138,
           "outlier": false
         },
         {
@@ -1535,6 +1535,14 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 36.0,
+          "z": -1.327,
+          "weight": -0.0176,
+          "contribution": 0.0233,
+          "outlier": false
+        },
+        {
           "name": "away_p_last5_pitcher_nrfi",
           "value": 0.4,
           "z": -1.455,
@@ -1544,26 +1552,18 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 31.2,
-          "z": 1.618,
+          "value": 31.4,
+          "z": 1.654,
           "weight": 0.0125,
-          "contribution": 0.0202,
+          "contribution": 0.0207,
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 39.0,
-          "z": -1.142,
-          "weight": -0.0176,
-          "contribution": 0.02,
-          "outlier": false
-        },
-        {
-          "name": "wx_wind_kmh",
-          "value": 4.3,
-          "z": -1.479,
-          "weight": 0.0113,
-          "contribution": -0.0167,
+          "name": "away_p_last10_pitcher_nrfi",
+          "value": 0.6,
+          "z": -0.674,
+          "weight": -0.0178,
+          "contribution": 0.012,
           "outlier": false
         }
       ],
