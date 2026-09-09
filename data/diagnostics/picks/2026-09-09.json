@@ -1,7 +1,7 @@
 {
   "date": "2026-09-09",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-09T22:04:05Z",
+  "fitted_at": "2026-09-09T22:27:42Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -795,14 +795,14 @@
       "matchup": "CIN@LAD",
       "game_pk": "823900",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2611,
+      "raw_p_run_t1": 0.2662,
       "raw_p_run_b1": 0.3365,
-      "raw_p_nrfi": 0.4902,
-      "calibrated_p_nrfi": 0.4842,
+      "raw_p_nrfi": 0.4868,
+      "calibrated_p_nrfi": 0.4734,
       "calibrator_band": {
-        "band": "bin_3-4",
+        "band": "bin_2-3",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
