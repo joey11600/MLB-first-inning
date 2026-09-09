@@ -1,7 +1,7 @@
 {
   "date": "2026-09-09",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-09T21:04:38Z",
+  "fitted_at": "2026-09-09T21:28:52Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -1358,13 +1358,13 @@
     {
       "matchup": "CLE@BAL",
       "game_pk": "824791",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
       "raw_p_run_t1": 0.2573,
-      "raw_p_run_b1": 0.2932,
-      "raw_p_nrfi": 0.5249,
-      "calibrated_p_nrfi": 0.5437,
+      "raw_p_run_b1": 0.2976,
+      "raw_p_nrfi": 0.5217,
+      "calibrated_p_nrfi": 0.5419,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -1447,11 +1447,11 @@
           "outlier": false
         },
         {
-          "name": "away_whiff_pct_rank",
-          "value": 59.0,
-          "z": 0.367,
-          "weight": -0.0232,
-          "contribution": -0.0085,
+          "name": "home_top3c_iso",
+          "value": 0.2101,
+          "z": 0.707,
+          "weight": 0.0121,
+          "contribution": 0.0086,
           "outlier": false
         }
       ],
