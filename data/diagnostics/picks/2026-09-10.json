@@ -1,7 +1,7 @@
 {
   "date": "2026-09-10",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-10T22:01:54Z",
+  "fitted_at": "2026-09-10T22:23:42Z",
   "n_picks": 5,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -238,9 +238,9 @@
       "pick_strength": "NO EDGE",
       "graded_result": "",
       "raw_p_run_t1": 0.2578,
-      "raw_p_run_b1": 0.3229,
-      "raw_p_nrfi": 0.5026,
-      "calibrated_p_nrfi": 0.5043,
+      "raw_p_run_b1": 0.3227,
+      "raw_p_nrfi": 0.5027,
+      "calibrated_p_nrfi": 0.5045,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -265,19 +265,19 @@
           "outlier": false
         },
         {
-          "name": "era_gap_t1",
-          "value": -2.706,
-          "z": -1.456,
-          "weight": 0.0118,
-          "contribution": -0.0171,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4938,
           "z": -0.472,
           "weight": -0.0354,
           "contribution": 0.0167,
+          "outlier": false
+        },
+        {
+          "name": "era_gap_t1",
+          "value": -2.64,
+          "z": -1.42,
+          "weight": 0.0118,
+          "contribution": -0.0167,
           "outlier": false
         },
         {
@@ -292,10 +292,10 @@
       "top_drivers_b1": [
         {
           "name": "era_gap_b1",
-          "value": 2.706,
-          "z": 1.456,
+          "value": 2.64,
+          "z": 1.42,
           "weight": 0.019,
-          "contribution": 0.0277,
+          "contribution": 0.027,
           "outlier": false
         },
         {
