@@ -1,7 +1,7 @@
 {
   "date": "2026-09-09",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-10T00:06:09Z",
+  "fitted_at": "2026-09-10T00:34:04Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -572,7 +572,7 @@
       "game_pk": "823739",
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
-      "graded_result": "",
+      "graded_result": "LOSS",
       "raw_p_run_t1": 0.2461,
       "raw_p_run_b1": 0.2841,
       "raw_p_nrfi": 0.5397,
@@ -797,12 +797,12 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2652,
-      "raw_p_run_b1": 0.3329,
-      "raw_p_nrfi": 0.4902,
-      "calibrated_p_nrfi": 0.4842,
+      "raw_p_run_t1": 0.2662,
+      "raw_p_run_b1": 0.3351,
+      "raw_p_nrfi": 0.4879,
+      "calibrated_p_nrfi": 0.4772,
       "calibrator_band": {
-        "band": "bin_3-4",
+        "band": "bin_2-3",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -817,6 +817,14 @@
           "outlier": false
         },
         {
+          "name": "wx_temp_c",
+          "value": 38.3,
+          "z": 2.89,
+          "weight": 0.0111,
+          "contribution": 0.032,
+          "outlier": false
+        },
+        {
           "name": "home_xera",
           "value": 2.5295,
           "z": -1.424,
@@ -825,19 +833,11 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 37.8,
-          "z": 2.8,
-          "weight": 0.0111,
-          "contribution": 0.031,
-          "outlier": false
-        },
-        {
           "name": "wx_humidity",
-          "value": 27.0,
-          "z": -1.881,
+          "value": 25.0,
+          "z": -2.004,
           "weight": -0.0121,
-          "contribution": 0.0228,
+          "contribution": 0.0243,
           "outlier": false
         },
         {
@@ -860,18 +860,18 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 37.8,
-          "z": 2.8,
+          "value": 38.3,
+          "z": 2.89,
           "weight": 0.0125,
-          "contribution": 0.035,
+          "contribution": 0.0361,
           "outlier": false
         },
         {
           "name": "wx_humidity",
-          "value": 27.0,
-          "z": -1.881,
+          "value": 25.0,
+          "z": -2.004,
           "weight": -0.0176,
-          "contribution": 0.033,
+          "contribution": 0.0352,
           "outlier": false
         },
         {
