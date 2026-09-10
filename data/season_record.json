@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-09-09T08:20:10Z",
+ "generatedUtc": "2026-09-10T04:30:49Z",
  "headlineMethod": "the model that is live right now -- the shipped calibrator and the current gate -- replayed over every game of the season",
  "floorMethod": "no-hindsight check: at each date the calibrator is refit using only games played before that date",
  "caveat": "the shipped calibrator was fit on 2025+2026 data, so it has already seen these outcomes; the model weights are the fixed 2026-05-26 refit (trained through 2026-05-11), which makes bets on or before 2026-05-11 partially in-sample",
@@ -14,7 +14,7 @@
   "label": "Projected profit",
   "priceFill": -125.0,
   "from": "2026-04-01",
-  "to": "2026-09-08",
+  "to": "2026-09-09",
   "bets": 206,
   "wins": 132,
   "losses": 74,
@@ -12552,6 +12552,51 @@
       }
      }
     ]
+   },
+   {
+    "date": "2026-09-09",
+    "flatPnl": 0,
+    "simPnl": 0,
+    "simBankAfter": null,
+    "flagged": 2,
+    "placed": 2,
+    "bet": 0,
+    "games": [
+     {
+      "game": "COL@NYY",
+      "side": "YRFI",
+      "modelP": 0.4345,
+      "record": {
+       "action": "SKIP",
+       "code": "gate",
+       "reason": "model wasn't confident enough (0.435 vs 0.42 needed)"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 3.0,
+       "odds": -125,
+       "pnl": -3.0
+      }
+     },
+     {
+      "game": "TOR@OAK",
+      "side": "YRFI",
+      "modelP": 0.411,
+      "record": {
+       "action": "SKIP",
+       "code": "lambda_floor",
+       "reason": "too few runs projected"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 2.0,
+       "odds": -125,
+       "pnl": -2.0
+      }
+     }
+    ]
    }
   ]
  },
@@ -12559,7 +12604,7 @@
   "label": "Real profit",
   "priceFill": null,
   "from": "2026-05-07",
-  "to": "2026-09-08",
+  "to": "2026-09-09",
   "bets": 153,
   "wins": 96,
   "losses": 57,
@@ -20857,6 +20902,51 @@
        "action": "SKIP",
        "code": "gate",
        "reason": "model wasn't confident enough (0.458 vs 0.42 needed)"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 2.0,
+       "odds": -125,
+       "pnl": -2.0
+      }
+     }
+    ]
+   },
+   {
+    "date": "2026-09-09",
+    "flatPnl": 0,
+    "simPnl": 0,
+    "simBankAfter": null,
+    "flagged": 2,
+    "placed": 2,
+    "bet": 0,
+    "games": [
+     {
+      "game": "COL@NYY",
+      "side": "YRFI",
+      "modelP": 0.4345,
+      "record": {
+       "action": "SKIP",
+       "code": "gate",
+       "reason": "model wasn't confident enough (0.435 vs 0.42 needed)"
+      },
+      "ledger": {
+       "strength": "STRONG",
+       "placed": true,
+       "unitsRisked": 3.0,
+       "odds": -125,
+       "pnl": -3.0
+      }
+     },
+     {
+      "game": "TOR@OAK",
+      "side": "YRFI",
+      "modelP": 0.411,
+      "record": {
+       "action": "SKIP",
+       "code": "lambda_floor",
+       "reason": "too few runs projected"
       },
       "ledger": {
        "strength": "STRONG",

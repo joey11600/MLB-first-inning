@@ -1,66 +1,66 @@
 {
- "as_of": "2026-09-09T08:20:14Z",
+ "as_of": "2026-09-10T04:30:54Z",
  "since": "2026-09-04",
- "graded_rows": 72,
+ "graded_rows": 87,
  "shadow_model": "v3-ump+fi_form[swap10/K65_pw0]",
  "live": {
-  "bets": 7,
+  "bets": 9,
   "W": 4,
-  "L": 3,
-  "hit": 0.5714285714285714,
-  "stated": 0.6293428571428572,
-  "break_even": 0.5717615857473046,
-  "flat_units": -0.16003489883673083,
-  "same_rule_units": -1.8462587579878251,
-  "same_rule_staked": 24.0,
-  "booked_units": -1.8459999999999999,
-  "booked_staked": 24.0
+  "L": 5,
+  "hit": 0.4444444444444444,
+  "stated": 0.6217999999999999,
+  "break_even": 0.5681602457046937,
+  "flat_units": -2.160034898836731,
+  "same_rule_units": -6.846258757987825,
+  "same_rule_staked": 29.0,
+  "booked_units": -6.846,
+  "booked_staked": 29.0
  },
  "shadow": {
-  "bets": 7,
+  "bets": 9,
   "W": 4,
-  "L": 3,
-  "hit": 0.5714285714285714,
-  "stated": 0.6359142857142857,
-  "break_even": 0.5717615857473046,
-  "flat_units": -0.16003489883673083,
-  "same_rule_units": -3.105518017247084,
-  "same_rule_staked": 27.0
+  "L": 5,
+  "hit": 0.4444444444444444,
+  "stated": 0.6306777777777778,
+  "break_even": 0.5681602457046937,
+  "flat_units": -2.160034898836731,
+  "same_rule_units": -9.105518017247084,
+  "same_rule_staked": 33.0
  },
  "no1": {
   "live": {
-   "nights": 5,
+   "nights": 6,
    "W": 2,
-   "hit": 0.4,
-   "same_rule_units": -5.501653282947567
+   "hit": 0.3333333333333333,
+   "same_rule_units": -8.501653282947567
   },
   "shadow": {
-   "nights": 5,
+   "nights": 6,
    "W": 2,
-   "hit": 0.4,
-   "same_rule_units": -7.501653282947567
+   "hit": 0.3333333333333333,
+   "same_rule_units": -11.501653282947567
   },
-  "nights_both": 5,
+  "nights_both": 6,
   "live_on_both": {
-   "nights": 5,
+   "nights": 6,
    "W": 2,
-   "hit": 0.4,
-   "same_rule_units": -5.501653282947567
+   "hit": 0.3333333333333333,
+   "same_rule_units": -8.501653282947567
   },
   "shadow_on_both": {
-   "nights": 5,
+   "nights": 6,
    "W": 2,
-   "hit": 0.4,
-   "same_rule_units": -7.501653282947567
+   "hit": 0.3333333333333333,
+   "same_rule_units": -11.501653282947567
   },
-  "same_game_on_both": 5
+  "same_game_on_both": 6
  },
  "label_agreement": {
-  "live=LEAN/NRFI shadow=LEAN/NRFI": 33,
-  "live=PASS shadow=PASS": 24,
-  "live=STRONG/YRFI shadow=STRONG/YRFI": 7,
-  "live=LEAN/NRFI shadow=PASS": 5,
-  "live=PASS shadow=LEAN/YRFI": 3
+  "live=LEAN/NRFI shadow=LEAN/NRFI": 37,
+  "live=PASS shadow=PASS": 30,
+  "live=STRONG/YRFI shadow=STRONG/YRFI": 9,
+  "live=LEAN/NRFI shadow=PASS": 7,
+  "live=PASS shadow=LEAN/YRFI": 4
  },
  "paired_nights": [
   {
@@ -92,15 +92,17 @@
    "live": "HOU@PHI L -2.00u",
    "shadow": "HOU@PHI L -3.00u",
    "same_game": true
+  },
+  {
+   "date": "2026-09-09",
+   "live": "COL@NYY L -3.00u",
+   "shadow": "COL@NYY L -4.00u",
+   "same_game": true
   }
  ],
  "tonight": {
-  "date": "2026-09-09",
-  "live_strong": [
-   "TOR@OAK"
-  ],
-  "shadow_strong": [
-   "TOR@OAK"
-  ]
+  "date": "2026-09-10",
+  "live_strong": [],
+  "shadow_strong": []
  }
 }
