@@ -1,7 +1,7 @@
 {
   "date": "2026-09-10",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-10T21:32:36Z",
+  "fitted_at": "2026-09-10T22:01:54Z",
   "n_picks": 5,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -237,10 +237,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2581,
-      "raw_p_run_b1": 0.3233,
-      "raw_p_nrfi": 0.5021,
-      "calibrated_p_nrfi": 0.5025,
+      "raw_p_run_t1": 0.2578,
+      "raw_p_run_b1": 0.3229,
+      "raw_p_nrfi": 0.5026,
+      "calibrated_p_nrfi": 0.5043,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -299,14 +299,6 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 43.0,
-          "z": -0.895,
-          "weight": -0.0176,
-          "contribution": 0.0157,
-          "outlier": false
-        },
-        {
           "name": "fi_park_nrfi_rate",
           "value": 0.4938,
           "z": -0.472,
@@ -319,6 +311,14 @@
           "value": 5.076,
           "z": 1.141,
           "weight": 0.0119,
+          "contribution": 0.0136,
+          "outlier": false
+        },
+        {
+          "name": "wx_humidity",
+          "value": 45.0,
+          "z": -0.772,
+          "weight": -0.0176,
           "contribution": 0.0136,
           "outlier": false
         },
@@ -349,10 +349,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.27,
-      "raw_p_run_b1": 0.3078,
-      "raw_p_nrfi": 0.5053,
-      "calibrated_p_nrfi": 0.5134,
+      "raw_p_run_t1": 0.2694,
+      "raw_p_run_b1": 0.3065,
+      "raw_p_nrfi": 0.5067,
+      "calibrated_p_nrfi": 0.518,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -369,19 +369,19 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 77.0,
+          "z": 1.2,
+          "weight": -0.0121,
+          "contribution": -0.0145,
+          "outlier": false
+        },
+        {
           "name": "away_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.577,
           "weight": 0.0234,
           "contribution": -0.0135,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 73.0,
-          "z": 0.953,
-          "weight": -0.0121,
-          "contribution": -0.0116,
           "outlier": false
         },
         {
@@ -411,19 +411,19 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 77.0,
+          "z": 1.2,
+          "weight": -0.0176,
+          "contribution": -0.0211,
+          "outlier": false
+        },
+        {
           "name": "away_p_last10_pitcher_nrfi",
           "value": 0.9,
           "z": 1.032,
           "weight": -0.0178,
           "contribution": -0.0184,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 73.0,
-          "z": 0.953,
-          "weight": -0.0176,
-          "contribution": -0.0167,
           "outlier": false
         },
         {
