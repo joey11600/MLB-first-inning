@@ -1,7 +1,7 @@
 {
   "date": "2026-09-10",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-10T18:53:24Z",
+  "fitted_at": "2026-09-10T19:02:08Z",
   "n_picks": 5,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -349,8 +349,8 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.27,
-      "raw_p_run_b1": 0.3045,
+      "raw_p_run_t1": 0.2699,
+      "raw_p_run_b1": 0.3046,
       "raw_p_nrfi": 0.5077,
       "calibrated_p_nrfi": 0.5215,
       "calibrator_band": {
@@ -378,10 +378,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 69.0,
-          "z": 0.707,
+          "value": 70.0,
+          "z": 0.768,
           "weight": -0.0121,
-          "contribution": -0.0086,
+          "contribution": -0.0093,
           "outlier": false
         },
         {
@@ -419,19 +419,19 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 70.0,
+          "z": 0.768,
+          "weight": -0.0176,
+          "contribution": -0.0135,
+          "outlier": false
+        },
+        {
           "name": "era_gap_b1",
           "value": 1.223,
           "z": 0.664,
           "weight": 0.019,
           "contribution": 0.0126,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 69.0,
-          "z": 0.707,
-          "weight": -0.0176,
-          "contribution": -0.0124,
           "outlier": false
         },
         {
