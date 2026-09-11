@@ -87,6 +87,50 @@ the run: 11,838 credits (22 spent on the two verifications).
   cut can land just above the whole plateau. Seen on `no park feature` / 2025.
   Must be handled before any re-derived-gate result is believed.
 
+## [2026-09-11b] - the envelope is bought, and at real prices the shipped model loses on BOTH held-out seasons
+
+### Added — 517 more priced games (`data/odds_history/hist_fi_odds_envelope.csv`)
+
+`tools/fetch_hist_odds.py`, 228 date indexes + 577 game calls: **517 acquired
+(89.6%), 60 with no 0.5 line at T-60, 0 failed, 0 duplicates, 0 overlap** with
+the September 9 purchase. Books: fanduel 329, betrivers 100, superbook 67,
+betmgm 21. De-vigged market probability spans 0.404–0.594 (median 0.492).
+**5,988 credits spent, 5,848 remaining** — under the 5,998 quoted, because an
+empty response is not charged. The priced corpus is now **1,146 games**.
+
+### Added — `tools/refit2026/real_price_backtest.py`
+
+The honest baseline. Same shipped chain as `backtest_ship.py` (v3, L2 0.50,
+park rebuilt from train only, CIR, gate 0.413), but a gated bet with no
+captured price is **dropped and counted**, never defaulted to -112. Coverage
+prints before any result: **2024 337/365 priced (92.3%), 2025 127/127 (100%)**.
+The 28 dropped 2024 games have no 0.5 line in the market at all.
+
+| split | bets | record | hit | model claimed | break-even PAID | flat | Kelly | flat @-112 |
+|---|---|---|---|---|---|---|---|---|
+| 2024 (trained on 2025) | 311 | 161-150 | 51.8% | 63.8% | 54.2% | **-15.39u** | -65.91u | -3.82u |
+| 2025 (trained on 2024) | 107 | 57-50 | 53.3% | 62.9% | 56.3% | **-6.52u** | -28.33u | +8.50u |
+| **pooled** | **418** | **218-200** | **52.2%** | **63.5%** | **54.7%** | **-21.91u** | **-94.24u** | +4.68u |
+
+**The placeholder was worth 26.59u of fiction** (+4.68u at -112 vs -21.91u at
+the prices actually quoted), and it flips 2025 from a winning season to a
+losing one. Day-level bootstrap over whole slates: 2024 90% CI
+[-41.18, +10.70], P(profitable) 16%; 2025 [-22.96, +9.26], P 24%.
+
+**The gap that matters: the model claims 63.5%, the market charges 54.7%, and
+the bets land 52.2%.** That is the same ~10-point overshoot measured on live
+bets since 07-15, now reproduced out of sample on two prior seasons at real
+prices. Quarter-Kelly sizes on the claim, which is how -21.91u flat becomes
+-94.24u staked.
+
+### Note — what the envelope is FOR
+
+It does not change the baseline above: the shipped model's own bet set was
+already priced. The 517 new games cover what a *different* (rebuilt) model
+would bet, so a refit can be judged on money instead of on hit-rate
+arithmetic at an invented price. That is the whole point of buying it before
+doing the rebuild rather than after.
+
 ## [2026-09-05h] - T8.44 shipped: no host scores a started game as a new row; MIN@CWS restored; the 09-03 slate is back in git
 
 Operator: "do all three" (on the [2026-09-05g] diagnosis). One ledger row
