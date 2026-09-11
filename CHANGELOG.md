@@ -11,6 +11,82 @@ section captures actual picks accuracy on/around the change date.
 
 ---
 
+## [2026-09-11] - the purchased historical odds are preserved, and the fetcher that buys them is finally a committed tool
+
+Operator asked why the system had "degraded so much", then chose the rebuild
+path over cutting leverage. This entry covers the groundwork; no model, gate,
+staking rule or ledger row is touched by any of it.
+
+### The measurement that prompted it (read-only, `tools/pl_calc.py`)
+
+7d **-11.76u (2-5)**, 30d **-52.85u (9-22, 29.0%)**, season **+6.70u** — of
+which April alone is +39.10u at the -110 fallback, so **May 1 onward is
+-32.40u over 405 real bets**. The No.1 play is 6-14 (-35.84u) over 30 days
+against 54-36 (60.0%) for the season. Stake drift zero over 52 locked rows;
+stored and recomputed P&L identical. Per-period, the picks have run **53.8%
+against the 56.2% the prices actually paid demand** since May 1 while the
+model claimed 62.4% — and quarter-Kelly (live 2026-07-27) sizes on the claim,
+which is why the same flat series now swings ~4x harder. 9-22 is below what
+variance comfortably explains: P(<=9 of 31) = 0.0015 at 56.4%, 0.0147 even at
+a 50% coin flip. Coors is **29.0% of the last 30 days' bets** (3-6) against
+10.1% in the flat era, and `park_null.py` already showed the park map ranks
+2026 worse than random relabelling. Full detail in the `2026-09-02_system_review`
+memory (2026-09-11 update).
+
+### Added — `data/odds_history/` is in git (commit `ca23f403`)
+
+The three CSVs bought from The Odds API on 2026-09-09 for ~7,400 credits were
+left **untracked**: `hist_fi_odds_2024.csv` (350 games), `hist_fi_odds_2025.csv`
+(279), `strong_yrfi_population_v3.csv` (492 — the v3-rescored population).
+Re-deriving them costs the money again. They are the evidence that the shipped
+STRONG YRFI population **loses out of sample at real prices** (-21.48u flat)
+once the -112 placeholder every backtest assumed is removed.
+
+### Added — `tools/fetch_hist_odds.py`
+
+The 09-09 purchase was made with fetchers written in a session scratchpad that
+were never committed and are gone. This is that capability, kept:
+
+- historical endpoints (`/v4/historical/.../events` at 1 credit per day index,
+  `/events/{id}/odds` at 10 per game), `point == 0.5` enforced so a book's 1.5
+  line can never silently price a different bet, per-book de-vig, consensus and
+  FanDuel columns, output in the **exact schema of the existing purchase**.
+- **`--verify GAME_PK` re-buys a game we already own and diffs all 16 columns**
+  (11 credits) — the guard on a four-figure run. Verified on **746409**
+  (2024, betrivers, no FanDuel quote) and **778485** (2025, FanDuel): every
+  column matches, de-vig to 6 decimals.
+- That verify mode **recovered a lost parameter**: the original asked for the
+  snapshot at first pitch **minus 60 minutes**, not 65. `SNAPSHOT_LEAD_MIN`
+  is 60 so both halves of the bench sit on one basis, which is also nearest
+  the live capture (median 57 min out).
+- Resume is not optional — a 577-game run is ~800 calls and will be
+  interrupted; every game is appended and flushed immediately and a re-run
+  skips any `game_pk` already present. `--dry-run` prices a run without
+  spending, `--min-credits` refuses to breach a floor, and the output is
+  written **beside** the original purchase, never appended into it.
+
+### The price budget (measured, spends nothing)
+
+A refit bets different games than the 492 already priced, and an unpriced game
+cannot be evaluated honestly — that is exactly how the -112 placeholder
+flattered 462 bets by +21.34u. Measured over six plausible rebuild variants:
+the exact union needs 3,050 credits; the **envelope** (every game the shipped
+chain rates `p_nrfi < 0.45`) needs **5,770 credits for 577 games** and covers
+**99.5%** of any variant's bet set, so it is reusable for future refits rather
+than a single answer. Operator approved the envelope 2026-09-11. Budget before
+the run: 11,838 credits (22 spent on the two verifications).
+
+### Deferred
+
+- The rebuild itself (park factors rebuilt **together with** a refit — never
+  alone, since the model standardises that input against a frozen std), judged
+  on money at real prices across three splits, against the selection-aware
+  permutation null. Nothing ships without operator sign-off on the evidence.
+- The gate re-derivation rule can collapse a variant's bet set to **zero** —
+  the CIR calibrator flattens many games onto one value and an 87th-percentile
+  cut can land just above the whole plateau. Seen on `no park feature` / 2025.
+  Must be handled before any re-derived-gate result is believed.
+
 ## [2026-09-05h] - T8.44 shipped: no host scores a started game as a new row; MIN@CWS restored; the 09-03 slate is back in git
 
 Operator: "do all three" (on the [2026-09-05g] diagnosis). One ledger row
