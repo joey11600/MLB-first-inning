@@ -1,7 +1,7 @@
 {
   "date": "2026-09-11",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-11T23:39:25Z",
+  "fitted_at": "2026-09-12T00:04:15Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -462,10 +462,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2635,
-      "raw_p_run_b1": 0.2888,
-      "raw_p_nrfi": 0.5238,
-      "calibrated_p_nrfi": 0.5431,
+      "raw_p_run_t1": 0.2629,
+      "raw_p_run_b1": 0.2869,
+      "raw_p_nrfi": 0.5256,
+      "calibrated_p_nrfi": 0.5441,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -475,10 +475,10 @@
       "top_drivers_t1": [
         {
           "name": "wx_humidity",
-          "value": 81.0,
-          "z": 1.446,
+          "value": 77.0,
+          "z": 1.2,
           "weight": -0.0121,
-          "contribution": -0.0175,
+          "contribution": -0.0145,
           "outlier": false
         },
         {
@@ -506,11 +506,11 @@
           "outlier": false
         },
         {
-          "name": "wx_wind_kmh",
-          "value": 25.5,
-          "z": 2.433,
-          "weight": 0.0041,
-          "contribution": 0.01,
+          "name": "wx_temp_c",
+          "value": 18.1,
+          "z": -0.729,
+          "weight": 0.0111,
+          "contribution": -0.0081,
           "outlier": false
         }
       ],
@@ -524,19 +524,11 @@
           "outlier": false
         },
         {
-          "name": "wx_wind_kmh",
-          "value": 25.5,
-          "z": 2.433,
-          "weight": 0.0113,
-          "contribution": 0.0275,
-          "outlier": false
-        },
-        {
           "name": "wx_humidity",
-          "value": 81.0,
-          "z": 1.446,
+          "value": 77.0,
+          "z": 1.2,
           "weight": -0.0176,
-          "contribution": -0.0254,
+          "contribution": -0.0211,
           "outlier": false
         },
         {
@@ -545,6 +537,14 @@
           "z": 1.29,
           "weight": -0.0148,
           "contribution": -0.0191,
+          "outlier": false
+        },
+        {
+          "name": "wx_wind_kmh",
+          "value": 20.0,
+          "z": 1.418,
+          "weight": 0.0113,
+          "contribution": 0.016,
           "outlier": false
         },
         {
@@ -1470,10 +1470,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2851,
-      "raw_p_run_b1": 0.3074,
-      "raw_p_nrfi": 0.4951,
-      "calibrated_p_nrfi": 0.4902,
+      "raw_p_run_t1": 0.2867,
+      "raw_p_run_b1": 0.3093,
+      "raw_p_nrfi": 0.4927,
+      "calibrated_p_nrfi": 0.4873,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
@@ -1506,19 +1506,19 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 75.0,
-          "z": 1.076,
-          "weight": -0.0121,
-          "contribution": -0.013,
-          "outlier": false
-        },
-        {
           "name": "home_whiff_pct_rank",
           "value": 71.0,
           "z": 0.863,
           "weight": -0.0147,
           "contribution": -0.0127,
+          "outlier": false
+        },
+        {
+          "name": "era_gap_t1",
+          "value": 1.385,
+          "z": 0.728,
+          "weight": 0.0118,
+          "contribution": 0.0086,
           "outlier": false
         }
       ],
@@ -1548,19 +1548,19 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 75.0,
-          "z": 1.076,
-          "weight": -0.0176,
-          "contribution": -0.0189,
-          "outlier": false
-        },
-        {
           "name": "era_gap_b1",
           "value": -1.385,
           "z": -0.728,
           "weight": 0.019,
           "contribution": -0.0138,
+          "outlier": false
+        },
+        {
+          "name": "away_p_last10_pitcher_nrfi",
+          "value": 0.6,
+          "z": -0.674,
+          "weight": -0.0178,
+          "contribution": 0.012,
           "outlier": false
         }
       ],
