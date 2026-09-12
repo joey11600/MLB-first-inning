@@ -1,7 +1,7 @@
 {
   "date": "2026-09-12",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-12T21:37:18Z",
+  "fitted_at": "2026-09-12T22:04:36Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -347,10 +347,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2727,
-      "raw_p_run_b1": 0.3009,
-      "raw_p_nrfi": 0.5084,
-      "calibrated_p_nrfi": 0.5238,
+      "raw_p_run_t1": 0.2725,
+      "raw_p_run_b1": 0.3008,
+      "raw_p_nrfi": 0.5087,
+      "calibrated_p_nrfi": 0.5248,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -433,11 +433,11 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 42.0,
-          "z": -0.957,
-          "weight": -0.0176,
-          "contribution": 0.0168,
+          "name": "away_fip",
+          "value": 2.951,
+          "z": -1.315,
+          "weight": 0.0119,
+          "contribution": -0.0156,
           "outlier": false
         }
       ],
@@ -1360,10 +1360,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2642,
-      "raw_p_run_b1": 0.3034,
-      "raw_p_nrfi": 0.5126,
-      "calibrated_p_nrfi": 0.5307,
+      "raw_p_run_t1": 0.2643,
+      "raw_p_run_b1": 0.3028,
+      "raw_p_nrfi": 0.5129,
+      "calibrated_p_nrfi": 0.5312,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -1373,10 +1373,10 @@
       "top_drivers_t1": [
         {
           "name": "wx_humidity",
-          "value": 87.0,
-          "z": 1.816,
+          "value": 83.0,
+          "z": 1.569,
           "weight": -0.0121,
-          "contribution": -0.022,
+          "contribution": -0.019,
           "outlier": false
         },
         {
@@ -1423,10 +1423,18 @@
         },
         {
           "name": "wx_humidity",
-          "value": 87.0,
-          "z": 1.816,
+          "value": 83.0,
+          "z": 1.569,
           "weight": -0.0176,
-          "contribution": -0.0319,
+          "contribution": -0.0276,
+          "outlier": false
+        },
+        {
+          "name": "wx_wind_kmh",
+          "value": 1.0,
+          "z": -2.088,
+          "weight": 0.0113,
+          "contribution": -0.0236,
           "outlier": false
         },
         {
@@ -1435,14 +1443,6 @@
           "z": -0.773,
           "weight": -0.0232,
           "contribution": 0.0179,
-          "outlier": false
-        },
-        {
-          "name": "wx_wind_kmh",
-          "value": 4.3,
-          "z": -1.479,
-          "weight": 0.0113,
-          "contribution": -0.0167,
           "outlier": false
         },
         {
@@ -1472,12 +1472,12 @@
       "matchup": "SEA@OAK",
       "game_pk": "824955",
       "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2811,
-      "raw_p_run_b1": 0.3141,
-      "raw_p_nrfi": 0.4931,
-      "calibrated_p_nrfi": 0.4878,
+      "raw_p_run_t1": 0.2832,
+      "raw_p_run_b1": 0.3108,
+      "raw_p_nrfi": 0.494,
+      "calibrated_p_nrfi": 0.4889,
       "calibrator_band": {
         "band": "bin_3-4",
         "is_flat": false,
@@ -1510,19 +1510,19 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_obp",
-          "value": 0.3096,
-          "z": -1.062,
-          "weight": 0.0067,
-          "contribution": -0.0072,
+          "name": "era_gap_t1",
+          "value": 1.033,
+          "z": 0.541,
+          "weight": 0.0118,
+          "contribution": 0.0064,
           "outlier": false
         },
         {
           "name": "wx_wind_kmh",
-          "value": 20.8,
-          "z": 1.566,
+          "value": 20.2,
+          "z": 1.455,
           "weight": 0.0041,
-          "contribution": 0.0065,
+          "contribution": 0.006,
           "outlier": false
         }
       ],
@@ -1537,10 +1537,18 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 20.8,
-          "z": 1.566,
+          "value": 20.2,
+          "z": 1.455,
           "weight": 0.0113,
-          "contribution": 0.0177,
+          "contribution": 0.0164,
+          "outlier": false
+        },
+        {
+          "name": "home_top3c_iso",
+          "value": 0.1247,
+          "z": -1.214,
+          "weight": 0.0121,
+          "contribution": -0.0148,
           "outlier": false
         },
         {
@@ -1557,14 +1565,6 @@
           "z": -0.541,
           "weight": 0.019,
           "contribution": -0.0103,
-          "outlier": false
-        },
-        {
-          "name": "away_fip",
-          "value": 3.371,
-          "z": -0.829,
-          "weight": 0.0119,
-          "contribution": -0.0099,
           "outlier": false
         }
       ],
