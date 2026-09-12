@@ -87,6 +87,70 @@ the run: 11,838 credits (22 spent on the two verifications).
   cut can land just above the whole plateau. Seen on `no park feature` / 2025.
   Must be handled before any re-derived-gate result is believed.
 
+## [2026-09-12] - the rebuild sweep at real prices: NOTHING wins all three splits
+
+`tools/refit2026/rebuild_sweep.py`. Nine candidates against shipped v3, three
+splits, judged on money at the prices in `data/odds_history/` (1,146 games) —
+the first sweep in this repo that is not scored at a placeholder price.
+**No model, gate, staking rule or ledger row was touched. Nothing is proposed
+for shipping.**
+
+### Verdict — the "all 3?" column is `no` for every candidate
+
+| variant | 2024 | 2025 | 2026 (decides) | all 3? |
+|---|---|---|---|---|
+| park K=150 | -16.08u | +0.90u | -1.00u | no |
+| park K=250 | -16.08u | +0.90u | +0.31u | no |
+| park K=500 | -16.08u | -6.18u | -1.69u | no |
+| park flat / no park feature | -16.58u | +0.39u | -0.15u | no |
+| L2 0.25 | **-22.43u** | +3.12u | **+5.32u** | no |
+| L2 1.00 | +3.66u | -5.95u | -5.17u | no |
+| drop ump | +0.00u | +0.00u | +0.00u | no |
+
+**L2 0.25 is the refutation worth reading.** It is the only candidate whose
+day-level bootstrap CI excludes zero on the deciding split (+5.32u,
+[+0.47, +10.06], P(better) 97%) — and it is -22.43u on 2024 (P=3%). Under the
+`baserate_control` oracle level correction its 2026 gain **collapses
++5.32u -> +0.73u**. It was moving the LEVEL, not creating discrimination,
+which is finding 1 of the 2026-08-20 diagnosis showing up again inside a
+money sweep. Same shape for the park variants: 2024's apparent -16u damage
+becomes **+4 to +5u** once level is controlled.
+
+**The selection-aware null was NOT run, deliberately.** The best variant by
+summed delta is `drop ump` at +0.00u — there is no winner to price. Running a
+null to dignify a non-result would be theatre.
+
+### Measured on the way
+
+- **`fi_park_nrfi_rate` flat == dropping the feature entirely**, to the cent,
+  on every split. A constant column contributes nothing, so "every park at
+  the league mean" and "no park term" are the same model. Worth knowing
+  before anyone proposes the former as a distinct idea.
+- **The umpire feature is inert here and near-inert live.** The column is
+  ABSENT from both 2024 and 2025 backtests, so it trains as a constant and
+  the fitted weight is **exactly 0.000e+00** in both halves — which is why
+  `drop ump` reproduces shipped to the cent. Production is different but ends
+  in the same place: shipped weights are +0.0054 (T1, 13th of 20) and +0.0062
+  (B1, 18th of 20), and since the 2026-08-29 umpire flatten every served
+  value is identical, so the term is a constant offset that cannot reorder
+  any pick. **Dropping it at the next refit is free — it is not a repair.**
+
+### Fixed — a coverage-reporting defect in this session's own tool
+
+`bet_table` returned the table AFTER the quarter-Kelly stake filter, and the
+coverage line printed that as "priced". Three different things: **gated**
+(the model wants the bet) >= **priced** (a real price exists) >= **staked**
+(Kelly funded it). A zero stake is Kelly declining a -EV price — a legitimate
+no-bet, not a data gap. The mislabel read 2025 park-flat as 49.4% priced when
+it is really **80.7%**, and nearly produced a false "this result is
+unreadable" warning. All three counts now print.
+
+Honest coverage: **2024 90-93%, 2025 100%** (80.7% for the park-flat family,
+whose bet set drifts outside the envelope), **2026 78-83%** (the ledger never
+captured a price for those games). Closing the remaining historical gap is 68
+games / 680 credits; 2026's 34 unpriced gated games could also be bought
+historically (~340 credits) if a future sweep needs them.
+
 ## [2026-09-11b] - the envelope is bought, and at real prices the shipped model loses on BOTH held-out seasons
 
 ### Added — 517 more priced games (`data/odds_history/hist_fi_odds_envelope.csv`)
