@@ -336,3 +336,4 @@ date,severity,metric,note
 2026-09-10,MEDIUM,away_pitcher_q=ltd,away_pitcher_q=ltd: today=40.0% baseline=12.5% shift=+27.5%
 2026-09-10,MEDIUM,home_xera_extreme,"home_xera has 1/5 extreme values (outside [2.0, 7.0]); max=5.50"
 2026-09-10,MEDIUM,home_whiff_pct_rank_extreme,"home_whiff_pct_rank has 1/5 extreme values (outside [5.0, 95.0]); max=97.00"
+2026-09-11,MEDIUM,pick_cluster,largest cluster of picks within 0.005 calibrated P(NRFI): 4 (>=4 = MEDIUM; informational -- not predictive of pick quality)
