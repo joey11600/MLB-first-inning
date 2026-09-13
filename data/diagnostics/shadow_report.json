@@ -1,7 +1,7 @@
 {
- "as_of": "2026-09-12T08:05:27Z",
+ "as_of": "2026-09-13T04:30:57Z",
  "since": "2026-09-04",
- "graded_rows": 107,
+ "graded_rows": 122,
  "shadow_model": "v3-ump+fi_form[swap10/K65_pw0]",
  "live": {
   "bets": 9,
@@ -17,15 +17,15 @@
   "booked_staked": 29.0
  },
  "shadow": {
-  "bets": 10,
+  "bets": 11,
   "W": 5,
-  "L": 5,
-  "hit": 0.5,
-  "stated": 0.6313,
-  "break_even": 0.565889675679679,
-  "flat_units": -1.3267015655033974,
-  "same_rule_units": -4.938851350580418,
-  "same_rule_staked": 38.0
+  "L": 6,
+  "hit": 0.45454545454545453,
+  "stated": 0.6318272727272727,
+  "break_even": 0.5630709525206382,
+  "flat_units": -2.3267015655033974,
+  "same_rule_units": -9.938851350580418,
+  "same_rule_staked": 43.0
  },
  "no1": {
   "live": {
@@ -35,10 +35,10 @@
    "same_rule_units": -8.501653282947567
   },
   "shadow": {
-   "nights": 7,
+   "nights": 8,
    "W": 3,
-   "hit": 0.42857142857142855,
-   "same_rule_units": -7.334986616280901
+   "hit": 0.375,
+   "same_rule_units": -12.3349866162809
   },
   "nights_both": 6,
   "live_on_both": {
@@ -56,13 +56,13 @@
   "same_game_on_both": 6
  },
  "label_agreement": {
-  "live=LEAN/NRFI shadow=LEAN/NRFI": 46,
-  "live=PASS shadow=PASS": 35,
-  "live=LEAN/NRFI shadow=PASS": 11,
+  "live=LEAN/NRFI shadow=LEAN/NRFI": 55,
+  "live=PASS shadow=PASS": 37,
+  "live=LEAN/NRFI shadow=PASS": 14,
   "live=STRONG/YRFI shadow=STRONG/YRFI": 9,
   "live=PASS shadow=LEAN/YRFI": 4,
-  "live=LEAN/YRFI shadow=LEAN/YRFI": 1,
-  "live=LEAN/YRFI shadow=STRONG/YRFI": 1
+  "live=LEAN/YRFI shadow=STRONG/YRFI": 2,
+  "live=LEAN/YRFI shadow=LEAN/YRFI": 1
  },
  "paired_nights": [
   {
@@ -106,11 +106,21 @@
    "live": "-",
    "shadow": "KC@BOS W +4.17u",
    "same_game": false
+  },
+  {
+   "date": "2026-09-12",
+   "live": "-",
+   "shadow": "TEX@ARI L -5.00u",
+   "same_game": false
   }
  ],
  "tonight": {
-  "date": "2026-09-12",
-  "live_strong": [],
-  "shadow_strong": []
+  "date": "2026-09-13",
+  "live_strong": [
+   "LAA@WSH"
+  ],
+  "shadow_strong": [
+   "LAA@WSH"
+  ]
  }
 }
