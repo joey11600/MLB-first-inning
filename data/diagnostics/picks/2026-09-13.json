@@ -1,7 +1,7 @@
 {
   "date": "2026-09-13",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-13T20:22:37Z",
+  "fitted_at": "2026-09-13T21:05:32Z",
   "n_picks": 15,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -459,10 +459,10 @@
       "pick_side": "NRFI",
       "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2634,
-      "raw_p_run_b1": 0.294,
-      "raw_p_nrfi": 0.5201,
-      "calibrated_p_nrfi": 0.541,
+      "raw_p_run_t1": 0.2633,
+      "raw_p_run_b1": 0.2936,
+      "raw_p_nrfi": 0.5204,
+      "calibrated_p_nrfi": 0.5412,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -514,10 +514,10 @@
       "top_drivers_b1": [
         {
           "name": "wx_wind_kmh",
-          "value": 26.4,
-          "z": 2.599,
+          "value": 25.8,
+          "z": 2.488,
           "weight": 0.0113,
-          "contribution": 0.0294,
+          "contribution": 0.0281,
           "outlier": false
         },
         {
@@ -1469,7 +1469,7 @@
       "game_pk": "824952",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.2801,
       "raw_p_run_b1": 0.3269,
       "raw_p_nrfi": 0.4846,
@@ -1581,7 +1581,7 @@
       "game_pk": "825033",
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
-      "graded_result": "",
+      "graded_result": "PASS",
       "raw_p_run_t1": 0.279,
       "raw_p_run_b1": 0.3048,
       "raw_p_nrfi": 0.5013,
