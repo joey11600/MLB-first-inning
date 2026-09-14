@@ -1,20 +1,20 @@
 {
   "date": "2026-09-14",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-14T19:45:44Z",
+  "fitted_at": "2026-09-14T20:09:44Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
     {
       "matchup": "DET@TOR",
       "game_pk": "822765",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2604,
+      "raw_p_run_t1": 0.2606,
       "raw_p_run_b1": 0.3009,
-      "raw_p_nrfi": 0.5171,
-      "calibrated_p_nrfi": 0.5369,
+      "raw_p_nrfi": 0.517,
+      "calibrated_p_nrfi": 0.5368,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -55,11 +55,11 @@
           "outlier": false
         },
         {
-          "name": "away_top3c_obp",
-          "value": 0.316,
-          "z": -0.841,
-          "weight": 0.0067,
-          "contribution": -0.0057,
+          "name": "away_top3c_iso",
+          "value": 0.1404,
+          "z": -0.86,
+          "weight": 0.0137,
+          "contribution": -0.0118,
           "outlier": false
         }
       ],
@@ -682,13 +682,13 @@
     {
       "matchup": "CWS@CLE",
       "game_pk": "824386",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "NRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2581,
+      "raw_p_run_t1": 0.2604,
       "raw_p_run_b1": 0.2947,
-      "raw_p_nrfi": 0.5233,
-      "calibrated_p_nrfi": 0.5428,
+      "raw_p_nrfi": 0.5216,
+      "calibrated_p_nrfi": 0.5419,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -908,15 +908,15 @@
     {
       "matchup": "ATL@CHC",
       "game_pk": "824629",
-      "pick_side": "PASS",
-      "pick_strength": "LINEUP PENDING",
+      "pick_side": "YRFI",
+      "pick_strength": "LEAN",
       "graded_result": "",
-      "raw_p_run_t1": 0.2698,
-      "raw_p_run_b1": 0.3294,
-      "raw_p_nrfi": 0.4897,
-      "calibrated_p_nrfi": 0.4835,
+      "raw_p_run_t1": 0.274,
+      "raw_p_run_b1": 0.335,
+      "raw_p_nrfi": 0.4828,
+      "calibrated_p_nrfi": 0.4582,
       "calibrator_band": {
-        "band": "bin_3-4",
+        "band": "bin_1-2",
         "is_flat": false,
         "flat_size": 2,
         "flat_rate": null
@@ -955,11 +955,11 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 46.0,
-          "z": -0.71,
-          "weight": -0.0121,
-          "contribution": 0.0086,
+          "name": "away_top3c_iso",
+          "value": 0.2113,
+          "z": 0.726,
+          "weight": 0.0137,
+          "contribution": 0.0099,
           "outlier": false
         }
       ],
