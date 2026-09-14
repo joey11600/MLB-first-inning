@@ -1,7 +1,7 @@
 {
   "date": "2026-09-14",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-14T17:04:05Z",
+  "fitted_at": "2026-09-14T17:49:41Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -571,9 +571,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3207,
-      "raw_p_run_b1": 0.3345,
-      "raw_p_nrfi": 0.4521,
+      "raw_p_run_t1": 0.3203,
+      "raw_p_run_b1": 0.3344,
+      "raw_p_nrfi": 0.4524,
       "calibrated_p_nrfi": 0.3483,
       "calibrator_band": {
         "band": "below_min",
@@ -606,10 +606,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 21.0,
-          "z": -2.251,
+          "value": 22.0,
+          "z": -2.189,
           "weight": -0.0121,
-          "contribution": 0.0273,
+          "contribution": 0.0265,
           "outlier": false
         },
         {
@@ -632,18 +632,18 @@
         },
         {
           "name": "wx_humidity",
-          "value": 21.0,
-          "z": -2.251,
+          "value": 22.0,
+          "z": -2.189,
           "weight": -0.0176,
-          "contribution": 0.0395,
+          "contribution": 0.0384,
           "outlier": false
         },
         {
           "name": "wx_wind_kmh",
-          "value": 22.8,
-          "z": 1.935,
+          "value": 24.4,
+          "z": 2.23,
           "weight": 0.0113,
-          "contribution": 0.0219,
+          "contribution": 0.0252,
           "outlier": false
         },
         {
@@ -656,10 +656,10 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 30.1,
-          "z": 1.421,
+          "value": 29.0,
+          "z": 1.224,
           "weight": 0.0125,
-          "contribution": 0.0178,
+          "contribution": 0.0153,
           "outlier": false
         }
       ],
