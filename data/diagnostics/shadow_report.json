@@ -1,7 +1,7 @@
 {
- "as_of": "2026-09-13T08:29:55Z",
+ "as_of": "2026-09-14T04:30:55Z",
  "since": "2026-09-04",
- "graded_rows": 122,
+ "graded_rows": 137,
  "shadow_model": "v3-ump+fi_form[swap10/K65_pw0]",
  "live": {
   "bets": 9,
@@ -17,15 +17,15 @@
   "booked_staked": 29.0
  },
  "shadow": {
-  "bets": 11,
+  "bets": 12,
   "W": 5,
-  "L": 6,
-  "hit": 0.45454545454545453,
-  "stated": 0.6318272727272727,
-  "break_even": 0.5630709525206382,
-  "flat_units": -2.3267015655033974,
-  "same_rule_units": -9.938851350580418,
-  "same_rule_staked": 43.0
+  "L": 7,
+  "hit": 0.4166666666666667,
+  "stated": 0.6284583333333333,
+  "break_even": 0.5624446694402148,
+  "flat_units": -3.3267015655033974,
+  "same_rule_units": -11.938851350580418,
+  "same_rule_staked": 45.0
  },
  "no1": {
   "live": {
@@ -35,10 +35,10 @@
    "same_rule_units": -8.501653282947567
   },
   "shadow": {
-   "nights": 8,
+   "nights": 9,
    "W": 3,
-   "hit": 0.375,
-   "same_rule_units": -12.3349866162809
+   "hit": 0.3333333333333333,
+   "same_rule_units": -14.3349866162809
   },
   "nights_both": 6,
   "live_on_both": {
@@ -56,12 +56,12 @@
   "same_game_on_both": 6
  },
  "label_agreement": {
-  "live=LEAN/NRFI shadow=LEAN/NRFI": 55,
-  "live=PASS shadow=PASS": 37,
-  "live=LEAN/NRFI shadow=PASS": 14,
+  "live=LEAN/NRFI shadow=LEAN/NRFI": 62,
+  "live=PASS shadow=PASS": 41,
+  "live=LEAN/NRFI shadow=PASS": 16,
   "live=STRONG/YRFI shadow=STRONG/YRFI": 9,
-  "live=PASS shadow=LEAN/YRFI": 4,
-  "live=LEAN/YRFI shadow=STRONG/YRFI": 2,
+  "live=PASS shadow=LEAN/YRFI": 5,
+  "live=LEAN/YRFI shadow=STRONG/YRFI": 3,
   "live=LEAN/YRFI shadow=LEAN/YRFI": 1
  },
  "paired_nights": [
@@ -112,11 +112,21 @@
    "live": "-",
    "shadow": "TEX@ARI L -5.00u",
    "same_game": false
+  },
+  {
+   "date": "2026-09-13",
+   "live": "-",
+   "shadow": "LAA@WSH L -2.00u",
+   "same_game": false
   }
  ],
  "tonight": {
-  "date": "2026-09-13",
-  "live_strong": [],
-  "shadow_strong": []
+  "date": "2026-09-14",
+  "live_strong": [
+   "SD@COL"
+  ],
+  "shadow_strong": [
+   "SD@COL"
+  ]
  }
 }
