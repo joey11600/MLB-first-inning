@@ -1,7 +1,7 @@
 {
   "date": "2026-09-14",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-14T17:49:41Z",
+  "fitted_at": "2026-09-14T18:32:44Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -123,10 +123,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.265,
-      "raw_p_run_b1": 0.2978,
-      "raw_p_nrfi": 0.5161,
-      "calibrated_p_nrfi": 0.5356,
+      "raw_p_run_t1": 0.2648,
+      "raw_p_run_b1": 0.2976,
+      "raw_p_nrfi": 0.5164,
+      "calibrated_p_nrfi": 0.536,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -143,19 +143,11 @@
           "outlier": false
         },
         {
-          "name": "wx_humidity",
-          "value": 37.0,
-          "z": -1.265,
-          "weight": -0.0121,
-          "contribution": 0.0153,
-          "outlier": false
-        },
-        {
           "name": "wx_temp_c",
-          "value": 29.7,
-          "z": 1.349,
+          "value": 29.8,
+          "z": 1.367,
           "weight": 0.0111,
-          "contribution": 0.015,
+          "contribution": 0.0152,
           "outlier": false
         },
         {
@@ -164,6 +156,14 @@
           "z": -0.577,
           "weight": 0.0234,
           "contribution": -0.0135,
+          "outlier": false
+        },
+        {
+          "name": "wx_humidity",
+          "value": 40.0,
+          "z": -1.08,
+          "weight": -0.0121,
+          "contribution": 0.0131,
           "outlier": false
         },
         {
@@ -186,10 +186,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 37.0,
-          "z": -1.265,
+          "value": 40.0,
+          "z": -1.08,
           "weight": -0.0176,
-          "contribution": 0.0222,
+          "contribution": 0.019,
           "outlier": false
         },
         {
@@ -202,18 +202,18 @@
         },
         {
           "name": "wx_temp_c",
-          "value": 29.7,
-          "z": 1.349,
+          "value": 29.8,
+          "z": 1.367,
           "weight": 0.0125,
-          "contribution": 0.0169,
+          "contribution": 0.0171,
           "outlier": false
         },
         {
-          "name": "home_top3_ops_vs_oppHand",
-          "value": 0.72,
-          "z": -0.553,
-          "weight": 0.0173,
-          "contribution": -0.0096,
+          "name": "wx_wind_kmh",
+          "value": 17.8,
+          "z": 1.012,
+          "weight": 0.0113,
+          "contribution": 0.0114,
           "outlier": false
         }
       ],
@@ -235,10 +235,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2721,
-      "raw_p_run_b1": 0.3085,
-      "raw_p_nrfi": 0.5034,
-      "calibrated_p_nrfi": 0.507,
+      "raw_p_run_t1": 0.2723,
+      "raw_p_run_b1": 0.3088,
+      "raw_p_nrfi": 0.503,
+      "calibrated_p_nrfi": 0.5058,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -264,10 +264,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 47.0,
-          "z": -0.649,
+          "value": 46.0,
+          "z": -0.71,
           "weight": -0.0121,
-          "contribution": 0.0079,
+          "contribution": 0.0086,
           "outlier": false
         },
         {
@@ -306,10 +306,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 47.0,
-          "z": -0.649,
+          "value": 46.0,
+          "z": -0.71,
           "weight": -0.0176,
-          "contribution": 0.0114,
+          "contribution": 0.0125,
           "outlier": false
         },
         {
@@ -347,10 +347,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2629,
-      "raw_p_run_b1": 0.3002,
-      "raw_p_nrfi": 0.5158,
-      "calibrated_p_nrfi": 0.5352,
+      "raw_p_run_t1": 0.2617,
+      "raw_p_run_b1": 0.2979,
+      "raw_p_nrfi": 0.5184,
+      "calibrated_p_nrfi": 0.5388,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -360,10 +360,10 @@
       "top_drivers_t1": [
         {
           "name": "wx_humidity",
-          "value": 88.0,
-          "z": 1.878,
+          "value": 92.0,
+          "z": 2.124,
           "weight": -0.0121,
-          "contribution": -0.0228,
+          "contribution": -0.0257,
           "outlier": false
         },
         {
@@ -375,19 +375,19 @@
           "outlier": false
         },
         {
+          "name": "wx_temp_c",
+          "value": 14.9,
+          "z": -1.302,
+          "weight": 0.0111,
+          "contribution": -0.0144,
+          "outlier": false
+        },
+        {
           "name": "away_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.577,
           "weight": 0.0234,
           "contribution": -0.0135,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 15.6,
-          "z": -1.177,
-          "weight": 0.0111,
-          "contribution": -0.013,
           "outlier": false
         },
         {
@@ -402,26 +402,26 @@
       "top_drivers_b1": [
         {
           "name": "wx_humidity",
-          "value": 88.0,
-          "z": 1.878,
+          "value": 92.0,
+          "z": 2.124,
           "weight": -0.0176,
-          "contribution": -0.033,
+          "contribution": -0.0373,
           "outlier": false
         },
         {
           "name": "wx_wind_kmh",
-          "value": 24.4,
-          "z": 2.23,
+          "value": 21.8,
+          "z": 1.75,
           "weight": 0.0113,
-          "contribution": 0.0252,
+          "contribution": 0.0198,
           "outlier": false
         },
         {
           "name": "wx_temp_c",
-          "value": 15.6,
-          "z": -1.177,
+          "value": 14.9,
+          "z": -1.302,
           "weight": 0.0125,
-          "contribution": -0.0147,
+          "contribution": -0.0163,
           "outlier": false
         },
         {
@@ -571,9 +571,9 @@
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
       "graded_result": "",
-      "raw_p_run_t1": 0.3203,
-      "raw_p_run_b1": 0.3344,
-      "raw_p_nrfi": 0.4524,
+      "raw_p_run_t1": 0.3219,
+      "raw_p_run_b1": 0.3372,
+      "raw_p_nrfi": 0.4494,
       "calibrated_p_nrfi": 0.3483,
       "calibrator_band": {
         "band": "below_min",
@@ -606,10 +606,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 22.0,
-          "z": -2.189,
+          "value": 20.0,
+          "z": -2.313,
           "weight": -0.0121,
-          "contribution": 0.0265,
+          "contribution": 0.028,
           "outlier": false
         },
         {
@@ -632,18 +632,26 @@
         },
         {
           "name": "wx_humidity",
-          "value": 22.0,
-          "z": -2.189,
+          "value": 20.0,
+          "z": -2.313,
           "weight": -0.0176,
-          "contribution": 0.0384,
+          "contribution": 0.0406,
           "outlier": false
         },
         {
           "name": "wx_wind_kmh",
-          "value": 24.4,
-          "z": 2.23,
+          "value": 27.3,
+          "z": 2.765,
           "weight": 0.0113,
-          "contribution": 0.0252,
+          "contribution": 0.0312,
+          "outlier": false
+        },
+        {
+          "name": "wx_temp_c",
+          "value": 30.9,
+          "z": 1.564,
+          "weight": 0.0125,
+          "contribution": 0.0196,
           "outlier": false
         },
         {
@@ -652,14 +660,6 @@
           "z": 1.032,
           "weight": -0.0178,
           "contribution": -0.0184,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 29.0,
-          "z": 1.224,
-          "weight": 0.0125,
-          "contribution": 0.0153,
           "outlier": false
         }
       ],
@@ -684,10 +684,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2575,
-      "raw_p_run_b1": 0.2946,
-      "raw_p_nrfi": 0.5238,
-      "calibrated_p_nrfi": 0.5431,
+      "raw_p_run_t1": 0.258,
+      "raw_p_run_b1": 0.2948,
+      "raw_p_nrfi": 0.5233,
+      "calibrated_p_nrfi": 0.5428,
       "calibrator_band": {
         "band": "bin_6-7",
         "is_flat": false,
@@ -720,19 +720,19 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 45.0,
+          "z": -0.772,
+          "weight": -0.0121,
+          "contribution": 0.0094,
+          "outlier": false
+        },
+        {
           "name": "home_fip",
           "value": 3.72,
           "z": -0.412,
           "weight": 0.0194,
           "contribution": -0.008,
-          "outlier": false
-        },
-        {
-          "name": "home_avg_ip_per_start",
-          "value": 4.87,
-          "z": -0.386,
-          "weight": -0.0182,
-          "contribution": 0.007,
           "outlier": false
         }
       ],
@@ -770,11 +770,11 @@
           "outlier": false
         },
         {
-          "name": "fi_park_nrfi_rate",
-          "value": 0.5262,
-          "z": 0.464,
-          "weight": -0.0331,
-          "contribution": -0.0154,
+          "name": "home_top3c_iso",
+          "value": 0.1203,
+          "z": -1.313,
+          "weight": 0.0121,
+          "contribution": -0.016,
           "outlier": false
         }
       ],
@@ -798,10 +798,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2792,
-      "raw_p_run_b1": 0.2826,
-      "raw_p_nrfi": 0.5171,
-      "calibrated_p_nrfi": 0.537,
+      "raw_p_run_t1": 0.2795,
+      "raw_p_run_b1": 0.2832,
+      "raw_p_nrfi": 0.5165,
+      "calibrated_p_nrfi": 0.5361,
       "calibrator_band": {
         "band": "bin_5-6",
         "is_flat": false,
@@ -818,19 +818,19 @@
           "outlier": false
         },
         {
+          "name": "wx_humidity",
+          "value": 39.0,
+          "z": -1.142,
+          "weight": -0.0121,
+          "contribution": 0.0138,
+          "outlier": false
+        },
+        {
           "name": "away_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.577,
           "weight": 0.0234,
           "contribution": -0.0135,
-          "outlier": false
-        },
-        {
-          "name": "wx_humidity",
-          "value": 40.0,
-          "z": -1.08,
-          "weight": -0.0121,
-          "contribution": 0.0131,
           "outlier": false
         },
         {
@@ -869,10 +869,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 40.0,
-          "z": -1.08,
+          "value": 39.0,
+          "z": -1.142,
           "weight": -0.0176,
-          "contribution": 0.019,
+          "contribution": 0.02,
           "outlier": false
         },
         {
@@ -910,10 +910,10 @@
       "pick_side": "PASS",
       "pick_strength": "LINEUP PENDING",
       "graded_result": "",
-      "raw_p_run_t1": 0.2701,
-      "raw_p_run_b1": 0.3305,
-      "raw_p_nrfi": 0.4886,
-      "calibrated_p_nrfi": 0.4798,
+      "raw_p_run_t1": 0.2699,
+      "raw_p_run_b1": 0.3298,
+      "raw_p_nrfi": 0.4893,
+      "calibrated_p_nrfi": 0.4822,
       "calibrator_band": {
         "band": "bin_2-3",
         "is_flat": false,
@@ -954,11 +954,11 @@
           "outlier": false
         },
         {
-          "name": "home_avg_ip_per_start",
-          "value": 4.8,
-          "z": -0.465,
-          "weight": -0.0182,
-          "contribution": 0.0085,
+          "name": "wx_humidity",
+          "value": 46.0,
+          "z": -0.71,
+          "weight": -0.0121,
+          "contribution": 0.0086,
           "outlier": false
         }
       ],
@@ -981,10 +981,10 @@
         },
         {
           "name": "wx_wind_kmh",
-          "value": 22.4,
-          "z": 1.861,
+          "value": 20.4,
+          "z": 1.492,
           "weight": 0.0113,
-          "contribution": 0.021,
+          "contribution": 0.0169,
           "outlier": false
         },
         {
@@ -997,10 +997,10 @@
         },
         {
           "name": "wx_humidity",
-          "value": 47.0,
-          "z": -0.649,
+          "value": 46.0,
+          "z": -0.71,
           "weight": -0.0176,
-          "contribution": 0.0114,
+          "contribution": 0.0125,
           "outlier": false
         }
       ],
