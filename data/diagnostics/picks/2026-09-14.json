@@ -1,7 +1,7 @@
 {
   "date": "2026-09-14",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-15T00:34:19Z",
+  "fitted_at": "2026-09-15T01:04:29Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -459,10 +459,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2634,
-      "raw_p_run_b1": 0.3163,
-      "raw_p_nrfi": 0.5036,
-      "calibrated_p_nrfi": 0.5078,
+      "raw_p_run_t1": 0.2639,
+      "raw_p_run_b1": 0.3168,
+      "raw_p_nrfi": 0.5029,
+      "calibrated_p_nrfi": 0.5053,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -529,19 +529,19 @@
           "outlier": false
         },
         {
+          "name": "wx_temp_c",
+          "value": 27.4,
+          "z": 0.937,
+          "weight": 0.0125,
+          "contribution": 0.0117,
+          "outlier": false
+        },
+        {
           "name": "home_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.553,
           "weight": 0.0173,
           "contribution": -0.0096,
-          "outlier": false
-        },
-        {
-          "name": "wx_temp_c",
-          "value": 26.3,
-          "z": 0.74,
-          "weight": 0.0125,
-          "contribution": 0.0093,
           "outlier": false
         },
         {
@@ -570,7 +570,7 @@
       "game_pk": "824308",
       "pick_side": "YRFI",
       "pick_strength": "STRONG",
-      "graded_result": "",
+      "graded_result": "WIN",
       "raw_p_run_t1": 0.323,
       "raw_p_run_b1": 0.3402,
       "raw_p_nrfi": 0.4467,
