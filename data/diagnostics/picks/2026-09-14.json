@@ -1,7 +1,7 @@
 {
   "date": "2026-09-14",
   "model_version": "V2.2",
-  "fitted_at": "2026-09-15T00:04:22Z",
+  "fitted_at": "2026-09-15T00:34:19Z",
   "n_picks": 10,
   "schema_note": "Each pick entry has top-5 LR feature contributions per half, calibrator-band info, raw-vs-priors-pooled Statcast comparison, and warnings list.  Sort by abs(contribution) to find dominant drivers.",
   "picks": [
@@ -459,10 +459,10 @@
       "pick_side": "PASS",
       "pick_strength": "NO EDGE",
       "graded_result": "",
-      "raw_p_run_t1": 0.2639,
-      "raw_p_run_b1": 0.3159,
+      "raw_p_run_t1": 0.2634,
+      "raw_p_run_b1": 0.3163,
       "raw_p_nrfi": 0.5036,
-      "calibrated_p_nrfi": 0.5077,
+      "calibrated_p_nrfi": 0.5078,
       "calibrator_band": {
         "band": "bin_4-5",
         "is_flat": false,
@@ -529,19 +529,19 @@
           "outlier": false
         },
         {
-          "name": "wx_temp_c",
-          "value": 27.7,
-          "z": 0.991,
-          "weight": 0.0125,
-          "contribution": 0.0124,
-          "outlier": false
-        },
-        {
           "name": "home_top3_ops_vs_oppHand",
           "value": 0.72,
           "z": -0.553,
           "weight": 0.0173,
           "contribution": -0.0096,
+          "outlier": false
+        },
+        {
+          "name": "wx_temp_c",
+          "value": 26.3,
+          "z": 0.74,
+          "weight": 0.0125,
+          "contribution": 0.0093,
           "outlier": false
         },
         {
